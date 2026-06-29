@@ -68,6 +68,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'waiverSchedule', 'irEligibleDesignations', 'defenseMode', 'lockDay',
     'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds', 'playoffFormat', 'weeksPerRound', 'positionLimits', 'mlbSpCap',
     'duesAmount', 'divisions', 'sportNames', 'championshipNames', 'championshipLogos', 'breakWeeks',
+    'keeperEnabled', 'keeperCount', 'salaryCapEnabled', 'salaryCap', 'capMode',
   ] as const
 
   const update: Record<string, unknown> = {}

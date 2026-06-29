@@ -219,6 +219,7 @@ CREATE TABLE rosters (
   salary INTEGER DEFAULT 0,
   contract_years INTEGER,
   on_block INTEGER DEFAULT 0,
+  is_keeper INTEGER DEFAULT 0,
   acquired_at TEXT DEFAULT (datetime('now')),
   UNIQUE(team_id, player_id)
 );

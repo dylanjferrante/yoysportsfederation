@@ -125,6 +125,8 @@ export default function CommissionerSettings() {
         waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, irEligibleDesignations: irDesigObj, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
         playoffFormat: form.playoffFormat, weeksPerRound: form.weeksPerRound,
+        keeperEnabled: form.keeperEnabled, keeperCount: form.keeperCount,
+        salaryCapEnabled: form.salaryCapEnabled, salaryCap: form.salaryCap, capMode: form.capMode,
         sportSchedule: buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj, startWeeksObj),
       }),
     })
@@ -566,6 +568,45 @@ export default function CommissionerSettings() {
                   )
                 })}
               </div>
+            </div>
+
+            {/* Keepers */}
+            <div className="border-t border-slate-100 pt-4">
+              <label className="flex items-center gap-2 mb-2">
+                <input type="checkbox" checked={!!form.keeperEnabled} onChange={e => set('keeperEnabled', e.target.checked)} />
+                <span className="font-semibold text-slate-900">Enable keepers</span>
+              </label>
+              <p className="text-xs text-slate-500 mb-2">Let each franchise protect a set number of players per sport heading into the next season&apos;s draft. Owners flag keepers from their team page.</p>
+              {form.keeperEnabled && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600">Keepers allowed per franchise, per sport</span>
+                  <input type="number" min={0} max={30} value={form.keeperCount ?? 0} onChange={e => set('keeperCount', Math.max(0, +e.target.value))} className="input w-20 text-right text-sm" />
+                </div>
+              )}
+            </div>
+
+            {/* Salary cap */}
+            <div className="border-t border-slate-100 pt-4">
+              <label className="flex items-center gap-2 mb-2">
+                <input type="checkbox" checked={!!form.salaryCapEnabled} onChange={e => set('salaryCapEnabled', e.target.checked)} />
+                <span className="font-semibold text-slate-900">Enable salary cap</span>
+              </label>
+              <p className="text-xs text-slate-500 mb-2">Track player salaries and contract years for a dynasty cap. Each franchise&apos;s total salary may not exceed the cap.</p>
+              {form.salaryCapEnabled && (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Salary cap (total)</label>
+                    <input type="number" min={0} step={1} value={form.salaryCap ?? 0} onChange={e => set('salaryCap', Math.max(0, +e.target.value))} className="input w-full text-sm" />
+                  </div>
+                  <div>
+                    <label className="label">Cap mode</label>
+                    <select className="select" value={form.capMode ?? 'SOFT'} onChange={e => set('capMode', e.target.value)}>
+                      <option value="SOFT">Soft (warn over cap)</option>
+                      <option value="HARD">Hard (block moves over cap)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

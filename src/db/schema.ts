@@ -216,6 +216,7 @@ export const rosters = sqliteTable('rosters', {
   salary: integer('salary').default(0),          // contract salary (cap leagues)
   contractYears: integer('contract_years'),       // remaining contract years
   onBlock: integer('on_block', { mode: 'boolean' }).default(false), // trade block
+  isKeeper: integer('is_keeper', { mode: 'boolean' }).default(false), // designated keeper for next season
   acquiredAt: text('acquired_at').default(sql`(datetime('now'))`),
 }, (t) => ({
   uniq: uniqueIndex('roster_uniq').on(t.teamId, t.playerId),

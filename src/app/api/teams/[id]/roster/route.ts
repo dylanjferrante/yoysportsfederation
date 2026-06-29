@@ -28,7 +28,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   const roster = await db
     .select({
-      rosterId: rosters.id, slot: rosters.slot, sport: rosters.sport, onBlock: rosters.onBlock,
+      rosterId: rosters.id, slot: rosters.slot, sport: rosters.sport, onBlock: rosters.onBlock, isKeeper: rosters.isKeeper,
       id: players.id, name: players.name, position: players.position,
       realTeam: players.realTeam, realTeamAbbr: players.realTeamAbbr, status: players.status,
       injuryNote: players.injuryNote, byeWeek: players.byeWeek,
@@ -100,6 +100,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   return NextResponse.json({
     team, players: enriched, picks, managers,
     rosterSettings: safeParse(league?.rosterSettings, {}),
+    keeperEnabled: !!league?.keeperEnabled, keeperCount: league?.keeperCount ?? 0,
     canManage, isOwner, isCommish, isCoManager,
   })
 }
@@ -116,7 +117,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (team.userId !== session.user.id && league?.commissionerId !== session.user.id && !(await isTeamManager(id, session.user.id)))
     return NextResponse.json({ error: 'Not your franchise' }, { status: 403 })
 
-  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean }
+  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean; isKeeper?: boolean }
 
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
     // Validate the player is eligible for the requested slot.
@@ -151,6 +152,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (body.action === 'SET_BLOCK' && body.rosterId) {
     await db.update(rosters).set({ onBlock: !!body.onBlock }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
+    return NextResponse.json({ ok: true })
+  }
+
+  if (body.action === 'SET_KEEPER' && body.rosterId) {
+    if (!league?.keeperEnabled) return NextResponse.json({ error: 'Keepers are not enabled in this league' }, { status: 400 })
+    const [row] = await db.select({ sport: rosters.sport }).from(rosters).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
+    if (!row) return NextResponse.json({ error: 'Not on roster' }, { status: 400 })
+    // Enforce the per-sport keeper limit when designating a new keeper.
+    if (body.isKeeper) {
+      const kept = await db.select({ id: rosters.id }).from(rosters)
+        .where(and(eq(rosters.teamId, id), eq(rosters.sport, row.sport), eq(rosters.isKeeper, true)))
+      if (kept.length >= (league.keeperCount ?? 0))
+        return NextResponse.json({ error: `Keeper limit reached: max ${league.keeperCount} in ${row.sport}` }, { status: 400 })
+    }
+    await db.update(rosters).set({ isKeeper: !!body.isKeeper }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     return NextResponse.json({ ok: true })
   }
 
