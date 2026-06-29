@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
+import DuesPanel from '../DuesPanel'
 
 const ALL_SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
 const TABS = ['General', 'Sports & Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation']
@@ -142,6 +143,10 @@ export default function CommissionerSettings() {
                 </div>
               </div>
               <div className="sm:col-span-2"><label className="label">Description</label><textarea className="input h-20 resize-none" value={form.description ?? ''} onChange={e => set('description', e.target.value)} /></div>
+            </div>
+            <div className="pt-2">
+              <h4 className="font-semibold text-slate-900 mb-2 text-sm">Dues Tracker</h4>
+              <DuesPanel leagueId={params.id as string} isCommissioner />
             </div>
           </>
         )}

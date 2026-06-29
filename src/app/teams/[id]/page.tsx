@@ -5,8 +5,15 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 import { eligibleSlots } from '@/lib/defaults'
+import { boxScoreColumns } from '@/lib/scoring-categories'
+import { oppLabel } from '@/lib/realschedule'
 
-type P = { rosterId: string; slot: string; sport: string; id: string; name: string; position: string; realTeam: string; status: string; seasonPoints: number }
+type P = {
+  rosterId: string; slot: string; sport: string; id: string; name: string; position: string
+  realTeam: string; realTeamAbbr: string | null; status: string; injuryNote: string | null; byeWeek: number | null
+  seasonPoints: number; projectedPoints: number; weeklyAvg: number
+  gp: number; lastPts: number | null; seasonStats: Record<string, number>; opp: { opp: string; home: boolean } | null
+}
 type Pick = { id: string; sport: string | null; round: number; year: number }
 type Team = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; wordmark: string | null; primaryColor: string; secondaryColor: string; leagueId: string; userId: string; ownerName: string | null }
 type FA = { id: string; name: string; position: string; realTeam: string; seasonPoints: number; status: string }
@@ -122,23 +129,30 @@ export default function TeamPage() {
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 card overflow-hidden">
               <div className="card-header"><h2 className="font-semibold text-slate-900">{sportMeta(sport).emoji} {sport} Roster</h2></div>
-              <div className="max-h-[34rem] overflow-y-auto">
+              <div className="max-h-[34rem] overflow-auto">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-slate-50">
-                    <tr className="text-xs text-slate-400 border-b border-slate-100">
-                      <th className="text-left px-3 py-2 font-medium">Slot</th>
-                      <th className="text-left px-2 py-2 font-medium">Player</th>
-                      <th className="text-center px-2 py-2 font-medium">Pts</th>
-                      {canManage && <th className="text-right px-3 py-2 font-medium">Manage</th>}
+                  <thead className="sticky top-0 z-10 bg-slate-50">
+                    <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                      <th className="text-left px-2 py-2 font-semibold">Slot</th>
+                      <th className="text-left px-2 py-2 font-semibold sticky left-0 bg-slate-50">Player</th>
+                      <th className="text-center px-1.5 py-2 font-semibold">Opp</th>
+                      <th className="text-right px-1.5 py-2 font-semibold">Proj</th>
+                      <th className="text-right px-1.5 py-2 font-semibold">Last</th>
+                      <th className="text-right px-1.5 py-2 font-semibold">Avg</th>
+                      <th className="text-right px-1.5 py-2 font-semibold">GP</th>
+                      <th className="text-right px-2 py-2 font-semibold">Pts</th>
+                      {boxScoreColumns(sport).map(c => <th key={c.label} className="text-right px-1.5 py-2 font-semibold whitespace-nowrap">{c.label}</th>)}
+                      {canManage && <th className="text-right px-3 py-2 font-semibold"></th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {rosterForSport.map(p => {
                       const slots = eligibleSlots(p.position, (data.rosterSettings ?? {})[sport] ?? {})
                       const open = openSlot === p.rosterId
+                      const cols = boxScoreColumns(sport)
                       return (
                         <tr key={p.rosterId} className={`hover:bg-slate-50 ${STARTER(p.slot) ? '' : 'bg-slate-50/40'}`}>
-                          <td className="px-3 py-2 relative">
+                          <td className="px-2 py-1.5 relative">
                             <button onClick={() => canManage && setOpenSlot(open ? null : p.rosterId)} disabled={!canManage}
                               className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'} ${canManage ? 'hover:ring-2 hover:ring-blue-200 cursor-pointer' : ''}`}>
                               {p.slot}{canManage && ' ▾'}
@@ -155,14 +169,23 @@ export default function TeamPage() {
                               </div>
                             )}
                           </td>
-                          <td className="px-2 py-2">
-                            <button onClick={() => canManage && setOpenSlot(open ? null : p.rosterId)} className={`text-left ${canManage ? 'hover:text-blue-600' : ''}`} disabled={!canManage}>
-                              <span className="font-medium text-slate-900">{p.name}</span>
-                              <span className="text-xs text-slate-400"> · {p.position} · {p.realTeam}{p.status !== 'ACTIVE' && <span className="text-red-500"> · {p.status}</span>}</span>
-                            </button>
+                          <td className="px-2 py-1.5 sticky left-0 bg-inherit whitespace-nowrap">
+                            <Link href={`/players/${p.id}`} className="font-medium text-slate-900 hover:text-blue-600">{p.name}</Link>
+                            <span className="text-[11px] text-slate-400"> {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
+                            {p.status !== 'ACTIVE' && <span className="ml-1 text-[9px] font-bold text-red-500 align-top">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
+                            {p.byeWeek ? <span className="ml-1 text-[9px] text-slate-300">BYE {p.byeWeek}</span> : null}
                           </td>
-                          <td className="px-2 py-2 text-center font-semibold text-slate-800">{p.seasonPoints?.toFixed(1)}</td>
-                          {canManage && <td className="px-3 py-2 text-right"><button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-xs text-red-500 hover:text-red-700">Drop</button></td>}
+                          <td className="px-1.5 py-1.5 text-center text-[11px] text-slate-500 tabular-nums whitespace-nowrap">{oppLabel(p.opp ?? undefined)}</td>
+                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400">{(p.projectedPoints ?? 0).toFixed(1)}</td>
+                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500">{p.lastPts == null ? '—' : p.lastPts.toFixed(1)}</td>
+                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500">{(p.weeklyAvg ?? 0).toFixed(1)}</td>
+                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400">{p.gp ?? 0}</td>
+                          <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-900">{(p.seasonPoints ?? 0).toFixed(1)}</td>
+                          {cols.map(c => {
+                            const v = +c.get(p.seasonStats ?? {}).toFixed(0)
+                            return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600">{v || '—'}</td>
+                          })}
+                          {canManage && <td className="px-3 py-1.5 text-right"><button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] text-red-500 hover:text-red-700">Drop</button></td>}
                         </tr>
                       )
                     })}
