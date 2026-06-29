@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { trades, tradeItems, tradeApprovals, teams, players, draftPicks } from '@/db/schema'
+import { trades, tradeItems, tradeApprovals, teams, players, draftPicks, leagues } from '@/db/schema'
 import { eq, or, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
@@ -34,17 +34,21 @@ export async function GET() {
     or(...teamIds.flatMap(tid => [eq(trades.initiatorId, tid), eq(trades.recipientId, tid)]))
   )
 
+  // Resolve franchise names per league once.
   const enriched = await Promise.all(allTrades.map(async (trade) => {
     const items = await db.select().from(tradeItems).where(eq(tradeItems.tradeId, trade.id))
+    const approvals = await db.select().from(tradeApprovals).where(eq(tradeApprovals.tradeId, trade.id))
+    const leagueTeams = trade.leagueId ? await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation }).from(teams).where(eq(teams.leagueId, trade.leagueId)) : []
+    const tName = (tid: string | null) => leagueTeams.find(t => t.id === tid)
     const enrichedItems = await Promise.all(items.map(async (item) => {
       let player = null, pick = null
       if (item.playerId) { const [p] = await db.select().from(players).where(eq(players.id, item.playerId)).limit(1); player = p }
       if (item.pickId) { const [pk] = await db.select().from(draftPicks).where(eq(draftPicks.id, item.pickId)).limit(1); pick = pk }
-      return { ...item, player, pick }
+      return { ...item, player, pick, fromTeam: tName(item.fromTeamId), toTeam: tName(item.toTeamId) }
     }))
     const [initiatorTeam] = await db.select().from(teams).where(eq(teams.id, trade.initiatorId)).limit(1)
     const recipientTeam = trade.recipientId ? (await db.select().from(teams).where(eq(teams.id, trade.recipientId)).limit(1))[0] : null
-    return { ...trade, items: enrichedItems, initiatorTeam, recipientTeam }
+    return { ...trade, items: enrichedItems, initiatorTeam, recipientTeam, approvals }
   }))
 
   return NextResponse.json(enriched.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')))
