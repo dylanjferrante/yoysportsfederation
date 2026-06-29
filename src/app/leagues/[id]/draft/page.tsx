@@ -53,7 +53,10 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
               <h2 className="font-semibold text-slate-900">Inaugural Dynasty Draft</h2>
               <p className="text-sm text-slate-500">Combined across all sports · {d.rounds} rounds · {draftTypeLabel(d.type ?? 'SNAKE')}</p>
             </div>
-            <span className={`badge ${d.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'}`}>{d.status}</span>
+            <div className="flex items-center gap-2">
+              <span className={`badge ${d.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'}`}>{d.status}</span>
+              <Link href={`/leagues/${id}/draft/${d.id}`} className="btn-secondary text-xs py-1">View Board</Link>
+            </div>
           </div>
           {d.status === 'COMPLETED' && <p className="text-xs text-slate-400 mt-2">Completed — current franchise rosters reflect the results.</p>}
         </div>
