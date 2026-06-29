@@ -1,0 +1,125 @@
+// ── Tank01 (RapidAPI) provider ───────────────────────────────────────────────
+// One RapidAPI subscription per sport, each with its own host. The API key is
+// read from the environment (TANK01_RAPIDAPI_KEY) and never stored in the repo.
+//
+// Hosts default to the values from our RapidAPI dashboard but can be overridden
+// per-sport via env (TANK01_HOST_NFL, _NBA, _NHL, _MLB).
+//
+// NOTE: endpoint *paths* below are Tank01's documented names. Response-field
+// mapping is intentionally defensive; run `npx tsx scripts/tank01-probe.ts NFL`
+// to print a live response and confirm/adjust the field names.
+
+import type { SportsDataProvider, Sport, ProviderPlayer, ProviderProjection, ProviderStatLine, ProviderTeam } from './types'
+
+const DEFAULT_HOSTS: Record<Sport, string> = {
+  NFL: 'tank01-nfl-live-in-game-real-time-statistics-nfl.p.rapidapi.com',
+  NBA: 'tank01-fantasy-stats.p.rapidapi.com',
+  NHL: 'tank01-nhl-live-in-game-real-time-statistics-nhl.p.rapidapi.com',
+  MLB: 'tank01-mlb-live-in-game-real-time-statistics.p.rapidapi.com',
+}
+
+function hostFor(sport: Sport): string {
+  return process.env[`TANK01_HOST_${sport}`] || DEFAULT_HOSTS[sport]
+}
+
+export function tank01Configured(): boolean {
+  return !!process.env.TANK01_RAPIDAPI_KEY
+}
+
+// Small in-memory TTL cache so page loads don't each hit the rate-limited API.
+type CacheEntry = { at: number; data: unknown }
+const cache = new Map<string, CacheEntry>()
+const DEFAULT_TTL_MS = 1000 * 60 * 15 // 15 min; raise for tight quotas
+
+async function call<T>(sport: Sport, path: string, query: Record<string, string | number | boolean> = {}, ttlMs = DEFAULT_TTL_MS): Promise<T> {
+  const key = process.env.TANK01_RAPIDAPI_KEY
+  if (!key) throw new Error('TANK01_RAPIDAPI_KEY is not set')
+  const host = hostFor(sport)
+  const qs = Object.entries(query).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&')
+  const url = `https://${host}/${path}${qs ? `?${qs}` : ''}`
+
+  const cached = cache.get(url)
+  if (cached && Date.now() - cached.at < ttlMs) return cached.data as T
+
+  const res = await fetch(url, {
+    headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, 'Content-Type': 'application/json' },
+  })
+  if (!res.ok) throw new Error(`Tank01 ${sport} ${path} → ${res.status} ${res.statusText}`)
+  const json = await res.json()
+  // Tank01 wraps payloads as { statusCode, body }.
+  const data = (json && typeof json === 'object' && 'body' in json) ? (json as { body: T }).body : (json as T)
+  cache.set(url, { at: Date.now(), data })
+  return data
+}
+
+const num = (v: unknown): number => {
+  const n = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : 0
+  return Number.isFinite(n) ? n : 0
+}
+
+// Endpoint path names per sport (Tank01 prefixes each with the sport code).
+const EP = (sport: Sport) => ({
+  teams: `get${sport}Teams`,
+  players: `get${sport}PlayerList`,
+  projections: `get${sport}Projections`,
+  boxScore: `get${sport}BoxScore`,
+  gamesForDate: `get${sport}GamesForDate`,
+})
+
+export class Tank01Provider implements SportsDataProvider {
+  readonly id = 'tank01'
+  supports(_sport: Sport) { return tank01Configured() }
+
+  async listTeams(sport: Sport): Promise<ProviderTeam[]> {
+    const body = await call<any>(sport, EP(sport).teams)
+    const rows: any[] = Array.isArray(body) ? body : Object.values(body ?? {})
+    return rows.map(t => ({
+      externalId: String(t.teamID ?? t.teamId ?? t.id ?? ''),
+      sport,
+      name: t.teamName ?? t.name ?? `${t.teamCity ?? ''} ${t.teamName ?? ''}`.trim(),
+      abbreviation: t.teamAbv ?? t.abbreviation ?? '',
+      logoUrl: t.espnLogo1 ?? t.nbaComLogo1 ?? t.logo ?? null,
+    }))
+  }
+
+  async listPlayers(sport: Sport): Promise<ProviderPlayer[]> {
+    const body = await call<any>(sport, EP(sport).players)
+    const rows: any[] = Array.isArray(body) ? body : Object.values(body ?? {})
+    return rows.map(p => ({
+      externalId: String(p.playerID ?? p.playerId ?? p.id ?? ''),
+      name: p.longName ?? p.playerName ?? p.name ?? '',
+      sport,
+      position: p.pos ?? p.position ?? '',
+      realTeam: p.team ?? p.teamAbv ?? '',
+      realTeamAbbr: p.teamAbv ?? undefined,
+      status: p.injury?.designation || 'ACTIVE',
+      injuryNote: p.injury?.description ?? null,
+      photoUrl: p.espnHeadshot ?? p.headshot ?? null,
+      isRookie: p.isRookie === 'True' || p.isRookie === true,
+      byeWeek: p.byeWeeks ? num(Array.isArray(p.byeWeeks) ? p.byeWeeks[0] : p.byeWeeks) : null,
+    }))
+  }
+
+  async getProjections(sport: Sport, opts?: { week?: number; season?: string }): Promise<ProviderProjection[]> {
+    const query: Record<string, string | number> = {}
+    if (opts?.week) query.week = opts.week
+    if (opts?.season) query.archiveSeason = opts.season.slice(0, 4)
+    const body = await call<any>(sport, EP(sport).projections, query)
+    const playerMap = body?.playerProjections ?? body ?? {}
+    return Object.entries(playerMap).map(([externalId, raw]: [string, any]) => ({
+      externalId,
+      name: raw.longName ?? raw.playerName ?? '',
+      sport,
+      projectedPoints: num(raw.fantasyPoints ?? raw.fantasyPointsDefault?.PPR ?? raw.fantasyPointsDefault?.standard),
+      stats: Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === 'string' || typeof v === 'number').map(([k, v]) => [k, num(v)])),
+    }))
+  }
+
+  async getStatLines(sport: Sport, week: number, _opts?: { season?: string }): Promise<ProviderStatLine[]> {
+    // Box scores are per-game; aggregating a week's games into per-player lines
+    // requires the date→gameID lookup. Left to the sync job, which knows the
+    // week→date mapping. Returns [] until that job is wired with a live key.
+    void week
+    return []
+  }
+}
