@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
+import { eligibleSlots } from '@/lib/defaults'
 
 type P = { rosterId: string; slot: string; sport: string; id: string; name: string; position: string; realTeam: string; status: string; seasonPoints: number }
 type Pick = { id: string; sport: string | null; round: number; year: number }
@@ -24,6 +25,7 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [brand, setBrand] = useState<any>({})
+  const [openSlot, setOpenSlot] = useState<string | null>(null)
 
   const load = useCallback(() => {
     fetch(`/api/teams/${id}/roster`).then(r => r.json()).then(d => {
@@ -57,7 +59,6 @@ export default function TeamPage() {
   const players: P[] = data.players ?? []
   const picks: Pick[] = data.picks ?? []
   const canManage: boolean = data.canManage
-  const slotOptions: string[] = Object.keys((data.rosterSettings ?? {})[sport] ?? {})
   const sportsPresent = SPORTS.filter(s => players.some(p => p.sport === s))
   const rosterForSport = players.filter(p => p.sport === sport).sort((a, b) => (STARTER(b.slot) ? 1 : 0) - (STARTER(a.slot) ? 1 : 0) || b.seasonPoints - a.seasonPoints)
   const picksForSport = picks.filter(p => p.sport === sport || p.sport === null)
@@ -132,24 +133,39 @@ export default function TeamPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {rosterForSport.map(p => (
-                      <tr key={p.rosterId} className={`hover:bg-slate-50 ${STARTER(p.slot) ? '' : 'bg-slate-50/40'}`}>
-                        <td className="px-3 py-2">
-                          {canManage
-                            ? <select value={p.slot} onChange={e => act({ action: 'SET_SLOT', rosterId: p.rosterId, slot: e.target.value })}
-                                className="text-xs border border-slate-200 rounded px-1 py-0.5 bg-white">
-                                {[...new Set([p.slot, ...slotOptions])].map(s => <option key={s} value={s}>{s}</option>)}
-                              </select>
-                            : <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{p.slot}</span>}
-                        </td>
-                        <td className="px-2 py-2">
-                          <span className="font-medium text-slate-900">{p.name}</span>
-                          <span className="text-xs text-slate-400"> · {p.position} · {p.realTeam}{p.status !== 'ACTIVE' && <span className="text-red-500"> · {p.status}</span>}</span>
-                        </td>
-                        <td className="px-2 py-2 text-center font-semibold text-slate-800">{p.seasonPoints?.toFixed(1)}</td>
-                        {canManage && <td className="px-3 py-2 text-right"><button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-xs text-red-500 hover:text-red-700">Drop</button></td>}
-                      </tr>
-                    ))}
+                    {rosterForSport.map(p => {
+                      const slots = eligibleSlots(p.position, (data.rosterSettings ?? {})[sport] ?? {})
+                      const open = openSlot === p.rosterId
+                      return (
+                        <tr key={p.rosterId} className={`hover:bg-slate-50 ${STARTER(p.slot) ? '' : 'bg-slate-50/40'}`}>
+                          <td className="px-3 py-2 relative">
+                            <button onClick={() => canManage && setOpenSlot(open ? null : p.rosterId)} disabled={!canManage}
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'} ${canManage ? 'hover:ring-2 hover:ring-blue-200 cursor-pointer' : ''}`}>
+                              {p.slot}{canManage && ' ▾'}
+                            </button>
+                            {open && (
+                              <div className="absolute z-20 left-2 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 w-28">
+                                <p className="text-[10px] text-slate-400 px-1 pb-1">Move to…</p>
+                                {slots.map(slot => (
+                                  <button key={slot} onClick={() => { act({ action: 'SET_SLOT', rosterId: p.rosterId, slot }); setOpenSlot(null) }}
+                                    className={`block w-full text-left text-xs px-2 py-1 rounded hover:bg-slate-100 ${slot === p.slot ? 'font-bold text-blue-600' : 'text-slate-700'}`}>
+                                    {slot}{slot === p.slot ? ' ✓' : ''}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-2 py-2">
+                            <button onClick={() => canManage && setOpenSlot(open ? null : p.rosterId)} className={`text-left ${canManage ? 'hover:text-blue-600' : ''}`} disabled={!canManage}>
+                              <span className="font-medium text-slate-900">{p.name}</span>
+                              <span className="text-xs text-slate-400"> · {p.position} · {p.realTeam}{p.status !== 'ACTIVE' && <span className="text-red-500"> · {p.status}</span>}</span>
+                            </button>
+                          </td>
+                          <td className="px-2 py-2 text-center font-semibold text-slate-800">{p.seasonPoints?.toFixed(1)}</td>
+                          {canManage && <td className="px-3 py-2 text-right"><button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-xs text-red-500 hover:text-red-700">Drop</button></td>}
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

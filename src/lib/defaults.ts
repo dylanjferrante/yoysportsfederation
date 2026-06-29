@@ -14,6 +14,22 @@ export const DEFAULT_ROSTER: Record<string, RosterSettings> = {
 // Bench/reserve slot keys (not in the active scoring lineup).
 export const RESERVE_SLOTS = ['BN', 'IR', 'IL', 'DL', 'TAXI']
 
+// Is a player (by position) eligible to occupy a given roster slot?
+export function slotEligible(position: string, slot: string): boolean {
+  if (RESERVE_SLOTS.includes(slot)) return true       // bench / taxi / IR open to anyone
+  if (slot === position) return true                  // exact position
+  if (slot.includes('/')) return slot.split('/').includes(position) // flex e.g. RB/WR/TE
+  if (slot === 'UTIL') return true                    // utility takes any
+  if (slot === 'G') return ['PG', 'SG'].includes(position)
+  if (slot === 'F') return ['SF', 'PF'].includes(position)
+  return false
+}
+
+// The ordered list of slots (that exist in this sport's roster) a player can fill.
+export function eligibleSlots(position: string, rosterSettings: Record<string, number>): string[] {
+  return Object.keys(rosterSettings).filter(slot => slotEligible(position, slot))
+}
+
 // Dynasty-draft size per sport (full initial draft). Rookie drafts use rookieDraftRounds.
 export const DEFAULT_DRAFT_ROUNDS: Record<string, number> = {
   NFL: 15, NBA: 13, NHL: 20, MLB: 25,

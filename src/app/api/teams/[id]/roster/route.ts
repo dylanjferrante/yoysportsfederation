@@ -6,6 +6,7 @@ import { teams, rosters, players, draftPicks, users, leagues } from '@/db/schema
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
+import { slotEligible } from '@/lib/defaults'
 
 // A franchise's full cross-sport roster + tradeable picks + slot options.
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -58,6 +59,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string }
 
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
+    // Validate the player is eligible for the requested slot.
+    const [row] = await db
+      .select({ sport: rosters.sport, position: players.position })
+      .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
+      .where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
+    if (!row) return NextResponse.json({ error: 'Not on roster' }, { status: 400 })
+    if (!slotEligible(row.position, body.slot)) return NextResponse.json({ error: `Not eligible for ${body.slot}` }, { status: 400 })
     await db.update(rosters).set({ slot: body.slot }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     return NextResponse.json({ ok: true })
   }
