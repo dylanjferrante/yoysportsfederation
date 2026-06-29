@@ -134,14 +134,14 @@ export default function TeamPage() {
                   <thead className="sticky top-0 z-10 bg-slate-50">
                     <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
                       <th className="text-left px-2 py-2 font-semibold">Slot</th>
-                      <th className="text-left px-2 py-2 font-semibold sticky left-0 bg-slate-50">Player</th>
+                      <th className="text-left px-2 py-2 font-semibold">Player</th>
                       <th className="text-center px-1.5 py-2 font-semibold">Opp</th>
-                      <th className="text-right px-1.5 py-2 font-semibold">Proj</th>
-                      <th className="text-right px-1.5 py-2 font-semibold">Last</th>
-                      <th className="text-right px-1.5 py-2 font-semibold">Avg</th>
-                      <th className="text-right px-1.5 py-2 font-semibold">GP</th>
+                      <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Proj</th>
+                      <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Last</th>
+                      <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Avg</th>
+                      <th className="text-right px-1.5 py-2 font-semibold hidden md:table-cell">GP</th>
                       <th className="text-right px-2 py-2 font-semibold">Pts</th>
-                      {boxScoreColumns(sport).map(c => <th key={c.label} className="text-right px-1.5 py-2 font-semibold whitespace-nowrap">{c.label}</th>)}
+                      {boxScoreColumns(sport).map(c => <th key={c.label} className="text-right px-1.5 py-2 font-semibold whitespace-nowrap hidden lg:table-cell">{c.label}</th>)}
                       {canManage && <th className="text-right px-3 py-2 font-semibold"></th>}
                     </tr>
                   </thead>
@@ -169,21 +169,21 @@ export default function TeamPage() {
                               </div>
                             )}
                           </td>
-                          <td className="px-2 py-1.5 sticky left-0 bg-inherit whitespace-nowrap">
+                          <td className="px-2 py-1.5 bg-inherit sm:whitespace-nowrap">
                             <Link href={`/players/${p.id}`} className="font-medium text-slate-900 hover:text-blue-600">{p.name}</Link>
                             <span className="text-[11px] text-slate-400"> {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
                             {p.status !== 'ACTIVE' && <span className="ml-1 text-[9px] font-bold text-red-500 align-top">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
                             {p.byeWeek ? <span className="ml-1 text-[9px] text-slate-300">BYE {p.byeWeek}</span> : null}
                           </td>
                           <td className="px-1.5 py-1.5 text-center text-[11px] text-slate-500 tabular-nums whitespace-nowrap">{oppLabel(p.opp ?? undefined)}</td>
-                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400">{(p.projectedPoints ?? 0).toFixed(1)}</td>
-                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500">{p.lastPts == null ? '—' : p.lastPts.toFixed(1)}</td>
-                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500">{(p.weeklyAvg ?? 0).toFixed(1)}</td>
-                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400">{p.gp ?? 0}</td>
+                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden sm:table-cell">{(p.projectedPoints ?? 0).toFixed(1)}</td>
+                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500 hidden sm:table-cell">{p.lastPts == null ? '—' : p.lastPts.toFixed(1)}</td>
+                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500 hidden sm:table-cell">{(p.weeklyAvg ?? 0).toFixed(1)}</td>
+                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden md:table-cell">{p.gp ?? 0}</td>
                           <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-900">{(p.seasonPoints ?? 0).toFixed(1)}</td>
                           {cols.map(c => {
                             const v = +c.get(p.seasonStats ?? {}).toFixed(0)
-                            return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600">{v || '—'}</td>
+                            return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600 hidden lg:table-cell">{v || '—'}</td>
                           })}
                           {canManage && <td className="px-3 py-1.5 text-right"><button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] text-red-500 hover:text-red-700">Drop</button></td>}
                         </tr>
