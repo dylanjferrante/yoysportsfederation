@@ -61,28 +61,33 @@ export default function TransactionsView({ leagueId, leagueName, rows }: { leagu
         ))}
       </div>
 
-      <div className="card">
+      <div className="card overflow-x-auto">
         {filtered.length === 0 ? (
           <p className="px-4 py-10 text-center text-slate-400 text-sm">No transactions match this filter.</p>
         ) : (
-          <ul className="divide-y divide-slate-50">
-            {filtered.map(r => {
-              const sp = sportOf(r.message)
-              return (
-                <li key={r.id} className="flex items-start gap-3 px-4 py-3">
-                  <span className="text-base leading-5">{ICON[r.type] ?? '•'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-700">{r.message}</p>
-                    <p className="text-[11px] text-slate-400">
-                      {r.createdAt ? new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}
-                      <span className="ml-2 uppercase tracking-wide">{r.type}</span>
-                    </p>
-                  </div>
-                  {sp && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(sp).light}`}>{sp}</span>}
-                </li>
-              )
-            })}
-          </ul>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100 bg-slate-50/60">
+                <th className="px-4 py-2 font-medium w-32">Date</th>
+                <th className="px-2 py-2 font-medium w-24">Type</th>
+                <th className="px-2 py-2 font-medium w-14">Sport</th>
+                <th className="px-4 py-2 font-medium">Details</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filtered.map(r => {
+                const sp = sportOf(r.message)
+                return (
+                  <tr key={r.id} className="hover:bg-slate-50/60">
+                    <td className="px-4 py-2.5 text-xs text-slate-400 whitespace-nowrap">{r.createdAt ? new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</td>
+                    <td className="px-2 py-2.5"><span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">{ICON[r.type] ?? '•'} {r.type}</span></td>
+                    <td className="px-2 py-2.5">{sp ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(sp).light}`}>{sp}</span> : <span className="text-slate-300">—</span>}</td>
+                    <td className="px-4 py-2.5 text-slate-700">{r.message}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
