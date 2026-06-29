@@ -13,6 +13,7 @@ type P = {
   realTeam: string; realTeamAbbr: string | null; status: string; injuryNote: string | null; byeWeek: number | null
   seasonPoints: number; projectedPoints: number; weeklyAvg: number
   gp: number; lastPts: number | null; seasonStats: Record<string, number>; opp: { opp: string; home: boolean } | null
+  locked?: boolean; kickoff?: number | null
 }
 type Pick = { id: string; sport: string | null; round: number; year: number }
 type Team = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; wordmark: string | null; primaryColor: string; secondaryColor: string; leagueId: string; userId: string; ownerName: string | null }
@@ -159,12 +160,15 @@ export default function TeamPage() {
                       const slots = eligibleSlots(p.position, (data.rosterSettings ?? {})[sport] ?? {})
                       const open = openSlot === p.rosterId
                       const cols = boxScoreColumns(sport)
+                      const locked = !!p.locked && !data.isCommish
+                      const slotEditable = canManage && !locked
                       return (
                         <tr key={p.rosterId} className={`hover:bg-slate-50 ${STARTER(p.slot) ? '' : 'bg-slate-50/40'}`}>
                           <td className="px-2 py-1.5 relative">
-                            <button onClick={() => canManage && setOpenSlot(open ? null : p.rosterId)} disabled={!canManage}
-                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'} ${canManage ? 'hover:ring-2 hover:ring-blue-200 cursor-pointer' : ''}`}>
-                              {p.slot}{canManage && ' ▾'}
+                            <button onClick={() => slotEditable && setOpenSlot(open ? null : p.rosterId)} disabled={!slotEditable}
+                              title={locked ? 'Locked — game has started' : undefined}
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'} ${slotEditable ? 'hover:ring-2 hover:ring-blue-200 cursor-pointer' : ''} ${locked ? 'opacity-70' : ''}`}>
+                              {locked && '🔒'}{p.slot}{slotEditable && ' ▾'}
                             </button>
                             {open && (
                               <div className="absolute z-20 left-2 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 w-28">
