@@ -34,6 +34,7 @@ export default function CommissionerSettings() {
   const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
   const [irDesigObj, setIrDesigObj] = useState<Record<string, string[]>>({})
   const [posLimits, setPosLimits] = useState<Record<string, Record<string, { maxStarters?: number; maxRostered?: number }>>>({})
+  const [rookieDates, setRookieDates] = useState<Record<string, string>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
   const [franchises, setFranchises] = useState<any[]>([])
   const [teamSaving, setTeamSaving] = useState<string | null>(null)
@@ -80,6 +81,7 @@ export default function CommissionerSettings() {
       setWaiverSchedObj(parse(l.waiverSchedule, defaultWaiverSchedule(se)))
       setIrDesigObj(parse(l.irEligibleDesignations, defaultIrDesignations(se)))
       setPosLimits(parse(l.positionLimits, {}))
+      setRookieDates(parse(l.rookieDraftDates, {}))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
   }, [params.id])
@@ -101,7 +103,7 @@ export default function CommissionerSettings() {
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
-        tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate,
+        tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate, rookieDraftDates: rookieDates,
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
         waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, irEligibleDesignations: irDesigObj, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
@@ -348,12 +350,16 @@ export default function CommissionerSettings() {
                       <div className="flex flex-wrap items-end gap-3">
                         <span className={`inline-flex items-center gap-1.5 font-semibold w-20 ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
                         <label className="text-xs text-slate-500">Start week
-                          <input type="number" min={1} max={40} className="input w-20 py-1.5 mt-0.5" value={startWk}
-                            onChange={e => setStartWeeksObj(d => ({ ...d, [s]: Math.max(1, +e.target.value) }))} />
+                          <select className="select w-24 py-1.5 mt-0.5" value={startWk}
+                            onChange={e => setStartWeeksObj(d => ({ ...d, [s]: +e.target.value }))}>
+                            {Array.from({ length: 40 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
                         </label>
                         <label className="text-xs text-slate-500"># Weeks
-                          <input type="number" min={4} max={30} className="input w-20 py-1.5 mt-0.5" value={len}
-                            onChange={e => setSeasonWeeksObj(d => ({ ...d, [s]: +e.target.value }))} />
+                          <select className="select w-24 py-1.5 mt-0.5" value={len}
+                            onChange={e => setSeasonWeeksObj(d => ({ ...d, [s]: +e.target.value }))}>
+                            {Array.from({ length: 27 }, (_, i) => i + 4).map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
                         </label>
                       </div>
                       <div className="mt-2 text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-0.5">
@@ -543,6 +549,24 @@ export default function CommissionerSettings() {
                 <input type="number" min={0} max={7} className="input" value={form.tradeablePickYears ?? 3} onChange={e => set('tradeablePickYears', +e.target.value)} />
               </div>
             </div>
+
+            {/* Rookie draft date(s) — per sport when drafts run per sport */}
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-slate-700 mb-1">Rookie Draft {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? 'Dates (per sport)' : 'Date'}</p>
+              {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? (
+                <div className="space-y-2">
+                  {sportsEnabled.map(s => (
+                    <div key={s} className="flex items-center gap-3">
+                      <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
+                      <input type="datetime-local" className="input flex-1" value={rookieDates[s] ?? ''} onChange={e => setRookieDates(d => ({ ...d, [s]: e.target.value }))} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <input type="datetime-local" className="input sm:w-72" value={rookieDates.OVERALL ?? ''} onChange={e => setRookieDates(d => ({ ...d, OVERALL: e.target.value }))} />
+              )}
+            </div>
+
             <div className="border-t border-slate-100 pt-4">
               <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 mb-4">
                 <p className="text-sm font-semibold text-slate-700">Initial dynasty draft</p>
