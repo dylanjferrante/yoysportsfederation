@@ -250,6 +250,7 @@ export default function DraftRoom() {
                   return (
                     <div key={t.id}
                       className={`w-36 h-[5.25rem] flex-shrink-0 rounded-lg border px-2 py-1.5 flex flex-col ${isCurrent ? 'border-blue-500 ring-1 ring-blue-400' : 'border-slate-200'} ${p ? meta!.light : 'bg-slate-50'}`}>
+                      {b.via && <div className="text-[8px] font-bold uppercase tracking-wide text-amber-600 leading-tight truncate" title={`${b.ownerAbbr ? b.ownerAbbr + ' — ' : ''}VIA ${b.via.join(' VIA ')}`}>{b.ownerAbbr ? `${b.ownerAbbr} ` : ''}VIA {b.via.join(' VIA ')}</div>}
                       <div className="text-[9px] font-semibold tabular-nums text-slate-500 leading-tight">({b.pickNumber}, {b.round}.{b.pickInRound})</div>
                       {p ? (
                         <>

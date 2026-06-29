@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { drafts, leagues, teams, teamRecords, rosters, players, draftPicks, draftQueues, draftAutopick, auctionBudgets } from '@/db/schema'
+import { drafts, leagues, teams, teamRecords, rosters, players, draftPicks, draftQueues, draftAutopick, auctionBudgets, tradeItems, trades } from '@/db/schema'
 import { eq, and, inArray, sql } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
@@ -67,6 +67,26 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .where(and(eq(draftPicks.draftId, id), eq(draftPicks.isUsed, true)))
   const madeByPick = Object.fromEntries(made.filter(m => m.pickNumber).map(m => [m.pickNumber, m]))
 
+  // Traded picks: a slot owned by someone other than its original (snake) team.
+  // Build owner + a "VIA" chain (acquired-from … original) from trade history.
+  const abbrById: Record<string, string> = Object.fromEntries(order.map(o => [o.id, o.abbreviation]))
+  const dpicks = await db.select({ id: draftPicks.id, round: draftPicks.round, originalTeamId: draftPicks.originalTeamId, currentTeamId: draftPicks.currentTeamId })
+    .from(draftPicks).where(eq(draftPicks.draftId, id))
+  const tradedByRoundTeam = new Map<string, { ownerId: string; pickId: string }>()
+  for (const p of dpicks) if (p.currentTeamId !== p.originalTeamId) tradedByRoundTeam.set(`${p.round}:${p.originalTeamId}`, { ownerId: p.currentTeamId, pickId: p.id })
+  const viaByPickId: Record<string, string[]> = {}
+  if (tradedByRoundTeam.size) {
+    const pickIds = [...tradedByRoundTeam.values()].map(v => v.pickId)
+    const items = await db.select({ pickId: tradeItems.pickId, fromTeamId: tradeItems.fromTeamId, createdAt: trades.createdAt })
+      .from(tradeItems).leftJoin(trades, eq(tradeItems.tradeId, trades.id)).where(inArray(tradeItems.pickId, pickIds))
+    const byPick: Record<string, { fromTeamId: string | null; createdAt: string | null }[]> = {}
+    for (const it of items) if (it.pickId) (byPick[it.pickId] ??= []).push({ fromTeamId: it.fromTeamId, createdAt: it.createdAt })
+    for (const [pid, list] of Object.entries(byPick)) {
+      list.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
+      viaByPickId[pid] = list.map(x => abbrById[x.fromTeamId ?? ''] ?? '').filter(Boolean)
+    }
+  }
+
   // Full board: every pick, previous + upcoming.
   const board = Array.from({ length: total }, (_, i) => {
     const pk = i + 1
@@ -74,8 +94,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const round = Math.ceil(pk / order.length)
     const pickInRound = ((pk - 1) % order.length) + 1
     const m = madeByPick[pk]
+    // VIA chain for traded slots (column stays the original team; tile shows new owner).
+    const traded = t ? tradedByRoundTeam.get(`${round}:${t.id}`) : undefined
+    const via = traded ? (viaByPickId[traded.pickId]?.length ? viaByPickId[traded.pickId] : [t!.abbreviation]) : null
+    const ownerAbbr = traded ? (abbrById[traded.ownerId] ?? null) : null
     return {
-      pickNumber: pk, round, pickInRound, teamId: t?.id, teamAbbr: t?.abbreviation,
+      pickNumber: pk, round, pickInRound, teamId: t?.id, teamAbbr: t?.abbreviation, via, ownerAbbr,
       player: m ? { name: m.playerName, sport: m.sport, position: m.position, realTeamAbbr: m.realTeamAbbr } : null,
     }
   })
