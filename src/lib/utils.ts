@@ -37,7 +37,10 @@ export function formatPts(n: number) {
 // more per game than an NHL one). Dividing projected points by a per-sport
 // scale and rescaling to ~0–100 yields a single number that ranks players
 // fairly across all four sports. Used by free-agent ranking, trades, compare.
-export const SPORT_NORM: Record<string, number> = { NFL: 12, NBA: 24, NHL: 8, MLB: 8 }
+// Per-sport scale so each sport's elite projection lands at a comparable value
+// (~115). MLB projections run far hotter at the top than NHL, so it needs a
+// larger divisor — otherwise a few star hitters/pitchers dominate the rankings.
+export const SPORT_NORM: Record<string, number> = { NFL: 12, NBA: 24, NHL: 8, MLB: 18 }
 
 export function crossSportValue(sport: string, projectedPoints: number | null | undefined): number {
   return Math.round(((projectedPoints ?? 0) / (SPORT_NORM[sport] ?? 15)) * 50)

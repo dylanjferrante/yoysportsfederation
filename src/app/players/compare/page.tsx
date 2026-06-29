@@ -9,7 +9,7 @@ export const metadata = { title: 'Compare Players' }
 
 // Approx average per-game projection per sport → a normalized cross-sport value
 // where an average starter ≈ 50, so NBA and NFL players can be ranked fairly.
-const SPORT_NORM: Record<string, number> = { NFL: 12, NBA: 24, NHL: 8, MLB: 8 }
+const SPORT_NORM: Record<string, number> = { NFL: 12, NBA: 24, NHL: 8, MLB: 18 }
 const valueScore = (p: any) => Math.round(((p.projectedPoints ?? 0) / (SPORT_NORM[p.sport] ?? 15)) * 50)
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ ids?: string }> }) {
