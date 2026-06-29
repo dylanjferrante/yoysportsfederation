@@ -112,7 +112,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const totals = await sportTotals()
   const pool = await db.select().from(players).where(inArray(players.sport, sportsFilter)).limit(5000)
   const available = pool.filter(p => !rostered.has(p.id))
-    .map(p => ({ id: p.id, name: p.name, sport: p.sport, position: p.position, realTeam: p.realTeam, projectedPoints: p.projectedPoints, value: +(shareValue(p, totals) * 100).toFixed(2) }))
+    .map(p => ({ id: p.id, name: p.name, sport: p.sport, position: p.position, realTeam: p.realTeam, projectedPoints: p.projectedPoints, adp: p.adp, value: +(shareValue(p, totals) * 100).toFixed(2) }))
     .sort((a, b) => b.value - a.value).slice(0, 300)
 
   // Requesting user's queue + auto-pick state.

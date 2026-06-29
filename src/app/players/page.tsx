@@ -16,7 +16,7 @@ const POS: Record<string, string[]> = {
 type Player = {
   id: string; name: string; sport: string; position: string; realTeam: string; realTeamAbbr: string | null
   status: string; seasonPoints: number; projectedPoints: number
-  seasonStats: Record<string, number>; gp: number; lastPts: number | null; avg: number; owned: boolean; posRank: number; value: number
+  seasonStats: Record<string, number>; gp: number; lastPts: number | null; avg: number; owned: boolean; posRank: number; value: number; adp?: number | null
 }
 
 export default function PlayersPage() {
@@ -56,6 +56,7 @@ export default function PlayersPage() {
 
   const cols = useMemo(() => {
     const base = [
+      { key: 'adp', label: 'ADP', val: (p: Player) => p.adp ?? 9999, fmt: (v: number) => (v >= 9999 ? '—' : String(v)), align: 'right' as const, dim: true, hide: 'hidden sm:table-cell' },
       { key: 'proj', label: 'Proj', val: (p: Player) => p.projectedPoints ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, dim: true, hide: 'hidden sm:table-cell' },
       { key: 'avg', label: 'Avg', val: (p: Player) => p.avg ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, hide: '' },
       { key: 'last', label: 'Last', val: (p: Player) => p.lastPts ?? 0, fmt: (v: number) => (v ? v.toFixed(1) : '—'), align: 'right' as const, hide: 'hidden md:table-cell' },

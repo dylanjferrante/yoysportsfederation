@@ -187,7 +187,7 @@ export default function DraftRoom() {
                   <span className={`w-7 h-7 rounded-lg ${sportMeta(p.sport).bg} text-white flex items-center justify-center text-[10px] font-bold`}>{p.position?.slice(0, 2)}</span>
                   <span className="flex-1 min-w-0">
                     <span className="font-medium text-sm text-slate-900 truncate block">{p.name}</span>
-                    <span className="text-xs text-slate-400">{p.sport} · {p.realTeam} · value {p.value}</span>
+                    <span className="text-xs text-slate-400">{p.sport} · {p.realTeam} · value {p.value}{p.adp ? ` · ADP ${p.adp}` : ''}</span>
                   </span>
                   {d.status === 'IN_PROGRESS' && !isAuction && myTurn && <button onClick={() => action({ action: 'PICK', playerId: p.id })} disabled={busy} className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500">Draft</button>}
                   {d.status === 'IN_PROGRESS' && isAuction && canNominate && <button onClick={() => action({ action: 'NOMINATE', playerId: p.id, bid: 1 })} disabled={busy} className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500">Nominate</button>}
