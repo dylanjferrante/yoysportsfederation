@@ -233,6 +233,22 @@ export const teamManagers = sqliteTable('team_managers', {
   uniq: uniqueIndex('team_manager_uniq').on(t.teamId, t.userId),
 }))
 
+// Side games — survivor & weekly pick'em pools. One row per pick.
+export const sideGamePicks = sqliteTable('side_game_picks', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  game: text('game').notNull(),   // SURVIVOR | PICKEM
+  sport: text('sport').notNull(),
+  season: text('season').notNull(),
+  week: integer('week').notNull(),
+  matchupId: text('matchup_id').references(() => matchups.id, { onDelete: 'cascade' }),
+  pickedTeamId: text('picked_team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+}, (t) => ({
+  uniq: uniqueIndex('side_pick_uniq').on(t.leagueId, t.userId, t.game, t.sport, t.season, t.week, t.matchupId),
+}))
+
 // ── Drafts ─────────────────────────────────────────────────────────────────
 
 export const drafts = sqliteTable('drafts', {

@@ -39,6 +39,7 @@ DROP TABLE IF EXISTS rosters;
 DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS league_history;
 DROP TABLE IF EXISTS team_records;
+DROP TABLE IF EXISTS side_game_picks;
 DROP TABLE IF EXISTS team_managers;
 DROP TABLE IF EXISTS teams;
 DROP TABLE IF EXISTS league_members;
@@ -433,6 +434,20 @@ CREATE TABLE team_managers (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE(team_id, user_id)
+);
+
+CREATE TABLE side_game_picks (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  game TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  season TEXT NOT NULL,
+  week INTEGER NOT NULL,
+  matchup_id TEXT REFERENCES matchups(id) ON DELETE CASCADE,
+  picked_team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(league_id, user_id, game, sport, season, week, matchup_id)
 );
 
 CREATE TABLE commissioner_actions (
