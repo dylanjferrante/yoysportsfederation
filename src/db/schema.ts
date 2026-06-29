@@ -82,6 +82,12 @@ export const leagues = sqliteTable('leagues', {
   championshipNames: text('championship_names').default('{}'), // per-sport championship names
   championshipLogos: text('championship_logos').default('{}'), // per-sport trophy/logo URLs
   breakWeeks: text('break_weeks').default('{}'), // per-sport bye/break weeks (all-star, Olympics): { sport: number[] }
+  lineupLocks: text('lineup_locks').default('{}'), // per-sport lineup lock { sport: { day, hour } }
+  salaryCapEnabled: integer('salary_cap_enabled', { mode: 'boolean' }).default(false),
+  salaryCap: integer('salary_cap').default(200),
+  capMode: text('cap_mode').default('TOTAL'), // TOTAL (one cross-sport cap) | PER_SPORT
+  keeperEnabled: integer('keeper_enabled', { mode: 'boolean' }).default(false),
+  keeperCount: integer('keeper_count').default(0),
   lockDay: integer('lock_day').default(0),
 
   // Playoffs
@@ -193,6 +199,7 @@ export const players = sqliteTable('players', {
   seasonPoints: real('season_points').default(0),
   weeklyAvg: real('weekly_avg').default(0),
   projectedPoints: real('projected_points').default(0),
+  adp: real('adp'), // average draft position / consensus rank within sport
   stats: text('stats').default('{}'),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 })
@@ -206,9 +213,23 @@ export const rosters = sqliteTable('rosters', {
   sport: text('sport').notNull(), // denormalized from player for fast per-sport grouping
   slot: text('slot').notNull(),
   acquisitionType: text('acquisition_type').default('DRAFT'),
+  salary: integer('salary').default(0),          // contract salary (cap leagues)
+  contractYears: integer('contract_years'),       // remaining contract years
+  onBlock: integer('on_block', { mode: 'boolean' }).default(false), // trade block
   acquiredAt: text('acquired_at').default(sql`(datetime('now'))`),
 }, (t) => ({
   uniq: uniqueIndex('roster_uniq').on(t.teamId, t.playerId),
+}))
+
+// ── Co-managers (additional owners who can manage a franchise) ───────────────
+
+export const teamManagers = sqliteTable('team_managers', {
+  id: text('id').primaryKey(),
+  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+}, (t) => ({
+  uniq: uniqueIndex('team_manager_uniq').on(t.teamId, t.userId),
 }))
 
 // ── Drafts ─────────────────────────────────────────────────────────────────
@@ -448,6 +469,7 @@ export const leagueMessages = sqliteTable('league_messages', {
   leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   body: text('body').notNull(),
+  matchupId: text('matchup_id'), // when set, this is per-matchup trash talk
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 

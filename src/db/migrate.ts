@@ -39,6 +39,7 @@ DROP TABLE IF EXISTS rosters;
 DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS league_history;
 DROP TABLE IF EXISTS team_records;
+DROP TABLE IF EXISTS team_managers;
 DROP TABLE IF EXISTS teams;
 DROP TABLE IF EXISTS league_members;
 DROP TABLE IF EXISTS leagues;
@@ -106,6 +107,12 @@ CREATE TABLE leagues (
   championship_names TEXT DEFAULT '{}',
   championship_logos TEXT DEFAULT '{}',
   break_weeks TEXT DEFAULT '{}',
+  lineup_locks TEXT DEFAULT '{}',
+  salary_cap_enabled INTEGER DEFAULT 0,
+  salary_cap INTEGER DEFAULT 200,
+  cap_mode TEXT DEFAULT 'TOTAL',
+  keeper_enabled INTEGER DEFAULT 0,
+  keeper_count INTEGER DEFAULT 0,
   lock_day INTEGER DEFAULT 0,
   playoff_teams INTEGER DEFAULT 6,
   playoff_start_week INTEGER DEFAULT 15,
@@ -197,6 +204,7 @@ CREATE TABLE players (
   season_points REAL DEFAULT 0,
   weekly_avg REAL DEFAULT 0,
   projected_points REAL DEFAULT 0,
+  adp REAL,
   stats TEXT DEFAULT '{}',
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -208,6 +216,9 @@ CREATE TABLE rosters (
   sport TEXT NOT NULL,
   slot TEXT NOT NULL,
   acquisition_type TEXT DEFAULT 'DRAFT',
+  salary INTEGER DEFAULT 0,
+  contract_years INTEGER,
+  on_block INTEGER DEFAULT 0,
   acquired_at TEXT DEFAULT (datetime('now')),
   UNIQUE(team_id, player_id)
 );
@@ -411,7 +422,16 @@ CREATE TABLE league_messages (
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   body TEXT NOT NULL,
+  matchup_id TEXT,
   created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE team_managers (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(team_id, user_id)
 );
 
 CREATE TABLE commissioner_actions (
