@@ -48,7 +48,7 @@ export default function PlayersPage() {
     await fetch('/api/watchlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerId: id }) }).catch(() => {})
   }
   function toggleCompare(id: string) {
-    setCompare(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length >= 3 ? prev : [...prev, id])
+    setCompare(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length >= 4 ? prev : [...prev, id])
   }
 
   // Category columns only when a single sport is selected.
