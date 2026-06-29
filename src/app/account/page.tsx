@@ -14,9 +14,20 @@ export default function AccountPage() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const [np, setNp] = useState<any>(null)
+  const [npMeta, setNpMeta] = useState<{ events: Record<string, string>; channels: string[]; emailConfigured: boolean; pushConfigured: boolean } | null>(null)
+  const [npSaved, setNpSaved] = useState(false)
+
   useEffect(() => {
     fetch('/api/account').then(r => r.json()).then(u => { setName(u.name ?? ''); setEmail(u.email ?? '') })
+    fetch('/api/account/notifications').then(r => r.json()).then(d => { setNp(d.prefs); setNpMeta({ events: d.events, channels: d.channels, emailConfigured: d.emailConfigured, pushConfigured: d.pushConfigured }) })
   }, [])
+
+  async function saveNotifications() {
+    await fetch('/api/account/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefs: np }) })
+    setNpSaved(true); setTimeout(() => setNpSaved(false), 2000)
+  }
+  const CHANNEL_LABEL: Record<string, string> = { inApp: 'In-app', email: 'Email', push: 'Push' }
 
   if (status === 'loading') return <div className="text-center py-20 text-slate-400">Loading…</div>
   if (!session) return <div className="max-w-md mx-auto px-4 py-16 text-center text-slate-500">Please <Link href="/auth/login" className="text-blue-600">sign in</Link>.</div>
@@ -62,6 +73,41 @@ export default function AccountPage() {
         <div><label className="label">Confirm new password</label><input type="password" className="input" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" /></div>
         <button disabled={saving || !currentPassword || !newPassword} className="btn-primary disabled:opacity-50">{saving ? 'Saving…' : 'Change password'}</button>
       </form>
+
+      {np && npMeta && (
+        <div className="card p-5 mb-5">
+          <h2 className="font-semibold text-slate-900 mb-1">Notifications</h2>
+          <p className="text-xs text-slate-500 mb-4">Choose how you want to hear about each kind of event.</p>
+
+          <div className="space-y-3">
+            {npMeta.channels.map(ch => {
+              const unavailable = (ch === 'email' && !npMeta.emailConfigured) || (ch === 'push' && !npMeta.pushConfigured)
+              return (
+                <div key={ch}>
+                  <label className="flex items-center gap-2 mb-1.5">
+                    <input type="checkbox" checked={!!np[ch]?.enabled} disabled={unavailable}
+                      onChange={e => setNp({ ...np, [ch]: { ...np[ch], enabled: e.target.checked } })} />
+                    <span className="font-medium text-slate-800 text-sm">{CHANNEL_LABEL[ch] ?? ch}</span>
+                    {unavailable && <span className="text-[10px] text-slate-400">(not configured on this server)</span>}
+                  </label>
+                  {np[ch]?.enabled && (
+                    <div className="ml-6 grid sm:grid-cols-2 gap-x-4 gap-y-1">
+                      {Object.entries(npMeta.events).map(([key, label]) => (
+                        <label key={key} className="flex items-center gap-2 text-xs text-slate-600">
+                          <input type="checkbox" checked={np[ch].events[key] !== false}
+                            onChange={e => setNp({ ...np, [ch]: { ...np[ch], events: { ...np[ch].events, [key]: e.target.checked } } })} />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <button onClick={saveNotifications} className="btn-primary mt-4">{npSaved ? 'Saved ✓' : 'Save notification settings'}</button>
+        </div>
+      )}
 
       <div className="text-center">
         <button onClick={() => signOut({ callbackUrl: '/' })} className="text-sm text-red-600 hover:underline">Sign out</button>

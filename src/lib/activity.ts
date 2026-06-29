@@ -1,6 +1,7 @@
 import { db } from '@/db'
-import { activity, notifications } from '@/db/schema'
+import { activity } from '@/db/schema'
 import { nanoid } from 'nanoid'
+import { dispatch, EventType } from '@/lib/notifications'
 
 // Record a league activity-feed entry.
 export async function logActivity(leagueId: string, type: string, message: string, teamId?: string | null) {
@@ -9,11 +10,8 @@ export async function logActivity(leagueId: string, type: string, message: strin
   } catch { /* non-fatal */ }
 }
 
-// Send an in-app notification to one or more users.
-export async function notify(userIds: string | string[], message: string, link?: string) {
-  const ids = Array.isArray(userIds) ? userIds : [userIds]
-  if (!ids.length) return
-  try {
-    await db.insert(notifications).values(ids.map(userId => ({ id: nanoid(), userId, message, link: link ?? null })))
-  } catch { /* non-fatal */ }
+// Notify one or more users. Routes through the multi-channel dispatcher
+// (in-app + opted-in email/push), respecting each user's preferences.
+export async function notify(userIds: string | string[], message: string, link?: string, event: EventType = 'LEAGUE') {
+  await dispatch(userIds, event, message, link)
 }

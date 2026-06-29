@@ -193,7 +193,7 @@ async function processWaivers(league: any) {
       (droppedName ? `, dropped ${droppedName}` : '')
     await logActivity(league.id, 'WAIVER', claimMsg, winner.teamId)
     const owner = tById[winner.teamId]?.userId
-    if (owner) await notify(owner, `You won ${add?.name ?? 'a player'} on waivers${isFaab ? ` for $${winner.bidAmount}` : ''}`, `/teams/${winner.teamId}`)
+    if (owner) await notify(owner, `You won ${add?.name ?? 'a player'} on waivers${isFaab ? ` for $${winner.bidAmount}` : ''}`, `/teams/${winner.teamId}`, 'WAIVER')
     awarded.push(playerId)
   }
 

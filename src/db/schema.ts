@@ -8,6 +8,17 @@ export const users = sqliteTable('users', {
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
+  notifyPrefs: text('notify_prefs'), // JSON: per-channel + per-event notification preferences
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
+// Web-push endpoints registered by a user's browser (push notification framework).
+export const pushSubscriptions = sqliteTable('push_subscriptions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  endpoint: text('endpoint').notNull().unique(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 

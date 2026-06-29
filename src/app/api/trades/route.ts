@@ -141,7 +141,7 @@ export async function POST(req: Request) {
     // Activity feed + notify each partner franchise's owner.
     const partnerNames = partnerRows.map(t => t.name).join(', ')
     await logActivity(leagueId, 'TRADE', `${mine.name} proposed a trade to ${partnerNames}`, mine.id)
-    await notify(partnerRows.map(t => t.userId).filter(Boolean) as string[], `${mine.name} sent you a trade proposal`, `/trade`)
+    await notify(partnerRows.map(t => t.userId).filter(Boolean) as string[], `${mine.name} sent you a trade proposal`, `/trade`, 'TRADE')
 
     return NextResponse.json(trade, { status: 201 })
   } catch (e) {
