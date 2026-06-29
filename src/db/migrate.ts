@@ -79,6 +79,7 @@ CREATE TABLE leagues (
   tradeable_pick_years INTEGER DEFAULT 3,
   draft_order_method TEXT DEFAULT 'REVERSE_STANDINGS',
   trade_deadline TEXT,
+  trade_deadlines TEXT DEFAULT '{}',
   trade_review TEXT DEFAULT 'COMMISSIONER',
   trade_review_hours INTEGER DEFAULT 48,
   veto_votes_required INTEGER DEFAULT 4,

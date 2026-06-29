@@ -294,12 +294,12 @@ const insertLeague = db.prepare(`
   (id,name,season,commissioner_id,status,max_teams,invite_code,description,logo_url,division_logos,
    sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
    federation_scoring,draft_type,draft_status,draft_order_method,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
-   trade_review,waiver_type,faab_budget,faab_mode,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
+   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
   VALUES
   (@id,@name,@season,@commissioner_id,@status,@max_teams,@invite_code,@description,@logo_url,@division_logos,
    @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
    @federation_scoring,@draft_type,@draft_status,@draft_order_method,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
-   @trade_review,@waiver_type,@faab_budget,@faab_mode,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
+   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
 `)
 
 insertLeague.run({
@@ -327,6 +327,13 @@ insertLeague.run({
   rookie_draft_rounds: JSON.stringify(rookieRounds),
   tradeable_pick_years: 3,
   trade_review: 'COMMISSIONER',
+  // Varied per-sport deadlines to showcase the modes.
+  trade_deadlines: JSON.stringify({
+    NFL: { mode: 'WEEK', week: 11 },
+    NBA: { mode: 'SPORT_CHAMPIONSHIP' },
+    NHL: { mode: 'FEDERATION_CHAMPIONSHIP' },
+    MLB: { mode: 'NONE' },
+  }),
   waiver_type: 'FAAB',
   faab_budget: 100,
   faab_mode: 'TOTAL',

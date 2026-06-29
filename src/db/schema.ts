@@ -55,6 +55,9 @@ export const leagues = sqliteTable('leagues', {
 
   // Trades
   tradeDeadline: text('trade_deadline'),
+  // Per-sport deadline: { [sport]: { mode, week? } } where mode is
+  // WEEK | SPORT_PLAYOFFS | SPORT_CHAMPIONSHIP | FEDERATION_CHAMPIONSHIP | NONE
+  tradeDeadlines: text('trade_deadlines').default('{}'),
   tradeReview: text('trade_review').default('COMMISSIONER'), // NONE | COMMISSIONER | LEAGUE_VOTE
   tradeReviewHours: integer('trade_review_hours').default(48),
   vetoVotesRequired: integer('veto_votes_required').default(4),
