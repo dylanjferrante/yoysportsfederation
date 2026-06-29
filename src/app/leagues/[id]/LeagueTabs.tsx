@@ -56,10 +56,15 @@ export default function LeagueTabs({
             {sportMeta(s).emoji} {s}
           </button>
         ))}
+        <button onClick={() => setTab('TEAMS')} className={tab === 'TEAMS' ? 'tab-active' : 'tab-inactive'}>
+          👥 Teams
+        </button>
       </div>
 
       {tab === 'OVERALL'
         ? <Overall standings={standings} sportsEnabled={sportsEnabled} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
+        : tab === 'TEAMS'
+        ? <TeamsList teams={teams} currentUserId={currentUserId} />
         : <SportView sport={tab} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
     </div>
   )
@@ -313,6 +318,25 @@ function SportView({ sport, teamById, records, matchups, rosterSettings, playoff
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function TeamsList({ teams }: { teams: TeamLite[]; currentUserId?: string }) {
+  return (
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {teams.map(t => (
+        <Link key={t.id} href={`/teams/${t.id}`}
+          className="card p-4 flex items-center gap-3 hover:shadow-md hover:border-blue-200 transition">
+          {t.logo
+            ? <img src={t.logo} alt="" className="w-11 h-11 rounded-lg object-cover bg-slate-100 flex-shrink-0" />
+            : <span className="w-11 h-11 rounded-lg bg-slate-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">{(t.abbreviation || t.name || '?').slice(0, 3).toUpperCase()}</span>}
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-900 truncate">{t.name}</p>
+            <p className="text-xs text-slate-400 truncate">{t.owner ?? '—'}</p>
+          </div>
+        </Link>
+      ))}
     </div>
   )
 }

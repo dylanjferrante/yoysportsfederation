@@ -37,8 +37,11 @@ export default function TeamPage() {
   const load = useCallback(() => {
     fetch(`/api/teams/${id}/roster`).then(r => r.json()).then(d => {
       setData(d)
-      const first = SPORTS.find(s => (d.players ?? []).some((p: P) => p.sport === s))
-      if (first) setSport(first)
+      // Keep the current sport tab if it still has players; only fall back on first load.
+      setSport(prev => {
+        const present = SPORTS.filter(s => (d.players ?? []).some((p: P) => p.sport === s))
+        return present.includes(prev) ? prev : (present[0] ?? prev)
+      })
       setLoading(false)
     })
   }, [id])
