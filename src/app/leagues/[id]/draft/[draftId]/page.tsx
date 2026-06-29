@@ -14,6 +14,8 @@ export default function DraftRoom() {
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState<'players' | 'board'>('players')
 
+  const [now, setNow] = useState(() => Date.now())
+
   const load = useCallback(() => { fetch(`/api/drafts/${draftId}`).then(r => r.json()).then(setS) }, [draftId])
   useEffect(() => { load() }, [load])
 
@@ -22,6 +24,26 @@ export default function DraftRoom() {
     await fetch(`/api/drafts/${draftId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     setBusy(false); load()
   }
+
+  // Live clock: tick every second; poll + advance the server clock when it expires.
+  const live = s?.draft?.status === 'IN_PROGRESS'
+  const deadline = s?.draft?.pickDeadline ? Date.parse(s.draft.pickDeadline) : null
+  const remaining = deadline ? Math.max(0, Math.round((deadline - now) / 1000)) : null
+  useEffect(() => {
+    if (!live) return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [live])
+  useEffect(() => {
+    if (!live) return
+    const poll = setInterval(() => load(), 4000)
+    return () => clearInterval(poll)
+  }, [live, load])
+  useEffect(() => {
+    if (live && deadline && now >= deadline && !busy) {
+      action({ action: 'TICK' })
+    }
+  }, [live, deadline, now]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!s?.draft) return <div className="text-center py-20 text-slate-400">Loading draft…</div>
   const d = s.draft
@@ -47,7 +69,16 @@ export default function DraftRoom() {
       <div className="card p-4 mb-5 flex items-center justify-between flex-wrap gap-3">
         <div>
           {d.status === 'PENDING' && <p className="text-slate-600">Draft hasn't started.</p>}
-          {d.status === 'IN_PROGRESS' && onClock && <p className="text-slate-700">On the clock: <span className="font-bold text-slate-900">{onClock.name}</span>{myTurn && <span className="ml-2 text-green-600 font-semibold">— your pick!</span>}</p>}
+          {d.status === 'IN_PROGRESS' && onClock && (
+            <div className="flex items-center gap-3">
+              {remaining != null && (
+                <span className={`tabular-nums font-black text-2xl leading-none ${remaining <= 10 ? 'text-red-600' : 'text-slate-900'}`}>
+                  {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
+                </span>
+              )}
+              <p className="text-slate-700">On the clock: <span className="font-bold text-slate-900">{onClock.name}</span>{myTurn && <span className="ml-2 text-green-600 font-semibold">— your pick!</span>}</p>
+            </div>
+          )}
           {d.status === 'COMPLETED' && <p className="text-slate-600 font-medium">Draft complete 🎉</p>}
         </div>
         <div className="flex items-center gap-2">

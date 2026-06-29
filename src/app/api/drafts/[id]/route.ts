@@ -140,6 +140,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const body = await req.json() as { action: string; playerId?: string; direction?: string }
 
+  const newDeadline = () => new Date(Date.now() + (draft.pickSeconds ?? 90) * 1000).toISOString()
+
   // Queue management
   if (body.action === 'QUEUE_ADD' && body.playerId && myTeam) {
     const existing = await db.select().from(draftQueues).where(and(eq(draftQueues.draftId, id), eq(draftQueues.teamId, myTeam.id)))
@@ -171,7 +173,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (body.action === 'START') {
     if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
-    await db.update(drafts).set({ status: 'IN_PROGRESS', currentPick: 1 }).where(eq(drafts.id, id))
+    await db.update(drafts).set({ status: 'IN_PROGRESS', currentPick: 1, pickDeadline: newDeadline() }).where(eq(drafts.id, id))
+  }
+
+  // Clock expiry: anyone may tick; the server only force-picks once the deadline passes.
+  if (body.action === 'TICK') {
+    if (draft.status === 'IN_PROGRESS' && draft.pickDeadline && Date.now() >= Date.parse(draft.pickDeadline)) {
+      const clock = onClock(order, draft.currentPick ?? 1)
+      if (clock) {
+        const totals = await sportTotals()
+        const rostered = await rosteredSet(draft.leagueId)
+        const pid = await autoSelect(draft, clock.id, sportsFilter, rostered, totals)
+        if (pid) {
+          await commitPick(draft, order, clock.id, pid, draft.currentPick ?? 1)
+          await db.update(drafts).set({ currentPick: (draft.currentPick ?? 1) + 1 }).where(eq(drafts.id, id))
+        }
+      }
+    }
   }
 
   // Explicit human pick
@@ -204,7 +222,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       live = { ...live, currentPick: next }
       if (autoNow) break // a manual "auto-pick my slot" only makes one pick
     }
-    if ((live.currentPick ?? 1) > total) await db.update(drafts).set({ status: 'COMPLETED' }).where(eq(drafts.id, id))
+    if ((live.currentPick ?? 1) > total) {
+      await db.update(drafts).set({ status: 'COMPLETED', pickDeadline: null }).where(eq(drafts.id, id))
+    } else if (['START', 'PICK', 'AUTO_PICK', 'TICK', 'TOGGLE_AUTOPICK'].includes(body.action)) {
+      // A new team is on the clock — restart their timer.
+      await db.update(drafts).set({ pickDeadline: newDeadline() }).where(eq(drafts.id, id))
+    }
   }
 
   return NextResponse.json({ ok: true })

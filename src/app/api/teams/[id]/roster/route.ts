@@ -7,6 +7,7 @@ import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { slotEligible } from '@/lib/defaults'
+import { logActivity } from '@/lib/activity'
 
 // A franchise's full cross-sport roster + tradeable picks + slot options.
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -71,7 +72,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   if (body.action === 'DROP' && body.rosterId) {
+    const [dropped] = await db.select({ name: players.name, sport: players.sport })
+      .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
+      .where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
     await db.delete(rosters).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
+    if (dropped) await logActivity(team.leagueId, 'ROSTER', `${team.name} dropped ${dropped.name} (${dropped.sport})`, id)
     return NextResponse.json({ ok: true })
   }
 
@@ -86,6 +91,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (existing.length) return NextResponse.json({ error: 'Player is already rostered' }, { status: 400 })
     if (body.dropRosterId) await db.delete(rosters).where(and(eq(rosters.id, body.dropRosterId), eq(rosters.teamId, id)))
     await db.insert(rosters).values({ id: nanoid(), teamId: id, playerId: body.playerId, sport: pl.sport, slot: 'BN', acquisitionType: 'FA' }).onConflictDoNothing()
+    await logActivity(team.leagueId, 'ROSTER', `${team.name} added ${pl.name} (${pl.sport})`, id)
     return NextResponse.json({ ok: true })
   }
 
