@@ -1,9 +1,10 @@
 import { db } from '@/db'
-import { leagues, teams, teamRecords, leagueHistory } from '@/db/schema'
+import { leagues, teams, teamRecords, leagueHistory, matchups } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta, safeParse } from '@/lib/utils'
+import HeadToHead from './HeadToHead'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -22,6 +23,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
 
   const history = await db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, id))
   const records = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, id))
+  const allMatchups = await db.select({ sport: matchups.sport, homeTeamId: matchups.homeTeamId, awayTeamId: matchups.awayTeamId, homeScore: matchups.homeScore, awayScore: matchups.awayScore, isComplete: matchups.isComplete }).from(matchups).where(eq(matchups.leagueId, id)).limit(5000)
 
   const seasons = [...new Set(history.map(h => h.season))].sort().reverse()
 
@@ -110,6 +112,10 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-6">
+        <HeadToHead matchups={allMatchups as any} teams={franchises.map(f => ({ id: f.id, name: f.name, abbreviation: f.abbreviation }))} sportsEnabled={sports} />
       </div>
     </div>
   )
