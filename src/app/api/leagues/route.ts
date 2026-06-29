@@ -114,6 +114,7 @@ export async function POST(req: Request) {
       sportNames: '{}',
       championshipNames: '{}',
       championshipLogos: '{}',
+      breakWeeks: '{}',
     }).returning()
 
     // Commissioner membership + their franchise

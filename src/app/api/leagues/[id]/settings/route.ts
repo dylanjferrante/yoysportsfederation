@@ -12,7 +12,8 @@ import { safeParse } from '@/lib/utils'
 // add games for any sport/week that's now active but has none, and remove
 // not-yet-played games that fall outside a sport's new window. Completed games
 // are always preserved.
-async function syncSeasonMatchups(leagueId: string, season: string, schedule: ScheduleEntry[]) {
+async function syncSeasonMatchups(leagueId: string, season: string, schedule: ScheduleEntry[], breaks: Record<string, number[]> = {}) {
+  const isBreak = (sport: string, week: number) => (breaks[sport] ?? []).includes(week)
   const teamRows = await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, leagueId))
   const teamIds = teamRows.map(t => t.id)
   if (teamIds.length < 2) return
@@ -23,21 +24,21 @@ async function syncSeasonMatchups(leagueId: string, season: string, schedule: Sc
   const existing = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season)))
   const have = new Set(existing.map(m => `${m.sport}:${m.week}`))
 
-  // Remove stale, unplayed games outside the new windows.
+  // Remove stale, unplayed games outside the new windows or on break weeks.
   for (const m of existing) {
-    if (!m.isComplete && !sportsActiveInWeek(schedule, m.week).includes(m.sport)) {
+    if (!m.isComplete && (!sportsActiveInWeek(schedule, m.week).includes(m.sport) || isBreak(m.sport, m.week))) {
       await db.delete(matchups).where(eq(matchups.id, m.id))
     }
   }
 
-  // Add games for newly-active sport/weeks.
+  // Add games for newly-active sport/weeks (skipping break weeks).
   const rows: any[] = []
   for (let week = 1; week <= maxWeek; week++) {
     const active = sportsActiveInWeek(schedule, week)
     if (!active.length) continue
     const pairs = pairings[(week - 1) % pairings.length]
     for (const sport of active) {
-      if (have.has(`${sport}:${week}`)) continue
+      if (isBreak(sport, week) || have.has(`${sport}:${week}`)) continue
       for (const [home, away] of pairs) {
         rows.push({ id: nanoid(), leagueId, sport, season, week, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, isComplete: false })
       }
@@ -66,7 +67,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'tradeDeadline', 'tradeDeadlines', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
     'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'waiverSchedule', 'irEligibleDesignations', 'defenseMode', 'lockDay',
     'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds', 'playoffFormat', 'weeksPerRound', 'positionLimits', 'mlbSpCap',
-    'duesAmount', 'divisions', 'sportNames', 'championshipNames', 'championshipLogos',
+    'duesAmount', 'divisions', 'sportNames', 'championshipNames', 'championshipLogos', 'breakWeeks',
   ] as const
 
   const update: Record<string, unknown> = {}
@@ -75,7 +76,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   // Serialize JSON object/array fields.
-  for (const k of ['divisionLogos', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule', 'rookieDraftRounds', 'regularSeasonWeeks', 'tradeDeadlines', 'waiverSchedule', 'irEligibleDesignations', 'positionLimits', 'rookieDraftDates', 'sportNames', 'championshipNames', 'championshipLogos']) {
+  for (const k of ['divisionLogos', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule', 'rookieDraftRounds', 'regularSeasonWeeks', 'tradeDeadlines', 'waiverSchedule', 'irEligibleDesignations', 'positionLimits', 'rookieDraftDates', 'sportNames', 'championshipNames', 'championshipLogos', 'breakWeeks']) {
     if (k in update && typeof update[k] !== 'string') update[k] = JSON.stringify(update[k])
   }
 
@@ -93,10 +94,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const [updated] = await db.update(leagues).set(update).where(eq(leagues.id, id)).returning()
 
-  // If the schedule changed, fill out the season's matchups to match.
-  if ('sportSchedule' in update) {
-    const schedule = safeParse<ScheduleEntry[]>(update.sportSchedule as string, [])
-    if (schedule.length) await syncSeasonMatchups(id, updated.season, schedule)
+  // If the schedule or break weeks changed, fill out the season's matchups to match.
+  if ('sportSchedule' in update || 'breakWeeks' in update) {
+    const schedule = safeParse<ScheduleEntry[]>((update.sportSchedule as string) ?? updated.sportSchedule, [])
+    const breaks = safeParse<Record<string, number[]>>(updated.breakWeeks, {})
+    if (schedule.length) await syncSeasonMatchups(id, updated.season, schedule, breaks)
   }
 
   return NextResponse.json(updated)
