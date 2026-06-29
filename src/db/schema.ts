@@ -283,6 +283,17 @@ export const playerGameStats = sqliteTable('player_game_stats', {
   uniq: uniqueIndex('pgs_uniq').on(t.leagueId, t.season, t.week, t.playerId),
 }))
 
+// ── Player news ──────────────────────────────────────────────────────────────
+
+export const playerNews = sqliteTable('player_news', {
+  id: text('id').primaryKey(),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  headline: text('headline').notNull(),
+  body: text('body'),
+  category: text('category').default('NOTE'), // INJURY | PERFORMANCE | TRANSACTION | NOTE
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
 // ── Matchups ───────────────────────────────────────────────────────────────
 
 export const matchups = sqliteTable('matchups', {
@@ -382,6 +393,16 @@ export const notifications = sqliteTable('notifications', {
   message: text('message').notNull(),
   link: text('link'),
   isRead: integer('is_read', { mode: 'boolean' }).default(false),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
+// ── League chat / message board ─────────────────────────────────────────────
+
+export const leagueMessages = sqliteTable('league_messages', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  body: text('body').notNull(),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 
