@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { teams, rosters, players, draftPicks, users, leagues } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, matchups } from '@/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { slotEligible } from '@/lib/defaults'
 import { logActivity } from '@/lib/activity'
+import { realOpponents } from '@/lib/realschedule'
 
 // A franchise's full cross-sport roster + tradeable picks + slot options.
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,20 +27,62 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .select({
       rosterId: rosters.id, slot: rosters.slot, sport: rosters.sport,
       id: players.id, name: players.name, position: players.position,
-      realTeam: players.realTeam, status: players.status, seasonPoints: players.seasonPoints,
+      realTeam: players.realTeam, realTeamAbbr: players.realTeamAbbr, status: players.status,
+      injuryNote: players.injuryNote, byeWeek: players.byeWeek,
+      seasonPoints: players.seasonPoints, projectedPoints: players.projectedPoints, weeklyAvg: players.weeklyAvg,
     })
     .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
     .where(eq(rosters.teamId, id))
 
   const picks = await db.select().from(draftPicks).where(and(eq(draftPicks.currentTeamId, id), eq(draftPicks.isUsed, false)))
 
-  roster.sort((a, b) => (b.seasonPoints ?? 0) - (a.seasonPoints ?? 0))
+  // Aggregate each player's game logs → season category totals, games played, last game.
+  const playerIds = roster.map(r => r.id)
+  const logs = playerIds.length
+    ? await db.select({ playerId: playerGameStats.playerId, week: playerGameStats.week, points: playerGameStats.points, stats: playerGameStats.stats })
+        .from(playerGameStats)
+        .where(and(eq(playerGameStats.leagueId, team.leagueId), eq(playerGameStats.season, league?.season ?? ''), inArray(playerGameStats.playerId, playerIds)))
+    : []
+  const agg: Record<string, { season: Record<string, number>; gp: number; lastWk: number; lastPts: number }> = {}
+  for (const g of logs) {
+    const a = (agg[g.playerId] ??= { season: {}, gp: 0, lastWk: -1, lastPts: 0 })
+    const s = safeParse<Record<string, number>>(g.stats ?? '{}', {})
+    for (const k in s) a.season[k] = (a.season[k] ?? 0) + (s[k] ?? 0)
+    a.gp++
+    if (g.week > a.lastWk) { a.lastWk = g.week; a.lastPts = g.points ?? 0 }
+  }
+
+  // Current (lowest incomplete) week per sport → drives this week's real opponent.
+  const incompletes = await db.select({ sport: matchups.sport, week: matchups.week })
+    .from(matchups).where(and(eq(matchups.leagueId, team.leagueId), eq(matchups.isComplete, false)))
+  const curWeek: Record<string, number> = {}
+  for (const m of incompletes) curWeek[m.sport] = Math.min(curWeek[m.sport] ?? Infinity, m.week)
+
+  // Real-game opponent map per sport (built from the full real-team set in each sport).
+  const sportsOnRoster = [...new Set(roster.map(r => r.sport))]
+  const oppMaps: Record<string, Record<string, { opp: string; home: boolean }>> = {}
+  for (const sp of sportsOnRoster) {
+    const abbrs = (await db.select({ a: players.realTeamAbbr }).from(players).where(eq(players.sport, sp))).map(r => r.a).filter(Boolean) as string[]
+    oppMaps[sp] = realOpponents(abbrs, curWeek[sp] ?? 1)
+  }
+
+  const enriched = roster.map(r => {
+    const a = agg[r.id]
+    return {
+      ...r,
+      gp: a?.gp ?? 0,
+      lastPts: a?.lastPts ?? null,
+      seasonStats: a?.season ?? {},
+      opp: r.realTeamAbbr ? (oppMaps[r.sport]?.[r.realTeamAbbr] ?? null) : null,
+    }
+  }).sort((x, y) => (y.seasonPoints ?? 0) - (x.seasonPoints ?? 0))
+
   picks.sort((a, b) => a.year - b.year || (a.sport ?? '').localeCompare(b.sport ?? '') || a.round - b.round)
 
   const canManage = !!session && (session.user.id === team.userId || session.user.id === league?.commissionerId)
 
   return NextResponse.json({
-    team, players: roster, picks,
+    team, players: enriched, picks,
     rosterSettings: safeParse(league?.rosterSettings, {}),
     canManage,
   })

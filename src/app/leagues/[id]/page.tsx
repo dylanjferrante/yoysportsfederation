@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { safeParse, inSeasonNow } from '@/lib/utils'
 import LeagueTabs from './LeagueTabs'
-import DuesPanel from './DuesPanel'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -99,8 +98,6 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         rosterSettings={rosterSettings}
         currentUserId={session?.user?.id}
       />
-
-      <DuesPanel leagueId={id} isCommissioner={isCommissioner} />
 
       {/* League activity feed */}
       <div className="card mt-8">
