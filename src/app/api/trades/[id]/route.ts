@@ -5,6 +5,7 @@ import { db } from '@/db'
 import { trades, teams, rosters, tradeItems, tradeApprovals, draftPicks, players } from '@/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
+import { logActivity, notify } from '@/lib/activity'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -32,12 +33,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json(updated)
   }
 
+  const initiatorTeam = teamRows.find(t => t.id === trade.initiatorId)
+
   if (action === 'CANCEL') {
     if (!isInitiator) return NextResponse.json({ error: 'Only the initiator can cancel' }, { status: 403 })
+    await logActivity(trade.leagueId!, 'TRADE', `${initiatorTeam?.name ?? 'A franchise'} cancelled a trade`, trade.initiatorId)
     return finish('CANCELLED')
   }
   if (action === 'REJECT') {
     if (!myTeam) return NextResponse.json({ error: 'Not a participant' }, { status: 403 })
+    await logActivity(trade.leagueId!, 'TRADE', `${myTeam.name} rejected a trade from ${initiatorTeam?.name ?? 'a franchise'}`, myTeam.id)
+    if (initiatorTeam?.userId) await notify(initiatorTeam.userId, `${myTeam.name} rejected your trade proposal`, `/trade`)
     return finish('REJECTED')
   }
 
@@ -65,5 +71,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       await db.update(draftPicks).set({ currentTeamId: to }).where(eq(draftPicks.id, it.pickId))
     }
   }
+  const partyNames = teamRows.map(t => t.name).join(' / ')
+  await logActivity(trade.leagueId!, 'TRADE', `Trade completed: ${partyNames}`, trade.initiatorId)
+  await notify(teamRows.map(t => t.userId).filter(Boolean) as string[], `Your trade is complete: ${partyNames}`, `/trade`)
   return finish('ACCEPTED')
 }

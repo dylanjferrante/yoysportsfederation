@@ -14,6 +14,8 @@ db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = OFF')
 
 const drop = `
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS activity;
 DROP TABLE IF EXISTS commissioner_actions;
 DROP TABLE IF EXISTS waiver_claims;
 DROP TABLE IF EXISTS trade_votes;
@@ -302,6 +304,24 @@ CREATE TABLE waiver_claims (
   status TEXT DEFAULT 'PENDING',
   claimed_at TEXT DEFAULT (datetime('now')),
   processed_at TEXT
+);
+
+CREATE TABLE activity (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  message TEXT NOT NULL,
+  team_id TEXT REFERENCES teams(id),
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  link TEXT,
+  is_read INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE commissioner_actions (

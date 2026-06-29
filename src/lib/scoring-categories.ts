@@ -140,6 +140,43 @@ export function statMeta(sport: string, key: string): StatMeta {
   return SCORING_CATEGORIES[sport]?.[key] ?? { label: humanize(key), group: 'Other' }
 }
 
+// Box-score / game-log stat columns per sport & position. Each column extracts
+// (or derives) a value from a stat line, so the game log can show real columns.
+type Col = { label: string; get: (s: Record<string, number>) => number }
+const g = (k: string): Col['get'] => (s) => s[k] ?? 0
+
+export function gameLogColumns(sport: string, position: string): Col[] {
+  const C = (label: string, get: Col['get']): Col => ({ label, get })
+  if (sport === 'NFL') {
+    if (position === 'QB') return [C('Pass Yd', g('passingYards')), C('Pass TD', g('passingTD')), C('Int', g('passingInt')), C('Rush Yd', g('rushingYards')), C('Rush TD', g('rushingTD'))]
+    if (position === 'RB') return [C('Rush Yd', g('rushingYards')), C('Rush TD', g('rushingTD')), C('Rec', g('receptions')), C('Rec Yd', g('receivingYards')), C('Rec TD', g('receivingTD'))]
+    if (position === 'WR' || position === 'TE') return [C('Rec', g('receptions')), C('Tgt', g('targets')), C('Rec Yd', g('receivingYards')), C('Rec TD', g('receivingTD'))]
+    if (position === 'K') return [C('FG <40', g('fgMade0_39')), C('FG 40s', g('fgMade40_49')), C('FG 50+', g('fgMade50plus')), C('XP', g('xpMade'))]
+    return [C('Sack', g('sack')), C('Int', g('interception')), C('FR', g('fumbleRecovery')), C('Def TD', g('defensiveTD'))]
+  }
+  if (sport === 'NBA') return [C('PTS', g('points')), C('REB', s => (s.offRebounds ?? 0) + (s.defRebounds ?? 0)), C('AST', g('assists')), C('STL', g('steals')), C('BLK', g('blocks')), C('3PM', g('threesMade')), C('TO', g('turnovers'))]
+  if (sport === 'NHL') {
+    if (position === 'G') return [C('W', g('wins')), C('SV', g('saves')), C('GA', g('goalsAllowed')), C('SO', g('shutout')), C('OTL', g('overtimeLoss'))]
+    return [C('G', g('goals')), C('A', g('assists')), C('SOG', g('shotsOnGoal')), C('+/-', g('plusMinus')), C('PIM', g('penaltyMinutes')), C('Hit', g('hits')), C('Blk', g('blockedShots'))]
+  }
+  if (sport === 'MLB') {
+    if (position === 'SP' || position === 'RP') return [C('IP', g('inningsPitched')), C('K', g('strikeoutsAsPitcher')), C('ER', g('earnedRunsAllowed')), C('H', g('hitsAllowed')), C('BB', g('walksAllowed')), C('W', g('wins')), C('SV', g('saves'))]
+    return [C('R', g('runs')), C('H', s => (s.singles ?? 0) + (s.doubles ?? 0) + (s.triples ?? 0) + (s.homeRuns ?? 0)), C('HR', g('homeRuns')), C('RBI', g('rbi')), C('BB', g('walks')), C('SB', g('stolenBases')), C('K', g('strikeoutsAsBatter'))]
+  }
+  return []
+}
+
+// Uniform box-score columns for a sport (aligned table across all players;
+// off-position cells read 0, as in a real box score).
+export function boxScoreColumns(sport: string): Col[] {
+  const C = (label: string, get: Col['get']): Col => ({ label, get })
+  if (sport === 'NFL') return [C('PaYd', g('passingYards')), C('PaTD', g('passingTD')), C('Int', g('passingInt')), C('RuYd', g('rushingYards')), C('RuTD', g('rushingTD')), C('Rec', g('receptions')), C('ReYd', g('receivingYards')), C('ReTD', g('receivingTD'))]
+  if (sport === 'NBA') return [C('PTS', g('points')), C('REB', s => (s.offRebounds ?? 0) + (s.defRebounds ?? 0)), C('AST', g('assists')), C('STL', g('steals')), C('BLK', g('blocks')), C('3PM', g('threesMade')), C('TO', g('turnovers'))]
+  if (sport === 'NHL') return [C('G', g('goals')), C('A', g('assists')), C('SOG', g('shotsOnGoal')), C('+/-', g('plusMinus')), C('Hit', g('hits')), C('Blk', g('blockedShots')), C('SV', g('saves')), C('GA', g('goalsAllowed'))]
+  if (sport === 'MLB') return [C('R', g('runs')), C('H', s => (s.singles ?? 0) + (s.doubles ?? 0) + (s.triples ?? 0) + (s.homeRuns ?? 0)), C('HR', g('homeRuns')), C('RBI', g('rbi')), C('IP', g('inningsPitched')), C('K', s => (s.strikeoutsAsPitcher ?? 0) || (s.strikeoutsAsBatter ?? 0)), C('ER', g('earnedRunsAllowed'))]
+  return []
+}
+
 // Group a sport's scoring entries into ordered { group, items[] } sections.
 export function groupScoring(sport: string, scoring: Record<string, number>) {
   const groups: { group: string; items: { key: string; label: string; value: number }[] }[] = []

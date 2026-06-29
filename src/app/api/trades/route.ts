@@ -6,6 +6,7 @@ import { trades, tradeItems, tradeApprovals, teams, players, draftPicks, leagues
 import { eq, or, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
+import { logActivity, notify } from '@/lib/activity'
 
 const tradeItemSchema = z.object({
   direction: z.enum(['GIVING', 'RECEIVING']).optional(),
@@ -108,6 +109,11 @@ export async function POST(req: Request) {
     await db.insert(tradeApprovals).values(partnerRows.map(t => ({
       id: nanoid(), tradeId, teamId: t.id, userId: t.userId, status: 'PENDING',
     })))
+
+    // Activity feed + notify each partner franchise's owner.
+    const partnerNames = partnerRows.map(t => t.name).join(', ')
+    await logActivity(leagueId, 'TRADE', `${mine.name} proposed a trade to ${partnerNames}`, mine.id)
+    await notify(partnerRows.map(t => t.userId).filter(Boolean) as string[], `${mine.name} sent you a trade proposal`, `/trade`)
 
     return NextResponse.json(trade, { status: 201 })
   } catch (e) {

@@ -581,6 +581,23 @@ if (giftPick && wantPlayer) {
   insertApproval.run(id(), tradeId, teamIds[1], ownerIds[1], 'PENDING')
 }
 
+// ── Seed league activity feed ───────────────────────────────────────────────
+
+const insertActivity = db.prepare(
+  `INSERT INTO activity (id, league_id, type, message, team_id, created_at) VALUES (?,?,?,?,?,datetime('now', ?))`
+)
+const fName = (i: number) => FRANCHISES[i].name
+const seedActivity: [string, string, string | null, string][] = [
+  ['SCORES', `Scores posted: NFL Wk 14, NBA Wk 10, NHL Wk 9`, null, '-1 hours'],
+  ['TRADE',  `${fName(0)} proposed a trade to ${fName(1)}`, teamIds[0], '-5 hours'],
+  ['WAIVER', `${fName(2)} claimed a free agent off waivers`, teamIds[2], '-1 days'],
+  ['ROSTER', `${fName(3)} updated their NBA lineup`, teamIds[3], '-1 days'],
+  ['SCORES', `Scores posted: MLB Wk 8`, null, '-2 days'],
+  ['TRADE',  `Trade completed: ${fName(4)} / ${fName(5)}`, teamIds[4], '-3 days'],
+  ['DRAFT',  `Rookie draft scheduled for ${NEXT_DRAFT_YEAR}`, null, '-4 days'],
+]
+for (const [type, msg, tid, when] of seedActivity) insertActivity.run(id(), leagueId, type, msg, tid, when)
+
 db.close()
 console.log('✅ Database seeded successfully!')
 console.log('   League: Nexus Federation (NFL · NBA · NHL · MLB)')
