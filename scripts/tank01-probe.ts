@@ -56,10 +56,34 @@ async function main() {
   try { json = JSON.parse(text) } catch { console.log(text.slice(0, 1500)); return }
 
   const body = json && typeof json === 'object' && 'body' in json ? json.body : json
-  const rows = Array.isArray(body) ? body : (body && typeof body === 'object' ? Object.values(body) : [])
-  console.log(`\nRows returned: ${rows.length}`)
-  console.log('First entry (field names matter for mapping):')
-  console.log(JSON.stringify(rows[0] ?? body, null, 2).slice(0, 2000))
+
+  if (Array.isArray(body)) {
+    console.log(`\nArray of ${body.length}. First entry:`)
+    console.log(JSON.stringify(body[0], null, 2).slice(0, 2000))
+    return
+  }
+
+  if (body && typeof body === 'object') {
+    const keys = Object.keys(body)
+    console.log(`\nTop-level keys (${keys.length}): ${JSON.stringify(keys)}`)
+    // For each top-level key, reveal its shape + one sample sub-entry.
+    for (const k of keys.slice(0, 8)) {
+      const v = (body as any)[k]
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        const subKeys = Object.keys(v)
+        console.log(`\n• ${k}: object with ${subKeys.length} entries. Sample [${subKeys[0]}]:`)
+        console.log(JSON.stringify(v[subKeys[0]], null, 2).slice(0, 1200))
+      } else if (Array.isArray(v)) {
+        console.log(`\n• ${k}: array of ${v.length}. Sample:`)
+        console.log(JSON.stringify(v[0], null, 2).slice(0, 1200))
+      } else {
+        console.log(`\n• ${k}: ${JSON.stringify(v)}`)
+      }
+    }
+    return
+  }
+
+  console.log(`\nValue: ${JSON.stringify(body)}`)
 }
 
 main().catch(e => { console.error(e); process.exit(1) })
