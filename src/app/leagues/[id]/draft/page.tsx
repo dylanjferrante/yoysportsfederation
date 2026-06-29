@@ -71,7 +71,10 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
               </h3>
               <div className="flex items-center gap-2">
                 {d.startsAt && <span className="text-xs text-slate-400">{new Date(d.startsAt).toLocaleDateString()}</span>}
-                <span className="badge bg-slate-100 text-slate-600">{d.status}</span>
+                <span className={`badge ${d.status === 'IN_PROGRESS' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>{d.status}</span>
+                <Link href={`/leagues/${id}/draft/${d.id}`} className="btn-primary text-xs py-1">
+                  {d.status === 'IN_PROGRESS' ? 'Enter Room' : 'Open'}
+                </Link>
               </div>
             </div>
             <div className="card-body overflow-x-auto">
