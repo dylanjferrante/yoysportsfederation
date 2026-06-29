@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { drafts, leagues, teams, teamRecords, rosters, players, draftPicks, draftQueues, draftAutopick } from '@/db/schema'
-import { eq, and, inArray } from 'drizzle-orm'
+import { drafts, leagues, teams, teamRecords, rosters, players, draftPicks, draftQueues, draftAutopick, auctionBudgets } from '@/db/schema'
+import { eq, and, inArray, sql } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { computeFederationStandings } from '@/lib/federation'
@@ -94,10 +94,31 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     myAutopick = !!ap?.enabled
   }
 
+  // Auction state (budgets, current nomination, nominator).
+  let auction: any = null
+  if (draft.type === 'AUCTION') {
+    const budgets = await db.select().from(auctionBudgets).where(eq(auctionBudgets.draftId, id))
+    const budgetByTeam = Object.fromEntries(budgets.map(b => [b.teamId, { budget: b.budget ?? 0, spent: b.spent ?? 0, remaining: (b.budget ?? 0) - (b.spent ?? 0) }]))
+    let nomPlayer = null
+    if (draft.nomPlayerId) {
+      const [np] = await db.select({ id: players.id, name: players.name, sport: players.sport, position: players.position, realTeam: players.realTeam }).from(players).where(eq(players.id, draft.nomPlayerId)).limit(1)
+      nomPlayer = np ?? null
+    }
+    const nominator = draft.status === 'IN_PROGRESS' && (draft.currentPick ?? 1) <= total ? nominatorOf(order, draft.currentPick ?? 1) : null
+    auction = {
+      budgets: budgetByTeam,
+      nomPlayer,
+      highTeamId: draft.nomTeamId,
+      highBid: draft.nomBid ?? 0,
+      nominatorId: nominator?.id ?? null,
+      myRemaining: myTeam ? (budgetByTeam[myTeam.id]?.remaining ?? 200) : 0,
+    }
+  }
+
   return NextResponse.json({
     draft, order: order.map(o => ({ id: o.id, name: o.name, abbreviation: o.abbreviation, userId: o.userId })),
     board, made, current, total, onClockTeam: clock ? { id: clock.id, name: clock.name } : null,
-    available, myTeamId: myTeam?.id ?? null, myQueue, myAutopick,
+    available, myTeamId: myTeam?.id ?? null, myQueue, myAutopick, auction,
   })
 }
 
@@ -124,6 +145,101 @@ async function autoSelect(draft: any, teamId: string, sportsFilter: string[], ro
   return best?.id ?? null
 }
 
+// Auction nominator is the team at currentPick's slot, rotating each sale.
+function nominatorOf(order: any[], pick: number) {
+  if (!order.length) return null
+  return order[(Math.max(1, pick) - 1) % order.length]
+}
+
+// Finalize the active nomination: roster the player to the high bidder, charge
+// their budget, record the pick, and advance to the next nominator.
+async function settleNomination(draft: any, order: any[], total: number, newDeadline: (s?: number) => string) {
+  if (!draft.nomPlayerId || !draft.nomTeamId) return draft
+  await commitPick(draft, order, draft.nomTeamId, draft.nomPlayerId, draft.currentPick ?? 1)
+  await db.update(auctionBudgets)
+    .set({ spent: sql`${auctionBudgets.spent} + ${draft.nomBid ?? 0}` })
+    .where(and(eq(auctionBudgets.draftId, draft.id), eq(auctionBudgets.teamId, draft.nomTeamId)))
+  const sold = draft.currentPick ?? 1
+  const next = sold + 1
+  const done = next > total
+  await db.update(drafts).set({
+    currentPick: next, nomPlayerId: null, nomTeamId: null, nomBid: 0,
+    pickDeadline: done ? null : newDeadline(),
+    status: done ? 'COMPLETED' : 'IN_PROGRESS',
+  }).where(eq(drafts.id, draft.id))
+  return { ...draft, currentPick: next, nomPlayerId: null, nomTeamId: null, nomBid: 0 }
+}
+
+async function runAuction(
+  draft: any, league: any, order: any[], body: { action: string; playerId?: string; bid?: number },
+  ctx: { isCommish: boolean; myTeam: any; sportsFilter: string[]; newDeadline: (s?: number) => string },
+) {
+  const { isCommish, myTeam, newDeadline } = ctx
+  const total = (draft.rounds ?? 4) * order.length
+  const budgetSecs = Math.min(draft.pickSeconds ?? 60, 30) // bids run on a short clock
+
+  if (body.action === 'START') {
+    if (!isCommish) return { error: 'Commissioner only' }
+    // Seed each franchise's auction budget.
+    for (const t of order) {
+      await db.insert(auctionBudgets).values({ id: nanoid(), draftId: draft.id, teamId: t.id, budget: league?.auctionBudget ?? 200, spent: 0 }).onConflictDoNothing()
+    }
+    await db.update(drafts).set({ status: 'IN_PROGRESS', currentPick: 1, nomPlayerId: null, nomTeamId: null, nomBid: 0, pickDeadline: newDeadline() }).where(eq(drafts.id, draft.id))
+    return { ok: true }
+  }
+
+  const budgetOf = async (teamId: string) => {
+    const [b] = await db.select().from(auctionBudgets).where(and(eq(auctionBudgets.draftId, draft.id), eq(auctionBudgets.teamId, teamId))).limit(1)
+    return b ? (b.budget ?? 0) - (b.spent ?? 0) : 0
+  }
+
+  if (body.action === 'NOMINATE' && body.playerId && myTeam) {
+    if (draft.status !== 'IN_PROGRESS') return { error: 'Auction not active' }
+    if (draft.nomPlayerId) return { error: 'A player is already up for bid' }
+    const nominator = nominatorOf(order, draft.currentPick ?? 1)
+    if (!isCommish && nominator?.id !== myTeam.id) return { error: 'Not your nomination' }
+    const team = nominator ?? myTeam
+    const bid = Math.max(1, Math.floor(body.bid ?? 1))
+    if (bid > await budgetOf(team.id)) return { error: 'Opening bid exceeds budget' }
+    const [pl] = await db.select().from(players).where(eq(players.id, body.playerId)).limit(1)
+    if (!pl) return { error: 'Player not found' }
+    await db.update(drafts).set({ nomPlayerId: body.playerId, nomTeamId: team.id, nomBid: bid, pickDeadline: newDeadline(budgetSecs) }).where(eq(drafts.id, draft.id))
+    return { ok: true }
+  }
+
+  if (body.action === 'BID' && myTeam) {
+    if (!draft.nomPlayerId) return { error: 'Nothing is up for bid' }
+    const bid = Math.floor(body.bid ?? 0)
+    if (bid <= (draft.nomBid ?? 0)) return { error: 'Bid must beat the current high bid' }
+    if (bid > await budgetOf(myTeam.id)) return { error: 'Bid exceeds your budget' }
+    await db.update(drafts).set({ nomTeamId: myTeam.id, nomBid: bid, pickDeadline: newDeadline(budgetSecs) }).where(eq(drafts.id, draft.id))
+    return { ok: true }
+  }
+
+  // Clock expired → sell the active nomination, or auto-nominate if idle.
+  if (body.action === 'TICK' || body.action === 'SETTLE') {
+    const forced = body.action === 'SETTLE' && isCommish
+    const expired = draft.pickDeadline && Date.now() >= Date.parse(draft.pickDeadline)
+    if (draft.status === 'IN_PROGRESS' && (forced || expired)) {
+      if (draft.nomPlayerId) {
+        await settleNomination(draft, order, total, newDeadline)
+      } else {
+        // Nominator idled — auto-nominate the best available for them at $1 so the auction keeps moving.
+        const nominator = nominatorOf(order, draft.currentPick ?? 1)
+        if (nominator) {
+          const rostered = await rosteredSet(draft.leagueId)
+          const totals = await sportTotals()
+          const pid = await autoSelect(draft, nominator.id, ctx.sportsFilter, rostered, totals)
+          if (pid) await db.update(drafts).set({ nomPlayerId: pid, nomTeamId: nominator.id, nomBid: 1, pickDeadline: newDeadline(budgetSecs) }).where(eq(drafts.id, draft.id))
+        }
+      }
+    }
+    return { ok: true }
+  }
+
+  return { ok: true }
+}
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await getServerSession(authOptions)
@@ -138,9 +254,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const myTeam = order.find(o => o.userId === session.user.id)
   const sportsFilter = draft.scope === 'OVERALL' ? SPORTS : [draft.scope]
 
-  const body = await req.json() as { action: string; playerId?: string; direction?: string }
+  const body = await req.json() as { action: string; playerId?: string; direction?: string; bid?: number }
 
-  const newDeadline = () => new Date(Date.now() + (draft.pickSeconds ?? 90) * 1000).toISOString()
+  const newDeadline = (secs = draft.pickSeconds ?? 90) => new Date(Date.now() + secs * 1000).toISOString()
+
+  // ── Auction drafts: nomination + open bidding ──────────────────────────────
+  if (draft.type === 'AUCTION') {
+    const result = await runAuction(draft, league, order, body, { isCommish, myTeam, sportsFilter, newDeadline })
+    return NextResponse.json(result)
+  }
 
   // Queue management
   if (body.action === 'QUEUE_ADD' && body.playerId && myTeam) {

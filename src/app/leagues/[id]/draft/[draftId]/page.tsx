@@ -50,6 +50,13 @@ export default function DraftRoom() {
   const myTeamId = s.myTeamId
   const onClock = s.onClockTeam
   const myTurn = onClock && myTeamId && onClock.id === myTeamId
+
+  // Auction state
+  const isAuction = d.type === 'AUCTION'
+  const au = s.auction
+  const myNomTurn = isAuction && au && myTeamId && au.nominatorId === myTeamId && !au.nomPlayer
+  const canNominate = isAuction && d.status === 'IN_PROGRESS' && !au?.nomPlayer && (myNomTurn || s.order?.some((o: any) => o.userId === session?.user?.id && o.id === au?.nominatorId))
+  const teamName = (tid: string) => (s.order ?? []).find((o: any) => o.id === tid)?.name ?? '—'
   const queuedIds = new Set((s.myQueue ?? []).map((q: any) => q.playerId))
   const available = (s.available ?? []).filter((p: any) => !search || p.name.toLowerCase().includes(search.toLowerCase()))
   const abbrOf = (tid: string) => (s.order ?? []).find((o: any) => o.id === tid)?.abbreviation ?? '—'
@@ -93,6 +100,62 @@ export default function DraftRoom() {
         </div>
       </div>
 
+      {/* Auction: live nomination + budgets */}
+      {isAuction && d.status === 'IN_PROGRESS' && (
+        <div className="grid lg:grid-cols-3 gap-5 mb-5">
+          <div className="lg:col-span-2 card p-5">
+            {au?.nomPlayer ? (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-10 h-10 rounded-xl ${sportMeta(au.nomPlayer.sport).bg} text-white flex items-center justify-center text-xs font-bold`}>{au.nomPlayer.position?.slice(0, 2)}</span>
+                    <div>
+                      <p className="font-bold text-slate-900">{au.nomPlayer.name}</p>
+                      <p className="text-xs text-slate-400">{au.nomPlayer.sport} · {au.nomPlayer.realTeam}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-black tabular-nums" style={{ color: sportMeta(au.nomPlayer.sport).hex }}>${au.highBid}</p>
+                    <p className="text-xs text-slate-400">high bid · {teamName(au.highTeamId)}</p>
+                  </div>
+                </div>
+                {myTeamId && au.highTeamId !== myTeamId && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[1, 5, 10].map(inc => (
+                      <button key={inc} onClick={() => action({ action: 'BID', bid: au.highBid + inc })} disabled={busy || au.highBid + inc > au.myRemaining}
+                        className="text-sm px-3 py-1.5 rounded-lg bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-40">+${inc}</button>
+                    ))}
+                    <span className="text-xs text-slate-400 ml-auto">Your budget: <span className="font-bold tabular-nums text-slate-600">${au.myRemaining}</span></span>
+                  </div>
+                )}
+                {myTeamId && au.highTeamId === myTeamId && <p className="text-sm text-green-600 font-medium">You hold the high bid.</p>}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-slate-700 font-medium">{au?.nominatorId ? `${teamName(au.nominatorId)} to nominate` : 'Waiting…'}</p>
+                {canNominate && <p className="text-xs text-slate-400 mt-1">Pick a player below to nominate (opening bid $1).</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Budget board */}
+          <div className="card overflow-hidden">
+            <div className="card-header"><h2 className="font-semibold text-slate-900 text-sm">Budgets</h2></div>
+            <div className="max-h-56 overflow-y-auto divide-y divide-slate-50">
+              {(s.order ?? []).map((o: any) => {
+                const b = au?.budgets?.[o.id]
+                return (
+                  <div key={o.id} className="flex items-center justify-between px-4 py-1.5 text-sm">
+                    <span className={`truncate ${o.id === au?.highTeamId ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{o.abbreviation}</span>
+                    <span className="tabular-nums text-slate-500">${b ? b.remaining : '—'}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200 mb-4">
         <button onClick={() => setTab('players')} className={tab === 'players' ? 'tab-active' : 'tab-inactive'}>Players & Queue</button>
@@ -115,7 +178,8 @@ export default function DraftRoom() {
                     <span className="font-medium text-sm text-slate-900 truncate block">{p.name}</span>
                     <span className="text-xs text-slate-400">{p.sport} · {p.realTeam} · value {p.value}</span>
                   </span>
-                  {d.status === 'IN_PROGRESS' && myTurn && <button onClick={() => action({ action: 'PICK', playerId: p.id })} disabled={busy} className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500">Draft</button>}
+                  {d.status === 'IN_PROGRESS' && !isAuction && myTurn && <button onClick={() => action({ action: 'PICK', playerId: p.id })} disabled={busy} className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500">Draft</button>}
+                  {d.status === 'IN_PROGRESS' && isAuction && canNominate && <button onClick={() => action({ action: 'NOMINATE', playerId: p.id, bid: 1 })} disabled={busy} className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500">Nominate</button>}
                   {myTeamId && !queuedIds.has(p.id) && <button onClick={() => action({ action: 'QUEUE_ADD', playerId: p.id })} disabled={busy} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200">+ Queue</button>}
                   {queuedIds.has(p.id) && <span className="text-xs text-green-600 font-medium">queued</span>}
                 </div>

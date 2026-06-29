@@ -205,11 +205,27 @@ export const drafts = sqliteTable('drafts', {
   rounds: integer('rounds').default(4),
   status: text('status').default('PENDING'), // PENDING | IN_PROGRESS | COMPLETED
   startsAt: text('starts_at'),
-  currentPick: integer('current_pick').default(0), // overall pick number on the clock
-  pickSeconds: integer('pick_seconds').default(90), // per-pick time limit
-  pickDeadline: text('pick_deadline'),              // ISO deadline for the current pick
+  currentPick: integer('current_pick').default(0), // overall pick number on the clock (snake) / nomination turn (auction)
+  pickSeconds: integer('pick_seconds').default(90), // per-pick / per-nomination time limit
+  pickDeadline: text('pick_deadline'),              // ISO deadline for the current pick or bid
+  // Auction-only live nomination state
+  nomPlayerId: text('nom_player_id').references(() => players.id),
+  nomTeamId: text('nom_team_id').references(() => teams.id),   // current high bidder
+  nomBid: integer('nom_bid').default(0),                       // current high bid
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
+
+// ── Auction Budgets (per draft, per franchise) ──────────────────────────────
+
+export const auctionBudgets = sqliteTable('auction_budgets', {
+  id: text('id').primaryKey(),
+  draftId: text('draft_id').notNull().references(() => drafts.id, { onDelete: 'cascade' }),
+  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  budget: integer('budget').default(200),
+  spent: integer('spent').default(0),
+}, (t) => ({
+  uniq: uniqueIndex('auction_budget_uniq').on(t.draftId, t.teamId),
+}))
 
 // ── Draft Queues + Auto-pick (per team per draft) ───────────────────────────
 
