@@ -33,7 +33,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
   const allMatchups = await db
     .select().from(matchups)
-    .where(eq(matchups.leagueId, id))
+    .where(and(eq(matchups.leagueId, id), eq(matchups.season, league.season)))
     .limit(1000)
 
   const feed = await db
@@ -96,6 +96,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         matchups={allMatchups as any}
         federationScoring={federationScoring}
         rosterSettings={rosterSettings}
+        playoffTeams={league.playoffTeams ?? 6}
         currentUserId={session?.user?.id}
       />
 
