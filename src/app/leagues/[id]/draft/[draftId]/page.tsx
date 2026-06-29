@@ -225,41 +225,40 @@ export default function DraftRoom() {
             <div className="flex gap-1.5 mb-1.5 sticky top-0 z-10 bg-white py-1">
               <span className="w-8 flex-shrink-0" />
               {(s.order ?? []).map((t: any) => (
-                <div key={t.id} className="w-32 flex-shrink-0 rounded-lg px-2 py-1.5 flex items-center gap-1.5"
+                <div key={t.id} className="w-36 h-12 flex-shrink-0 rounded-lg px-2 flex items-center gap-1.5"
                   style={{ background: t.primaryColor || '#0f172a', color: t.secondaryColor || '#fff' }}>
                   {t.logo
-                    ? <img src={t.logo} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
-                    : <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: t.secondaryColor || '#fff', color: t.primaryColor || '#0f172a' }}>{(t.abbreviation || t.name || '?').slice(0, 2).toUpperCase()}</span>}
-                  <span className="text-[11px] font-bold leading-tight truncate">{t.name}</span>
+                    ? <img src={t.logo} alt="" className="w-6 h-6 rounded object-cover flex-shrink-0" />
+                    : <span className="w-6 h-6 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: t.secondaryColor || '#fff', color: t.primaryColor || '#0f172a' }}>{(t.abbreviation || t.name || '?').slice(0, 2).toUpperCase()}</span>}
+                  <span className="text-[11px] font-bold leading-tight line-clamp-2">{t.name}</span>
                 </div>
               ))}
             </div>
 
-            {/* One row per round; columns aligned to the team order */}
+            {/* One row per round; columns aligned to the team order. Tiles are a
+                fixed size with room for all five lines so nothing clips. */}
             {Array.from({ length: d.rounds }, (_, r) => (
               <div key={r} className="flex gap-1.5 mb-1.5 items-stretch">
                 <span className="w-8 flex-shrink-0 flex items-center justify-center text-xs font-bold text-slate-400">R{r + 1}</span>
                 {(s.order ?? []).map((t: any) => {
                   const b = (s.board ?? []).find((x: any) => x.round === r + 1 && x.teamId === t.id)
-                  if (!b) return <div key={t.id} className="w-32 flex-shrink-0" />
+                  if (!b) return <div key={t.id} className="w-36 flex-shrink-0" />
                   const isCurrent = b.pickNumber === s.current && d.status === 'IN_PROGRESS'
                   const p = b.player
                   const meta = p ? sportMeta(p.sport) : null
                   const [first, ...rest] = (p?.name ?? '').split(' ')
                   return (
                     <div key={t.id}
-                      className={`w-32 flex-shrink-0 rounded-lg border px-2 py-1.5 ${isCurrent ? 'border-blue-500 ring-1 ring-blue-400' : 'border-slate-200'} ${p ? meta!.light : 'bg-slate-50'}`}>
-                      <div className="flex items-center justify-between gap-1 text-[9px] text-slate-500">
-                        <span className="font-semibold tabular-nums">({b.pickNumber}, {b.round}.{b.pickInRound})</span>
-                        {p && <span className="font-medium truncate">{p.sport}-{p.realTeamAbbr ?? '—'}, {p.position}</span>}
-                      </div>
+                      className={`w-36 h-[5.25rem] flex-shrink-0 rounded-lg border px-2 py-1.5 flex flex-col ${isCurrent ? 'border-blue-500 ring-1 ring-blue-400' : 'border-slate-200'} ${p ? meta!.light : 'bg-slate-50'}`}>
+                      <div className="text-[9px] font-semibold tabular-nums text-slate-500 leading-tight">({b.pickNumber}, {b.round}.{b.pickInRound})</div>
                       {p ? (
-                        <div className="mt-0.5 leading-tight">
-                          <div className="text-[11px] text-slate-600 break-words">{first}</div>
-                          <div className="text-xs font-bold text-slate-900 break-words">{rest.join(' ')}</div>
-                        </div>
+                        <>
+                          <div className="text-[9px] font-medium text-slate-500 leading-tight">{p.sport}-{p.realTeamAbbr ?? '—'}, {p.position}</div>
+                          <div className="text-[11px] text-slate-600 leading-tight mt-auto">{first}</div>
+                          <div className="text-xs font-bold text-slate-900 leading-tight">{rest.join(' ')}</div>
+                        </>
                       ) : (
-                        <div className="mt-0.5 text-[11px] text-slate-300">{isCurrent ? 'on the clock' : '—'}</div>
+                        <div className="text-[11px] text-slate-300 mt-auto">{isCurrent ? 'on the clock' : '—'}</div>
                       )}
                     </div>
                   )
