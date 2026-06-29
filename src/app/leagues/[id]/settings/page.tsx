@@ -624,6 +624,7 @@ export default function CommissionerSettings() {
                 <label className="label">Draft Order Method</label>
                 <select className="select" value={form.draftOrderMethod ?? 'REVERSE_STANDINGS'} onChange={e => set('draftOrderMethod', e.target.value)}>
                   <option value="REVERSE_STANDINGS">Reverse standings</option>
+                  <option value="LOTTERY">Weighted lottery (anti-tank)</option>
                   <option value="RANDOM">Randomized</option>
                   <option value="MANUAL">Manual (commissioner sets)</option>
                 </select>

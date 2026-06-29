@@ -20,8 +20,36 @@ async function draftOrder(leagueId: string, season: string) {
     records.map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: r.isChampion })),
     fed, fed.includedSports ?? [],
   )
-  const order = [...standings].reverse().map(s => franchises.find(f => f.id === s.team.id)!).filter(Boolean)
-  return order.length ? order : franchises
+  // Worst → best by federation standings.
+  const worstFirst = [...standings].reverse().map(s => franchises.find(f => f.id === s.team.id)!).filter(Boolean)
+  if (!worstFirst.length) return franchises
+
+  const method = league?.draftOrderMethod ?? 'REVERSE_STANDINGS'
+  if (method === 'REVERSE_STANDINGS' || method === 'MANUAL') return worstFirst
+
+  // Deterministic PRNG seeded by league+season so RANDOM/LOTTERY stay stable
+  // across page loads (no need to persist the drawn order).
+  const seedStr = `${leagueId}:${season}:${method}`
+  let h = 2166136261
+  for (const c of seedStr) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) }
+  const rng = () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h ^= h >>> 13; return ((h >>> 0) % 100000) / 100000 }
+
+  if (method === 'RANDOM') {
+    const a = [...worstFirst]
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
+    return a
+  }
+  // LOTTERY: weighted by reverse standing — the worst team gets the most balls.
+  const pool = worstFirst.map((team, i) => ({ team, weight: worstFirst.length - i }))
+  const drawn: typeof worstFirst = []
+  while (pool.length) {
+    const total = pool.reduce((s, p) => s + p.weight, 0)
+    let r = rng() * total
+    let idx = 0
+    while (idx < pool.length - 1 && (r -= pool[idx].weight) > 0) idx++
+    drawn.push(pool[idx].team); pool.splice(idx, 1)
+  }
+  return drawn
 }
 
 function onClock(order: any[], pick: number) {

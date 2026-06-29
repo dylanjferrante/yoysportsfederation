@@ -20,7 +20,7 @@ const createSchema = z.object({
   isPublic:    z.boolean().default(false),
   description: z.string().max(500).optional(),
   draftType:   z.enum(['SNAKE', 'AUCTION', 'LINEAR']).default('SNAKE'),
-  draftOrderMethod: z.enum(['REVERSE_STANDINGS', 'RANDOM', 'MANUAL']).default('REVERSE_STANDINGS'),
+  draftOrderMethod: z.enum(['REVERSE_STANDINGS', 'RANDOM', 'MANUAL', 'LOTTERY']).default('REVERSE_STANDINGS'),
   rookieDraftMode: z.enum(['COMBINED', 'PER_SPORT']).default('PER_SPORT'),
   tradeablePickYears: z.number().int().min(0).max(7).default(3),
   tradeReview: z.enum(['NONE', 'COMMISSIONER', 'LEAGUE_VOTE']).default('COMMISSIONER'),

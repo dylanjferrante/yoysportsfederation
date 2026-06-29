@@ -199,7 +199,7 @@ export default function ProposeTradePage() {
                     <div className="flex flex-wrap gap-1.5">
                       {pickList.map(pk => {
                         const key = `${activeTeam}:pick:${pk.id}`
-                        return <button key={pk.id} onClick={() => toggle(activeTeam, 'pick', pk.id, `${pk.year} R${pk.round} ${pk.sport ?? ''}`)} className={`text-xs px-2 py-1 rounded ${sel[key] ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>{pk.year} R{pk.round}</button>
+                        return <button key={pk.id} onClick={() => toggle(activeTeam, 'pick', pk.id, `${pk.year} R${pk.round} ${pk.sport ?? ''}`)} className={`text-xs px-2 py-1 rounded ${sel[key] ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>{pk.year} R{pk.round} <span className="opacity-60">· {pickValue(pk.round, pk.year)}</span></button>
                       })}
                     </div>
                   </div>
