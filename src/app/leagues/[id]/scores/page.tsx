@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { safeParse } from '@/lib/utils'
+import { advanceLeague } from '@/lib/advance'
 import ScoresView from './ScoresView'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +19,7 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
+  await advanceLeague(league)
 
   const session = await getServerSession(authOptions)
   const franchises = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation }).from(teams).where(eq(teams.leagueId, id))
