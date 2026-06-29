@@ -99,6 +99,7 @@ export async function POST(req: Request) {
       faabMode: body.faabMode,
       waiverSchedule: JSON.stringify(defaultWaiverSchedule(body.sportsEnabled)),
       irEligibleDesignations: JSON.stringify(defaultIrDesignations(body.sportsEnabled)),
+      defenseMode: 'TEAM',
       playoffTeams: body.playoffTeams,
       playoffStartWeek: body.playoffStartWeek,
       regularSeasonWeeks: JSON.stringify(seasonWeeks),

@@ -25,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'draftType', 'draftDate', 'auctionBudget', 'secondsPerPick', 'autoPickEnabled', 'draftOrderMethod',
     'rookieDraftMode', 'rookieDraftRounds', 'tradeablePickYears',
     'tradeDeadline', 'tradeDeadlines', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
-    'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'waiverSchedule', 'irEligibleDesignations', 'lockDay',
+    'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'waiverSchedule', 'irEligibleDesignations', 'defenseMode', 'lockDay',
     'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds',
     'duesAmount',
   ] as const
