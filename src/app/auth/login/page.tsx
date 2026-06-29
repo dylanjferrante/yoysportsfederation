@@ -42,7 +42,10 @@ export default function LoginPage() {
               <input type="email" className="input" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="you@example.com" />
             </div>
             <div>
-              <label className="label">Password</label>
+              <div className="flex items-center justify-between">
+                <label className="label">Password</label>
+                <Link href="/auth/forgot" className="text-xs text-blue-600 hover:underline">Forgot password?</Link>
+              </div>
               <input type="password" className="input" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••" />
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-base">

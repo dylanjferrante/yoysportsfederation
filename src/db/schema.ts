@@ -73,6 +73,9 @@ export const leagues = sqliteTable('leagues', {
   regularSeasonWeeks: text('regular_season_weeks').default('{}'), // per-sport JSON map { NFL: 14, ... }
   playoffRounds: integer('playoff_rounds').default(2),
 
+  // Dues
+  duesAmount: integer('dues_amount').default(0), // per-franchise buy-in
+
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 })
@@ -84,10 +87,23 @@ export const leagueMembers = sqliteTable('league_members', {
   leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
   userId: text('user_id').notNull().references(() => users.id),
   role: text('role').default('MEMBER'), // COMMISSIONER | CO_COMMISSIONER | MEMBER
+  duesPaid: integer('dues_paid', { mode: 'boolean' }).default(false),
+  duesPaidAt: text('dues_paid_at'),
   joinedAt: text('joined_at').default(sql`(datetime('now'))`),
 }, (t) => ({
   uniq: uniqueIndex('league_member_uniq').on(t.leagueId, t.userId),
 }))
+
+// ── Password Resets ──────────────────────────────────────────────────────────
+
+export const passwordResets = sqliteTable('password_resets', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: text('expires_at').notNull(),
+  usedAt: text('used_at'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
 
 // ── Teams (a franchise — one per user per league, spans all sports) ──────────
 

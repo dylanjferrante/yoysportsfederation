@@ -27,6 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'tradeDeadline', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
     'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'lockDay',
     'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds',
+    'duesAmount',
   ] as const
 
   const update: Record<string, unknown> = {}

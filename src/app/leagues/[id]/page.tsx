@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { safeParse, inSeasonNow } from '@/lib/utils'
 import LeagueTabs from './LeagueTabs'
+import DuesPanel from './DuesPanel'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -72,6 +73,9 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
             {activeNow.length > 0 && (
               <p className="text-xs text-green-600 font-medium mt-1">● In season now: {activeNow.join(', ')}</p>
             )}
+            {isCommissioner && league.inviteCode && (
+              <p className="text-xs text-slate-400 mt-1">Invite code: <span className="font-mono font-bold text-slate-600 tracking-wider">{league.inviteCode}</span></p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -95,6 +99,8 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         rosterSettings={rosterSettings}
         currentUserId={session?.user?.id}
       />
+
+      <DuesPanel leagueId={id} isCommissioner={isCommissioner} />
 
       {/* League activity feed */}
       <div className="card mt-8">

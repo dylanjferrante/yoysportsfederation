@@ -16,6 +16,7 @@ db.pragma('foreign_keys = OFF')
 const drop = `
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS activity;
+DROP TABLE IF EXISTS password_resets;
 DROP TABLE IF EXISTS commissioner_actions;
 DROP TABLE IF EXISTS waiver_claims;
 DROP TABLE IF EXISTS trade_votes;
@@ -90,6 +91,7 @@ CREATE TABLE leagues (
   playoff_start_week INTEGER DEFAULT 15,
   regular_season_weeks TEXT DEFAULT '{}',
   playoff_rounds INTEGER DEFAULT 2,
+  dues_amount INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -99,8 +101,19 @@ CREATE TABLE league_members (
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id),
   role TEXT DEFAULT 'MEMBER',
+  dues_paid INTEGER DEFAULT 0,
+  dues_paid_at TEXT,
   joined_at TEXT DEFAULT (datetime('now')),
   UNIQUE(league_id, user_id)
+);
+
+CREATE TABLE password_resets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE teams (
