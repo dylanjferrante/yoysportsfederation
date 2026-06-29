@@ -58,6 +58,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const order = await draftOrder(draft.leagueId, draft.season)
   const total = (draft.rounds ?? 4) * order.length
   const myTeam = session ? order.find(o => o.userId === session.user.id) : null
+  const [gleague] = await db.select({ commissionerId: leagues.commissionerId }).from(leagues).where(eq(leagues.id, draft.leagueId)).limit(1)
+  const isCommish = !!session && gleague?.commissionerId === session.user.id
 
   const made = await db
     .select({ pickNumber: draftPicks.pickNumber, sport: draftPicks.sport, teamId: draftPicks.currentTeamId, playerName: players.name, playerId: players.id, position: players.position, realTeamAbbr: players.realTeamAbbr })
@@ -124,7 +126,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   return NextResponse.json({
     draft, order: order.map(o => ({ id: o.id, name: o.name, abbreviation: o.abbreviation, userId: o.userId, logo: o.logo, primaryColor: o.primaryColor, secondaryColor: o.secondaryColor })),
     board, made, current, total, onClockTeam: clock ? { id: clock.id, name: clock.name } : null,
-    available, myTeamId: myTeam?.id ?? null, myQueue, myAutopick, auction,
+    available, myTeamId: myTeam?.id ?? null, myQueue, myAutopick, auction, isCommish,
   })
 }
 
@@ -304,6 +306,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await db.update(drafts).set({ status: 'IN_PROGRESS', currentPick: 1, pickDeadline: newDeadline() }).where(eq(drafts.id, id))
   }
 
+  // Commissioner pause / resume.
+  if (body.action === 'PAUSE') {
+    if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
+    await db.update(drafts).set({ status: 'PAUSED', pickDeadline: null }).where(eq(drafts.id, id))
+    return NextResponse.json({ ok: true })
+  }
+  if (body.action === 'RESUME') {
+    if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
+    await db.update(drafts).set({ status: 'IN_PROGRESS', pickDeadline: newDeadline() }).where(eq(drafts.id, id))
+  }
+
+  // Commissioner skips the current pick by forcing an auto-pick for whoever is on the clock.
+  if (body.action === 'FORCE_AUTOPICK') {
+    if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
+    if (draft.status === 'IN_PROGRESS') {
+      const clock = onClock(order, draft.currentPick ?? 1)
+      if (clock) {
+        const totals = await sportTotals()
+        const rostered = await rosteredSet(draft.leagueId)
+        const pid = await autoSelect(draft, clock.id, sportsFilter, rostered, totals)
+        if (pid) {
+          await commitPick(draft, order, clock.id, pid, draft.currentPick ?? 1)
+          await db.update(drafts).set({ currentPick: (draft.currentPick ?? 1) + 1 }).where(eq(drafts.id, id))
+        }
+      }
+    }
+  }
+
   // Clock expiry: anyone may tick; the server only force-picks once the deadline passes.
   if (body.action === 'TICK') {
     if (draft.status === 'IN_PROGRESS' && draft.pickDeadline && Date.now() >= Date.parse(draft.pickDeadline)) {
@@ -352,7 +382,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     if ((live.currentPick ?? 1) > total) {
       await db.update(drafts).set({ status: 'COMPLETED', pickDeadline: null }).where(eq(drafts.id, id))
-    } else if (['START', 'PICK', 'AUTO_PICK', 'TICK', 'TOGGLE_AUTOPICK'].includes(body.action)) {
+    } else if (['START', 'RESUME', 'PICK', 'AUTO_PICK', 'TICK', 'TOGGLE_AUTOPICK', 'FORCE_AUTOPICK'].includes(body.action)) {
       // A new team is on the clock — restart their timer.
       await db.update(drafts).set({ pickDeadline: newDeadline() }).where(eq(drafts.id, id))
     }

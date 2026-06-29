@@ -86,9 +86,10 @@ export default function DraftRoom() {
             </div>
           )}
           {d.status === 'COMPLETED' && <p className="text-slate-600 font-medium">Draft complete 🎉</p>}
+          {d.status === 'PAUSED' && <p className="text-amber-600 font-semibold">⏸ Draft paused by commissioner</p>}
         </div>
         <div className="flex items-center gap-2">
-          {d.status === 'PENDING' && s.order?.some((o: any) => o.userId === session?.user?.id) && <button onClick={() => action({ action: 'START' })} disabled={busy} className="btn-primary">Start Draft</button>}
+          {d.status === 'PENDING' && s.isCommish && <button onClick={() => action({ action: 'START' })} disabled={busy} className="btn-primary">Start Draft</button>}
           {d.status === 'IN_PROGRESS' && myTeamId && (
             <button onClick={() => action({ action: 'TOGGLE_AUTOPICK' })} disabled={busy}
               className={`text-sm px-3 py-1.5 rounded-lg font-medium ${s.myAutopick ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
@@ -96,6 +97,17 @@ export default function DraftRoom() {
             </button>
           )}
           {d.status === 'IN_PROGRESS' && myTurn && <button onClick={() => action({ action: 'AUTO_PICK' })} disabled={busy} className="btn-secondary text-sm">Auto-pick slot</button>}
+
+          {/* Commissioner draft controls */}
+          {s.isCommish && d.status === 'IN_PROGRESS' && (
+            <>
+              <button onClick={() => action({ action: 'FORCE_AUTOPICK' })} disabled={busy} className="text-sm px-3 py-1.5 rounded-lg font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">Skip / force pick</button>
+              <button onClick={() => action({ action: 'PAUSE' })} disabled={busy} className="text-sm px-3 py-1.5 rounded-lg font-medium bg-amber-100 text-amber-700 hover:bg-amber-200">Pause</button>
+            </>
+          )}
+          {s.isCommish && d.status === 'PAUSED' && (
+            <button onClick={() => action({ action: 'RESUME' })} disabled={busy} className="btn-primary text-sm">Resume draft</button>
+          )}
         </div>
       </div>
 
