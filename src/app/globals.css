@@ -2,32 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --ysf-navy: #0A1628;
-  --ysf-blue: #1E3A5F;
-  --ysf-gold: #C9A84C;
-}
-
 @layer base {
-  body {
-    @apply bg-gray-50 text-gray-900;
-  }
+  body { @apply bg-slate-50 text-slate-900 antialiased; }
+  h1,h2,h3,h4 { @apply tracking-tight; }
 }
 
 @layer components {
-  .sport-badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide;
+  .card { @apply bg-white rounded-2xl border border-slate-100 shadow-sm; }
+  .card-header { @apply px-6 py-4 border-b border-slate-100; }
+  .card-body { @apply p-6; }
+
+  .btn { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all text-sm; }
+  .btn-primary { @apply btn bg-slate-900 text-white hover:bg-slate-700 px-4 py-2; }
+  .btn-secondary { @apply btn bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 px-4 py-2; }
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-500 px-4 py-2; }
+  .btn-ghost { @apply btn text-slate-600 hover:bg-slate-100 px-3 py-1.5; }
+
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+
+  .input {
+    @apply w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white
+    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+    placeholder:text-slate-400;
   }
-  .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-100;
+  .label { @apply block text-sm font-medium text-slate-700 mb-1; }
+  .select {
+    @apply input appearance-none cursor-pointer;
   }
-  .btn-primary {
-    @apply bg-ysf-navy text-white px-4 py-2 rounded-lg font-medium hover:bg-ysf-blue transition-colors;
-  }
-  .btn-secondary {
-    @apply bg-white text-ysf-navy border border-ysf-navy px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors;
-  }
-  .btn-gold {
-    @apply bg-ysf-gold text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity;
-  }
+
+  .tab { @apply px-4 py-2 text-sm font-medium border-b-2 transition-colors; }
+  .tab-active { @apply tab border-blue-500 text-blue-600; }
+  .tab-inactive { @apply tab border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300; }
 }
