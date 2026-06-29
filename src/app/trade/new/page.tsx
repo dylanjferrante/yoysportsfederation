@@ -16,7 +16,7 @@ const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
 
 // Approx average per-game projection per sport, so values normalize cross-sport
 // (an average starter ≈ 50 "trade value", comparable across NFL/NBA/NHL/MLB).
-const SPORT_NORM: Record<string, number> = { NFL: 12, NBA: 24, NHL: 8, MLB: 8 }
+const SPORT_NORM: Record<string, number> = { NFL: 12, NBA: 24, NHL: 8, MLB: 18 }
 const playerValue = (p: RosterPlayer) => Math.round(((p.projectedPoints ?? 0) / (SPORT_NORM[p.sport] ?? 15)) * 50)
 const pickValue = (round: number, year: number) => Math.round(Math.max(5, 55 - (round - 1) * 9) * Math.pow(0.85, Math.max(0, year - 2027)))
 
