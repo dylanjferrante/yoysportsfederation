@@ -10,7 +10,7 @@ import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
 
 const ALL_SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
-const TABS = ['General', 'Sports & Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation']
+const TABS = ['General', 'Franchises', 'Sports & Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation']
 
 export default function CommissionerSettings() {
   const params = useParams<{ id: string }>()
@@ -33,6 +33,10 @@ export default function CommissionerSettings() {
   const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
   const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
+  const [franchises, setFranchises] = useState<any[]>([])
+  const [teamSaving, setTeamSaving] = useState<string | null>(null)
+  const [teamSavedId, setTeamSavedId] = useState<string | null>(null)
+  const [teamError, setTeamError] = useState<string>('')
 
   const parse = (s: any, f: any) => { try { return JSON.parse(s) } catch { return f } }
 
@@ -41,6 +45,13 @@ export default function CommissionerSettings() {
       const l = d.league
       setLeague(l)
       setForm(l)
+      setFranchises((d.teams ?? []).map((t: any) => ({
+        id: t.team.id,
+        name: t.team.name, abbreviation: t.team.abbreviation,
+        logo: t.team.logo ?? '', wordmark: t.team.wordmark ?? '',
+        primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6',
+        ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '',
+      })))
       const se = parse(l.sportsEnabled, ALL_SPORTS)
       setSportsEnabled(se)
       setSubSport(se[0] ?? 'NFL')
@@ -92,6 +103,29 @@ export default function CommissionerSettings() {
       }),
     })
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  function setFranchise(tid: string, patch: any) {
+    setFranchises(prev => prev.map(f => f.id === tid ? { ...f, ...patch } : f))
+  }
+
+  async function saveFranchise(f: any) {
+    setTeamSaving(f.id); setTeamError('')
+    const res = await fetch(`/api/teams/${f.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: f.name, abbreviation: f.abbreviation, logo: f.logo, wordmark: f.wordmark,
+        primaryColor: f.primaryColor, secondaryColor: f.secondaryColor,
+        ownerName: f.ownerName, ownerEmail: f.ownerEmail,
+      }),
+    })
+    setTeamSaving(null)
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setTeamError(typeof d.error === 'string' ? d.error : 'Could not save franchise')
+      return
+    }
+    setTeamSavedId(f.id); setTimeout(() => setTeamSavedId(null), 2000)
   }
 
   function toggleSport(s: string) {
@@ -163,6 +197,59 @@ export default function CommissionerSettings() {
             <div className="pt-2">
               <h4 className="font-semibold text-slate-900 mb-2 text-sm">Dues Tracker</h4>
               <DuesPanel leagueId={params.id as string} isCommissioner />
+            </div>
+          </>
+        )}
+
+        {/* Franchises */}
+        {tab === 'Franchises' && (
+          <>
+            <h3 className="font-semibold text-slate-900">Franchises</h3>
+            <p className="text-sm text-slate-500">Edit any franchise&apos;s identity, branding, and owner. Changes save per franchise.</p>
+            {teamError && <p className="text-sm text-red-600">{teamError}</p>}
+            <div className="space-y-4">
+              {franchises.map(f => (
+                <div key={f.id} className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-11 h-11 rounded-lg flex items-center justify-center text-lg font-bold flex-shrink-0 overflow-hidden"
+                      style={{ background: f.primaryColor, color: f.secondaryColor }}>
+                      {f.logo ? <img src={f.logo} alt="" className="w-full h-full object-cover" /> : (f.abbreviation || f.name || '?').slice(0, 3).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900 truncate">{f.name || 'Unnamed franchise'}</p>
+                      <p className="text-xs text-slate-400 truncate">{f.ownerName} · {f.ownerEmail}</p>
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div><label className="label">Franchise Name</label><input className="input" value={f.name} onChange={e => setFranchise(f.id, { name: e.target.value })} /></div>
+                    <div><label className="label">Abbreviation</label><input className="input" maxLength={5} value={f.abbreviation} onChange={e => setFranchise(f.id, { abbreviation: e.target.value.toUpperCase() })} /></div>
+                    <div className="sm:col-span-2">
+                      <label className="label">Logo URL</label>
+                      <input className="input" placeholder="https://…/logo.png" value={f.logo} onChange={e => setFranchise(f.id, { logo: e.target.value })} />
+                    </div>
+                    <div><label className="label">Wordmark URL</label><input className="input" placeholder="https://…" value={f.wordmark} onChange={e => setFranchise(f.id, { wordmark: e.target.value })} /></div>
+                    <div className="flex gap-3">
+                      <div>
+                        <label className="label">Primary</label>
+                        <input type="color" className="h-10 w-14 rounded border border-slate-200 bg-white p-0.5" value={f.primaryColor} onChange={e => setFranchise(f.id, { primaryColor: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="label">Secondary</label>
+                        <input type="color" className="h-10 w-14 rounded border border-slate-200 bg-white p-0.5" value={f.secondaryColor} onChange={e => setFranchise(f.id, { secondaryColor: e.target.value })} />
+                      </div>
+                    </div>
+                    <div><label className="label">Owner Name</label><input className="input" value={f.ownerName} onChange={e => setFranchise(f.id, { ownerName: e.target.value })} /></div>
+                    <div><label className="label">Owner Email</label><input className="input" type="email" value={f.ownerEmail} onChange={e => setFranchise(f.id, { ownerEmail: e.target.value })} /></div>
+                  </div>
+                  <div className="flex items-center justify-end gap-3 mt-3">
+                    {teamSavedId === f.id && <span className="text-sm text-green-600">Saved ✓</span>}
+                    <button onClick={() => saveFranchise(f)} disabled={teamSaving === f.id} className="btn-secondary text-sm disabled:opacity-50">
+                      {teamSaving === f.id ? 'Saving…' : 'Save franchise'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {franchises.length === 0 && <p className="text-slate-400 text-sm py-6 text-center">No franchises yet.</p>}
             </div>
           </>
         )}
