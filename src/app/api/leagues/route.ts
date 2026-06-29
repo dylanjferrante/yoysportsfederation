@@ -6,7 +6,7 @@ import { leagues, leagueMembers, teams, teamRecords, drafts } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
-import { buildPerSportSettings, buildSchedule, defaultTradeDeadlines, defaultWaiverSchedule, dynastyDraftRounds } from '@/lib/defaults'
+import { buildPerSportSettings, buildSchedule, defaultTradeDeadlines, defaultWaiverSchedule, defaultIrDesignations, dynastyDraftRounds } from '@/lib/defaults'
 import { defaultFederationScoring } from '@/lib/federation'
 
 const createSchema = z.object({
@@ -98,6 +98,7 @@ export async function POST(req: Request) {
       faabBudget: body.faabBudget,
       faabMode: body.faabMode,
       waiverSchedule: JSON.stringify(defaultWaiverSchedule(body.sportsEnabled)),
+      irEligibleDesignations: JSON.stringify(defaultIrDesignations(body.sportsEnabled)),
       playoffTeams: body.playoffTeams,
       playoffStartWeek: body.playoffStartWeek,
       regularSeasonWeeks: JSON.stringify(seasonWeeks),

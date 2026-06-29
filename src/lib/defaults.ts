@@ -312,6 +312,32 @@ export function defaultWaiverSchedule(sportsEnabled: string[]): Record<string, W
   return Object.fromEntries(sportsEnabled.map(s => [s, { day: 3, hour: 3 }]))
 }
 
+// ── IR-eligible injury designations (per sport) ──────────────────────────────
+// The injury designations a player can carry (sourced from the stats provider).
+// The commissioner chooses which of these qualify a player for an IR roster slot.
+export const IR_DESIGNATIONS: Record<string, string[]> = {
+  NFL: ['IR', 'Out', 'Doubtful', 'Questionable', 'PUP', 'NFI', 'Suspended'],
+  NBA: ['Out', 'Doubtful', 'Game Time Decision', 'Day-To-Day'],
+  NHL: ['IR', 'LTIR', 'Out', 'Day-To-Day'],
+  MLB: ['10-Day IL', '15-Day IL', '60-Day IL', 'Day-To-Day'],
+}
+// Sensible defaults: only the clearly-unavailable designations qualify for IR.
+const IR_DEFAULTS: Record<string, string[]> = {
+  NFL: ['IR', 'Out', 'PUP', 'NFI'],
+  NBA: ['Out'],
+  NHL: ['IR', 'LTIR', 'Out'],
+  MLB: ['10-Day IL', '15-Day IL', '60-Day IL'],
+}
+export function defaultIrDesignations(sportsEnabled: string[]): Record<string, string[]> {
+  return Object.fromEntries(sportsEnabled.map(s => [s, IR_DEFAULTS[s] ?? []]))
+}
+/** True when a player's injury designation qualifies for an IR slot in this league. */
+export function irEligible(sport: string, designation: string | null | undefined, config: Record<string, string[]>): boolean {
+  if (!designation) return false
+  const allowed = config[sport] ?? IR_DEFAULTS[sport] ?? []
+  return allowed.some(d => d.toLowerCase() === designation.toLowerCase())
+}
+
 export function defaultTradeDeadlines(sportsEnabled: string[]): Record<string, TradeDeadline> {
   // Default: lock when each sport's playoffs begin (classic redraft behavior).
   return Object.fromEntries(sportsEnabled.map(s => [s, { mode: 'SPORT_PLAYOFFS' as TradeDeadlineMode }]))
