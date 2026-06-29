@@ -291,15 +291,15 @@ const fedScoring = defaultFederationScoring(12, SPORT_LIST)
 
 const insertLeague = db.prepare(`
   INSERT INTO leagues
-  (id,name,season,commissioner_id,status,max_teams,description,logo_url,division_logos,
+  (id,name,season,commissioner_id,status,max_teams,invite_code,description,logo_url,division_logos,
    sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
    federation_scoring,draft_type,draft_status,draft_order_method,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
-   trade_review,waiver_type,faab_budget,faab_mode,playoff_teams,playoff_start_week,regular_season_weeks)
+   trade_review,waiver_type,faab_budget,faab_mode,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
   VALUES
-  (@id,@name,@season,@commissioner_id,@status,@max_teams,@description,@logo_url,@division_logos,
+  (@id,@name,@season,@commissioner_id,@status,@max_teams,@invite_code,@description,@logo_url,@division_logos,
    @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
    @federation_scoring,@draft_type,@draft_status,@draft_order_method,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
-   @trade_review,@waiver_type,@faab_budget,@faab_mode,@playoff_teams,@playoff_start_week,@regular_season_weeks)
+   @trade_review,@waiver_type,@faab_budget,@faab_mode,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
 `)
 
 insertLeague.run({
@@ -308,7 +308,8 @@ insertLeague.run({
   season: CURRENT_SEASON,
   commissioner_id: ownerIds[0],
   status: 'ACTIVE',
-  max_teams: 12,
+  max_teams: 14,
+  invite_code: 'NEXUS2026',
   description: 'A cross-sport dynasty federation — one franchise, four sports, one champion.',
   logo_url: LEAGUE_LOGO,
   division_logos: '{}',
@@ -332,13 +333,14 @@ insertLeague.run({
   playoff_teams: 4,
   playoff_start_week: 15,
   regular_season_weeks: JSON.stringify(seasonWeeks),
+  dues_amount: 50,
 })
 
 // ── Franchises (one per owner, same name across all sports) ─────────────────
 
 const FRANCHISES = OWNERS.map((o, i) => ({ uid: ownerIds[i], name: o.team, abbr: o.abbr }))
 
-const insertMember = db.prepare(`INSERT OR IGNORE INTO league_members (id,league_id,user_id,role) VALUES (?,?,?,?)`)
+const insertMember = db.prepare(`INSERT OR IGNORE INTO league_members (id,league_id,user_id,role,dues_paid,dues_paid_at) VALUES (?,?,?,?,?,?)`)
 const insertTeam = db.prepare(`INSERT INTO teams (id,name,abbreviation,user_id,league_id,wordmark,primary_color,secondary_color) VALUES (?,?,?,?,?,?,?,?)`)
 const TEAM_COLORS: [string, string][] = [
   ['#0f172a', '#3b82f6'], ['#7c2d12', '#f97316'], ['#064e3b', '#10b981'], ['#581c87', '#a855f7'],
@@ -362,7 +364,8 @@ FRANCHISES.forEach((f, i) => {
   teamIds.push(tid)
   const [primary, secondary] = TEAM_COLORS[i % TEAM_COLORS.length]
   insertTeam.run(tid, f.name, f.abbr, f.uid, leagueId, f.name, primary, secondary)
-  insertMember.run(id(), leagueId, f.uid, i === 0 ? 'COMMISSIONER' : 'MEMBER')
+  const paid = i % 3 !== 2 // most franchises have paid their dues
+  insertMember.run(id(), leagueId, f.uid, i === 0 ? 'COMMISSIONER' : 'MEMBER', paid ? 1 : 0, paid ? new Date().toISOString() : null)
 })
 
 // ── Rosters: distribute each sport's deep pool across the franchises ────────

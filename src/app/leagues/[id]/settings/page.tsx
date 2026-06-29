@@ -62,7 +62,7 @@ export default function CommissionerSettings() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: form.name, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
-        logoUrl: form.logoUrl, seasonStart: form.seasonStart,
+        duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
         sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
@@ -124,6 +124,7 @@ export default function CommissionerSettings() {
                 </select>
               </div>
               <div><label className="label">Max Teams</label><input type="number" min={4} max={16} className="input" value={form.maxTeams ?? 12} onChange={e => set('maxTeams', +e.target.value)} /></div>
+              <div><label className="label">Dues per franchise ($)</label><input type="number" min={0} className="input" value={form.duesAmount ?? 0} onChange={e => set('duesAmount', +e.target.value)} /></div>
               <div>
                 <label className="label">Visibility</label>
                 <select className="select" value={form.isPublic ? 'public' : 'private'} onChange={e => set('isPublic', e.target.value === 'public')}>

@@ -5,6 +5,7 @@ import { leagues, leagueMembers, teams } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import Link from 'next/link'
 import { sportMeta, safeParse } from '@/lib/utils'
+import JoinLeague from './JoinLeague'
 
 export const metadata = { title: 'Leagues' }
 
@@ -28,7 +29,12 @@ export default async function LeaguesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Leagues</h1>
           <p className="text-slate-500 text-sm mt-0.5">Cross-sport federations — one franchise, every sport</p>
         </div>
-        {session && <Link href="/leagues/new" className="btn-primary">+ Create League</Link>}
+        {session && (
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <JoinLeague />
+            <Link href="/leagues/new" className="btn-primary">+ Create League</Link>
+          </div>
+        )}
       </div>
 
       {allLeagues.length === 0 ? (
