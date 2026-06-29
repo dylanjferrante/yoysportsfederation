@@ -59,7 +59,6 @@ export default function DraftRoom() {
   const teamName = (tid: string) => (s.order ?? []).find((o: any) => o.id === tid)?.name ?? '—'
   const queuedIds = new Set((s.myQueue ?? []).map((q: any) => q.playerId))
   const available = (s.available ?? []).filter((p: any) => !search || p.name.toLowerCase().includes(search.toLowerCase()))
-  const abbrOf = (tid: string) => (s.order ?? []).find((o: any) => o.id === tid)?.abbreviation ?? '—'
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -209,26 +208,52 @@ export default function DraftRoom() {
 
       {tab === 'board' && (
         <div className="card p-4 overflow-x-auto">
-          <div className="space-y-2">
-            {Array.from({ length: d.rounds }, (_, r) => {
-              const picks = (s.board ?? []).filter((b: any) => b.round === r + 1)
-              return (
-                <div key={r} className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-400 w-10 flex-shrink-0">R{r + 1}</span>
-                  <div className="flex gap-1.5 flex-nowrap">
-                    {picks.map((b: any) => {
-                      const isCurrent = b.pickNumber === s.current && d.status === 'IN_PROGRESS'
-                      return (
-                        <div key={b.pickNumber} className={`w-28 flex-shrink-0 rounded-lg border px-2 py-1.5 ${isCurrent ? 'border-blue-500 bg-blue-50' : b.player ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50'}`}>
-                          <div className="text-[9px] text-slate-400">#{b.pickNumber} · {abbrOf(b.teamId)}</div>
-                          {b.player ? <div className="text-xs font-semibold text-slate-800 truncate">{b.player.name}</div> : <div className="text-xs text-slate-300">{isCurrent ? 'on the clock' : '—'}</div>}
-                        </div>
-                      )
-                    })}
-                  </div>
+          <div className="inline-block min-w-full">
+            {/* Team header row — franchise colors, logo + name */}
+            <div className="flex gap-1.5 mb-1.5">
+              <span className="w-8 flex-shrink-0" />
+              {(s.order ?? []).map((t: any) => (
+                <div key={t.id} className="w-32 flex-shrink-0 rounded-lg px-2 py-1.5 flex items-center gap-1.5"
+                  style={{ background: t.primaryColor || '#0f172a', color: t.secondaryColor || '#fff' }}>
+                  {t.logo
+                    ? <img src={t.logo} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                    : <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: t.secondaryColor || '#fff', color: t.primaryColor || '#0f172a' }}>{(t.abbreviation || t.name || '?').slice(0, 2).toUpperCase()}</span>}
+                  <span className="text-[11px] font-bold leading-tight truncate">{t.name}</span>
                 </div>
-              )
-            })}
+              ))}
+            </div>
+
+            {/* One row per round; columns aligned to the team order */}
+            {Array.from({ length: d.rounds }, (_, r) => (
+              <div key={r} className="flex gap-1.5 mb-1.5 items-stretch">
+                <span className="w-8 flex-shrink-0 flex items-center justify-center text-xs font-bold text-slate-400">R{r + 1}</span>
+                {(s.order ?? []).map((t: any) => {
+                  const b = (s.board ?? []).find((x: any) => x.round === r + 1 && x.teamId === t.id)
+                  if (!b) return <div key={t.id} className="w-32 flex-shrink-0" />
+                  const isCurrent = b.pickNumber === s.current && d.status === 'IN_PROGRESS'
+                  const p = b.player
+                  const meta = p ? sportMeta(p.sport) : null
+                  const [first, ...rest] = (p?.name ?? '').split(' ')
+                  return (
+                    <div key={t.id}
+                      className={`w-32 flex-shrink-0 rounded-lg border px-2 py-1.5 ${isCurrent ? 'border-blue-500 ring-1 ring-blue-400' : 'border-slate-200'} ${p ? meta!.light : 'bg-slate-50'}`}>
+                      <div className="flex items-center justify-between gap-1 text-[9px] text-slate-500">
+                        <span className="font-semibold tabular-nums">({b.pickNumber}, {b.round}.{b.pickInRound})</span>
+                        {p && <span className="font-medium truncate">{p.sport}-{p.realTeamAbbr ?? '—'}, {p.position}</span>}
+                      </div>
+                      {p ? (
+                        <div className="mt-0.5 leading-tight">
+                          <div className="text-[11px] text-slate-600 break-words">{first}</div>
+                          <div className="text-xs font-bold text-slate-900 break-words">{rest.join(' ')}</div>
+                        </div>
+                      ) : (
+                        <div className="mt-0.5 text-[11px] text-slate-300">{isCurrent ? 'on the clock' : '—'}</div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         </div>
       )}
