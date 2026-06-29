@@ -332,12 +332,12 @@ const insertLeague = db.prepare(`
   (id,name,season,commissioner_id,status,max_teams,invite_code,description,logo_url,division_logos,
    sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
    federation_scoring,draft_type,draft_status,draft_order_method,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
-   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,ir_eligible_designations,defense_mode,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
+   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,ir_eligible_designations,defense_mode,playoff_format,weeks_per_round,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
   VALUES
   (@id,@name,@season,@commissioner_id,@status,@max_teams,@invite_code,@description,@logo_url,@division_logos,
    @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
    @federation_scoring,@draft_type,@draft_status,@draft_order_method,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
-   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@ir_eligible_designations,@defense_mode,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
+   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@ir_eligible_designations,@defense_mode,@playoff_format,@weeks_per_round,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
 `)
 
 insertLeague.run({
@@ -378,6 +378,8 @@ insertLeague.run({
   waiver_schedule: JSON.stringify(defaultWaiverSchedule(SPORT_LIST)),
   ir_eligible_designations: JSON.stringify(defaultIrDesignations(SPORT_LIST)),
   defense_mode: 'TEAM',
+  playoff_format: 'H2H',
+  weeks_per_round: 1,
   playoff_teams: 4,
   playoff_start_week: 15,
   regular_season_weeks: JSON.stringify(seasonWeeks),
