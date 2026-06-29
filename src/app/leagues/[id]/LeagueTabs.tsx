@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 import { computeFederationStandings, type FederationScoring } from '@/lib/federation'
 
-type TeamLite = { id: string; name: string; abbreviation: string; logo: string | null; owner: string | null }
+type TeamLite = { id: string; name: string; abbreviation: string; logo: string | null; owner: string | null; primaryColor?: string | null; secondaryColor?: string | null }
+type TeamStat = { allTime: { w: number; l: number; t: number }; fedTitles: number; sportTitles: number }
 type TeamRec = { teamId: string; sport: string; wins: number; losses: number; ties: number; pointsFor: number; pointsAgainst: number; finishPosition: number | null; isChampion: boolean }
 type Matchup = { id: string; sport: string; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 
 export default function LeagueTabs({
-  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId,
+  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId, teamStats = {},
 }: {
   leagueId: string
   sportsEnabled: string[]
@@ -21,6 +22,7 @@ export default function LeagueTabs({
   rosterSettings: Record<string, never> | Record<string, Record<string, number>>
   playoffTeams?: number
   currentUserId?: string
+  teamStats?: Record<string, TeamStat>
 }) {
   const [tab, setTab] = useState<string>('OVERALL')
   const [included, setIncluded] = useState<Set<string>>(
@@ -64,7 +66,7 @@ export default function LeagueTabs({
       {tab === 'OVERALL'
         ? <Overall standings={standings} sportsEnabled={sportsEnabled} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
         : tab === 'TEAMS'
-        ? <TeamsList teams={teams} currentUserId={currentUserId} />
+        ? <TeamsList teams={teams} records={records} sportsEnabled={sportsEnabled} teamStats={teamStats} />
         : <SportView sport={tab} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
     </div>
   )
@@ -322,21 +324,55 @@ function SportView({ sport, teamById, records, matchups, rosterSettings, playoff
   )
 }
 
-function TeamsList({ teams }: { teams: TeamLite[]; currentUserId?: string }) {
+function TeamsList({ teams, records, sportsEnabled, teamStats }: { teams: TeamLite[]; records: TeamRec[]; sportsEnabled: string[]; teamStats: Record<string, TeamStat> }) {
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {teams.map(t => (
-        <Link key={t.id} href={`/teams/${t.id}`}
-          className="card p-4 flex items-center gap-3 hover:shadow-md hover:border-blue-200 transition">
-          {t.logo
-            ? <img src={t.logo} alt="" className="w-11 h-11 rounded-lg object-cover bg-slate-100 flex-shrink-0" />
-            : <span className="w-11 h-11 rounded-lg bg-slate-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">{(t.abbreviation || t.name || '?').slice(0, 3).toUpperCase()}</span>}
-          <div className="min-w-0">
-            <p className="font-semibold text-slate-900 truncate">{t.name}</p>
-            <p className="text-xs text-slate-400 truncate">{t.owner ?? '—'}</p>
-          </div>
-        </Link>
-      ))}
+    <div className="grid sm:grid-cols-2 gap-3">
+      {teams.map(t => {
+        const stat = teamStats[t.id] ?? { allTime: { w: 0, l: 0, t: 0 }, fedTitles: 0, sportTitles: 0 }
+        const primary = t.primaryColor || '#0f172a'
+        const secondary = t.secondaryColor || '#ffffff'
+        const recBySport = Object.fromEntries(records.filter(r => r.teamId === t.id).map(r => [r.sport, r]))
+        const at = stat.allTime
+        return (
+          <Link key={t.id} href={`/teams/${t.id}`} className="card overflow-hidden hover:shadow-md transition">
+            {/* Header band in franchise colors */}
+            <div className="p-3 flex items-center gap-3" style={{ background: primary, color: secondary }}>
+              {t.logo
+                ? <img src={t.logo} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-white/10" />
+                : <span className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 3).toUpperCase()}</span>}
+              <div className="min-w-0">
+                <p className="font-bold leading-tight truncate">{t.name}</p>
+                <p className="text-xs opacity-80 truncate">{t.owner ?? '—'} · {t.abbreviation}</p>
+              </div>
+            </div>
+            {/* Titles + all-time line */}
+            <div className="px-3 py-2 flex items-center gap-3 text-xs border-b border-slate-100 bg-slate-50/60">
+              <span title="Federation championships">🏆 {stat.fedTitles} Fed</span>
+              <span title="Sport championships">🥇 {stat.sportTitles} Sport</span>
+              <span className="ml-auto text-slate-500">All-time {at.w}-{at.l}{at.t ? `-${at.t}` : ''}</span>
+            </div>
+            {/* Per-sport current record */}
+            <div className="px-3 py-2 space-y-1">
+              {sportsEnabled.map(s => {
+                const r = recBySport[s] as TeamRec | undefined
+                const meta = sportMeta(s)
+                return (
+                  <div key={s} className="flex items-center gap-2 text-xs">
+                    <span className={`inline-flex items-center gap-1 font-semibold w-14 ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
+                    {r ? (
+                      <>
+                        <span className="text-slate-700 w-16">{r.wins}-{r.losses}{r.ties ? `-${r.ties}` : ''}</span>
+                        <span className="text-slate-400 w-20">{(r.pointsFor ?? 0).toFixed(0)} pts</span>
+                        <span className="text-slate-500 ml-auto">{r.finishPosition ? `#${r.finishPosition}` : '—'}</span>
+                      </>
+                    ) : <span className="text-slate-300">—</span>}
+                  </div>
+                )
+              })}
+            </div>
+          </Link>
+        )
+      })}
     </div>
   )
 }
