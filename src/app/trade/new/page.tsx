@@ -161,17 +161,31 @@ export default function ProposeTradePage() {
 
       {participants.length >= 2 && (
         <>
-          {/* Franchise + sport selectors */}
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
+          {/* Franchise selector */}
+          <div className="flex flex-wrap gap-2 mb-3 items-center">
             {participants.map(tid => (
               <button key={tid} onClick={() => setActiveTeam(tid)} className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${activeTeam === tid ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>
                 {nameOf(tid)}{tid === myTeam?.id ? ' (you)' : ''}
               </button>
             ))}
-            <div className="ml-auto flex gap-1.5">
-              {SPORTS.map(s => <button key={s} onClick={() => setSport(s)} className={`px-2.5 py-1 rounded-full text-xs font-semibold ${sport === s ? `${sportMeta(s).bg} text-white` : 'bg-slate-100 text-slate-600'}`}>{sportMeta(s).emoji}</button>)}
-            </div>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" className="input w-36 text-sm py-1" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" className="input w-36 text-sm py-1 ml-auto" />
+          </div>
+
+          {/* Sport toggle — labeled segmented control with per-franchise asset counts */}
+          <div className="flex gap-1.5 mb-4 p-1 bg-slate-100 rounded-xl">
+            {SPORTS.map(s => {
+              const meta = sportMeta(s)
+              const count = (roster?.players ?? []).filter(p => p.sport === s).length
+              const active = sport === s
+              return (
+                <button key={s} onClick={() => setSport(s)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${active ? `${meta.bg} text-white shadow-sm` : count ? 'text-slate-600 hover:bg-white' : 'text-slate-300'}`}>
+                  <span>{meta.emoji}</span>
+                  <span>{s}</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-white/25' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
+                </button>
+              )
+            })}
           </div>
 
           <div className="grid lg:grid-cols-3 gap-5">
