@@ -9,7 +9,7 @@ import { boxScoreColumns } from '@/lib/scoring-categories'
 import { oppLabel } from '@/lib/realschedule'
 
 type P = {
-  rosterId: string; slot: string; sport: string; id: string; name: string; position: string
+  rosterId: string; slot: string; sport: string; onBlock?: boolean; id: string; name: string; position: string
   realTeam: string; realTeamAbbr: string | null; status: string; injuryNote: string | null; byeWeek: number | null
   seasonPoints: number; projectedPoints: number; weeklyAvg: number
   gp: number; lastPts: number | null; seasonStats: Record<string, number>; opp: { opp: string; home: boolean } | null
@@ -194,7 +194,10 @@ export default function TeamPage() {
                             const v = +c.get(p.seasonStats ?? {}).toFixed(0)
                             return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600 hidden lg:table-cell">{v || '—'}</td>
                           })}
-                          {canManage && <td className="px-3 py-1.5 text-right"><button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] text-red-500 hover:text-red-700">Drop</button></td>}
+                          {canManage && <td className="px-3 py-1.5 text-right whitespace-nowrap">
+                            <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} className={`text-[11px] mr-2 ${p.onBlock ? 'text-amber-600 font-semibold' : 'text-slate-400 hover:text-amber-600'}`}>{p.onBlock ? '◉ Block' : 'Block'}</button>
+                            <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] text-red-500 hover:text-red-700">Drop</button>
+                          </td>}
                         </tr>
                       )
                     })}

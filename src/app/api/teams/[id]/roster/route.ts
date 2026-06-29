@@ -25,7 +25,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   const roster = await db
     .select({
-      rosterId: rosters.id, slot: rosters.slot, sport: rosters.sport,
+      rosterId: rosters.id, slot: rosters.slot, sport: rosters.sport, onBlock: rosters.onBlock,
       id: players.id, name: players.name, position: players.position,
       realTeam: players.realTeam, realTeamAbbr: players.realTeamAbbr, status: players.status,
       injuryNote: players.injuryNote, byeWeek: players.byeWeek,
@@ -102,7 +102,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (team.userId !== session.user.id && league?.commissionerId !== session.user.id)
     return NextResponse.json({ error: 'Not your franchise' }, { status: 403 })
 
-  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string }
+  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean }
 
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
     // Validate the player is eligible for the requested slot.
@@ -120,6 +120,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         return NextResponse.json({ error: `Player's status (${row.status || 'ACTIVE'}) is not IR-eligible in this league` }, { status: 400 })
     }
     await db.update(rosters).set({ slot: body.slot }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
+    return NextResponse.json({ ok: true })
+  }
+
+  if (body.action === 'SET_BLOCK' && body.rosterId) {
+    await db.update(rosters).set({ onBlock: !!body.onBlock }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     return NextResponse.json({ ok: true })
   }
 
