@@ -12,11 +12,10 @@ const FILTERS: { key: string; label: string; types: string[] }[] = [
   { key: 'WAIVER', label: 'Waivers', types: ['WAIVER'] },
   { key: 'ROSTER', label: 'Add / Drop', types: ['ROSTER'] },
   { key: 'DRAFT', label: 'Draft', types: ['DRAFT'] },
-  { key: 'SCORES', label: 'Scores', types: ['SCORES'] },
 ]
 
 const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
-const ICON: Record<string, string> = { TRADE: '🔁', WAIVER: '📝', ROSTER: '🔀', DRAFT: '🏈', SCORES: '📊' }
+const ICON: Record<string, string> = { TRADE: '🔁', WAIVER: '📝', ROSTER: '🔀', DRAFT: '🏈' }
 
 export default function TransactionsView({ leagueId, leagueName, rows }: { leagueId: string; leagueName: string; rows: Row[] }) {
   const [filter, setFilter] = useState('ALL')

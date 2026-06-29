@@ -8,7 +8,6 @@ import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { RESERVE_SLOTS } from '@/lib/defaults'
 import { scorePlayer, generateStatLine } from '@/lib/scoring'
-import { logActivity } from '@/lib/activity'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
@@ -90,7 +89,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
+  // Scores update automatically via the scoring engine — they are not transactions,
+  // so we deliberately do not log them to the activity feed.
   for (const tgt of targets) await scoreSportWeek(league, tgt.sport, tgt.week)
-  if (targets.length) await logActivity(id, 'SCORES', `Scores posted: ${targets.map(t => `${t.sport} Wk ${t.week}`).join(', ')}`)
   return NextResponse.json({ ok: true, scored: targets })
 }

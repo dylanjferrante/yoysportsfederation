@@ -161,7 +161,10 @@ async function processWaivers(league: any) {
 
     // Execute the winning claim.
     const [add] = await db.select().from(players).where(eq(players.id, playerId)).limit(1)
+    let droppedName: string | null = null
     if (winner.dropPlayerId) {
+      const [drop] = await db.select().from(players).where(eq(players.id, winner.dropPlayerId)).limit(1)
+      droppedName = drop?.name ?? null
       await db.delete(rosters).where(and(eq(rosters.teamId, winner.teamId), eq(rosters.playerId, winner.dropPlayerId)))
     }
     await db.insert(rosters).values({ id: nanoid(), teamId: winner.teamId, playerId, sport: add?.sport ?? sport, slot: 'BN', acquisitionType: 'WAIVER' }).onConflictDoNothing()
@@ -185,7 +188,10 @@ async function processWaivers(league: any) {
     }
 
     const tName = tById[winner.teamId]?.name ?? 'A franchise'
-    await logActivity(league.id, 'WAIVER', `${tName} claimed ${add?.name ?? 'a player'} off waivers${isFaab ? ` ($${winner.bidAmount})` : ''}`, winner.teamId)
+    const sportTag = add?.sport ? ` (${add.sport})` : ''
+    const claimMsg = `${tName} claimed ${add?.name ?? 'a player'}${sportTag}${isFaab ? ` for $${winner.bidAmount}` : ''}` +
+      (droppedName ? `, dropped ${droppedName}` : '')
+    await logActivity(league.id, 'WAIVER', claimMsg, winner.teamId)
     const owner = tById[winner.teamId]?.userId
     if (owner) await notify(owner, `You won ${add?.name ?? 'a player'} on waivers${isFaab ? ` for $${winner.bidAmount}` : ''}`, `/teams/${winner.teamId}`)
     awarded.push(playerId)
