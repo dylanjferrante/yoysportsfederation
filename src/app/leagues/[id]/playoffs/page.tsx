@@ -51,11 +51,10 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
       first.push([seeds[order[i] - 1] ?? null, seeds[order[i + 1] - 1] ?? null])
     }
     const all: [Seed | null, Seed | null][][] = [first]
-    let count = p / 2
-    while (count >= 1) {
-      all.push(Array.from({ length: Math.max(1, Math.floor(count / 2)) }, () => [null, null] as [Seed | null, Seed | null]))
-      if (count === 1) break
-      count = Math.floor(count / 2)
+    let matches = p / 2
+    while (matches > 1) {
+      matches = Math.floor(matches / 2)
+      all.push(Array.from({ length: matches }, () => [null, null] as [Seed | null, Seed | null]))
     }
     return all
   }

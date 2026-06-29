@@ -445,6 +445,7 @@ for (const sport of SPORT_LIST) {
   rookieDraftId[sport] = did
   const status = sport === 'NFL' ? 'IN_PROGRESS' : 'PENDING'
   insertDraft.run(did, leagueId, 'ROOKIE', sport, String(NEXT_DRAFT_YEAR), 'SNAKE', rookieRounds[sport] ?? 4, status, '2026-08-15T18:00')
+  if (status === 'IN_PROGRESS') db.prepare('UPDATE drafts SET current_pick=1 WHERE id=?').run(did)
 }
 
 // Tradeable future picks (per-sport, rounds match each sport's rookie-draft length).
