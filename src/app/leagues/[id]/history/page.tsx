@@ -52,7 +52,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
 
       {/* Federation champions */}
       <div className="card mb-6">
-        <div className="card-header"><h2 className="font-semibold text-slate-900">🏆 Federation Champions</h2></div>
+        <div className="card-header"><h2 className="font-semibold text-slate-900">🏆 {league.name} Champions</h2></div>
         <div className="divide-y divide-slate-50">
           {seasons.length === 0 && <p className="px-6 py-4 text-slate-400 text-sm">No completed seasons yet.</p>}
           {seasons.map(season => (

@@ -217,7 +217,7 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
     if (champId) {
       await db.insert(leagueHistory).values({ id: nanoid(), leagueId: league.id, season, scope: 'OVERALL', championTeamId: champId, runnerUpTeamId: standings[1]?.team.id ?? null, note: 'Federation champion' })
       const [t] = await db.select({ name: teams.name }).from(teams).where(eq(teams.id, champId)).limit(1)
-      await logActivity(league.id, 'LEAGUE', `🏆🏆 ${t?.name ?? 'A franchise'} is the Federation Champion!`, champId)
+      await logActivity(league.id, 'LEAGUE', `🏆🏆 ${t?.name ?? 'A franchise'} are the ${league.name} Champions!`, champId)
     }
   }
 }

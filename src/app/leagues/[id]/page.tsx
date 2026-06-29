@@ -119,6 +119,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         playoffTeams={league.playoffTeams ?? 6}
         currentUserId={session?.user?.id}
         teamStats={teamStats}
+        sportNames={safeParse<Record<string, string>>(league.sportNames, {})}
       />
 
       {/* League activity feed */}

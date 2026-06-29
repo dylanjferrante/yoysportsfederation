@@ -63,7 +63,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
       {/* Federation champion banner */}
       {fedChamp && (
         <div className="rounded-2xl p-5 mb-6 text-white text-center" style={{ background: 'linear-gradient(135deg,#b45309,#f59e0b)' }}>
-          <p className="text-xs uppercase tracking-widest text-white/80">{league.season} Federation Champion</p>
+          <p className="text-xs uppercase tracking-widest text-white/80">{league.season} {league.name} Champion</p>
           <p className="text-2xl font-black mt-1">🏆 {teamById[fedChamp.championTeamId ?? '']?.name ?? '—'}</p>
         </div>
       )}

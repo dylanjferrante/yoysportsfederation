@@ -46,6 +46,12 @@ export function crossSportValue(sport: string, projectedPoints: number | null | 
   return Math.round(((projectedPoints ?? 0) / (SPORT_NORM[sport] ?? 15)) * 50)
 }
 
+// A league may rename its sports (call NFL anything). Falls back to the code.
+export function sportLabel(sport: string, names?: Record<string, string> | null): string {
+  const n = names?.[sport]
+  return n && n.trim() ? n : sport
+}
+
 export function waiverTypeLabel(t: string) {
   if (t === 'FAAB') return 'FAAB Bidding'
   if (t === 'PRIORITY') return 'Waiver Priority'
