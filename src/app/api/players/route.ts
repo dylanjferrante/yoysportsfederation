@@ -16,25 +16,24 @@ export async function GET(req: Request) {
   if (position) conditions.push(eq(players.position, position))
   if (search)   conditions.push(like(players.name, `%${search}%`))
 
-  let result = await db
-    .select()
-    .from(players)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(players.seasonPoints))
-    .limit(200)
-
+  // Exclude rostered players in SQL so free agents always surface (not just
+  // the ones that happen to fall inside a post-filter result cap).
   if (free && leagueId) {
     const rosteredInLeague = await db
       .select({ playerId: rosters.playerId })
       .from(rosters)
       .innerJoin(teams, eq(rosters.teamId, teams.id))
       .where(eq(teams.leagueId, leagueId))
-
     const rosteredIds = rosteredInLeague.map(r => r.playerId).filter(Boolean) as string[]
-    if (rosteredIds.length > 0) {
-      result = result.filter(p => !rosteredIds.includes(p.id))
-    }
+    if (rosteredIds.length > 0) conditions.push(notInArray(players.id, rosteredIds))
   }
+
+  const result = await db
+    .select()
+    .from(players)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(players.seasonPoints))
+    .limit(200)
 
   return NextResponse.json(result)
 }
