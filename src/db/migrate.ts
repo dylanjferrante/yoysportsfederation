@@ -105,6 +105,7 @@ CREATE TABLE leagues (
   sport_names TEXT DEFAULT '{}',
   championship_names TEXT DEFAULT '{}',
   championship_logos TEXT DEFAULT '{}',
+  break_weeks TEXT DEFAULT '{}',
   lock_day INTEGER DEFAULT 0,
   playoff_teams INTEGER DEFAULT 6,
   playoff_start_week INTEGER DEFAULT 15,

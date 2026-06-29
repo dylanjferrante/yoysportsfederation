@@ -81,6 +81,7 @@ export const leagues = sqliteTable('leagues', {
   sportNames: text('sport_names').default('{}'), // per-league custom sport labels
   championshipNames: text('championship_names').default('{}'), // per-sport championship names
   championshipLogos: text('championship_logos').default('{}'), // per-sport trophy/logo URLs
+  breakWeeks: text('break_weeks').default('{}'), // per-sport bye/break weeks (all-star, Olympics): { sport: number[] }
   lockDay: integer('lock_day').default(0),
 
   // Playoffs

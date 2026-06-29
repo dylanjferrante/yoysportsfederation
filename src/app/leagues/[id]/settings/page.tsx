@@ -38,6 +38,7 @@ export default function CommissionerSettings() {
   const [sportNames, setSportNames] = useState<Record<string, string>>({})
   const [champNames, setChampNames] = useState<Record<string, string>>({})
   const [champLogos, setChampLogos] = useState<Record<string, string>>({})
+  const [breakWeeks, setBreakWeeks] = useState<Record<string, number[]>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
   const [franchises, setFranchises] = useState<any[]>([])
   const [teamSaving, setTeamSaving] = useState<string | null>(null)
@@ -88,6 +89,7 @@ export default function CommissionerSettings() {
       setSportNames(parse(l.sportNames, {}))
       setChampNames(parse(l.championshipNames, {}))
       setChampLogos(parse(l.championshipLogos, {}))
+      setBreakWeeks(parse(l.breakWeeks, {}))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
   }, [params.id])
@@ -113,7 +115,7 @@ export default function CommissionerSettings() {
       body: JSON.stringify({
         name: form.name, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
         duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
-        divisions: form.divisions, sportNames, championshipNames: champNames, championshipLogos: champLogos,
+        divisions: form.divisions, sportNames, championshipNames: champNames, championshipLogos: champLogos, breakWeeks,
         sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
@@ -413,6 +415,22 @@ export default function CommissionerSettings() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+
+            {/* Break weeks (all-star / Olympic pauses) */}
+            <div>
+              <label className="label">Break Weeks (per sport, optional)</label>
+              <p className="text-xs text-slate-500 mb-2">Weeks with no games — e.g. all-star break or Winter Olympics. Enter week numbers separated by commas.</p>
+              <div className="space-y-2">
+                {sportsEnabled.map(s => (
+                  <div key={s} className="flex items-center gap-3">
+                    <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
+                    <input className="input flex-1 text-sm" placeholder="e.g. 18, 19"
+                      value={(breakWeeks[s] ?? []).join(', ')}
+                      onChange={e => setBreakWeeks(d => ({ ...d, [s]: e.target.value.split(',').map(x => parseInt(x.trim())).filter(n => Number.isFinite(n)) }))} />
+                  </div>
+                ))}
               </div>
             </div>
 
