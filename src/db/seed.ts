@@ -332,12 +332,12 @@ const insertLeague = db.prepare(`
   (id,name,season,commissioner_id,status,max_teams,invite_code,description,logo_url,division_logos,
    sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
    federation_scoring,draft_type,draft_status,draft_order_method,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
-   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,ir_eligible_designations,defense_mode,playoff_format,weeks_per_round,position_limits,mlb_sp_cap,rookie_draft_dates,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
+   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,ir_eligible_designations,defense_mode,playoff_format,weeks_per_round,position_limits,mlb_sp_cap,rookie_draft_dates,divisions,sport_names,championship_names,championship_logos,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
   VALUES
   (@id,@name,@season,@commissioner_id,@status,@max_teams,@invite_code,@description,@logo_url,@division_logos,
    @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
    @federation_scoring,@draft_type,@draft_status,@draft_order_method,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
-   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@ir_eligible_designations,@defense_mode,@playoff_format,@weeks_per_round,@position_limits,@mlb_sp_cap,@rookie_draft_dates,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
+   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@ir_eligible_designations,@defense_mode,@playoff_format,@weeks_per_round,@position_limits,@mlb_sp_cap,@rookie_draft_dates,@divisions,@sport_names,@championship_names,@championship_logos,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
 `)
 
 insertLeague.run({
@@ -383,7 +383,11 @@ insertLeague.run({
   position_limits: '{}',
   mlb_sp_cap: 0,
   rookie_draft_dates: JSON.stringify(Object.fromEntries(SPORT_LIST.map(s => [s, '2026-08-15T18:00']))),
-  playoff_teams: 4,
+  divisions: 0,
+  sport_names: '{}',
+  championship_names: '{}',
+  championship_logos: '{}',
+  playoff_teams: 6,
   playoff_start_week: 15,
   regular_season_weeks: JSON.stringify(seasonWeeks),
   dues_amount: 50,

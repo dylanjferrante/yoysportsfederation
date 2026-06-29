@@ -77,10 +77,14 @@ export const leagues = sqliteTable('leagues', {
   positionLimits: text('position_limits').default('{}'), // per-sport {pos:{maxStarters?,maxRostered?}}
   mlbSpCap: integer('mlb_sp_cap').default(0), // max starting pitchers counted per week (0 = unlimited)
   rookieDraftDates: text('rookie_draft_dates').default('{}'), // per-scope rookie draft datetimes
+  divisions: integer('divisions').default(0), // number of divisions (0 = none)
+  sportNames: text('sport_names').default('{}'), // per-league custom sport labels
+  championshipNames: text('championship_names').default('{}'), // per-sport championship names
+  championshipLogos: text('championship_logos').default('{}'), // per-sport trophy/logo URLs
   lockDay: integer('lock_day').default(0),
 
   // Playoffs
-  playoffTeams: integer('playoff_teams').default(4),
+  playoffTeams: integer('playoff_teams').default(6),
   playoffStartWeek: integer('playoff_start_week').default(15),
   regularSeasonWeeks: text('regular_season_weeks').default('{}'), // per-sport JSON map { NFL: 14, ... }
   playoffRounds: integer('playoff_rounds').default(2),
@@ -126,6 +130,7 @@ export const teams = sqliteTable('teams', {
   logo: text('logo'),
   altLogo: text('alt_logo'),
   wordmark: text('wordmark'),
+  division: integer('division'), // 1-based division index (null = unassigned)
   primaryColor: text('primary_color').default('#0f172a'),
   secondaryColor: text('secondary_color').default('#3b82f6'),
   userId: text('user_id').notNull().references(() => users.id),

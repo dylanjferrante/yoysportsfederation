@@ -35,6 +35,9 @@ export default function CommissionerSettings() {
   const [irDesigObj, setIrDesigObj] = useState<Record<string, string[]>>({})
   const [posLimits, setPosLimits] = useState<Record<string, Record<string, { maxStarters?: number; maxRostered?: number }>>>({})
   const [rookieDates, setRookieDates] = useState<Record<string, string>>({})
+  const [sportNames, setSportNames] = useState<Record<string, string>>({})
+  const [champNames, setChampNames] = useState<Record<string, string>>({})
+  const [champLogos, setChampLogos] = useState<Record<string, string>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
   const [franchises, setFranchises] = useState<any[]>([])
   const [teamSaving, setTeamSaving] = useState<string | null>(null)
@@ -55,7 +58,7 @@ export default function CommissionerSettings() {
         name: t.team.name, abbreviation: t.team.abbreviation,
         logo: t.team.logo ?? '', wordmark: t.team.wordmark ?? '',
         primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6',
-        ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '',
+        ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '', division: t.team.division ?? null,
       })))
       const se = parse(l.sportsEnabled, ALL_SPORTS)
       setSportsEnabled(se)
@@ -82,6 +85,9 @@ export default function CommissionerSettings() {
       setIrDesigObj(parse(l.irEligibleDesignations, defaultIrDesignations(se)))
       setPosLimits(parse(l.positionLimits, {}))
       setRookieDates(parse(l.rookieDraftDates, {}))
+      setSportNames(parse(l.sportNames, {}))
+      setChampNames(parse(l.championshipNames, {}))
+      setChampLogos(parse(l.championshipLogos, {}))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
   }, [params.id])
@@ -93,12 +99,21 @@ export default function CommissionerSettings() {
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
 
   async function save() {
+    // Divisions must be evenly sized before saving.
+    const dc = form.divisions ?? 0
+    if (dc > 0) {
+      const counts = Array.from({ length: dc }, (_, i) => franchises.filter(f => f.division === i + 1).length)
+      const balanced = counts.every(c => c === counts[0]) && franchises.length % dc === 0 && !franchises.some(f => !f.division)
+      if (!balanced) { setTab('Franchises'); setTeamError('Divisions must have an equal number of teams (and every franchise assigned) before saving.'); return }
+    }
+    setTeamError('')
     setSaving(true)
     await fetch(`/api/leagues/${params.id}/settings`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: form.name, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
         duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
+        divisions: form.divisions, sportNames, championshipNames: champNames, championshipLogos: champLogos,
         sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
@@ -125,7 +140,7 @@ export default function CommissionerSettings() {
       body: JSON.stringify({
         name: f.name, abbreviation: f.abbreviation, logo: f.logo, wordmark: f.wordmark,
         primaryColor: f.primaryColor, secondaryColor: f.secondaryColor,
-        ownerName: f.ownerName, ownerEmail: f.ownerEmail,
+        ownerName: f.ownerName, ownerEmail: f.ownerEmail, division: f.division,
       }),
     })
     setTeamSaving(null)
@@ -245,6 +260,27 @@ export default function CommissionerSettings() {
             <h3 className="font-semibold text-slate-900">Franchises</h3>
             <p className="text-sm text-slate-500">Edit any franchise&apos;s identity, branding, and owner. Changes save per franchise.</p>
             {teamError && <p className="text-sm text-red-600">{teamError}</p>}
+
+            {/* Divisions */}
+            <div className="rounded-xl border border-slate-200 p-3">
+              <div className="flex items-center gap-3">
+                <label className="label mb-0">Divisions</label>
+                <select className="select w-40" value={form.divisions ?? 0} onChange={e => set('divisions', +e.target.value)}>
+                  <option value={0}>No divisions</option>
+                  {[2, 3, 4].map(n => <option key={n} value={n}>{n} divisions</option>)}
+                </select>
+                {(() => {
+                  const dc = form.divisions ?? 0
+                  if (!dc) return null
+                  const counts = Array.from({ length: dc }, (_, i) => franchises.filter(f => f.division === i + 1).length)
+                  const balanced = counts.every(c => c === counts[0]) && franchises.length % dc === 0
+                  return <span className={`text-xs font-medium ${balanced ? 'text-green-600' : 'text-amber-600'}`}>
+                    {counts.map((c, i) => `D${i + 1}:${c}`).join(' · ')} {balanced ? '✓ even' : '— must be even to save'}
+                  </span>
+                })()}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Assign each franchise to a division below. Divisions must have an equal number of teams before settings can be saved.</p>
+            </div>
             <div className="space-y-4">
               {franchises.map(f => (
                 <div key={f.id} className="rounded-xl border border-slate-200 p-4">
@@ -278,6 +314,14 @@ export default function CommissionerSettings() {
                     </div>
                     <div><label className="label">Owner Name</label><input className="input" value={f.ownerName} onChange={e => setFranchise(f.id, { ownerName: e.target.value })} /></div>
                     <div><label className="label">Owner Email</label><input className="input" type="email" value={f.ownerEmail} onChange={e => setFranchise(f.id, { ownerEmail: e.target.value })} /></div>
+                    {(form.divisions ?? 0) > 0 && (
+                      <div><label className="label">Division</label>
+                        <select className="select" value={f.division ?? ''} onChange={e => setFranchise(f.id, { division: e.target.value === '' ? null : +e.target.value })}>
+                          <option value="">Unassigned</option>
+                          {Array.from({ length: form.divisions }, (_, i) => i + 1).map(n => <option key={n} value={n}>Division {n}</option>)}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center justify-between gap-3 mt-3">
                     <button onClick={() => removeFranchise(f)} className="text-sm text-red-500 hover:text-red-700 font-medium">Remove franchise</button>
@@ -690,7 +734,7 @@ export default function CommissionerSettings() {
           <>
             <h3 className="font-semibold text-slate-900">Playoffs</h3>
             {(() => {
-              const teams = form.playoffTeams ?? 4
+              const teams = form.playoffTeams ?? 6
               const maxR = maxPlayoffRounds(teams)
               const rounds = Math.min(form.playoffRounds ?? 2, maxR)
               const fmt = (form.playoffFormat ?? 'H2H') as any
