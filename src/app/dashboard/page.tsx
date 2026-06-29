@@ -116,6 +116,13 @@ export default async function DashboardPage() {
                   </div>
                 ))}
               </div>
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100 text-sm">
+                <Link href={`/leagues/${league.id}`} className="text-blue-600 hover:underline">Open League</Link>
+                {myTeam && <Link href={`/teams/${myTeam.id}`} className="text-blue-600 hover:underline">My Team</Link>}
+                <Link href={`/leagues/${league.id}/scores`} className="text-blue-600 hover:underline">Scores</Link>
+                <Link href={`/leagues/${league.id}/draft`} className="text-blue-600 hover:underline">Draft</Link>
+                {league.commissionerId === uid && <Link href={`/leagues/${league.id}/settings`} className="ml-auto text-slate-600 hover:text-slate-900 font-medium">⚙️ Settings</Link>}
+              </div>
             </div>
           ))}
         </div>

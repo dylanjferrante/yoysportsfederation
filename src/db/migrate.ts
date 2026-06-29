@@ -68,20 +68,22 @@ CREATE TABLE leagues (
   seconds_per_pick INTEGER DEFAULT 90,
   auto_pick_enabled INTEGER DEFAULT 1,
   rookie_draft_mode TEXT DEFAULT 'PER_SPORT',
-  rookie_draft_rounds INTEGER DEFAULT 4,
+  rookie_draft_rounds TEXT DEFAULT '{}',
   tradeable_pick_years INTEGER DEFAULT 3,
+  draft_order_method TEXT DEFAULT 'REVERSE_STANDINGS',
   trade_deadline TEXT,
   trade_review TEXT DEFAULT 'COMMISSIONER',
   trade_review_hours INTEGER DEFAULT 48,
   veto_votes_required INTEGER DEFAULT 4,
   waiver_type TEXT DEFAULT 'PRIORITY',
   faab_budget INTEGER DEFAULT 100,
+  faab_mode TEXT DEFAULT 'TOTAL',
   waiver_day INTEGER DEFAULT 3,
   waiver_hour INTEGER DEFAULT 3,
   lock_day INTEGER DEFAULT 0,
   playoff_teams INTEGER DEFAULT 4,
   playoff_start_week INTEGER DEFAULT 15,
-  regular_season_weeks INTEGER DEFAULT 14,
+  regular_season_weeks TEXT DEFAULT '{}',
   playoff_rounds INTEGER DEFAULT 2,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
@@ -213,7 +215,7 @@ CREATE TABLE trades (
   id TEXT PRIMARY KEY,
   league_id TEXT REFERENCES leagues(id),
   initiator_id TEXT NOT NULL REFERENCES teams(id),
-  recipient_id TEXT NOT NULL REFERENCES teams(id),
+  recipient_id TEXT REFERENCES teams(id),
   status TEXT DEFAULT 'PENDING',
   note TEXT,
   review_deadline TEXT,
@@ -225,9 +227,21 @@ CREATE TABLE trades (
 CREATE TABLE trade_items (
   id TEXT PRIMARY KEY,
   trade_id TEXT NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
-  direction TEXT NOT NULL,
+  from_team_id TEXT REFERENCES teams(id),
+  to_team_id TEXT REFERENCES teams(id),
+  direction TEXT,
   player_id TEXT REFERENCES players(id),
   pick_id TEXT REFERENCES draft_picks(id)
+);
+
+CREATE TABLE trade_approvals (
+  id TEXT PRIMARY KEY,
+  trade_id TEXT NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
+  team_id TEXT NOT NULL REFERENCES teams(id),
+  user_id TEXT REFERENCES users(id),
+  status TEXT DEFAULT 'PENDING',
+  updated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(trade_id, team_id)
 );
 
 CREATE TABLE trade_votes (

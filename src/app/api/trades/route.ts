@@ -2,24 +2,27 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { trades, tradeItems, teams, players, draftPicks } from '@/db/schema'
-import { eq, or } from 'drizzle-orm'
+import { trades, tradeItems, tradeApprovals, teams, players, draftPicks } from '@/db/schema'
+import { eq, or, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 
 const tradeItemSchema = z.object({
-  direction: z.enum(['GIVING', 'RECEIVING']),
+  direction: z.enum(['GIVING', 'RECEIVING']).optional(),
+  fromTeamId: z.string().optional(),
+  toTeamId: z.string().optional(),
   playerId: z.string().optional(),
   pickId: z.string().optional(),
 })
 
 const createSchema = z.object({
-  recipientTeamId: z.string(),
+  recipientTeamId: z.string().optional(),
+  leagueId: z.string().optional(),
   note: z.string().max(500).optional(),
   items: z.array(tradeItemSchema).min(1),
 })
 
-export async function GET(req: Request) {
+export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -35,18 +38,12 @@ export async function GET(req: Request) {
     const items = await db.select().from(tradeItems).where(eq(tradeItems.tradeId, trade.id))
     const enrichedItems = await Promise.all(items.map(async (item) => {
       let player = null, pick = null
-      if (item.playerId) {
-        const [p] = await db.select().from(players).where(eq(players.id, item.playerId)).limit(1)
-        player = p
-      }
-      if (item.pickId) {
-        const [pk] = await db.select().from(draftPicks).where(eq(draftPicks.id, item.pickId)).limit(1)
-        pick = pk
-      }
+      if (item.playerId) { const [p] = await db.select().from(players).where(eq(players.id, item.playerId)).limit(1); player = p }
+      if (item.pickId) { const [pk] = await db.select().from(draftPicks).where(eq(draftPicks.id, item.pickId)).limit(1); pick = pk }
       return { ...item, player, pick }
     }))
     const [initiatorTeam] = await db.select().from(teams).where(eq(teams.id, trade.initiatorId)).limit(1)
-    const [recipientTeam] = await db.select().from(teams).where(eq(teams.id, trade.recipientId)).limit(1)
+    const recipientTeam = trade.recipientId ? (await db.select().from(teams).where(eq(teams.id, trade.recipientId)).limit(1))[0] : null
     return { ...trade, items: enrichedItems, initiatorTeam, recipientTeam }
   }))
 
@@ -60,34 +57,53 @@ export async function POST(req: Request) {
   try {
     const body = createSchema.parse(await req.json())
 
-    const [recipientTeam] = await db.select().from(teams).where(eq(teams.id, body.recipientTeamId)).limit(1)
-    if (!recipientTeam) return NextResponse.json({ error: 'Recipient not found' }, { status: 400 })
-
-    // The initiator is the current user's franchise in the recipient's league.
+    // Resolve the league + the initiator's franchise in it.
+    let leagueId = body.leagueId
+    if (!leagueId && body.recipientTeamId) {
+      const [rt] = await db.select().from(teams).where(eq(teams.id, body.recipientTeamId)).limit(1)
+      leagueId = rt?.leagueId
+    }
     const myTeams = await db.select().from(teams).where(eq(teams.userId, session.user.id))
-    const mine = myTeams.find(t => t.leagueId === recipientTeam.leagueId)
+    const mine = leagueId ? myTeams.find(t => t.leagueId === leagueId) : myTeams[0]
     if (!mine) return NextResponse.json({ error: 'You have no franchise in this league' }, { status: 400 })
-    if (mine.id === recipientTeam.id) return NextResponse.json({ error: 'Cannot trade with yourself' }, { status: 400 })
+    leagueId = mine.leagueId
+
+    // Resolve every item's from/to franchise (2-team uses direction; N-team carries both).
+    const resolved = body.items.map(it => {
+      let from = it.fromTeamId, to = it.toTeamId
+      if (!from || !to) {
+        if (it.direction === 'RECEIVING') { from = body.recipientTeamId; to = mine.id }
+        else { from = mine.id; to = body.recipientTeamId }
+      }
+      return { ...it, fromTeamId: from, toTeamId: to }
+    })
+
+    const participants = new Set<string>()
+    for (const it of resolved) { if (it.fromTeamId) participants.add(it.fromTeamId); if (it.toTeamId) participants.add(it.toTeamId) }
+    if (body.recipientTeamId) participants.add(body.recipientTeamId)
+    participants.delete(mine.id)
+    if (participants.size === 0) return NextResponse.json({ error: 'No trade partner' }, { status: 400 })
+
+    const partnerRows = await db.select().from(teams).where(inArray(teams.id, [...participants]))
 
     const tradeId = nanoid()
     const [trade] = await db.insert(trades).values({
       id: tradeId,
-      leagueId: recipientTeam.leagueId,
+      leagueId,
       initiatorId: mine.id,
-      recipientId: recipientTeam.id,
+      recipientId: body.recipientTeamId ?? partnerRows[0]?.id ?? null,
       note: body.note,
       status: 'PENDING',
     }).returning()
 
-    await db.insert(tradeItems).values(
-      body.items.map(item => ({
-        id: nanoid(),
-        tradeId,
-        direction: item.direction,
-        playerId: item.playerId ?? null,
-        pickId: item.pickId ?? null,
-      }))
-    )
+    await db.insert(tradeItems).values(resolved.map(it => ({
+      id: nanoid(), tradeId, fromTeamId: it.fromTeamId ?? null, toTeamId: it.toTeamId ?? null,
+      direction: it.direction ?? null, playerId: it.playerId ?? null, pickId: it.pickId ?? null,
+    })))
+
+    await db.insert(tradeApprovals).values(partnerRows.map(t => ({
+      id: nanoid(), tradeId, teamId: t.id, userId: t.userId, status: 'PENDING',
+    })))
 
     return NextResponse.json(trade, { status: 201 })
   } catch (e) {

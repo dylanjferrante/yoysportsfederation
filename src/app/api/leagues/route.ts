@@ -20,15 +20,15 @@ const createSchema = z.object({
   isPublic:    z.boolean().default(false),
   description: z.string().max(500).optional(),
   draftType:   z.enum(['SNAKE', 'AUCTION', 'LINEAR']).default('SNAKE'),
+  draftOrderMethod: z.enum(['REVERSE_STANDINGS', 'RANDOM', 'MANUAL']).default('REVERSE_STANDINGS'),
   rookieDraftMode: z.enum(['COMBINED', 'PER_SPORT']).default('PER_SPORT'),
-  rookieDraftRounds: z.number().int().min(1).max(20).default(4),
   tradeablePickYears: z.number().int().min(0).max(7).default(3),
   tradeReview: z.enum(['NONE', 'COMMISSIONER', 'LEAGUE_VOTE']).default('COMMISSIONER'),
   waiverType:  z.enum(['PRIORITY', 'FAAB', 'FREE_AGENT']).default('PRIORITY'),
   faabBudget:  z.number().default(100),
+  faabMode:    z.enum(['TOTAL', 'PER_SPORT']).default('TOTAL'),
   playoffTeams: z.number().default(4),
   playoffStartWeek: z.number().default(15),
-  regularSeasonWeeks: z.number().default(18),
   playoffRounds: z.number().default(2),
 })
 
@@ -65,8 +65,8 @@ export async function POST(req: Request) {
     const inviteCode = nanoid(8).toUpperCase()
     const leagueId = nanoid()
 
-    const { roster, scoring, draftRounds } = buildPerSportSettings(body.sportsEnabled)
-    const schedule = buildSchedule(body.seasonStart, body.sportsEnabled)
+    const { roster, scoring, draftRounds, rookieRounds, seasonWeeks } = buildPerSportSettings(body.sportsEnabled)
+    const schedule = buildSchedule(body.seasonStart, body.sportsEnabled, seasonWeeks)
     const fedScoring = defaultFederationScoring(body.maxTeams, body.sportsEnabled)
 
     const [league] = await db.insert(leagues).values({
@@ -88,15 +88,17 @@ export async function POST(req: Request) {
       draftRounds: JSON.stringify(draftRounds),
       federationScoring: JSON.stringify(fedScoring),
       draftType: body.draftType,
+      draftOrderMethod: body.draftOrderMethod,
       rookieDraftMode: body.rookieDraftMode,
-      rookieDraftRounds: body.rookieDraftRounds,
+      rookieDraftRounds: JSON.stringify(rookieRounds),
       tradeablePickYears: body.tradeablePickYears,
       tradeReview: body.tradeReview,
       waiverType: body.waiverType,
       faabBudget: body.faabBudget,
+      faabMode: body.faabMode,
       playoffTeams: body.playoffTeams,
       playoffStartWeek: body.playoffStartWeek,
-      regularSeasonWeeks: body.regularSeasonWeeks,
+      regularSeasonWeeks: JSON.stringify(seasonWeeks),
       playoffRounds: body.playoffRounds,
     }).returning()
 

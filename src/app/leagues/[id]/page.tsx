@@ -68,10 +68,12 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href={`/leagues/${id}/scores`} className="btn-secondary text-sm">Scores</Link>
+          <Link href={`/leagues/${id}/playoffs`} className="btn-secondary text-sm">Playoffs</Link>
           <Link href={`/leagues/${id}/draft`} className="btn-secondary text-sm">Draft</Link>
           <Link href={`/leagues/${id}/history`} className="btn-secondary text-sm">History</Link>
-          {isCommissioner && <Link href={`/leagues/${id}/settings`} className="btn-secondary text-sm">⚙️ Settings</Link>}
+          {isCommissioner && <Link href={`/leagues/${id}/settings`} className="btn-primary text-sm">⚙️ Settings</Link>}
         </div>
       </div>
 
