@@ -2,10 +2,49 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { leagues } from '@/db/schema'
-import { eq } from 'drizzle-orm'
-import { buildSchedule } from '@/lib/defaults'
+import { leagues, teams, matchups } from '@/db/schema'
+import { eq, and } from 'drizzle-orm'
+import { nanoid } from 'nanoid'
+import { buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, type ScheduleEntry } from '@/lib/defaults'
 import { safeParse } from '@/lib/utils'
+
+// Fill out the current season's matchups for the (possibly edited) schedule:
+// add games for any sport/week that's now active but has none, and remove
+// not-yet-played games that fall outside a sport's new window. Completed games
+// are always preserved.
+async function syncSeasonMatchups(leagueId: string, season: string, schedule: ScheduleEntry[]) {
+  const teamRows = await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, leagueId))
+  const teamIds = teamRows.map(t => t.id)
+  if (teamIds.length < 2) return
+  const pairings = buildWeeklyPairings(teamIds)
+  if (!pairings.length) return
+  const maxWeek = scheduleWeeks(schedule)
+
+  const existing = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season)))
+  const have = new Set(existing.map(m => `${m.sport}:${m.week}`))
+
+  // Remove stale, unplayed games outside the new windows.
+  for (const m of existing) {
+    if (!m.isComplete && !sportsActiveInWeek(schedule, m.week).includes(m.sport)) {
+      await db.delete(matchups).where(eq(matchups.id, m.id))
+    }
+  }
+
+  // Add games for newly-active sport/weeks.
+  const rows: any[] = []
+  for (let week = 1; week <= maxWeek; week++) {
+    const active = sportsActiveInWeek(schedule, week)
+    if (!active.length) continue
+    const pairs = pairings[(week - 1) % pairings.length]
+    for (const sport of active) {
+      if (have.has(`${sport}:${week}`)) continue
+      for (const [home, away] of pairs) {
+        rows.push({ id: nanoid(), leagueId, sport, season, week, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, isComplete: false })
+      }
+    }
+  }
+  if (rows.length) await db.insert(matchups).values(rows)
+}
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -53,5 +92,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const [updated] = await db.update(leagues).set(update).where(eq(leagues.id, id)).returning()
+
+  // If the schedule changed, fill out the season's matchups to match.
+  if ('sportSchedule' in update) {
+    const schedule = safeParse<ScheduleEntry[]>(update.sportSchedule as string, [])
+    if (schedule.length) await syncSeasonMatchups(id, updated.season, schedule)
+  }
+
   return NextResponse.json(updated)
 }
