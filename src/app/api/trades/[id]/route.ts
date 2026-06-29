@@ -43,7 +43,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (action === 'REJECT') {
     if (!myTeam) return NextResponse.json({ error: 'Not a participant' }, { status: 403 })
     await logActivity(trade.leagueId!, 'TRADE', `${myTeam.name} rejected a trade from ${initiatorTeam?.name ?? 'a franchise'}`, myTeam.id)
-    if (initiatorTeam?.userId) await notify(initiatorTeam.userId, `${myTeam.name} rejected your trade proposal`, `/trade`)
+    if (initiatorTeam?.userId) await notify(initiatorTeam.userId, `${myTeam.name} rejected your trade proposal`, `/trade`, 'TRADE')
     return finish('REJECTED')
   }
 
@@ -75,6 +75,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   const partyNames = teamRows.map(t => t.name).join(' / ')
   await logActivity(trade.leagueId!, 'TRADE', `Trade completed: ${partyNames}`, trade.initiatorId)
-  await notify(teamRows.map(t => t.userId).filter(Boolean) as string[], `Your trade is complete: ${partyNames}`, `/trade`)
+  await notify(teamRows.map(t => t.userId).filter(Boolean) as string[], `Your trade is complete: ${partyNames}`, `/trade`, 'TRADE')
   return finish('ACCEPTED')
 }

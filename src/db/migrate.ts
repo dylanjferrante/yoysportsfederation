@@ -53,6 +53,16 @@ CREATE TABLE users (
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   password TEXT NOT NULL,
+  notify_prefs TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE push_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
