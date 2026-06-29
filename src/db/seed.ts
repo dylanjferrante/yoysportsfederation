@@ -600,12 +600,21 @@ const insertActivity = db.prepare(
   `INSERT INTO activity (id, league_id, type, message, team_id, created_at) VALUES (?,?,?,?,?,datetime('now', ?))`
 )
 const fName = (i: number) => FRANCHISES[i].name
+// Real free-agent names (players not on any roster) per sport, for lifelike add/drop messages.
+const freeAgentsBySport = (sport: string, n: number) =>
+  (db.prepare(
+    `SELECT p.name FROM players p WHERE p.sport=? AND p.id NOT IN (SELECT player_id FROM rosters) ORDER BY p.season_points DESC LIMIT ?`
+  ).all(sport, n) as { name: string }[]).map(r => r.name)
+const faNBA = freeAgentsBySport('NBA', 4)
+const faNFL = freeAgentsBySport('NFL', 4)
+const faNHL = freeAgentsBySport('NHL', 2)
+// Scores update automatically via the API, so they are never logged as transactions.
 const seedActivity: [string, string, string | null, string][] = [
-  ['SCORES', `Scores posted: NFL Wk 14, NBA Wk 10, NHL Wk 9`, null, '-1 hours'],
   ['TRADE',  `${fName(0)} proposed a trade to ${fName(1)}`, teamIds[0], '-5 hours'],
-  ['WAIVER', `${fName(2)} claimed a free agent off waivers`, teamIds[2], '-1 days'],
-  ['ROSTER', `${fName(3)} updated their NBA lineup`, teamIds[3], '-1 days'],
-  ['SCORES', `Scores posted: MLB Wk 8`, null, '-2 days'],
+  ['WAIVER', `${fName(2)} claimed ${faNBA[0] ?? 'a guard'} (NBA) for $17, dropped ${faNBA[1] ?? 'a wing'}`, teamIds[2], '-1 days'],
+  ['ROSTER', `${fName(3)} added ${faNFL[0] ?? 'a running back'} (NFL)`, teamIds[3], '-1 days'],
+  ['ROSTER', `${fName(3)} dropped ${faNFL[1] ?? 'a tight end'} (NFL)`, teamIds[3], '-1 days'],
+  ['WAIVER', `${fName(1)} claimed ${faNHL[0] ?? 'a winger'} (NHL), dropped ${faNHL[1] ?? 'a defenseman'}`, teamIds[1], '-2 days'],
   ['TRADE',  `Trade completed: ${fName(4)} / ${fName(5)}`, teamIds[4], '-3 days'],
   ['DRAFT',  `Rookie draft scheduled for ${NEXT_DRAFT_YEAR}`, null, '-4 days'],
 ]
