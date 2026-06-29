@@ -29,6 +29,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const roster = await db
     .select({
       rosterId: rosters.id, slot: rosters.slot, sport: rosters.sport, onBlock: rosters.onBlock, isKeeper: rosters.isKeeper,
+      salary: rosters.salary, contractYears: rosters.contractYears,
       id: players.id, name: players.name, position: players.position,
       realTeam: players.realTeam, realTeamAbbr: players.realTeamAbbr, status: players.status,
       injuryNote: players.injuryNote, byeWeek: players.byeWeek,
@@ -101,6 +102,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     team, players: enriched, picks, managers,
     rosterSettings: safeParse(league?.rosterSettings, {}),
     keeperEnabled: !!league?.keeperEnabled, keeperCount: league?.keeperCount ?? 0,
+    salaryCapEnabled: !!league?.salaryCapEnabled, salaryCap: league?.salaryCap ?? 0, capMode: league?.capMode ?? 'SOFT',
     canManage, isOwner, isCommish, isCoManager,
   })
 }
@@ -117,7 +119,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (team.userId !== session.user.id && league?.commissionerId !== session.user.id && !(await isTeamManager(id, session.user.id)))
     return NextResponse.json({ error: 'Not your franchise' }, { status: 403 })
 
-  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean; isKeeper?: boolean }
+  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean; isKeeper?: boolean; salary?: number; contractYears?: number }
 
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
     // Validate the player is eligible for the requested slot.
@@ -167,6 +169,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         return NextResponse.json({ error: `Keeper limit reached: max ${league.keeperCount} in ${row.sport}` }, { status: 400 })
     }
     await db.update(rosters).set({ isKeeper: !!body.isKeeper }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
+    return NextResponse.json({ ok: true })
+  }
+
+  if (body.action === 'SET_CONTRACT' && body.rosterId) {
+    if (!league?.salaryCapEnabled) return NextResponse.json({ error: 'Salary cap is not enabled in this league' }, { status: 400 })
+    // Only the owner or commissioner may set contracts (not co-managers).
+    if (team.userId !== session.user.id && league.commissionerId !== session.user.id)
+      return NextResponse.json({ error: 'Only the owner or commissioner can set contracts' }, { status: 403 })
+    const salary = Math.max(0, Math.round(body.salary ?? 0))
+    const years = body.contractYears == null ? null : Math.max(0, Math.round(body.contractYears))
+    await db.update(rosters).set({ salary, contractYears: years }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     return NextResponse.json({ ok: true })
   }
 

@@ -9,7 +9,7 @@ import { boxScoreColumns } from '@/lib/scoring-categories'
 import { oppLabel } from '@/lib/realschedule'
 
 type P = {
-  rosterId: string; slot: string; sport: string; onBlock?: boolean; isKeeper?: boolean; id: string; name: string; position: string
+  rosterId: string; slot: string; sport: string; onBlock?: boolean; isKeeper?: boolean; salary?: number; contractYears?: number | null; id: string; name: string; position: string
   realTeam: string; realTeamAbbr: string | null; status: string; injuryNote: string | null; byeWeek: number | null
   seasonPoints: number; projectedPoints: number; weeklyAvg: number
   gp: number; lastPts: number | null; seasonStats: Record<string, number>; opp: { opp: string; home: boolean } | null
@@ -77,6 +77,14 @@ export default function TeamPage() {
     load()
   }
 
+  function editContract(p: P) {
+    const salStr = window.prompt(`Salary for ${p.name}`, String(p.salary ?? 0))
+    if (salStr == null) return
+    const yrStr = window.prompt(`Contract years remaining for ${p.name} (blank = none)`, p.contractYears == null ? '' : String(p.contractYears))
+    if (yrStr == null) return
+    act({ action: 'SET_CONTRACT', rosterId: p.rosterId, salary: Number(salStr) || 0, contractYears: yrStr.trim() === '' ? null : Number(yrStr) })
+  }
+
   if (loading) return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-pulse">
       <div className="h-28 rounded-2xl bg-slate-100 mb-6" />
@@ -93,6 +101,10 @@ export default function TeamPage() {
   const sportsPresent = SPORTS.filter(s => players.some(p => p.sport === s))
   const rosterForSport = players.filter(p => p.sport === sport).sort((a, b) => (STARTER(b.slot) ? 1 : 0) - (STARTER(a.slot) ? 1 : 0) || b.seasonPoints - a.seasonPoints)
   const picksForSport = picks.filter(p => p.sport === sport || p.sport === null)
+  const capEnabled: boolean = !!data.salaryCapEnabled
+  const cap: number = data.salaryCap ?? 0
+  const totalSalary = players.reduce((s, p) => s + (p.salary ?? 0), 0)
+  const overCap = capEnabled && cap > 0 && totalSalary > cap
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -160,6 +172,24 @@ export default function TeamPage() {
             <button onClick={addManager} disabled={!mgrEmail.trim()} className="btn-primary disabled:opacity-50">Add</button>
           </div>
           {mgrErr && <p className="text-xs text-red-500">{mgrErr}</p>}
+        </div>
+      )}
+
+      {/* Salary cap summary */}
+      {capEnabled && (
+        <div className={`card p-4 mb-5 ${overCap ? 'ring-1 ring-red-200' : ''}`}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-sm font-semibold text-slate-900">Salary Cap</span>
+            <span className={`text-sm font-bold tabular-nums ${overCap ? 'text-red-600' : 'text-slate-700'}`}>
+              {totalSalary.toLocaleString()}{cap > 0 ? ` / ${cap.toLocaleString()}` : ''}
+            </span>
+          </div>
+          {cap > 0 && (
+            <div className="h-2 rounded-full overflow-hidden bg-slate-100">
+              <div className={overCap ? 'bg-red-500 h-full' : 'bg-emerald-500 h-full'} style={{ width: `${Math.min(100, (totalSalary / cap) * 100)}%` }} />
+            </div>
+          )}
+          <p className="text-xs text-slate-400 mt-1">{overCap ? `Over cap by ${(totalSalary - cap).toLocaleString()}` : cap > 0 ? `${(cap - totalSalary).toLocaleString()} of cap space remaining` : 'No cap amount set'} · total across all sports</p>
         </div>
       )}
 
@@ -231,6 +261,7 @@ export default function TeamPage() {
                             <span className="text-[11px] text-slate-400"> {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
                             {p.status !== 'ACTIVE' && <span className="ml-1 text-[9px] font-bold text-red-500 align-top">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
                             {p.byeWeek ? <span className="ml-1 text-[9px] text-slate-300">BYE {p.byeWeek}</span> : null}
+                            {capEnabled && (p.salary ?? 0) > 0 && <span className="ml-1 text-[10px] text-emerald-600 font-semibold tabular-nums">${(p.salary ?? 0).toLocaleString()}{p.contractYears ? ` · ${p.contractYears}yr` : ''}</span>}
                           </td>
                           <td className="px-1.5 py-1.5 text-center text-[11px] text-slate-500 tabular-nums whitespace-nowrap">{oppLabel(p.opp ?? undefined)}</td>
                           <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden sm:table-cell">{(p.projectedPoints ?? 0).toFixed(1)}</td>
@@ -243,6 +274,7 @@ export default function TeamPage() {
                             return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600 hidden lg:table-cell">{v || '—'}</td>
                           })}
                           {canManage && <td className="px-3 py-1.5 text-right whitespace-nowrap">
+                            {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} className="text-[11px] mr-2 text-slate-400 hover:text-emerald-600">$</button>}
                             {data.keeperEnabled && <button onClick={() => act({ action: 'SET_KEEPER', rosterId: p.rosterId, isKeeper: !p.isKeeper })} className={`text-[11px] mr-2 ${p.isKeeper ? 'text-emerald-600 font-semibold' : 'text-slate-400 hover:text-emerald-600'}`}>{p.isKeeper ? '🔑 Keeper' : 'Keep'}</button>}
                             <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} className={`text-[11px] mr-2 ${p.onBlock ? 'text-amber-600 font-semibold' : 'text-slate-400 hover:text-amber-600'}`}>{p.onBlock ? '◉ Block' : 'Block'}</button>
                             <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] text-red-500 hover:text-red-700">Drop</button>
