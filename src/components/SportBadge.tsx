@@ -1,10 +1,10 @@
-import { sportColor, sportEmoji } from '@/lib/utils'
+import { sportMeta } from '@/lib/utils'
 
 export default function SportBadge({ sport, size = 'sm' }: { sport: string; size?: 'sm' | 'md' }) {
-  const colors = sportColor(sport)
+  const m = sportMeta(sport)
   return (
-    <span className={`sport-badge ${colors.badge} ${size === 'md' ? 'text-sm px-3 py-1' : ''}`}>
-      {sportEmoji(sport)} {sport}
+    <span className={`inline-flex items-center gap-1 font-semibold rounded-full px-2 py-0.5 ${m.light} ${size === 'md' ? 'text-sm px-3 py-1' : 'text-xs'}`}>
+      {m.emoji} {sport}
     </span>
   )
 }

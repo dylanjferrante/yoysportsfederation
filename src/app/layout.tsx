@@ -4,21 +4,20 @@ import './globals.css'
 import Providers from './providers'
 import Navbar from '@/components/Navbar'
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'YSF Fantasy Federation',
-  description: 'The first cross-sport fantasy platform — trade NFL, NHL, NBA, and MLB players and picks across leagues.',
-  icons: { icon: '/favicon.svg' },
+  title: { default: 'Nexus Fantasy', template: '%s | Nexus Fantasy' },
+  description: 'The cross-sport fantasy platform. NFL, NBA, NHL, and MLB — trade players and picks across every league.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-gray-50">
+    <html lang="en" className={inter.className}>
+      <body className="min-h-screen flex flex-col">
         <Providers>
           <Navbar />
-          <main>{children}</main>
+          <div className="flex-1">{children}</div>
         </Providers>
       </body>
     </html>
