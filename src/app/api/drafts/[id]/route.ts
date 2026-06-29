@@ -60,7 +60,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const myTeam = session ? order.find(o => o.userId === session.user.id) : null
 
   const made = await db
-    .select({ pickNumber: draftPicks.pickNumber, sport: draftPicks.sport, teamId: draftPicks.currentTeamId, playerName: players.name, playerId: players.id, position: players.position })
+    .select({ pickNumber: draftPicks.pickNumber, sport: draftPicks.sport, teamId: draftPicks.currentTeamId, playerName: players.name, playerId: players.id, position: players.position, realTeamAbbr: players.realTeamAbbr })
     .from(draftPicks).leftJoin(players, eq(draftPicks.pickedPlayerId, players.id))
     .where(and(eq(draftPicks.draftId, id), eq(draftPicks.isUsed, true)))
   const madeByPick = Object.fromEntries(made.filter(m => m.pickNumber).map(m => [m.pickNumber, m]))
@@ -69,7 +69,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const board = Array.from({ length: total }, (_, i) => {
     const pk = i + 1
     const t = onClock(order, pk)
-    return { pickNumber: pk, round: Math.ceil(pk / order.length), teamId: t?.id, teamAbbr: t?.abbreviation, player: madeByPick[pk] ? { name: madeByPick[pk].playerName, sport: madeByPick[pk].sport, position: madeByPick[pk].position } : null }
+    const round = Math.ceil(pk / order.length)
+    const pickInRound = ((pk - 1) % order.length) + 1
+    const m = madeByPick[pk]
+    return {
+      pickNumber: pk, round, pickInRound, teamId: t?.id, teamAbbr: t?.abbreviation,
+      player: m ? { name: m.playerName, sport: m.sport, position: m.position, realTeamAbbr: m.realTeamAbbr } : null,
+    }
   })
 
   const current = draft.currentPick ?? 0
@@ -116,7 +122,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }
 
   return NextResponse.json({
-    draft, order: order.map(o => ({ id: o.id, name: o.name, abbreviation: o.abbreviation, userId: o.userId })),
+    draft, order: order.map(o => ({ id: o.id, name: o.name, abbreviation: o.abbreviation, userId: o.userId, logo: o.logo, primaryColor: o.primaryColor, secondaryColor: o.secondaryColor })),
     board, made, current, total, onClockTeam: clock ? { id: clock.id, name: clock.name } : null,
     available, myTeamId: myTeam?.id ?? null, myQueue, myAutopick, auction,
   })
