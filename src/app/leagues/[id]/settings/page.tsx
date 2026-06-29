@@ -428,6 +428,32 @@ export default function CommissionerSettings() {
                 ))}
               </div>
             </div>
+
+            {/* Custom sport names + championship naming (premium) */}
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-slate-900 text-sm">Sport &amp; Championship Naming</h4>
+                <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Premium</span>
+              </div>
+              <p className="text-xs text-slate-500 mb-2">Rename each sport and its championship, and add a trophy/championship image.</p>
+              <div className="space-y-3">
+                {sportsEnabled.map(s => (
+                  <div key={s} className="rounded-lg border border-slate-200 p-2.5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-xs font-bold ${sportMeta(s).color}`}>{sportMeta(s).emoji} {s}</span>
+                    </div>
+                    <div className="grid sm:grid-cols-3 gap-2">
+                      <input className="input text-sm" placeholder={`Sport name (${s})`} value={sportNames[s] ?? ''} onChange={e => setSportNames(d => ({ ...d, [s]: e.target.value }))} />
+                      <input className="input text-sm" placeholder="Championship name" value={champNames[s] ?? ''} onChange={e => setChampNames(d => ({ ...d, [s]: e.target.value }))} />
+                      <div className="flex items-center gap-2">
+                        <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos[s] ?? ''} onChange={e => setChampLogos(d => ({ ...d, [s]: e.target.value }))} />
+                        {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 rounded object-cover bg-slate-100" />}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </>
         )}
 
