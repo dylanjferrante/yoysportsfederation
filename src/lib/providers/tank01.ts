@@ -92,12 +92,19 @@ export class Tank01Provider implements SportsDataProvider {
       position: p.pos ?? p.position ?? '',
       realTeam: p.team ?? p.teamAbv ?? '',
       realTeamAbbr: p.teamAbv ?? undefined,
-      status: p.injury?.designation || 'ACTIVE',
-      injuryNote: p.injury?.description ?? null,
+      status: p.injury?.designation ? p.injury.designation : 'ACTIVE',
+      injuryNote: p.injury?.description || null,
       photoUrl: p.espnHeadshot ?? p.headshot ?? null,
-      isRookie: p.isRookie === 'True' || p.isRookie === true,
-      byeWeek: p.byeWeeks ? num(Array.isArray(p.byeWeeks) ? p.byeWeeks[0] : p.byeWeeks) : null,
+      isRookie: p.exp === 'R' || p.isRookie === 'True' || p.isRookie === true,
+      byeWeek: null, // bye weeks live on the teams payload, not the player list
     }))
+  }
+
+  private fantasyPts(raw: any): number {
+    const fp = raw.fantasyPoints ?? raw.fantasyPointsDefault
+    if (fp == null) return 0
+    if (typeof fp === 'object') return num(fp.PPR ?? fp.halfPPR ?? fp.standard)
+    return num(fp)
   }
 
   async getProjections(sport: Sport, opts?: { week?: number; season?: string }): Promise<ProviderProjection[]> {
@@ -105,14 +112,24 @@ export class Tank01Provider implements SportsDataProvider {
     if (opts?.week) query.week = opts.week
     if (opts?.season) query.archiveSeason = opts.season.slice(0, 4)
     const body = await call<any>(sport, EP(sport).projections, query)
-    const playerMap = body?.playerProjections ?? body ?? {}
-    return Object.entries(playerMap).map(([externalId, raw]: [string, any]) => ({
-      externalId,
-      name: raw.longName ?? raw.playerName ?? '',
-      sport,
-      projectedPoints: num(raw.fantasyPoints ?? raw.fantasyPointsDefault?.PPR ?? raw.fantasyPointsDefault?.standard),
-      stats: Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === 'string' || typeof v === 'number').map(([k, v]) => [k, num(v)])),
-    }))
+    // Tank01 nests skill players under playerProjections and team defenses under
+    // teamDefenseProjections (keyed by teamID). Merge both into one list.
+    const playerMap = body?.playerProjections ?? {}
+    const dstMap = body?.teamDefenseProjections ?? {}
+    const out: ProviderProjection[] = []
+    for (const [externalId, raw] of Object.entries<any>(playerMap)) {
+      out.push({
+        externalId,
+        name: raw.longName ?? raw.playerName ?? '',
+        sport,
+        projectedPoints: this.fantasyPts(raw),
+        stats: Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === 'string' || typeof v === 'number').map(([k, v]) => [k, num(v)])),
+      })
+    }
+    for (const [teamId, raw] of Object.entries<any>(dstMap)) {
+      out.push({ externalId: `DST_${teamId}`, name: `${raw.teamAbv ?? ''} DST`.trim(), sport, projectedPoints: this.fantasyPts(raw), stats: {} })
+    }
+    return out
   }
 
   async getStatLines(sport: Sport, week: number, _opts?: { season?: string }): Promise<ProviderStatLine[]> {
