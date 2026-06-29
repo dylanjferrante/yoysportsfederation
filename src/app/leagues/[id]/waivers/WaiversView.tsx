@@ -32,12 +32,16 @@ export default function WaiversView({
   const [bid, setBid] = useState(0)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [pendingCount, setPendingCount] = useState(0)
 
   const recFor = (s: string) => myRecords.find(r => r.sport === s)
   const meta = sportMeta(sport)
 
   const loadClaims = useCallback(() => {
-    fetch(`/api/leagues/${leagueId}/waivers`).then(r => r.json()).then(d => setClaims(Array.isArray(d) ? d : []))
+    fetch(`/api/leagues/${leagueId}/waivers`).then(r => r.json()).then(d => {
+      setClaims(Array.isArray(d?.claims) ? d.claims : [])
+      setPendingCount(d?.pendingCount ?? 0)
+    })
   }, [leagueId])
 
   useEffect(() => { loadClaims() }, [loadClaims])
@@ -89,9 +93,9 @@ export default function WaiversView({
           <p className="text-sm text-slate-500">{leagueName} · {isFaab ? `FAAB bidding (${faabMode === 'PER_SPORT' ? 'per-sport' : 'total'} budget)` : 'Rolling waiver priority'}</p>
         </div>
         {isCommissioner && (
-          <button onClick={process} disabled={busy || pending.length === 0}
+          <button onClick={process} disabled={busy || pendingCount === 0}
             className="ml-auto btn-primary text-sm disabled:opacity-40">
-            {busy ? 'Processing…' : `Process Waivers (${pending.length})`}
+            {busy ? 'Processing…' : `Process Waivers (${pendingCount})`}
           </button>
         )}
       </div>
@@ -180,8 +184,11 @@ export default function WaiversView({
         {/* Claims */}
         <div className="space-y-6">
           <div className="card">
-            <div className="card-header"><h2 className="font-semibold text-slate-900">Pending Claims</h2></div>
-            {pending.length === 0 ? <p className="px-4 py-6 text-sm text-slate-400">No pending claims.</p> : (
+            <div className="card-header">
+              <h2 className="font-semibold text-slate-900">My Pending Claims</h2>
+              <p className="text-[11px] text-slate-400 font-normal">Other franchises' claims stay hidden until the waiver period processes.</p>
+            </div>
+            {pending.length === 0 ? <p className="px-4 py-6 text-sm text-slate-400">You have no pending claims.</p> : (
               <ul className="divide-y divide-slate-50">
                 {pending.map(c => (
                   <li key={c.id} className="flex items-center gap-3 px-4 py-2.5">

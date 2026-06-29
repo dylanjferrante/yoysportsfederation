@@ -189,6 +189,8 @@ CREATE TABLE drafts (
   status TEXT DEFAULT 'PENDING',
   starts_at TEXT,
   current_pick INTEGER DEFAULT 0,
+  pick_seconds INTEGER DEFAULT 90,
+  pick_deadline TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

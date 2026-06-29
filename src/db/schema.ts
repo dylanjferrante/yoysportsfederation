@@ -190,6 +190,8 @@ export const drafts = sqliteTable('drafts', {
   status: text('status').default('PENDING'), // PENDING | IN_PROGRESS | COMPLETED
   startsAt: text('starts_at'),
   currentPick: integer('current_pick').default(0), // overall pick number on the clock
+  pickSeconds: integer('pick_seconds').default(90), // per-pick time limit
+  pickDeadline: text('pick_deadline'),              // ISO deadline for the current pick
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 

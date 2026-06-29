@@ -76,6 +76,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Link href={`/leagues/${id}/scores`} className="btn-secondary text-sm">Scores</Link>
+          <Link href={`/leagues/${id}/transactions`} className="btn-secondary text-sm">Transactions</Link>
           <Link href={`/leagues/${id}/waivers`} className="btn-secondary text-sm">Waivers</Link>
           <Link href={`/leagues/${id}/playoffs`} className="btn-secondary text-sm">Playoffs</Link>
           <Link href={`/leagues/${id}/draft`} className="btn-secondary text-sm">Draft</Link>
@@ -97,7 +98,10 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
       {/* League activity feed */}
       <div className="card mt-8">
-        <div className="card-header"><h2 className="font-semibold text-slate-900">League Activity</h2></div>
+        <div className="card-header flex items-center justify-between">
+          <h2 className="font-semibold text-slate-900">League Activity</h2>
+          <Link href={`/leagues/${id}/transactions`} className="text-xs font-medium text-blue-600 hover:underline">View all transactions →</Link>
+        </div>
         {feed.length === 0 ? (
           <p className="px-4 py-6 text-sm text-slate-400">No recent activity.</p>
         ) : (

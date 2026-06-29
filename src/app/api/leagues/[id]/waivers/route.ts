@@ -13,12 +13,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
 
-  const claims = await db.select().from(waiverClaims).where(eq(waiverClaims.leagueId, id))
+  const all = await db.select().from(waiverClaims).where(eq(waiverClaims.leagueId, id))
   const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, userId: teams.userId }).from(teams).where(eq(teams.leagueId, id))
+  const tById = Object.fromEntries(teamRows.map(t => [t.id, t]))
+
+  // Sniping guard: a PENDING claim is only visible to its own franchise. Settled
+  // claims (WON/LOST/FAILED) are public history once the period has processed.
+  const myTeamIds = new Set(teamRows.filter(t => t.userId === session.user.id).map(t => t.id))
+  const pendingCount = all.filter(c => c.status === 'PENDING').length
+  const claims = all.filter(c => c.status !== 'PENDING' || myTeamIds.has(c.teamId))
+
   const playerIds = [...new Set(claims.flatMap(c => [c.addPlayerId, c.dropPlayerId].filter(Boolean) as string[]))]
   const playerRows = playerIds.length ? await db.select({ id: players.id, name: players.name, position: players.position, sport: players.sport }).from(players).where(inArray(players.id, playerIds)) : []
   const pById = Object.fromEntries(playerRows.map(p => [p.id, p]))
-  const tById = Object.fromEntries(teamRows.map(t => [t.id, t]))
 
   const enriched = claims.map(c => ({
     ...c,
@@ -28,7 +35,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     mine: tById[c.teamId]?.userId === session.user.id,
   })).sort((a, b) => (b.claimedAt ?? '').localeCompare(a.claimedAt ?? ''))
 
-  return NextResponse.json(enriched)
+  return NextResponse.json({ claims: enriched, pendingCount })
 }
 
 // Submit a claim, cancel one, or (commissioner) process the waiver period.
