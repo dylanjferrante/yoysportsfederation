@@ -4,15 +4,17 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs)
 }
 
-export const SPORT_META: Record<string, { emoji: string; color: string; bg: string; light: string; border: string }> = {
-  NFL: { emoji: '🏈', color: 'text-blue-900', bg: 'bg-blue-900', light: 'bg-blue-50 text-blue-900', border: 'border-blue-900' },
-  NBA: { emoji: '🏀', color: 'text-red-700',  bg: 'bg-red-700',  light: 'bg-red-50 text-red-700',  border: 'border-red-700'  },
-  NHL: { emoji: '🏒', color: 'text-gray-900', bg: 'bg-gray-900', light: 'bg-gray-100 text-gray-900',border: 'border-gray-800' },
-  MLB: { emoji: '⚾', color: 'text-blue-700', bg: 'bg-blue-700', light: 'bg-sky-50 text-blue-700',  border: 'border-blue-700' },
+// Each sport has its own identity color: football green, basketball orange,
+// hockey light blue, baseball red.
+export const SPORT_META: Record<string, { emoji: string; color: string; bg: string; light: string; border: string; hex: string }> = {
+  NFL: { emoji: '🏈', color: 'text-green-700', bg: 'bg-green-700', light: 'bg-green-50 text-green-700', border: 'border-green-700', hex: '#15803d' },
+  NBA: { emoji: '🏀', color: 'text-orange-600', bg: 'bg-orange-500', light: 'bg-orange-50 text-orange-600', border: 'border-orange-500', hex: '#f97316' },
+  NHL: { emoji: '🏒', color: 'text-sky-600', bg: 'bg-sky-500', light: 'bg-sky-50 text-sky-600', border: 'border-sky-500', hex: '#0ea5e9' },
+  MLB: { emoji: '⚾', color: 'text-red-600', bg: 'bg-red-600', light: 'bg-red-50 text-red-600', border: 'border-red-600', hex: '#dc2626' },
 }
 
 export function sportMeta(sport: string) {
-  return SPORT_META[sport] ?? { emoji: '🏆', color: 'text-slate-700', bg: 'bg-slate-700', light: 'bg-slate-50 text-slate-700', border: 'border-slate-700' }
+  return SPORT_META[sport] ?? { emoji: '🏆', color: 'text-slate-700', bg: 'bg-slate-700', light: 'bg-slate-50 text-slate-700', border: 'border-slate-700', hex: '#334155' }
 }
 
 export function tradeStatusClass(status: string) {

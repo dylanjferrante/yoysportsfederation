@@ -20,6 +20,8 @@ DROP TABLE IF EXISTS trade_votes;
 DROP TABLE IF EXISTS trade_items;
 DROP TABLE IF EXISTS trades;
 DROP TABLE IF EXISTS matchups;
+DROP TABLE IF EXISTS draft_queues;
+DROP TABLE IF EXISTS draft_autopick;
 DROP TABLE IF EXISTS draft_picks;
 DROP TABLE IF EXISTS drafts;
 DROP TABLE IF EXISTS draft_order;
@@ -103,6 +105,10 @@ CREATE TABLE teams (
   name TEXT NOT NULL,
   abbreviation TEXT NOT NULL,
   logo TEXT,
+  alt_logo TEXT,
+  wordmark TEXT,
+  primary_color TEXT DEFAULT '#0f172a',
+  secondary_color TEXT DEFAULT '#3b82f6',
   user_id TEXT NOT NULL REFERENCES users(id),
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
   created_at TEXT DEFAULT (datetime('now')),
@@ -181,6 +187,23 @@ CREATE TABLE drafts (
   starts_at TEXT,
   current_pick INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE draft_queues (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  player_id TEXT NOT NULL REFERENCES players(id),
+  position INTEGER NOT NULL,
+  UNIQUE(draft_id, team_id, player_id)
+);
+
+CREATE TABLE draft_autopick (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  enabled INTEGER DEFAULT 0,
+  UNIQUE(draft_id, team_id)
 );
 
 CREATE TABLE draft_picks (

@@ -96,6 +96,10 @@ export const teams = sqliteTable('teams', {
   name: text('name').notNull(),
   abbreviation: text('abbreviation').notNull(),
   logo: text('logo'),
+  altLogo: text('alt_logo'),
+  wordmark: text('wordmark'),
+  primaryColor: text('primary_color').default('#0f172a'),
+  secondaryColor: text('secondary_color').default('#3b82f6'),
   userId: text('user_id').notNull().references(() => users.id),
   leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
@@ -188,6 +192,27 @@ export const drafts = sqliteTable('drafts', {
   currentPick: integer('current_pick').default(0), // overall pick number on the clock
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
+
+// ── Draft Queues + Auto-pick (per team per draft) ───────────────────────────
+
+export const draftQueues = sqliteTable('draft_queues', {
+  id: text('id').primaryKey(),
+  draftId: text('draft_id').notNull().references(() => drafts.id, { onDelete: 'cascade' }),
+  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  playerId: text('player_id').notNull().references(() => players.id),
+  position: integer('position').notNull(),
+}, (t) => ({
+  uniq: uniqueIndex('draft_queue_uniq').on(t.draftId, t.teamId, t.playerId),
+}))
+
+export const draftAutopick = sqliteTable('draft_autopick', {
+  id: text('id').primaryKey(),
+  draftId: text('draft_id').notNull().references(() => drafts.id, { onDelete: 'cascade' }),
+  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  enabled: integer('enabled', { mode: 'boolean' }).default(false),
+}, (t) => ({
+  uniq: uniqueIndex('draft_autopick_uniq').on(t.draftId, t.teamId),
+}))
 
 // ── Draft Picks (tradeable assets + draft-board slots) ──────────────────────
 

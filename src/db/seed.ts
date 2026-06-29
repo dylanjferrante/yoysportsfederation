@@ -338,7 +338,12 @@ insertLeague.run({
 const FRANCHISES = OWNERS.map((o, i) => ({ uid: ownerIds[i], name: o.team, abbr: o.abbr }))
 
 const insertMember = db.prepare(`INSERT OR IGNORE INTO league_members (id,league_id,user_id,role) VALUES (?,?,?,?)`)
-const insertTeam = db.prepare(`INSERT INTO teams (id,name,abbreviation,user_id,league_id) VALUES (?,?,?,?,?)`)
+const insertTeam = db.prepare(`INSERT INTO teams (id,name,abbreviation,user_id,league_id,wordmark,primary_color,secondary_color) VALUES (?,?,?,?,?,?,?,?)`)
+const TEAM_COLORS: [string, string][] = [
+  ['#0f172a', '#3b82f6'], ['#7c2d12', '#f97316'], ['#064e3b', '#10b981'], ['#581c87', '#a855f7'],
+  ['#7f1d1d', '#ef4444'], ['#1e3a8a', '#60a5fa'], ['#374151', '#9ca3af'], ['#9d174d', '#ec4899'],
+  ['#134e4a', '#2dd4bf'], ['#713f12', '#eab308'], ['#1e293b', '#38bdf8'], ['#3b0764', '#c084fc'],
+]
 const insertRoster = db.prepare(`INSERT OR IGNORE INTO rosters (id,team_id,player_id,sport,slot,acquisition_type) VALUES (?,?,?,?,?,?)`)
 const insertRecord = db.prepare(`INSERT INTO team_records (id,team_id,league_id,season,sport,wins,losses,ties,points_for,points_against,finish_position,is_champion,faab_remaining,waiver_priority) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 const insertDraft = db.prepare(`INSERT INTO drafts (id,league_id,kind,scope,season,type,rounds,status,starts_at) VALUES (?,?,?,?,?,?,?,?,?)`)
@@ -354,7 +359,8 @@ const teamIds: string[] = []
 FRANCHISES.forEach((f, i) => {
   const tid = id()
   teamIds.push(tid)
-  insertTeam.run(tid, f.name, f.abbr, f.uid, leagueId)
+  const [primary, secondary] = TEAM_COLORS[i % TEAM_COLORS.length]
+  insertTeam.run(tid, f.name, f.abbr, f.uid, leagueId, f.name, primary, secondary)
   insertMember.run(id(), leagueId, f.uid, i === 0 ? 'COMMISSIONER' : 'MEMBER')
 })
 
