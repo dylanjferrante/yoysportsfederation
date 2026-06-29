@@ -76,6 +76,7 @@ export const leagues = sqliteTable('leagues', {
   weeksPerRound: integer('weeks_per_round').default(1),
   positionLimits: text('position_limits').default('{}'), // per-sport {pos:{maxStarters?,maxRostered?}}
   mlbSpCap: integer('mlb_sp_cap').default(0), // max starting pitchers counted per week (0 = unlimited)
+  rookieDraftDates: text('rookie_draft_dates').default('{}'), // per-scope rookie draft datetimes
   lockDay: integer('lock_day').default(0),
 
   // Playoffs

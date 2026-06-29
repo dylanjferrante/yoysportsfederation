@@ -109,6 +109,7 @@ export async function POST(req: Request) {
       playoffFormat: body.playoffFormat,
       weeksPerRound: body.weeksPerRound,
       positionLimits: '{}',
+      rookieDraftDates: JSON.stringify(Object.fromEntries(body.sportsEnabled.map((s: string) => [s, '']))),
     }).returning()
 
     // Commissioner membership + their franchise
