@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { sportMeta, safeParse } from '@/lib/utils'
 import { RESERVE_SLOTS } from '@/lib/defaults'
 import { boxScoreColumns } from '@/lib/scoring-categories'
+import MatchupChat from './MatchupChat'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
@@ -187,6 +188,8 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
         <StatTable side={home} score={m.homeScore ?? 0} />
         <StatTable side={away} score={m.awayScore ?? 0} />
       </div>
+
+      {home.team && away.team && <MatchupChat leagueId={id} matchupId={matchupId} accent={meta.hex} />}
     </div>
   )
 }
