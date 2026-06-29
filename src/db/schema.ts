@@ -68,6 +68,8 @@ export const leagues = sqliteTable('leagues', {
   faabMode: text('faab_mode').default('TOTAL'), // TOTAL | PER_SPORT
   waiverDay: integer('waiver_day').default(3),
   waiverHour: integer('waiver_hour').default(3),
+  // Per-sport waiver run time: { [sport]: { day: 0-6 (Sun-Sat), hour: 0-23 } }
+  waiverSchedule: text('waiver_schedule').default('{}'),
   lockDay: integer('lock_day').default(0),
 
   // Playoffs

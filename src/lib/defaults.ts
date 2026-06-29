@@ -35,6 +35,22 @@ export const DEFAULT_DRAFT_ROUNDS: Record<string, number> = {
   NFL: 15, NBA: 13, NHL: 20, MLB: 25,
 }
 
+// Injured-reserve slots aren't drafted into.
+const NON_DRAFT_SLOTS = ['IR', 'IL', 'DL']
+
+// The initial dynasty draft is ONE combined draft across all sports; its length
+// equals the total roster spots a franchise fills (starters + bench + taxi,
+// across every sport). So a pick is made for each roster spot.
+export function dynastyDraftRounds(rosterSettings: Record<string, Record<string, number>>): number {
+  let total = 0
+  for (const sport in rosterSettings) {
+    for (const [slot, n] of Object.entries(rosterSettings[sport] ?? {})) {
+      if (!NON_DRAFT_SLOTS.includes(slot)) total += (n || 0)
+    }
+  }
+  return total
+}
+
 // Rookie-draft rounds per sport.
 export const DEFAULT_ROOKIE_ROUNDS: Record<string, number> = {
   NFL: 4, NBA: 2, NHL: 4, MLB: 5,
@@ -260,6 +276,13 @@ export const TRADE_DEADLINE_MODES: { value: TradeDeadlineMode; label: string; he
   { value: 'FEDERATION_CHAMPIONSHIP', label: 'After federation championship', help: 'Trades stay open until the whole federation season concludes.' },
   { value: 'NONE', label: 'No deadline (year-round)', help: 'Dynasty-style — trades are always allowed.' },
 ]
+
+// Per-sport waiver run time (default: Wednesday 3am for each sport).
+export type WaiverRun = { day: number; hour: number }
+export const WAIVER_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+export function defaultWaiverSchedule(sportsEnabled: string[]): Record<string, WaiverRun> {
+  return Object.fromEntries(sportsEnabled.map(s => [s, { day: 3, hour: 3 }]))
+}
 
 export function defaultTradeDeadlines(sportsEnabled: string[]): Record<string, TradeDeadline> {
   // Default: lock when each sport's playoffs begin (classic redraft behavior).

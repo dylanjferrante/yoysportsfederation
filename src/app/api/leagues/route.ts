@@ -6,7 +6,7 @@ import { leagues, leagueMembers, teams, teamRecords, drafts } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
-import { buildPerSportSettings, buildSchedule, defaultTradeDeadlines } from '@/lib/defaults'
+import { buildPerSportSettings, buildSchedule, defaultTradeDeadlines, defaultWaiverSchedule, dynastyDraftRounds } from '@/lib/defaults'
 import { defaultFederationScoring } from '@/lib/federation'
 
 const createSchema = z.object({
@@ -97,6 +97,7 @@ export async function POST(req: Request) {
       waiverType: body.waiverType,
       faabBudget: body.faabBudget,
       faabMode: body.faabMode,
+      waiverSchedule: JSON.stringify(defaultWaiverSchedule(body.sportsEnabled)),
       playoffTeams: body.playoffTeams,
       playoffStartWeek: body.playoffStartWeek,
       regularSeasonWeeks: JSON.stringify(seasonWeeks),
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
     // Pending dynasty draft for the inaugural combined draft.
     await db.insert(drafts).values({
       id: nanoid(), leagueId, kind: 'DYNASTY', scope: 'OVERALL', season: body.season,
-      type: body.draftType, rounds: 25, status: 'PENDING',
+      type: body.draftType, rounds: dynastyDraftRounds(roster), status: 'PENDING',
     })
 
     return NextResponse.json(league, { status: 201 })

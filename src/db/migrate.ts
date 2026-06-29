@@ -93,6 +93,7 @@ CREATE TABLE leagues (
   faab_mode TEXT DEFAULT 'TOTAL',
   waiver_day INTEGER DEFAULT 3,
   waiver_hour INTEGER DEFAULT 3,
+  waiver_schedule TEXT DEFAULT '{}',
   lock_day INTEGER DEFAULT 0,
   playoff_teams INTEGER DEFAULT 4,
   playoff_start_week INTEGER DEFAULT 15,
