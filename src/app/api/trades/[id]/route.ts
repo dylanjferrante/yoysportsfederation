@@ -64,8 +64,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
     if (it.playerId && to) {
       const [pl] = await db.select({ sport: players.sport }).from(players).where(eq(players.id, it.playerId)).limit(1)
+      // Carry the player's contract (salary + years) with them to the new franchise.
+      const [existing] = await db.select({ salary: rosters.salary, contractYears: rosters.contractYears }).from(rosters).where(eq(rosters.playerId, it.playerId)).limit(1)
       await db.delete(rosters).where(eq(rosters.playerId, it.playerId))
-      await db.insert(rosters).values({ id: nanoid(), teamId: to, playerId: it.playerId, sport: pl?.sport ?? 'NFL', slot: 'BN', acquisitionType: 'TRADE' }).onConflictDoNothing()
+      await db.insert(rosters).values({ id: nanoid(), teamId: to, playerId: it.playerId, sport: pl?.sport ?? 'NFL', slot: 'BN', acquisitionType: 'TRADE', salary: existing?.salary ?? 0, contractYears: existing?.contractYears ?? null }).onConflictDoNothing()
     }
     if (it.pickId && to) {
       await db.update(draftPicks).set({ currentTeamId: to }).where(eq(draftPicks.id, it.pickId))
