@@ -14,6 +14,7 @@ db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = OFF')
 
 const drop = `
+DROP TABLE IF EXISTS watchlist;
 DROP TABLE IF EXISTS playoff_games;
 DROP TABLE IF EXISTS league_messages;
 DROP TABLE IF EXISTS notifications;
@@ -363,6 +364,14 @@ CREATE TABLE notifications (
   link TEXT,
   is_read INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE watchlist (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  player_id TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(user_id, player_id)
 );
 
 CREATE TABLE playoff_games (

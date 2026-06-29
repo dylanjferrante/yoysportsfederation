@@ -66,6 +66,7 @@ export default function Navbar() {
                       {NAV.map(n => (
                         <Link key={n.href} href={n.href} className="block px-4 py-2 text-sm hover:bg-slate-50" onClick={() => setMenuOpen(false)}>{n.label}</Link>
                       ))}
+                      <Link href="/account" className="block px-4 py-2 text-sm hover:bg-slate-50" onClick={() => setMenuOpen(false)}>Account settings</Link>
                       <div className="border-t border-slate-100 mt-1 pt-1">
                         <button onClick={() => signOut({ callbackUrl: '/' })}
                           className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-50">

@@ -59,7 +59,13 @@ export default function TeamPage() {
     setEditing(false); load()
   }
 
-  if (loading) return <div className="text-center py-20 text-slate-400">Loading franchise…</div>
+  if (loading) return (
+    <div className="max-w-5xl mx-auto px-4 py-8 animate-pulse">
+      <div className="h-28 rounded-2xl bg-slate-100 mb-6" />
+      <div className="flex gap-2 mb-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-8 w-24 rounded-full bg-slate-100" />)}</div>
+      <div className="card divide-y divide-slate-50">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-9 bg-slate-50 m-2 rounded" />)}</div>
+    </div>
+  )
   if (!data?.team) return <div className="text-center py-20 text-slate-400">Franchise not found.</div>
 
   const team: Team = data.team
