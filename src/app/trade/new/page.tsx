@@ -6,13 +6,19 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
-type RosterPlayer = { rosterId: string; sport: string; id: string; name: string; position: string; realTeam: string; seasonPoints: number }
+type RosterPlayer = { rosterId: string; sport: string; id: string; name: string; position: string; realTeam: string; seasonPoints: number; projectedPoints?: number }
 type Pick = { id: string; sport: string | null; round: number; year: number }
 type Roster = { team: any; players: RosterPlayer[]; picks: Pick[] }
 type Franchise = { id: string; name: string; abbreviation: string; ownerName: string | null; userId: string }
 type Selection = { fromTeamId: string; toTeamId: string; type: 'player' | 'pick'; id: string; label: string }
 
 const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+
+// Approx average per-game projection per sport, so values normalize cross-sport
+// (an average starter ≈ 50 "trade value", comparable across NFL/NBA/NHL/MLB).
+const SPORT_NORM: Record<string, number> = { NFL: 12, NBA: 24, NHL: 8, MLB: 8 }
+const playerValue = (p: RosterPlayer) => Math.round(((p.projectedPoints ?? 0) / (SPORT_NORM[p.sport] ?? 15)) * 50)
+const pickValue = (round: number, year: number) => Math.round(Math.max(5, 55 - (round - 1) * 9) * Math.pow(0.85, Math.max(0, year - 2027)))
 
 export default function ProposeTradePage() {
   const { data: session } = useSession()
@@ -50,6 +56,31 @@ export default function ProposeTradePage() {
   }, [participants]) // eslint-disable-line
 
   const nameOf = (tid: string) => franchises.find(f => f.id === tid)?.abbreviation ?? '—'
+
+  // Value of each selected asset (looked up from the owning franchise's roster).
+  const valueOf = (s: Selection) => {
+    const r = rosters[s.fromTeamId]
+    if (!r) return 0
+    if (s.type === 'player') { const p = r.players.find(p => p.id === s.id); return p ? playerValue(p) : 0 }
+    const pk = r.picks.find(p => p.id === s.id); return pk ? pickValue(pk.round, pk.year) : 0
+  }
+
+  // Per-franchise gives/gets/net for the trade analyzer.
+  const analysis = useMemo(() => {
+    const acc: Record<string, { gives: number; gets: number }> = {}
+    for (const t of participants) acc[t] = { gives: 0, gets: 0 }
+    for (const s of Object.values(sel)) {
+      const v = valueOf(s)
+      if (acc[s.fromTeamId]) acc[s.fromTeamId].gives += v
+      if (acc[s.toTeamId]) acc[s.toTeamId].gets += v
+    }
+    const rows = participants.map(t => ({ team: t, ...acc[t], net: (acc[t]?.gets ?? 0) - (acc[t]?.gives ?? 0) }))
+    const spread = rows.length ? Math.max(...rows.map(r => r.net)) - Math.min(...rows.map(r => r.net)) : 0
+    const total = rows.reduce((s, r) => s + r.gets, 0)
+    const verdict = total === 0 ? null : spread <= Math.max(8, total * 0.15) ? 'Balanced' : 'Lopsided'
+    const winner = rows.slice().sort((a, b) => b.net - a.net)[0]
+    return { rows, verdict, winner, spread }
+  }, [sel, participants, rosters]) // eslint-disable-line
 
   function toggle(fromTeamId: string, type: 'player' | 'pick', id: string, label: string) {
     const key = `${fromTeamId}:${type}:${id}`
@@ -192,6 +223,40 @@ export default function ProposeTradePage() {
                   ))}
                 </div>
               )}
+              {/* Trade analyzer */}
+              {analysis.verdict && (
+                <div className="border-t border-slate-100 pt-3 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Trade Analysis</h4>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${analysis.verdict === 'Balanced' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>{analysis.verdict}</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {analysis.rows.map(r => {
+                      const max = Math.max(1, ...analysis.rows.map(x => Math.max(x.gives, x.gets)))
+                      return (
+                        <div key={r.team} className="text-xs">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="font-medium text-slate-700">{nameOf(r.team)}</span>
+                            <span className={`tabular-nums font-semibold ${r.net > 0 ? 'text-green-600' : r.net < 0 ? 'text-red-500' : 'text-slate-400'}`}>{r.net > 0 ? '+' : ''}{r.net}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-slate-400 w-10">gives {r.gives}</span>
+                            <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden flex">
+                              <span className="block h-full bg-red-300" style={{ width: `${(r.gives / max) * 50}%` }} />
+                              <span className="block h-full bg-green-400" style={{ width: `${(r.gets / max) * 50}%` }} />
+                            </span>
+                            <span className="text-[10px] text-slate-400 w-9 text-right">gets {r.gets}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2">
+                    {analysis.verdict === 'Balanced' ? 'Values are close — a fair deal.' : `${nameOf(analysis.winner.team)} comes out ahead by value.`} Based on projected points, normalized across sports.
+                  </p>
+                </div>
+              )}
+
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Add a note…" className="input text-sm h-16 resize-none mb-3" />
               <button onClick={submit} disabled={loading || Object.keys(sel).length === 0} className="btn-primary w-full">{loading ? 'Sending…' : 'Send Trade Proposal'}</button>
             </div>
