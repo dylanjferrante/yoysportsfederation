@@ -32,6 +32,17 @@ export function formatPts(n: number) {
   return n.toFixed(1)
 }
 
+// ── Cross-sport value ────────────────────────────────────────────────────────
+// Raw fantasy points aren't comparable across sports (an NBA player scores far
+// more per game than an NHL one). Dividing projected points by a per-sport
+// scale and rescaling to ~0–100 yields a single number that ranks players
+// fairly across all four sports. Used by free-agent ranking, trades, compare.
+export const SPORT_NORM: Record<string, number> = { NFL: 12, NBA: 24, NHL: 8, MLB: 8 }
+
+export function crossSportValue(sport: string, projectedPoints: number | null | undefined): number {
+  return Math.round(((projectedPoints ?? 0) / (SPORT_NORM[sport] ?? 15)) * 50)
+}
+
 export function waiverTypeLabel(t: string) {
   if (t === 'FAAB') return 'FAAB Bidding'
   if (t === 'PRIORITY') return 'Waiver Priority'

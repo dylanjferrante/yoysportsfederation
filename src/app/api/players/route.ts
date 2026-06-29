@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { players, rosters, teams, playerGameStats } from '@/db/schema'
 import { eq, like, and, notInArray, inArray, desc } from 'drizzle-orm'
-import { safeParse } from '@/lib/utils'
+import { safeParse, crossSportValue } from '@/lib/utils'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -37,7 +37,9 @@ export async function GET(req: Request) {
     .orderBy(desc(players.seasonPoints))
     .limit(rich ? 300 : 200)
 
-  if (!rich) return NextResponse.json(result)
+  // Attach a normalized cross-sport value so free agents can be ranked fairly
+  // (raw points favor high-scoring sports like the NBA).
+  if (!rich) return NextResponse.json(result.map(p => ({ ...p, value: crossSportValue(p.sport, p.projectedPoints) })))
 
   // Rich mode (Players page): attach season category stats, games played,
   // last-game points, ownership, and positional rank.
@@ -72,6 +74,7 @@ export async function GET(req: Request) {
       avg: a && a.gp ? +( (p.seasonPoints ?? 0) / a.gp ).toFixed(1) : (p.weeklyAvg ?? 0),
       owned: ownedSet.has(p.id),
       posRank: posCount[key],
+      value: crossSportValue(p.sport, p.projectedPoints),
     }
   })
 

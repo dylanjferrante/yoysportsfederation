@@ -16,7 +16,7 @@ const POS: Record<string, string[]> = {
 type Player = {
   id: string; name: string; sport: string; position: string; realTeam: string; realTeamAbbr: string | null
   status: string; seasonPoints: number; projectedPoints: number
-  seasonStats: Record<string, number>; gp: number; lastPts: number | null; avg: number; owned: boolean; posRank: number
+  seasonStats: Record<string, number>; gp: number; lastPts: number | null; avg: number; owned: boolean; posRank: number; value: number
 }
 
 export default function PlayersPage() {
@@ -27,7 +27,7 @@ export default function PlayersPage() {
   const [faOnly, setFaOnly] = useState(false)
   const [watchOnly, setWatchOnly] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [sortKey, setSortKey] = useState('seasonPoints')
+  const [sortKey, setSortKey] = useState('value')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [watch, setWatch] = useState<Set<string>>(new Set())
   const [compare, setCompare] = useState<string[]>([])
@@ -60,7 +60,8 @@ export default function PlayersPage() {
       { key: 'avg', label: 'Avg', val: (p: Player) => p.avg ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, hide: '' },
       { key: 'last', label: 'Last', val: (p: Player) => p.lastPts ?? 0, fmt: (v: number) => (v ? v.toFixed(1) : '—'), align: 'right' as const, hide: 'hidden md:table-cell' },
       { key: 'gp', label: 'GP', val: (p: Player) => p.gp ?? 0, fmt: (v: number) => String(v), align: 'right' as const, dim: true, hide: 'hidden md:table-cell' },
-      { key: 'seasonPoints', label: 'Pts', val: (p: Player) => p.seasonPoints ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, bold: true, hide: '' },
+      { key: 'seasonPoints', label: 'Pts', val: (p: Player) => p.seasonPoints ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, bold: false, hide: '' },
+      { key: 'value', label: 'Val', val: (p: Player) => p.value ?? 0, fmt: (v: number) => String(v), align: 'right' as const, bold: true, hide: '' },
     ]
     const catCols = cats.map(c => ({ key: `cat:${c.label}`, label: c.label, val: (p: Player) => +c.get(p.seasonStats ?? {}).toFixed(0), fmt: (v: number) => (v ? String(v) : '—'), align: 'right' as const, dim: false, bold: false, hide: 'hidden lg:table-cell' }))
     return [...base, ...catCols]
@@ -132,7 +133,7 @@ export default function PlayersPage() {
                 <th className="text-left px-2 py-2 font-semibold">Player</th>
                 <th className="text-center px-2 py-2 font-semibold">Own</th>
                 {cols.map(c => (
-                  <th key={c.key} onClick={() => sortBy(c.key)} className={`px-2 py-2 font-semibold cursor-pointer hover:text-slate-700 whitespace-nowrap text-${c.align} ${c.hide}`}>{c.label}{arrow(c.key)}</th>
+                  <th key={c.key} onClick={() => sortBy(c.key)} title={c.key === 'value' ? 'Cross-sport value — normalizes projected points so players from different sports rank fairly' : undefined} className={`px-2 py-2 font-semibold cursor-pointer hover:text-slate-700 whitespace-nowrap text-${c.align} ${c.hide}`}>{c.label}{arrow(c.key)}</th>
                 ))}
               </tr>
             </thead>
