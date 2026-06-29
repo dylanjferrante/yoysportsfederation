@@ -4,12 +4,37 @@ import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStat
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
-import { RESERVE_SLOTS, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, type ScheduleEntry } from '@/lib/defaults'
+import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, type ScheduleEntry } from '@/lib/defaults'
 import { scorePlayer, generateStatLine } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
+
+// A starter is auto-subbed if they're clearly unavailable that week.
+const OUT_STATUSES = ['OUT', 'INJURED', 'IR', 'IL', 'DL', 'PUP', 'NFI', 'SUSPENDED', 'LTIR']
+function isInactive(status: string | null | undefined, byeWeek: number | null | undefined, week: number): boolean {
+  if (byeWeek != null && byeWeek === week) return true
+  return OUT_STATUSES.includes((status ?? 'ACTIVE').toUpperCase())
+}
+
+type Scored = { slot: string; position: string; pts: number; status?: string | null; byeWeek?: number | null }
+
+// Sum a team's starters for the week, auto-substituting an inactive starter with
+// the best eligible active bench player, then applying the MLB SP cap.
+function effectiveTotal(sport: string, spCap: number, week: number, roster: Scored[]): number {
+  const starters = roster.filter(r => isStarter(r.slot))
+  const bench = roster.filter(r => r.slot === 'BN' && !isInactive(r.status, r.byeWeek, week)).sort((a, b) => b.pts - a.pts)
+  const used = new Set<number>()
+  const effective: { position: string; pts: number }[] = []
+  for (const st of starters) {
+    if (!isInactive(st.status, st.byeWeek, week)) { effective.push({ position: st.position, pts: st.pts }); continue }
+    const idx = bench.findIndex((b, i) => !used.has(i) && slotEligible(b.position, st.slot))
+    if (idx >= 0) { used.add(idx); effective.push({ position: bench[idx].position, pts: bench[idx].pts }) }
+    else effective.push({ position: st.position, pts: 0 }) // nobody eligible → 0 for the week
+  }
+  return +sumWithSpCap(sport, effective, spCap).toFixed(1)
+}
 
 // MLB weekly starting-pitcher cap: only the top `cap` SP scores count; extra
 // starting pitchers contribute nothing that week. cap <= 0 means unlimited.
@@ -41,7 +66,7 @@ const lastRun = new Map<string, number>()
 async function scoreSportWeek(league: any, sport: string, week: number, detailed = true) {
   const scoring = (safeParse<any>(league.scoringSettings, {})[sport]) ?? {}
   const roster = await db
-    .select({ playerId: rosters.playerId, teamId: rosters.teamId, slot: rosters.slot, position: players.position, projected: players.projectedPoints })
+    .select({ playerId: rosters.playerId, teamId: rosters.teamId, slot: rosters.slot, position: players.position, projected: players.projectedPoints, status: players.status, byeWeek: players.byeWeek })
     .from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).innerJoin(teams, eq(rosters.teamId, teams.id))
     .where(and(eq(teams.leagueId, league.id), eq(rosters.sport, sport)))
   if (!roster.length) return
@@ -59,12 +84,12 @@ async function scoreSportWeek(league: any, sport: string, week: number, detailed
     if (detailed) rows.push({ id: nanoid(), leagueId: league.id, season: league.season, week, sport, playerId: r.playerId, teamId: r.teamId, stats: JSON.stringify(stats), points: p })
   }
   if (detailed && rows.length) await db.insert(playerGameStats).values(rows)
-  // Sum each team's starters, applying the MLB starting-pitcher cap.
+  // Sum each team's starters — auto-substitute inactive starters, then SP cap.
   const spCap = league.mlbSpCap ?? 0
-  const byTeamStarters: Record<string, { position: string; pts: number }[]> = {}
-  for (const r of roster) if (isStarter(r.slot)) (byTeamStarters[r.teamId] ??= []).push({ position: r.position, pts: pts[r.playerId] ?? 0 })
+  const byTeam: Record<string, Scored[]> = {}
+  for (const r of roster) (byTeam[r.teamId] ??= []).push({ slot: r.slot, position: r.position, pts: pts[r.playerId] ?? 0, status: r.status, byeWeek: r.byeWeek })
   const teamTotal: Record<string, number> = {}
-  for (const [tid, st] of Object.entries(byTeamStarters)) teamTotal[tid] = +sumWithSpCap(sport, st, spCap).toFixed(1)
+  for (const [tid, rs] of Object.entries(byTeam)) teamTotal[tid] = effectiveTotal(sport, spCap, week, rs)
 
   const games = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.sport, sport), eq(matchups.week, week)))
   for (const g of games) {
@@ -98,15 +123,14 @@ function seedOrder(n: number): number[] {
   return r
 }
 
-async function scoreTeam(sport: string, teamId: string, scoring: Record<string, number>, spCap = 0) {
-  const roster = await db.select({ slot: rosters.slot, position: players.position, projected: players.projectedPoints })
+async function scoreTeam(sport: string, teamId: string, scoring: Record<string, number>, spCap = 0, week = 0) {
+  const roster = await db.select({ slot: rosters.slot, position: players.position, projected: players.projectedPoints, status: players.status, byeWeek: players.byeWeek })
     .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
     .where(and(eq(rosters.teamId, teamId), eq(rosters.sport, sport)))
-  const starters = roster.filter(r => isStarter(r.slot))
-  if (!starters.length) return 0
-  const avg = starters.reduce((a, r) => a + (r.projected ?? 0), 0) / starters.length || 1
-  const scored = starters.map(r => ({ position: r.position, pts: scorePlayer(generateStatLine(sport, r.position, (r.projected ?? avg) / avg), scoring) }))
-  return +sumWithSpCap(sport, scored, spCap).toFixed(1)
+  if (!roster.length) return 0
+  const avg = roster.reduce((a, r) => a + (r.projected ?? 0), 0) / roster.length || 1
+  const scored: Scored[] = roster.map(r => ({ slot: r.slot, position: r.position, status: r.status, byeWeek: r.byeWeek, pts: scorePlayer(generateStatLine(sport, r.position, (r.projected ?? avg) / avg), scoring) }))
+  return effectiveTotal(sport, spCap, week, scored)
 }
 
 async function runPlayoffs(league: any, sports: string[], target: number) {
@@ -165,8 +189,8 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
           if (g.homeTeamId && !g.awayTeamId) winner = g.homeTeamId
           else if (!g.homeTeamId && g.awayTeamId) winner = g.awayTeamId
           else if (g.homeTeamId && g.awayTeamId) {
-            hs = await scoreTeam(sport, g.homeTeamId, scoring, league.mlbSpCap ?? 0)
-            as = await scoreTeam(sport, g.awayTeamId, scoring, league.mlbSpCap ?? 0)
+            hs = await scoreTeam(sport, g.homeTeamId, scoring, league.mlbSpCap ?? 0, target)
+            as = await scoreTeam(sport, g.awayTeamId, scoring, league.mlbSpCap ?? 0, target)
             if (hs === as) hs += 0.1
             winner = hs > as ? g.homeTeamId : g.awayTeamId
           }
