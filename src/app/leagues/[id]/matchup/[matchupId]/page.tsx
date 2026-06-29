@@ -113,7 +113,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
   )
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-5">
         <Link href={`/leagues/${id}/scores`} className="btn-ghost text-slate-500">← Scores</Link>
         <div>
@@ -183,7 +183,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      <div className="space-y-6">
+      <div className="grid lg:grid-cols-2 gap-5 items-start">
         <StatTable side={home} score={m.homeScore ?? 0} />
         <StatTable side={away} score={m.awayScore ?? 0} />
       </div>
