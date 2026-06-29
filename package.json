@@ -7,11 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:migrate": "drizzle-kit push",
+    "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seed.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:reset": "tsx src/db/migrate.ts && tsx src/db/seed.ts",
+    "setup": "npm install && npm run db:reset"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
