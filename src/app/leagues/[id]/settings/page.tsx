@@ -97,7 +97,7 @@ export default function CommissionerSettings() {
       body: JSON.stringify({
         name: form.name, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
         duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
-        sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits,
+        sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
@@ -443,6 +443,15 @@ export default function CommissionerSettings() {
                 </tbody>
               </table>
             </div>
+
+            {/* MLB weekly starting-pitcher cap */}
+            {subSport === 'MLB' && (
+              <div className="border-t border-slate-100 pt-4">
+                <h4 className="font-semibold text-slate-900 text-sm">Weekly Starting-Pitcher Cap</h4>
+                <p className="text-xs text-slate-500 mb-2">Limit how many starting pitchers count per team each week. Once the cap is hit, additional SP stats don&apos;t score. Set 0 for no limit.</p>
+                <input type="number" min={0} max={20} className="input w-28" value={form.mlbSpCap ?? 0} onChange={e => set('mlbSpCap', +e.target.value)} />
+              </div>
+            )}
 
             {/* IR-eligible designations */}
             <div className="border-t border-slate-100 pt-4">

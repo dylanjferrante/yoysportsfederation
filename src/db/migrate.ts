@@ -99,6 +99,7 @@ CREATE TABLE leagues (
   playoff_format TEXT DEFAULT 'H2H',
   weeks_per_round INTEGER DEFAULT 1,
   position_limits TEXT DEFAULT '{}',
+  mlb_sp_cap INTEGER DEFAULT 0,
   lock_day INTEGER DEFAULT 0,
   playoff_teams INTEGER DEFAULT 4,
   playoff_start_week INTEGER DEFAULT 15,

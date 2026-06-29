@@ -75,6 +75,7 @@ export const leagues = sqliteTable('leagues', {
   playoffFormat: text('playoff_format').default('H2H'), // H2H | MULTI_WEEK | CHAMP_MULTI
   weeksPerRound: integer('weeks_per_round').default(1),
   positionLimits: text('position_limits').default('{}'), // per-sport {pos:{maxStarters?,maxRostered?}}
+  mlbSpCap: integer('mlb_sp_cap').default(0), // max starting pitchers counted per week (0 = unlimited)
   lockDay: integer('lock_day').default(0),
 
   // Playoffs
