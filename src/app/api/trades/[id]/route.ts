@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { trades, teams, rosters, tradeItems, draftPicks } from '@/db/schema'
+import { trades, teams, rosters, tradeItems, draftPicks, players } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 
@@ -31,11 +31,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const items = await db.select().from(tradeItems).where(eq(tradeItems.tradeId, trade.id))
     for (const item of items) {
       if (item.playerId) {
-        const fromTeamId = item.direction === 'GIVING' ? trade.initiatorId : trade.recipientId
-        const toTeamId   = item.direction === 'GIVING' ? trade.recipientId : trade.initiatorId
-        // Remove from old roster and add to new
+        const toTeamId = item.direction === 'GIVING' ? trade.recipientId : trade.initiatorId
+        const [pl] = await db.select({ sport: players.sport }).from(players).where(eq(players.id, item.playerId)).limit(1)
+        // Remove from old roster and add to the new franchise (keep the player's sport).
         await db.delete(rosters).where(eq(rosters.playerId, item.playerId))
-        await db.insert(rosters).values({ id: nanoid(), teamId: toTeamId, playerId: item.playerId, slot: 'BN', acquisitionType: 'TRADE' }).onConflictDoNothing()
+        await db.insert(rosters).values({ id: nanoid(), teamId: toTeamId, playerId: item.playerId, sport: pl?.sport ?? 'NFL', slot: 'BN', acquisitionType: 'TRADE' }).onConflictDoNothing()
       }
       if (item.pickId) {
         const toTeamId = item.direction === 'GIVING' ? trade.recipientId : trade.initiatorId

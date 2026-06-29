@@ -23,17 +23,14 @@ export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Get all teams this user owns
   const userTeams = await db.select({ id: teams.id }).from(teams).where(eq(teams.userId, session.user.id))
   const teamIds = userTeams.map(t => t.id)
   if (!teamIds.length) return NextResponse.json([])
 
-  // Get all trades involving these teams
   const allTrades = await db.select().from(trades).where(
     or(...teamIds.flatMap(tid => [eq(trades.initiatorId, tid), eq(trades.recipientId, tid)]))
   )
 
-  // Attach items, player/pick details
   const enriched = await Promise.all(allTrades.map(async (trade) => {
     const items = await db.select().from(tradeItems).where(eq(tradeItems.tradeId, trade.id))
     const enrichedItems = await Promise.all(items.map(async (item) => {
@@ -48,10 +45,8 @@ export async function GET(req: Request) {
       }
       return { ...item, player, pick }
     }))
-
     const [initiatorTeam] = await db.select().from(teams).where(eq(teams.id, trade.initiatorId)).limit(1)
     const [recipientTeam] = await db.select().from(teams).where(eq(teams.id, trade.recipientId)).limit(1)
-
     return { ...trade, items: enrichedItems, initiatorTeam, recipientTeam }
   }))
 
@@ -65,15 +60,21 @@ export async function POST(req: Request) {
   try {
     const body = createSchema.parse(await req.json())
 
-    // Find one of the user's teams
-    const [initiatorTeam] = await db.select().from(teams).where(eq(teams.userId, session.user.id)).limit(1)
-    if (!initiatorTeam) return NextResponse.json({ error: 'No team found' }, { status: 400 })
+    const [recipientTeam] = await db.select().from(teams).where(eq(teams.id, body.recipientTeamId)).limit(1)
+    if (!recipientTeam) return NextResponse.json({ error: 'Recipient not found' }, { status: 400 })
+
+    // The initiator is the current user's franchise in the recipient's league.
+    const myTeams = await db.select().from(teams).where(eq(teams.userId, session.user.id))
+    const mine = myTeams.find(t => t.leagueId === recipientTeam.leagueId)
+    if (!mine) return NextResponse.json({ error: 'You have no franchise in this league' }, { status: 400 })
+    if (mine.id === recipientTeam.id) return NextResponse.json({ error: 'Cannot trade with yourself' }, { status: 400 })
 
     const tradeId = nanoid()
     const [trade] = await db.insert(trades).values({
       id: tradeId,
-      initiatorId: initiatorTeam.id,
-      recipientId: body.recipientTeamId,
+      leagueId: recipientTeam.leagueId,
+      initiatorId: mine.id,
+      recipientId: recipientTeam.id,
       note: body.note,
       status: 'PENDING',
     }).returning()

@@ -7,6 +7,8 @@ import bcrypt from 'bcryptjs'
 import { nanoid } from 'nanoid'
 import path from 'path'
 import fs from 'fs'
+import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks } from '../lib/defaults'
+import { defaultFederationScoring } from '../lib/federation'
 
 const DB_DIR = path.join(process.cwd(), 'data')
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true })
@@ -18,32 +20,28 @@ db.pragma('foreign_keys = ON')
 const hash = (pw: string) => bcrypt.hashSync(pw, 10)
 const id = () => nanoid()
 
-// ── Default settings ────────────────────────────────────────────────────
-
-const NFL_ROSTER = JSON.stringify({ QB:1, RB:2, WR:3, TE:1, 'RB/WR/TE':1, K:1, DEF:1, BN:7, IR:2 })
-const NBA_ROSTER = JSON.stringify({ PG:1, SG:1, SF:1, PF:1, C:1, G:1, F:1, UTIL:1, BN:4, IL:2 })
-const NHL_ROSTER = JSON.stringify({ C:2, LW:2, RW:2, D:4, G:2, UTIL:1, BN:4, IR:2 })
-const MLB_ROSTER = JSON.stringify({ C:1, '1B':1, '2B':1, '3B':1, SS:1, OF:3, UTIL:1, SP:4, RP:2, BN:5, DL:2 })
-
-const NFL_SCORING = JSON.stringify({ passingYards:0.04, passingTD:4, passingInt:-2, receptions:1, receivingYards:0.1, receivingTD:6, rushingYards:0.1, rushingTD:6, fumbleLost:-2 })
-const NBA_SCORING = JSON.stringify({ points:1, rebounds:1.2, assists:1.5, steals:3, blocks:3, turnovers:-1, threesMade:0.5 })
-const NHL_SCORING = JSON.stringify({ goals:8, assists:5, plusMinus:2, shots:0.9, wins:10, saves:0.4, goalsAllowed:-1.5, shutout:5 })
-const MLB_SCORING = JSON.stringify({ runs:1, homeRuns:4, rbi:2, stolenBases:2, strikeoutsAsPitcher:1, wins:4, saves:5, earnedRunsAllowed:-1 })
-
-// ── Users ────────────────────────────────────────────────────────────────
+// ── Users & franchise owners (12-team league) ──────────────────────────────
 
 const pw = hash('password123')
 
-const userIds = {
-  admin: id(), alex: id(), sam: id(), jordan: id(), taylor: id(), morgan: id(),
-}
+const OWNERS = [
+  { name: 'Admin User',       email: 'admin@nexusfantasy.com', team: 'Apex Dynasty',      abbr: 'APX' },
+  { name: 'Alex Rivera',      email: 'alex@example.com',       team: 'Iron Wolves',       abbr: 'IRN' },
+  { name: 'Sam Chen',         email: 'sam@example.com',        team: 'Thunderhawks',      abbr: 'THK' },
+  { name: 'Jordan Williams',  email: 'jordan@example.com',     team: 'Vortex United',     abbr: 'VTX' },
+  { name: 'Taylor Brooks',    email: 'taylor@example.com',     team: 'Crimson Titans',    abbr: 'CRM' },
+  { name: 'Morgan Davis',     email: 'morgan@example.com',     team: 'Phantom Syndicate', abbr: 'PHM' },
+  { name: 'Casey Nguyen',     email: 'casey@example.com',      team: 'Steel Mavericks',   abbr: 'STL' },
+  { name: 'Riley Parker',     email: 'riley@example.com',      team: 'Neon Raptors',      abbr: 'NRP' },
+  { name: 'Jamie Foster',     email: 'jamie@example.com',      team: 'Granite Guardians', abbr: 'GRG' },
+  { name: 'Drew Bennett',     email: 'drew@example.com',       team: 'Solar Kings',       abbr: 'SOL' },
+  { name: 'Quinn Murphy',     email: 'quinn@example.com',      team: 'Frost Giants',      abbr: 'FRG' },
+  { name: 'Avery Bishop',     email: 'avery@example.com',      team: 'Obsidian Order',    abbr: 'OBS' },
+]
 
-db.prepare(`INSERT OR IGNORE INTO users (id,name,email,password) VALUES (?,?,?,?)`).run(userIds.admin,  'Admin User',      'admin@nexusfantasy.com', pw)
-db.prepare(`INSERT OR IGNORE INTO users (id,name,email,password) VALUES (?,?,?,?)`).run(userIds.alex,   'Alex Rivera',     'alex@example.com',       pw)
-db.prepare(`INSERT OR IGNORE INTO users (id,name,email,password) VALUES (?,?,?,?)`).run(userIds.sam,    'Sam Chen',        'sam@example.com',        pw)
-db.prepare(`INSERT OR IGNORE INTO users (id,name,email,password) VALUES (?,?,?,?)`).run(userIds.jordan, 'Jordan Williams', 'jordan@example.com',     pw)
-db.prepare(`INSERT OR IGNORE INTO users (id,name,email,password) VALUES (?,?,?,?)`).run(userIds.taylor, 'Taylor Brooks',   'taylor@example.com',     pw)
-db.prepare(`INSERT OR IGNORE INTO users (id,name,email,password) VALUES (?,?,?,?)`).run(userIds.morgan, 'Morgan Davis',    'morgan@example.com',     pw)
+const ownerIds = OWNERS.map(() => id())
+const insertUser = db.prepare(`INSERT OR IGNORE INTO users (id,name,email,password) VALUES (?,?,?,?)`)
+OWNERS.forEach((o, i) => insertUser.run(ownerIds[i], o.name, o.email, pw))
 
 // ── Players ──────────────────────────────────────────────────────────────
 
@@ -204,13 +202,19 @@ const POS_POOL: Record<string, string[]> = {
 const BASE_PTS: Record<string, number> = { NFL: 230, NBA: 1040, NHL: 190, MLB: 430 }
 const GAMES: Record<string, number> = { NFL: 17, NBA: 70, NHL: 70, MLB: 90 }
 
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 const usedNames = new Set<string>()
 function genName(): string {
-  for (let i = 0; i < 500; i++) {
-    const n = `${FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]}`
-    if (!usedNames.has(n)) { usedNames.add(n); return n }
+  for (let i = 0; i < 300; i++) {
+    const f = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]
+    const l = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]
+    const base = `${f} ${l}`
+    if (!usedNames.has(base)) { usedNames.add(base); return base }
+    // Expand the namespace ~26x with a middle initial before giving up.
+    const mid = LETTERS[Math.floor(Math.random() * 26)]
+    const withMid = `${f} ${mid}. ${l}`
+    if (!usedNames.has(withMid)) { usedNames.add(withMid); return withMid }
   }
-  // Fallback: append a suffix to guarantee uniqueness
   let n = `${FIRST_NAMES[0]} ${LAST_NAMES[0]}`, k = 2
   while (usedNames.has(n)) n = `${FIRST_NAMES[0]} ${LAST_NAMES[0]} ${k++}`
   usedNames.add(n)
@@ -242,151 +246,241 @@ function generatePlayers(sport: string, count: number): PlayerSeed[] {
 // Seed the curated star names first so genName never collides with them.
 for (const p of [...NFL, ...NBA, ...NHL, ...MLB]) usedNames.add(p.name)
 
-// Team counts per league (must match the *TeamDefs arrays below).
-const TEAM_COUNT: Record<string, number> = { NFL: 6, NBA: 5, NHL: 5, MLB: 6 }
-const PER_TEAM = 85 // each team rosters 85 players; extras become free agents
+// 12 franchises each field a roster in every sport, plus a deep free-agent pool.
+const NUM_TEAMS = 12
+const PER_TEAM = 85   // players rostered per franchise per sport
+const FREE_AGENTS = 250 // extra unrostered players per sport
+const poolSize = (curated: number) => NUM_TEAMS * PER_TEAM + FREE_AGENTS - curated
 
-const NFL_ALL = [...NFL, ...generatePlayers('NFL', TEAM_COUNT.NFL * PER_TEAM + 40 - NFL.length)]
-const NBA_ALL = [...NBA, ...generatePlayers('NBA', TEAM_COUNT.NBA * PER_TEAM + 40 - NBA.length)]
-const NHL_ALL = [...NHL, ...generatePlayers('NHL', TEAM_COUNT.NHL * PER_TEAM + 40 - NHL.length)]
-const MLB_ALL = [...MLB, ...generatePlayers('MLB', TEAM_COUNT.MLB * PER_TEAM + 40 - MLB.length)]
+const NFL_ALL = [...NFL, ...generatePlayers('NFL', poolSize(NFL.length))]
+const NBA_ALL = [...NBA, ...generatePlayers('NBA', poolSize(NBA.length))]
+const NHL_ALL = [...NHL, ...generatePlayers('NHL', poolSize(NHL.length))]
+const MLB_ALL = [...MLB, ...generatePlayers('MLB', poolSize(MLB.length))]
 
 addPlayers(NFL_ALL)
 addPlayers(NBA_ALL)
 addPlayers(NHL_ALL)
 addPlayers(MLB_ALL)
 
-// ── Leagues ──────────────────────────────────────────────────────────────
+// ── One unified federation league ──────────────────────────────────────────
 
-const leagueIds = {
-  nfl: id(), nba: id(), nhl: id(), mlb: id(),
-}
+const SPORT_LIST = ['NFL', 'NBA', 'NHL', 'MLB']
+const POOLS: Record<string, PlayerSeed[]> = { NFL: NFL_ALL, NBA: NBA_ALL, NHL: NHL_ALL, MLB: MLB_ALL }
+const CURRENT_SEASON = '2025-26'
+const PRIOR_SEASONS = ['2024-25', '2023-24']
+const PICK_YEARS = [2027, 2028, 2029]
+const NEXT_DRAFT_YEAR = 2027
+const CURRENT_WEEK = 17 // a week where all four sports overlap
+const ROOKIE_ROUNDS = 4
+
+const randInt = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo + 1))
+const shuffled = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5)
+
+const LEAGUE_LOGO = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f172a"/><circle cx="32" cy="26" r="13" fill="none" stroke="#3b82f6" stroke-width="3"/><text x="32" y="31" font-size="13" font-family="Arial" font-weight="bold" fill="#3b82f6" text-anchor="middle">NF</text><text x="32" y="52" font-size="10" font-family="Arial" font-weight="bold" fill="#e2e8f0" text-anchor="middle">FED</text></svg>'
+)
+
+const leagueId = id()
+const { roster, scoring, draftRounds } = buildPerSportSettings(SPORT_LIST)
+const schedule = buildSchedule('FOOTBALL', SPORT_LIST)
+const fedScoring = defaultFederationScoring(12, SPORT_LIST)
 
 const insertLeague = db.prepare(`
-  INSERT OR IGNORE INTO leagues
-  (id,name,sport,season,commissioner_id,status,max_teams,roster_settings,scoring_settings,
-   draft_type,draft_status,playoff_teams,playoff_start_week,regular_season_weeks)
-  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  INSERT INTO leagues
+  (id,name,season,commissioner_id,status,max_teams,description,logo_url,division_logos,
+   sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
+   federation_scoring,draft_type,draft_status,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
+   trade_review,waiver_type,faab_budget,playoff_teams,playoff_start_week,regular_season_weeks)
+  VALUES
+  (@id,@name,@season,@commissioner_id,@status,@max_teams,@description,@logo_url,@division_logos,
+   @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
+   @federation_scoring,@draft_type,@draft_status,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
+   @trade_review,@waiver_type,@faab_budget,@playoff_teams,@playoff_start_week,@regular_season_weeks)
 `)
 
-insertLeague.run(leagueIds.nfl, 'Premier Fantasy Football', 'NFL', '2025-26', userIds.admin, 'ACTIVE', 12, NFL_ROSTER, NFL_SCORING, 'SNAKE', 'COMPLETED', 4, 15, 14)
-insertLeague.run(leagueIds.nba, 'Elite Hoops Fantasy',      'NBA', '2025-26', userIds.admin, 'ACTIVE', 10, NBA_ROSTER, NBA_SCORING, 'SNAKE', 'COMPLETED', 4, 20, 19)
-insertLeague.run(leagueIds.nhl, 'Pro Hockey Fantasy',       'NHL', '2025-26', userIds.admin, 'ACTIVE', 10, NHL_ROSTER, NHL_SCORING, 'SNAKE', 'COMPLETED', 4, 20, 19)
-insertLeague.run(leagueIds.mlb, 'Diamond Fantasy Baseball', 'MLB', '2025',    userIds.admin, 'ACTIVE', 12, MLB_ROSTER, MLB_SCORING, 'SNAKE', 'COMPLETED', 4, 22, 21)
+insertLeague.run({
+  id: leagueId,
+  name: 'Nexus Federation',
+  season: CURRENT_SEASON,
+  commissioner_id: ownerIds[0],
+  status: 'ACTIVE',
+  max_teams: 12,
+  description: 'A cross-sport dynasty federation — one franchise, four sports, one champion.',
+  logo_url: LEAGUE_LOGO,
+  division_logos: '{}',
+  sports_enabled: JSON.stringify(SPORT_LIST),
+  season_start: 'FOOTBALL',
+  sport_schedule: JSON.stringify(schedule),
+  roster_settings: JSON.stringify(roster),
+  scoring_settings: JSON.stringify(scoring),
+  draft_rounds: JSON.stringify(draftRounds),
+  federation_scoring: JSON.stringify(fedScoring),
+  draft_type: 'SNAKE',
+  draft_status: 'COMPLETED',
+  rookie_draft_mode: 'PER_SPORT',
+  rookie_draft_rounds: ROOKIE_ROUNDS,
+  tradeable_pick_years: 3,
+  trade_review: 'COMMISSIONER',
+  waiver_type: 'FAAB',
+  faab_budget: 100,
+  playoff_teams: 4,
+  playoff_start_week: 15,
+  regular_season_weeks: 18,
+})
 
-// Add commissioner as member
+// ── Franchises (one per owner, same name across all sports) ─────────────────
+
+const FRANCHISES = OWNERS.map((o, i) => ({ uid: ownerIds[i], name: o.team, abbr: o.abbr }))
+
 const insertMember = db.prepare(`INSERT OR IGNORE INTO league_members (id,league_id,user_id,role) VALUES (?,?,?,?)`)
-for (const lid of Object.values(leagueIds)) {
-  insertMember.run(id(), lid, userIds.admin, 'COMMISSIONER')
-}
+const insertTeam = db.prepare(`INSERT INTO teams (id,name,abbreviation,user_id,league_id) VALUES (?,?,?,?,?)`)
+const insertRoster = db.prepare(`INSERT OR IGNORE INTO rosters (id,team_id,player_id,sport,slot,acquisition_type) VALUES (?,?,?,?,?,?)`)
+const insertRecord = db.prepare(`INSERT INTO team_records (id,team_id,league_id,season,sport,wins,losses,ties,points_for,points_against,finish_position,is_champion,faab_remaining,waiver_priority) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+const insertDraft = db.prepare(`INSERT INTO drafts (id,league_id,kind,scope,season,type,rounds,status,starts_at) VALUES (?,?,?,?,?,?,?,?,?)`)
+const insertPick = db.prepare(`INSERT INTO draft_picks (id,league_id,draft_id,sport,round,year,original_team_id,current_team_id) VALUES (?,?,?,?,?,?,?,?)`)
+const insertMatchup = db.prepare(`INSERT INTO matchups (id,league_id,sport,season,week,home_team_id,away_team_id,home_score,away_score,is_complete) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+const insertHistory = db.prepare(`INSERT INTO league_history (id,league_id,season,scope,champion_team_id,runner_up_team_id,note) VALUES (?,?,?,?,?,?,?)`)
+const insertTrade = db.prepare(`INSERT INTO trades (id,league_id,initiator_id,recipient_id,status,note) VALUES (?,?,?,?,?,?)`)
+const insertTradeItemPick = db.prepare(`INSERT INTO trade_items (id,trade_id,direction,pick_id) VALUES (?,?,?,?)`)
+const insertTradeItemPlayer = db.prepare(`INSERT INTO trade_items (id,trade_id,direction,player_id) VALUES (?,?,?,?)`)
 
-// ── Teams ────────────────────────────────────────────────────────────────
+const teamIds: string[] = []
+FRANCHISES.forEach((f, i) => {
+  const tid = id()
+  teamIds.push(tid)
+  insertTeam.run(tid, f.name, f.abbr, f.uid, leagueId)
+  insertMember.run(id(), leagueId, f.uid, i === 0 ? 'COMMISSIONER' : 'MEMBER')
+})
 
-type TeamSeed = { uid: string; name: string; abbr: string; w: number; l: number; pf: number; pa: number }
+// ── Rosters: distribute each sport's deep pool across the franchises ────────
 
-const insertTeam = db.prepare(`
-  INSERT OR IGNORE INTO teams (id,name,abbreviation,user_id,league_id,wins,losses,points_for,points_against)
-  VALUES (?,?,?,?,?,?,?,?,?)
-`)
-const insertRoster = db.prepare(`INSERT OR IGNORE INTO rosters (id,team_id,player_id,slot,acquisition_type) VALUES (?,?,?,?,?)`)
-const insertPick = db.prepare(`INSERT OR IGNORE INTO draft_picks (id,sport,round,year,league_id,original_team_id,current_team_id) VALUES (?,?,?,?,?,?,?)`)
-
-function buildTeams(sport: string, leagueId: string, pool: PlayerSeed[], teams: TeamSeed[]) {
-  const teamIds: string[] = []
-  for (const t of teams) {
-    const tid = id()
-    teamIds.push(tid)
-    insertTeam.run(tid, t.name, t.abbr, t.uid, leagueId, t.w, t.l, t.pf, t.pa)
-    insertMember.run(id(), leagueId, t.uid, 'MEMBER')
-  }
-
-  // Distribute players across teams in a snake order so talent is spread evenly,
-  // leaving any remainder as unrostered free agents.
-  const perTeam = Math.min(PER_TEAM, Math.floor(pool.length / teams.length))
+for (const sport of SPORT_LIST) {
+  const pool = POOLS[sport]
+  const slots = roster[sport] ?? {}
+  const perTeam = Math.min(PER_TEAM, Math.floor(pool.length / teamIds.length))
   let cursor = 0
   for (let i = 0; i < teamIds.length; i++) {
     const slice = pool.slice(cursor, cursor + perTeam)
     cursor += perTeam
     const filled: Record<string, number> = {}
     slice.forEach((p) => {
-      // Assign to a starting position slot until that position is full, else bench.
-      const slot = (filled[p.pos] ?? 0) < 1 ? p.pos : 'BN'
+      const cap = slots[p.pos] ?? 0
+      const slot = (filled[p.pos] ?? 0) < cap ? p.pos : 'BN'
       filled[p.pos] = (filled[p.pos] ?? 0) + 1
-      insertRoster.run(id(), teamIds[i], p.id, slot, 'DRAFT')
+      insertRoster.run(id(), teamIds[i], p.id, sport, slot, 'DRAFT')
     })
-    // Give each team draft picks for next 3 rounds
-    for (let r = 1; r <= 3; r++) {
-      const pickId = id()
-      insertPick.run(pickId, sport, r, 2026, leagueId, teamIds[i], teamIds[i])
+  }
+}
+
+// ── Standings: current season + 2 prior completed seasons + history ─────────
+
+const PF_BASE: Record<string, number> = { NFL: 1700, NBA: 5400, NHL: 780, MLB: 1850 }
+const GAMES_BY: Record<string, number> = { NFL: 14, NBA: 19, NHL: 22, MLB: 26 }
+
+function seedSeason(season: string, completed: boolean) {
+  const fedPoints: Record<string, number> = {}
+  teamIds.forEach(t => { fedPoints[t] = 0 })
+
+  for (const sport of SPORT_LIST) {
+    const order = shuffled(teamIds) // this sport's standings this season
+    const G = GAMES_BY[sport]
+    order.forEach((tid, rank) => {
+      const wins = Math.max(1, Math.round(G * 0.72 - rank * (G * 0.5 / order.length)) + randInt(-1, 1))
+      const losses = Math.max(0, G - wins)
+      const pf = +(PF_BASE[sport] * (1 - rank * 0.05) + (Math.random() - 0.5) * PF_BASE[sport] * 0.04).toFixed(1)
+      const pa = +(PF_BASE[sport] * 0.95 + (rank - 2.5) * PF_BASE[sport] * 0.03).toFixed(1)
+      const finishPosition = rank + 1
+      const isChampion = completed && rank === 0
+      insertRecord.run(id(), tid, leagueId, season, sport, wins, losses, 0, pf, pa, finishPosition, isChampion ? 1 : 0, randInt(0, 100), rank + 1)
+      fedPoints[tid] += (order.length - rank) + (isChampion ? fedScoring.championBonus : 0)
+    })
+    if (completed) {
+      insertHistory.run(id(), leagueId, season, sport, order[0], order[1], null)
     }
   }
 
-  return teamIds
+  if (completed) {
+    const byFed = teamIds.slice().sort((a, b) => fedPoints[b] - fedPoints[a])
+    insertHistory.run(id(), leagueId, season, 'OVERALL', byFed[0], byFed[1], 'Federation champion')
+  }
 }
 
-const nflTeamDefs: TeamSeed[] = [
-  { uid: userIds.admin,  name: 'The Mahomes Effect',  abbr: 'TME', w:9,  l:4, pf:1847.2, pa:1620.1 },
-  { uid: userIds.alex,   name: 'Buffalo Stampede',    abbr: 'BUF', w:8,  l:5, pf:1720.5, pa:1698.3 },
-  { uid: userIds.sam,    name: 'Gridiron Generals',   abbr: 'GGN', w:7,  l:6, pf:1680.1, pa:1671.2 },
-  { uid: userIds.jordan, name: 'End Zone Enforcers',  abbr: 'EZE', w:6,  l:7, pf:1590.4, pa:1614.5 },
-  { uid: userIds.taylor, name: 'Touchdown Factory',   abbr: 'TDF', w:5,  l:8, pf:1510.7, pa:1598.8 },
-  { uid: userIds.morgan, name: 'Blitz Battalion',     abbr: 'BLZ', w:4,  l:9, pf:1420.3, pa:1567.9 },
-]
-const nbaTeamDefs: TeamSeed[] = [
-  { uid: userIds.admin,  name: 'Nikola\'s Nuggets',   abbr: 'NNG', w:15, l:4, pf:5841.6, pa:5200.1 },
-  { uid: userIds.alex,   name: 'Laker Nation',        abbr: 'LKN', w:12, l:7, pf:5580.2, pa:5410.3 },
-  { uid: userIds.sam,    name: 'Three Point Clinic',  abbr: 'TPC', w:10, l:9, pf:5240.8, pa:5190.7 },
-  { uid: userIds.jordan, name: 'Rim Rockers',         abbr: 'RMR', w:9,  l:10,pf:5110.3, pa:5144.2 },
-  { uid: userIds.taylor, name: 'Paint Predators',     abbr: 'PPR', w:7,  l:12,pf:4890.1, pa:4997.3 },
-]
-const nhlTeamDefs: TeamSeed[] = [
-  { uid: userIds.admin,  name: 'McDavid Machine',     abbr: 'MCM', w:18, l:4,  pf:824.3, pa:701.2 },
-  { uid: userIds.alex,   name: 'Hat Trick Heroes',    abbr: 'HTH', w:15, l:7,  pf:790.1, pa:741.6 },
-  { uid: userIds.sam,    name: 'Power Play Pros',     abbr: 'PPP', w:13, l:9,  pf:761.5, pa:749.8 },
-  { uid: userIds.jordan, name: 'Puck Dominators',     abbr: 'PKD', w:10, l:12, pf:720.8, pa:744.1 },
-  { uid: userIds.taylor, name: 'Blue Line Blitz',     abbr: 'BLB', w:7,  l:15, pf:688.2, pa:780.3 },
-]
-const mlbTeamDefs: TeamSeed[] = [
-  { uid: userIds.admin,  name: 'Ohtani Universe',     abbr: 'OTN', w:55, l:35, pf:1924.7, pa:1710.3 },
-  { uid: userIds.alex,   name: 'Diamond Dogs',        abbr: 'DMD', w:50, l:40, pf:1845.3, pa:1798.9 },
-  { uid: userIds.sam,    name: 'Slugger Society',     abbr: 'SLG', w:46, l:44, pf:1780.9, pa:1764.2 },
-  { uid: userIds.jordan, name: 'ERA Kings',           abbr: 'ERK', w:42, l:48, pf:1690.2, pa:1720.7 },
-  { uid: userIds.taylor, name: 'RBI Royals',          abbr: 'RBI', w:38, l:52, pf:1598.4, pa:1643.1 },
-  { uid: userIds.morgan, name: 'Strikeout Squad',     abbr: 'STK', w:32, l:58, pf:1480.1, pa:1601.4 },
-]
+seedSeason(CURRENT_SEASON, false)
+for (const s of PRIOR_SEASONS) seedSeason(s, true)
 
-const nflTeamIds = buildTeams('NFL', leagueIds.nfl, NFL_ALL, nflTeamDefs)
-const nbaTeamIds = buildTeams('NBA', leagueIds.nba, NBA_ALL, nbaTeamDefs)
-const nhlTeamIds = buildTeams('NHL', leagueIds.nhl, NHL_ALL, nhlTeamDefs)
-const mlbTeamIds = buildTeams('MLB', leagueIds.mlb, MLB_ALL, mlbTeamDefs)
+// ── Drafts: completed dynasty draft + upcoming rookie drafts ────────────────
 
-// ── Sample Cross-Sport Trade ─────────────────────────────────────────────
+const dynastyId = id()
+insertDraft.run(dynastyId, leagueId, 'DYNASTY', 'OVERALL', CURRENT_SEASON, 'SNAKE', 25, 'COMPLETED', null)
 
-// Get a pick that belongs to nflTeamIds[0]
-const nflPick = db.prepare(`SELECT id FROM draft_picks WHERE sport='NFL' AND round=1 AND current_team_id=? LIMIT 1`).get(nflTeamIds[0]) as {id:string} | undefined
+// Default rookie-draft mode is PER_SPORT → one rookie draft per sport for next year.
+const rookieDraftId: Record<string, string> = {}
+for (const sport of SPORT_LIST) {
+  const did = id()
+  rookieDraftId[sport] = did
+  insertDraft.run(did, leagueId, 'ROOKIE', sport, String(NEXT_DRAFT_YEAR), 'SNAKE', ROOKIE_ROUNDS, 'PENDING', '2026-08-15T18:00')
+}
 
-if (nflPick) {
+// Tradeable future picks (per-sport, matching the rookie-draft mode).
+for (const tid of teamIds) {
+  for (const year of PICK_YEARS) {
+    for (let round = 1; round <= ROOKIE_ROUNDS; round++) {
+      for (const sport of SPORT_LIST) {
+        const did = year === NEXT_DRAFT_YEAR ? rookieDraftId[sport] : null
+        insertPick.run(id(), leagueId, did, sport, round, year, tid, tid)
+      }
+    }
+  }
+}
+
+// ── Overlapping schedule: same pairing across all sports active each week ────
+
+const SCORE_RANGE: Record<string, [number, number]> = { NFL: [85, 150], NBA: [310, 430], NHL: [42, 78], MLB: [55, 105] }
+const pairings = buildWeeklyPairings(teamIds)
+const maxWeek = scheduleWeeks(schedule)
+
+function genScore(sport: string, played: boolean) {
+  if (!played) return 0
+  const [lo, hi] = SCORE_RANGE[sport]
+  return +(lo + Math.random() * (hi - lo)).toFixed(1)
+}
+
+if (pairings.length) {
+  for (let week = 1; week <= maxWeek; week++) {
+    const active = sportsActiveInWeek(schedule, week)
+    if (!active.length) continue
+    const pairs = pairings[(week - 1) % pairings.length]
+    const played = week <= CURRENT_WEEK
+    for (const sport of active) {
+      for (const [home, away] of pairs) {
+        insertMatchup.run(id(), leagueId, sport, CURRENT_SEASON, week, home, away,
+          genScore(sport, played), genScore(sport, played), week < CURRENT_WEEK ? 1 : 0)
+      }
+    }
+  }
+}
+
+// ── Sample cross-sport trade (real roster + real pick) ──────────────────────
+
+const giftPick = db.prepare(
+  `SELECT id FROM draft_picks WHERE current_team_id=? AND sport='NFL' AND round=1 AND year=? LIMIT 1`
+).get(teamIds[0], NEXT_DRAFT_YEAR) as { id: string } | undefined
+
+const wantPlayer = db.prepare(
+  `SELECT r.player_id pid, p.name FROM rosters r JOIN players p ON p.id=r.player_id
+   WHERE r.team_id=? AND r.sport='NBA' ORDER BY p.season_points DESC LIMIT 1`
+).get(teamIds[1]) as { pid: string; name: string } | undefined
+
+if (giftPick && wantPlayer) {
   const tradeId = id()
-  db.prepare(`INSERT OR IGNORE INTO trades (id,initiator_id,recipient_id,status,note) VALUES (?,?,?,?,?)`).run(
-    tradeId, nflTeamIds[0], nbaTeamIds[0],
-    'PENDING',
-    'Cross-sport blockbuster: my NFL 1st round pick for your NBA star. Let\'s make a deal!'
-  )
-  db.prepare(`INSERT OR IGNORE INTO trade_items (id,trade_id,direction,pick_id) VALUES (?,?,?,?)`).run(id(), tradeId, 'GIVING', nflPick.id)
-  db.prepare(`INSERT OR IGNORE INTO trade_items (id,trade_id,direction,player_id) VALUES (?,?,?,?)`).run(id(), tradeId, 'RECEIVING', 'nba-luka')
+  insertTrade.run(tradeId, leagueId, teamIds[0], teamIds[1], 'PENDING',
+    `Cross-sport blockbuster: my ${NEXT_DRAFT_YEAR} NFL 1st-round pick for ${wantPlayer.name}. Deal?`)
+  insertTradeItemPick.run(id(), tradeId, 'GIVING', giftPick.id)
+  insertTradeItemPlayer.run(id(), tradeId, 'RECEIVING', wantPlayer.pid)
 }
-
-// ── Sample Matchups (current week) ──────────────────────────────────────
-
-const insertMatchup = db.prepare(`INSERT OR IGNORE INTO matchups (id,league_id,week,home_team_id,away_team_id,home_score,away_score,is_complete) VALUES (?,?,?,?,?,?,?,?)`)
-
-insertMatchup.run(id(), leagueIds.nfl, 11, nflTeamIds[0], nflTeamIds[1], 142.4, 138.2, 0)
-insertMatchup.run(id(), leagueIds.nfl, 11, nflTeamIds[2], nflTeamIds[3], 119.7, 127.8, 0)
-insertMatchup.run(id(), leagueIds.nba, 12, nbaTeamIds[0], nbaTeamIds[1], 389.1, 362.4, 0)
-insertMatchup.run(id(), leagueIds.nhl, 10, nhlTeamIds[0], nhlTeamIds[2], 62.4,  58.1,  0)
-insertMatchup.run(id(), leagueIds.mlb, 14, mlbTeamIds[0], mlbTeamIds[1], 88.7,  91.2,  1)
 
 db.close()
 console.log('✅ Database seeded successfully!')
+console.log('   League: Nexus Federation (NFL · NBA · NHL · MLB)')
 console.log('   Login: admin@nexusfantasy.com / password123')
 console.log('   Or any user: alex@example.com, sam@example.com, etc.')

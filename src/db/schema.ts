@@ -11,12 +11,11 @@ export const users = sqliteTable('users', {
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 
-// ── Leagues ────────────────────────────────────────────────────────────────
+// ── Leagues (one unified cross-sport federation) ────────────────────────────
 
 export const leagues = sqliteTable('leagues', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  sport: text('sport').notNull(), // NFL | NHL | NBA | MLB
   season: text('season').notNull(),
   commissionerId: text('commissioner_id').notNull().references(() => users.id),
   isPublic: integer('is_public', { mode: 'boolean' }).default(false),
@@ -25,11 +24,22 @@ export const leagues = sqliteTable('leagues', {
   maxTeams: integer('max_teams').default(12),
   description: text('description'),
 
-  // Roster settings (JSON string: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: 7, IR: 2 })
-  rosterSettings: text('roster_settings').default('{}'),
+  // Branding
+  logoUrl: text('logo_url'),
+  divisionLogos: text('division_logos').default('{}'), // JSON: { NFL: url, ... }
 
-  // Scoring settings (JSON string: { passingYards: 0.04, passingTD: 4, ... })
-  scoringSettings: text('scoring_settings').default('{}'),
+  // Which sports the federation plays + the season calendar
+  sportsEnabled: text('sports_enabled').default('["NFL","NBA","NHL","MLB"]'), // JSON array
+  seasonStart: text('season_start').default('FOOTBALL'), // FOOTBALL | WINTER | BASEBALL
+  sportSchedule: text('sport_schedule').default('[]'),   // JSON: [{sport,label,startWeek,endWeek}]
+
+  // Per-sport settings (JSON maps keyed by sport)
+  rosterSettings: text('roster_settings').default('{}'),   // { NFL: { QB:1, ... }, ... }
+  scoringSettings: text('scoring_settings').default('{}'), // { NFL: { passingYards:0.04, ... }, ... }
+  draftRounds: text('draft_rounds').default('{}'),         // { NFL:15, NBA:13, ... } (dynasty size)
+
+  // Federation scoring (placement points per sport finish + bonuses)
+  federationScoring: text('federation_scoring').default('{}'), // { placement:[...], championBonus, regularSeasonBonus, includedSports }
 
   // Draft
   draftType: text('draft_type').default('SNAKE'),       // SNAKE | AUCTION | LINEAR
@@ -38,6 +48,9 @@ export const leagues = sqliteTable('leagues', {
   auctionBudget: integer('auction_budget').default(200),
   secondsPerPick: integer('seconds_per_pick').default(90),
   autoPickEnabled: integer('auto_pick_enabled', { mode: 'boolean' }).default(true),
+  rookieDraftMode: text('rookie_draft_mode').default('PER_SPORT'), // COMBINED | PER_SPORT
+  rookieDraftRounds: integer('rookie_draft_rounds').default(4),
+  tradeablePickYears: integer('tradeable_pick_years').default(3),
 
   // Trades
   tradeDeadline: text('trade_deadline'),
@@ -48,9 +61,9 @@ export const leagues = sqliteTable('leagues', {
   // Waivers
   waiverType: text('waiver_type').default('PRIORITY'), // PRIORITY | FAAB | FREE_AGENT
   faabBudget: integer('faab_budget').default(100),
-  waiverDay: integer('waiver_day').default(3),   // 0=Sun, 3=Wed
-  waiverHour: integer('waiver_hour').default(3), // 3 AM
-  lockDay: integer('lock_day').default(0),       // 0=Sun (game day)
+  waiverDay: integer('waiver_day').default(3),
+  waiverHour: integer('waiver_hour').default(3),
+  lockDay: integer('lock_day').default(0),
 
   // Playoffs
   playoffTeams: integer('playoff_teams').default(4),
@@ -74,7 +87,7 @@ export const leagueMembers = sqliteTable('league_members', {
   uniq: uniqueIndex('league_member_uniq').on(t.leagueId, t.userId),
 }))
 
-// ── Teams ──────────────────────────────────────────────────────────────────
+// ── Teams (a franchise — one per user per league, spans all sports) ──────────
 
 export const teams = sqliteTable('teams', {
   id: text('id').primaryKey(),
@@ -83,45 +96,64 @@ export const teams = sqliteTable('teams', {
   logo: text('logo'),
   userId: text('user_id').notNull().references(() => users.id),
   leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+}, (t) => ({
+  uniq: uniqueIndex('team_user_league_uniq').on(t.leagueId, t.userId),
+}))
 
-  // Season stats
+// ── Team Records (per-franchise, per-sport, per-season standings) ────────────
+
+export const teamRecords = sqliteTable('team_records', {
+  id: text('id').primaryKey(),
+  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  season: text('season').notNull(),
+  sport: text('sport').notNull(),
   wins: integer('wins').default(0),
   losses: integer('losses').default(0),
   ties: integer('ties').default(0),
   pointsFor: real('points_for').default(0),
   pointsAgainst: real('points_against').default(0),
-
-  // Waiver/FAAB
+  finishPosition: integer('finish_position'), // final/current rank within the sport
+  isChampion: integer('is_champion', { mode: 'boolean' }).default(false),
   faabRemaining: integer('faab_remaining').default(100),
   waiverPriority: integer('waiver_priority').default(1),
+}, (t) => ({
+  uniq: uniqueIndex('team_record_uniq').on(t.teamId, t.season, t.sport),
+}))
 
-  createdAt: text('created_at').default(sql`(datetime('now'))`),
+// ── League History (completed-season champions for the all-time section) ────
+
+export const leagueHistory = sqliteTable('league_history', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  season: text('season').notNull(),
+  scope: text('scope').notNull(), // NFL | NBA | NHL | MLB | OVERALL
+  championTeamId: text('champion_team_id').references(() => teams.id),
+  runnerUpTeamId: text('runner_up_team_id').references(() => teams.id),
+  note: text('note'),
 })
 
 // ── Players ────────────────────────────────────────────────────────────────
 
 export const players = sqliteTable('players', {
   id: text('id').primaryKey(),
-  externalId: text('external_id'),   // from source API
+  externalId: text('external_id'),
   name: text('name').notNull(),
-  sport: text('sport').notNull(),    // NFL | NHL | NBA | MLB
+  sport: text('sport').notNull(),
   position: text('position').notNull(),
-  eligiblePositions: text('eligible_positions').default('[]'), // JSON array
+  eligiblePositions: text('eligible_positions').default('[]'),
   realTeam: text('real_team').notNull(),
   realTeamAbbr: text('real_team_abbr'),
-  status: text('status').default('ACTIVE'), // ACTIVE | INJURED | IR | OUT | SUSPENDED
+  status: text('status').default('ACTIVE'),
   injuryNote: text('injury_note'),
   byeWeek: integer('bye_week'),
   photoUrl: text('photo_url'),
-
-  // Season averages (stored for quick display)
+  isRookie: integer('is_rookie', { mode: 'boolean' }).default(false),
   seasonPoints: real('season_points').default(0),
   weeklyAvg: real('weekly_avg').default(0),
   projectedPoints: real('projected_points').default(0),
-
-  // Raw stats JSON for display
   stats: text('stats').default('{}'),
-
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 })
 
@@ -131,35 +163,44 @@ export const rosters = sqliteTable('rosters', {
   id: text('id').primaryKey(),
   teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
   playerId: text('player_id').notNull().references(() => players.id),
-  slot: text('slot').notNull(),        // QB | RB | WR | TE | FLEX | K | DEF | BN | IR
-  acquisitionType: text('acquisition_type').default('DRAFT'), // DRAFT | WAIVER | FA | TRADE
+  sport: text('sport').notNull(), // denormalized from player for fast per-sport grouping
+  slot: text('slot').notNull(),
+  acquisitionType: text('acquisition_type').default('DRAFT'),
   acquiredAt: text('acquired_at').default(sql`(datetime('now'))`),
 }, (t) => ({
   uniq: uniqueIndex('roster_uniq').on(t.teamId, t.playerId),
 }))
 
-// ── Draft Picks ────────────────────────────────────────────────────────────
+// ── Drafts ─────────────────────────────────────────────────────────────────
+
+export const drafts = sqliteTable('drafts', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(),   // DYNASTY | ROOKIE
+  scope: text('scope').notNull(), // OVERALL | NFL | NBA | NHL | MLB
+  season: text('season').notNull(),
+  type: text('type').default('SNAKE'), // SNAKE | AUCTION | LINEAR
+  rounds: integer('rounds').default(4),
+  status: text('status').default('PENDING'), // PENDING | IN_PROGRESS | COMPLETED
+  startsAt: text('starts_at'),
+  currentPick: integer('current_pick').default(0), // overall pick number on the clock
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
+// ── Draft Picks (tradeable assets + draft-board slots) ──────────────────────
 
 export const draftPicks = sqliteTable('draft_picks', {
   id: text('id').primaryKey(),
-  sport: text('sport').notNull(),
+  leagueId: text('league_id').notNull().references(() => leagues.id),
+  draftId: text('draft_id').references(() => drafts.id),
+  sport: text('sport'), // null = combined/OVERALL pick until used
   round: integer('round').notNull(),
   year: integer('year').notNull(),
-  leagueId: text('league_id').notNull().references(() => leagues.id),
   originalTeamId: text('original_team_id').notNull().references(() => teams.id),
   currentTeamId: text('current_team_id').notNull().references(() => teams.id),
   isUsed: integer('is_used', { mode: 'boolean' }).default(false),
   pickedPlayerId: text('picked_player_id').references(() => players.id),
-  pickNumber: integer('pick_number'), // overall pick number once used
-})
-
-// ── Draft Order ────────────────────────────────────────────────────────────
-
-export const draftOrder = sqliteTable('draft_order', {
-  id: text('id').primaryKey(),
-  leagueId: text('league_id').notNull().references(() => leagues.id),
-  teamId: text('team_id').notNull().references(() => teams.id),
-  position: integer('position').notNull(), // 1 = first pick
+  pickNumber: integer('pick_number'),
 })
 
 // ── Matchups ───────────────────────────────────────────────────────────────
@@ -167,9 +208,11 @@ export const draftOrder = sqliteTable('draft_order', {
 export const matchups = sqliteTable('matchups', {
   id: text('id').primaryKey(),
   leagueId: text('league_id').notNull().references(() => leagues.id),
+  sport: text('sport').notNull(),
+  season: text('season'),
   week: integer('week').notNull(),
   homeTeamId: text('home_team_id').notNull().references(() => teams.id),
-  awayTeamId: text('away_team_id').references(() => teams.id), // null = bye
+  awayTeamId: text('away_team_id').references(() => teams.id),
   homeScore: real('home_score').default(0),
   awayScore: real('away_score').default(0),
   isComplete: integer('is_complete', { mode: 'boolean' }).default(false),
@@ -180,6 +223,7 @@ export const matchups = sqliteTable('matchups', {
 
 export const trades = sqliteTable('trades', {
   id: text('id').primaryKey(),
+  leagueId: text('league_id').references(() => leagues.id),
   initiatorId: text('initiator_id').notNull().references(() => teams.id),
   recipientId: text('recipient_id').notNull().references(() => teams.id),
   status: text('status').default('PENDING'), // PENDING | ACCEPTED | REJECTED | CANCELLED | VETOED
@@ -216,11 +260,12 @@ export const waiverClaims = sqliteTable('waiver_claims', {
   id: text('id').primaryKey(),
   leagueId: text('league_id').notNull().references(() => leagues.id),
   teamId: text('team_id').notNull().references(() => teams.id),
+  sport: text('sport'),
   addPlayerId: text('add_player_id').notNull().references(() => players.id),
   dropPlayerId: text('drop_player_id').references(() => players.id),
-  bidAmount: integer('bid_amount').default(0), // for FAAB
-  priority: integer('priority').default(1),    // for priority waivers
-  status: text('status').default('PENDING'),   // PENDING | PROCESSED | FAILED
+  bidAmount: integer('bid_amount').default(0),
+  priority: integer('priority').default(1),
+  status: text('status').default('PENDING'),
   claimedAt: text('claimed_at').default(sql`(datetime('now'))`),
   processedAt: text('processed_at'),
 })
@@ -231,7 +276,7 @@ export const commissionerActions = sqliteTable('commissioner_actions', {
   id: text('id').primaryKey(),
   leagueId: text('league_id').notNull().references(() => leagues.id),
   userId: text('user_id').notNull().references(() => users.id),
-  action: text('action').notNull(), // FORCE_TRADE | MOVE_PLAYER | EDIT_SCORE | RESET_DRAFT | etc.
-  details: text('details').default('{}'), // JSON
+  action: text('action').notNull(),
+  details: text('details').default('{}'),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
