@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
@@ -29,6 +29,7 @@ export default function CommissionerSettings() {
   const [draftRoundsObj, setDraftRoundsObj] = useState<Record<string, number>>({})
   const [rookieRoundsObj, setRookieRoundsObj] = useState<Record<string, number>>({})
   const [seasonWeeksObj, setSeasonWeeksObj] = useState<Record<string, number>>({})
+  const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
 
   const parse = (s: any, f: any) => { try { return JSON.parse(s) } catch { return f } }
@@ -47,6 +48,7 @@ export default function CommissionerSettings() {
       setDraftRoundsObj(parse(l.draftRounds, {}))
       setRookieRoundsObj(parse(l.rookieDraftRounds, {}))
       setSeasonWeeksObj(parse(l.regularSeasonWeeks, {}))
+      setDeadlinesObj(parse(l.tradeDeadlines, defaultTradeDeadlines(se)))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
   }, [params.id])
@@ -69,7 +71,7 @@ export default function CommissionerSettings() {
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
         tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate,
-        tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadline: form.tradeDeadline,
+        tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
         waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverDay: form.waiverDay, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
       }),
@@ -334,10 +336,39 @@ export default function CommissionerSettings() {
                 </select>
               </div>
               <div><label className="label">Review Period (hours)</label><input type="number" className="input" value={form.tradeReviewHours ?? 48} onChange={e => set('tradeReviewHours', +e.target.value)} /></div>
-              <div><label className="label">Trade Deadline</label><input type="datetime-local" className="input" value={form.tradeDeadline ?? ''} onChange={e => set('tradeDeadline', e.target.value)} /></div>
             </div>
+
+            {/* Per-sport trade deadlines */}
+            <div>
+              <label className="label">Trade Deadlines (per sport)</label>
+              <p className="text-xs text-slate-400 mb-2">Set when trades lock for each sport — a specific week, or relative to that sport's or the federation's championship.</p>
+              <div className="space-y-2">
+                {sportsEnabled.map(s => {
+                  const d = deadlinesObj[s] ?? { mode: 'SPORT_PLAYOFFS' }
+                  const schedule = parse(form.sportSchedule, [])
+                  const resolved = resolveTradeDeadlineWeek(d as any, s, schedule, form.playoffRounds ?? 2)
+                  const setD = (patch: any) => setDeadlinesObj(prev => ({ ...prev, [s]: { ...d, ...patch } }))
+                  const mode = TRADE_DEADLINE_MODES.find(m => m.value === d.mode)
+                  return (
+                    <div key={s} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-100 p-2.5">
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${sportMeta(s).light} w-14 text-center`}>{sportMeta(s).emoji} {s}</span>
+                      <select className="select flex-1 min-w-44 text-sm py-1.5" value={d.mode} onChange={e => setD({ mode: e.target.value })}>
+                        {TRADE_DEADLINE_MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                      </select>
+                      {d.mode === 'WEEK' && (
+                        <input type="number" min={1} className="input w-20 text-sm py-1.5" placeholder="Week" value={d.week ?? ''} onChange={e => setD({ week: +e.target.value })} />
+                      )}
+                      <span className="text-[11px] text-slate-400 w-full sm:w-auto sm:ml-auto">
+                        {d.mode === 'NONE' ? 'No deadline' : `Locks after week ${resolved}`} · {mode?.help}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
             <div className="p-4 bg-blue-50 rounded-xl text-sm text-blue-800 border border-blue-100">
-              <strong>Cross-sport trades</strong> are always enabled — franchises can package players and draft picks from any sport in one deal.
+              <strong>Cross-sport trades</strong> are always enabled — franchises can package players and draft picks from any sport in one deal. A deal is blocked only if <em>any</em> sport in it is past its deadline.
             </div>
           </>
         )}

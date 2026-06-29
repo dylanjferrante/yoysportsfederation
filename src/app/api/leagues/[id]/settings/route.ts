@@ -24,7 +24,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring',
     'draftType', 'draftDate', 'auctionBudget', 'secondsPerPick', 'autoPickEnabled', 'draftOrderMethod',
     'rookieDraftMode', 'rookieDraftRounds', 'tradeablePickYears',
-    'tradeDeadline', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
+    'tradeDeadline', 'tradeDeadlines', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
     'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'lockDay',
     'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds',
     'duesAmount',
@@ -36,7 +36,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   // Serialize JSON object/array fields.
-  for (const k of ['divisionLogos', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule', 'rookieDraftRounds', 'regularSeasonWeeks']) {
+  for (const k of ['divisionLogos', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule', 'rookieDraftRounds', 'regularSeasonWeeks', 'tradeDeadlines']) {
     if (k in update && typeof update[k] !== 'string') update[k] = JSON.stringify(update[k])
   }
 

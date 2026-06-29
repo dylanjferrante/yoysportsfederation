@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { trades, tradeItems, tradeApprovals, teams, players, draftPicks, leagues } from '@/db/schema'
-import { eq, or, inArray } from 'drizzle-orm'
+import { trades, tradeItems, tradeApprovals, teams, players, draftPicks, leagues, matchups } from '@/db/schema'
+import { eq, or, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { logActivity, notify } from '@/lib/activity'
+import { safeParse } from '@/lib/utils'
+import { resolveTradeDeadlineWeek } from '@/lib/defaults'
 
 const tradeItemSchema = z.object({
   direction: z.enum(['GIVING', 'RECEIVING']).optional(),
@@ -90,6 +92,32 @@ export async function POST(req: Request) {
     if (participants.size === 0) return NextResponse.json({ error: 'No trade partner' }, { status: 400 })
 
     const partnerRows = await db.select().from(teams).where(inArray(teams.id, [...participants]))
+
+    // Enforce per-sport trade deadlines. Block if any sport in the deal is past its deadline.
+    const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId)).limit(1)
+    const deadlines = safeParse<Record<string, { mode: string; week?: number }>>(league?.tradeDeadlines, {})
+    const schedule = safeParse<any[]>(league?.sportSchedule, [])
+    const dealPlayerIds = resolved.map(it => it.playerId).filter(Boolean) as string[]
+    const dealPickIds = resolved.map(it => it.pickId).filter(Boolean) as string[]
+    const dealSports = new Set<string>()
+    if (dealPlayerIds.length) (await db.select({ s: players.sport }).from(players).where(inArray(players.id, dealPlayerIds))).forEach(r => r.s && dealSports.add(r.s))
+    if (dealPickIds.length) (await db.select({ s: draftPicks.sport }).from(draftPicks).where(inArray(draftPicks.id, dealPickIds))).forEach(r => r.s && dealSports.add(r.s))
+
+    if (dealSports.size) {
+      const allM = await db.select({ sport: matchups.sport, week: matchups.week, isComplete: matchups.isComplete })
+        .from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, league?.season ?? '')))
+      const cur: Record<string, number> = {}
+      for (const sp of dealSports) {
+        const mine = allM.filter(m => m.sport === sp)
+        const inc = mine.filter(m => !m.isComplete).map(m => m.week)
+        const maxWk = mine.length ? Math.max(...mine.map(m => m.week)) : 0
+        cur[sp] = inc.length ? Math.min(...inc) : maxWk + 1
+      }
+      for (const sp of dealSports) {
+        const dl = resolveTradeDeadlineWeek(deadlines[sp] as any, sp, schedule, league?.playoffRounds ?? 2)
+        if ((cur[sp] ?? 1) > dl) return NextResponse.json({ error: `The ${sp} trade deadline has passed.` }, { status: 400 })
+      }
+    }
 
     const tradeId = nanoid()
     const [trade] = await db.insert(trades).values({

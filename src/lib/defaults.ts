@@ -248,6 +248,42 @@ export function sportsActiveInWeek(schedule: ScheduleEntry[], week: number): str
   return schedule.filter(s => week >= s.startWeek && week <= s.endWeek).map(s => s.sport)
 }
 
+// ── Per-sport trade deadlines ────────────────────────────────────────────────
+
+export type TradeDeadlineMode = 'WEEK' | 'SPORT_PLAYOFFS' | 'SPORT_CHAMPIONSHIP' | 'FEDERATION_CHAMPIONSHIP' | 'NONE'
+export type TradeDeadline = { mode: TradeDeadlineMode; week?: number }
+
+export const TRADE_DEADLINE_MODES: { value: TradeDeadlineMode; label: string; help: string }[] = [
+  { value: 'WEEK', label: 'Specific week', help: 'Trades lock after the chosen regular-season week.' },
+  { value: 'SPORT_PLAYOFFS', label: "Sport's playoffs begin", help: "Trades lock once that sport's regular season ends." },
+  { value: 'SPORT_CHAMPIONSHIP', label: "After sport's championship", help: 'Trades stay open through the entire postseason for that sport.' },
+  { value: 'FEDERATION_CHAMPIONSHIP', label: 'After federation championship', help: 'Trades stay open until the whole federation season concludes.' },
+  { value: 'NONE', label: 'No deadline (year-round)', help: 'Dynasty-style — trades are always allowed.' },
+]
+
+export function defaultTradeDeadlines(sportsEnabled: string[]): Record<string, TradeDeadline> {
+  // Default: lock when each sport's playoffs begin (classic redraft behavior).
+  return Object.fromEntries(sportsEnabled.map(s => [s, { mode: 'SPORT_PLAYOFFS' as TradeDeadlineMode }]))
+}
+
+// Resolve a sport's deadline into the last week trades are allowed (Infinity = none).
+export function resolveTradeDeadlineWeek(
+  d: TradeDeadline | undefined, sport: string, schedule: ScheduleEntry[], playoffRounds = 2,
+): number {
+  const win = schedule.find(s => s.sport === sport)
+  const regEnd = win?.endWeek ?? 0
+  const sportChamp = regEnd + Math.max(1, playoffRounds)
+  const fedChamp = Math.max(...schedule.map(s => s.endWeek), regEnd) + Math.max(1, playoffRounds)
+  switch (d?.mode) {
+    case 'WEEK': return d.week ?? regEnd
+    case 'SPORT_PLAYOFFS': return regEnd
+    case 'SPORT_CHAMPIONSHIP': return sportChamp
+    case 'FEDERATION_CHAMPIONSHIP': return fedChamp
+    case 'NONE': return Infinity
+    default: return regEnd
+  }
+}
+
 // Round-robin pairings (circle method). pairing for week w = rounds[(w-1) % rounds.length].
 export function buildWeeklyPairings(teamIds: string[]): [string, string][][] {
   const ids = [...teamIds]

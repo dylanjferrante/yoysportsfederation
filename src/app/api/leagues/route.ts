@@ -6,7 +6,7 @@ import { leagues, leagueMembers, teams, teamRecords, drafts } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
-import { buildPerSportSettings, buildSchedule } from '@/lib/defaults'
+import { buildPerSportSettings, buildSchedule, defaultTradeDeadlines } from '@/lib/defaults'
 import { defaultFederationScoring } from '@/lib/federation'
 
 const createSchema = z.object({
@@ -92,6 +92,7 @@ export async function POST(req: Request) {
       rookieDraftMode: body.rookieDraftMode,
       rookieDraftRounds: JSON.stringify(rookieRounds),
       tradeablePickYears: body.tradeablePickYears,
+      tradeDeadlines: JSON.stringify(defaultTradeDeadlines(body.sportsEnabled)),
       tradeReview: body.tradeReview,
       waiverType: body.waiverType,
       faabBudget: body.faabBudget,
