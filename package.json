@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "db:reset": "tsx src/db/migrate.ts && tsx src/db/seed.ts",
     "setup": "npm install && npm run db:reset",
-    "tank01:probe": "tsx scripts/tank01-probe.ts"
+    "tank01:probe": "tsx scripts/tank01-probe.ts",
+    "tank01:pull": "tsx scripts/tank01-pull.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

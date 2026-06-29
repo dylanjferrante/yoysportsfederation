@@ -46,16 +46,23 @@ OWNERS.forEach((o, i) => insertUser.run(ownerIds[i], o.name, o.email, pw))
 
 // ── Players ──────────────────────────────────────────────────────────────
 
-type PlayerSeed = { id: string; name: string; sport: string; pos: string; team: string; pts: number; proj: number; status?: string }
+type PlayerSeed = {
+  id: string; name: string; sport: string; pos: string; team: string; pts: number; proj: number; status?: string
+  externalId?: string; injuryNote?: string; photoUrl?: string | null; isRookie?: boolean; stats?: Record<string, number>
+}
 
 const insertPlayer = db.prepare(
-  `INSERT OR IGNORE INTO players (id,name,sport,position,eligible_positions,real_team,real_team_abbr,status,season_points,weekly_avg,projected_points)
-   VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+  `INSERT OR IGNORE INTO players (id,external_id,name,sport,position,eligible_positions,real_team,real_team_abbr,status,injury_note,photo_url,is_rookie,season_points,weekly_avg,projected_points,stats)
+   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 )
 
 function addPlayers(players: PlayerSeed[]) {
   for (const p of players) {
-    insertPlayer.run(p.id, p.name, p.sport, p.pos, JSON.stringify([p.pos]), p.team, p.team, p.status ?? 'ACTIVE', p.pts, +(p.pts/17).toFixed(1), p.proj)
+    insertPlayer.run(
+      p.id, p.externalId ?? null, p.name, p.sport, p.pos, JSON.stringify([p.pos]), p.team, p.team,
+      p.status ?? 'ACTIVE', p.injuryNote ?? null, p.photoUrl ?? null, p.isRookie ? 1 : 0,
+      p.pts, +(p.pts / 17).toFixed(1), p.proj, JSON.stringify(p.stats ?? {}),
+    )
   }
 }
 
@@ -256,10 +263,41 @@ const ROSTER_FILL: Record<string, number> = Object.fromEntries(
 )
 const poolSize = (sport: string, curated: number) => NUM_TEAMS * ROSTER_FILL[sport] + FREE_AGENTS - curated
 
-const NFL_ALL = [...NFL, ...generatePlayers('NFL', poolSize('NFL', NFL.length))]
-const NBA_ALL = [...NBA, ...generatePlayers('NBA', poolSize('NBA', NBA.length))]
-const NHL_ALL = [...NHL, ...generatePlayers('NHL', poolSize('NHL', NHL.length))]
-const MLB_ALL = [...MLB, ...generatePlayers('MLB', poolSize('MLB', MLB.length))]
+// Real players from Tank01 fixtures (created by `npm run tank01:pull`) take
+// precedence over generated ones. Falls back to generated when no file exists.
+type PulledPlayer = { externalId: string; name: string; sport: string; position: string; team: string; status: string; injuryNote: string; photoUrl: string | null; isRookie: boolean; projectedPoints: number; stats: Record<string, number> }
+
+function loadRealPool(sport: string, count: number): PlayerSeed[] | null {
+  const file = path.resolve(process.cwd(), 'src/fixtures', `tank01-${sport}.json`)
+  if (!fs.existsSync(file)) return null
+  let rows: PulledPlayer[]
+  try { rows = JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return null }
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  const games = GAMES[sport] ?? 17
+  // Sorted by projection in the fixture; take the most fantasy-relevant `count`.
+  return rows.slice(0, count).map((p, i) => {
+    const proj = p.projectedPoints || 0
+    return {
+      id: `${sport.toLowerCase()}-${p.externalId || i}`,
+      externalId: p.externalId,
+      name: p.name, sport, pos: p.position || 'UTIL', team: p.team || '',
+      status: p.status || 'ACTIVE', injuryNote: p.injuryNote || '', photoUrl: p.photoUrl, isRookie: p.isRookie,
+      proj: +proj.toFixed(1), pts: +(proj * games).toFixed(1), stats: p.stats || {},
+    }
+  })
+}
+
+function buildPool(sport: string, curated: PlayerSeed[]): PlayerSeed[] {
+  const target = poolSize(sport, 0)
+  const real = loadRealPool(sport, target)
+  if (real) { console.log(`  ${sport}: using ${real.length} real players from Tank01 fixture`); return real }
+  return [...curated, ...generatePlayers(sport, poolSize(sport, curated.length))]
+}
+
+const NFL_ALL = buildPool('NFL', NFL)
+const NBA_ALL = buildPool('NBA', NBA)
+const NHL_ALL = buildPool('NHL', NHL)
+const MLB_ALL = buildPool('MLB', MLB)
 
 addPlayers(NFL_ALL)
 addPlayers(NBA_ALL)
