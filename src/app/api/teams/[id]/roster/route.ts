@@ -10,6 +10,8 @@ import { slotEligible, irEligible, defaultIrDesignations } from '@/lib/defaults'
 import { logActivity } from '@/lib/activity'
 import { realOpponents } from '@/lib/realschedule'
 import { isPlayerLocked, playerKickoff } from '@/lib/locks'
+import { isTeamManager } from '@/lib/permissions'
+import { teamManagers } from '@/db/schema'
 
 // A franchise's full cross-sport roster + tradeable picks + slot options.
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -85,14 +87,20 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   picks.sort((a, b) => a.year - b.year || (a.sport ?? '').localeCompare(b.sport ?? '') || a.round - b.round)
 
+  const managers = await db
+    .select({ userId: teamManagers.userId, name: users.name, email: users.email })
+    .from(teamManagers).leftJoin(users, eq(teamManagers.userId, users.id))
+    .where(eq(teamManagers.teamId, id))
+
   const isOwner = !!session && session.user.id === team.userId
   const isCommish = !!session && session.user.id === league?.commissionerId
-  const canManage = isOwner || isCommish
+  const isCoManager = !!session && managers.some(m => m.userId === session.user.id)
+  const canManage = isOwner || isCommish || isCoManager
 
   return NextResponse.json({
-    team, players: enriched, picks,
+    team, players: enriched, picks, managers,
     rosterSettings: safeParse(league?.rosterSettings, {}),
-    canManage, isOwner, isCommish,
+    canManage, isOwner, isCommish, isCoManager,
   })
 }
 
@@ -105,7 +113,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1)
   if (!team) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const [league] = await db.select().from(leagues).where(eq(leagues.id, team.leagueId)).limit(1)
-  if (team.userId !== session.user.id && league?.commissionerId !== session.user.id)
+  if (team.userId !== session.user.id && league?.commissionerId !== session.user.id && !(await isTeamManager(id, session.user.id)))
     return NextResponse.json({ error: 'Not your franchise' }, { status: 403 })
 
   const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean }

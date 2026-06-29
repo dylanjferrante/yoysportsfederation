@@ -34,6 +34,9 @@ export default function TeamPage() {
   const [editing, setEditing] = useState(false)
   const [brand, setBrand] = useState<any>({})
   const [openSlot, setOpenSlot] = useState<string | null>(null)
+  const [showMgr, setShowMgr] = useState(false)
+  const [mgrEmail, setMgrEmail] = useState('')
+  const [mgrErr, setMgrErr] = useState('')
 
   const load = useCallback(() => {
     fetch(`/api/teams/${id}/roster`).then(r => r.json()).then(d => {
@@ -61,6 +64,17 @@ export default function TeamPage() {
   async function saveBranding() {
     await fetch(`/api/teams/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(brand) })
     setEditing(false); load()
+  }
+
+  async function addManager() {
+    setMgrErr('')
+    const r = await fetch(`/api/teams/${id}/managers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: mgrEmail }) })
+    if (!r.ok) { setMgrErr((await r.json().catch(() => ({}))).error ?? 'Failed to add'); return }
+    setMgrEmail(''); load()
+  }
+  async function removeManager(userId: string) {
+    await fetch(`/api/teams/${id}/managers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) })
+    load()
   }
 
   if (loading) return (
@@ -91,11 +105,15 @@ export default function TeamPage() {
           {team.wordmark && team.wordmark.startsWith('http')
             ? <img src={team.wordmark} alt={team.name} className="h-8 mb-1" />
             : <h1 className="text-2xl font-black text-white">{team.wordmark || team.name}</h1>}
-          <p className="text-white/70 text-sm">{team.ownerName} · {players.length} players{data.isOwner ? ' · your franchise' : data.isCommish ? ' · 🛠 commissioner control' : ''}</p>
+          <p className="text-white/70 text-sm">{team.ownerName} · {players.length} players{data.isOwner ? ' · your franchise' : data.isCommish ? ' · 🛠 commissioner control' : data.isCoManager ? ' · co-manager' : ''}</p>
+          {(data.managers ?? []).length > 0 && (
+            <p className="text-white/50 text-xs mt-0.5">co-managers: {(data.managers ?? []).map((m: any) => m.name ?? m.email).join(', ')}</p>
+          )}
         </div>
         {team.altLogo && <img src={team.altLogo} alt="" className="w-12 h-12 rounded-xl object-cover bg-white/10 hidden sm:block" />}
         <div className="flex gap-2">
           {canManage && <button onClick={() => { setBrand({ name: team.name, abbreviation: team.abbreviation, logo: team.logo ?? '', altLogo: team.altLogo ?? '', wordmark: team.wordmark ?? '', primaryColor: team.primaryColor, secondaryColor: team.secondaryColor }); setEditing(!editing) }} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Edit</button>}
+          {(data.isOwner || data.isCommish) && <button onClick={() => setShowMgr(!showMgr)} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Co-managers</button>}
           <Link href={`/leagues/${team.leagueId}`} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">← League</Link>
         </div>
       </div>
@@ -116,6 +134,32 @@ export default function TeamPage() {
             </div>
           </div>
           <div className="flex gap-2"><button onClick={saveBranding} className="btn-primary">Save Branding</button><button onClick={() => setEditing(false)} className="btn-secondary">Cancel</button></div>
+        </div>
+      )}
+
+      {/* Co-managers editor */}
+      {showMgr && (data.isOwner || data.isCommish) && (
+        <div className="card p-5 mb-6 space-y-3">
+          <div>
+            <h3 className="font-semibold text-slate-900">Co-managers</h3>
+            <p className="text-xs text-slate-500">Co-managers can set lineups and make roster moves for this franchise. The owner keeps full control.</p>
+          </div>
+          {(data.managers ?? []).length === 0
+            ? <p className="text-sm text-slate-400">No co-managers yet.</p>
+            : <ul className="divide-y divide-slate-50">
+                {(data.managers ?? []).map((m: any) => (
+                  <li key={m.userId} className="flex items-center gap-3 py-2">
+                    <span className="text-sm text-slate-800">{m.name ?? m.email}</span>
+                    <span className="text-xs text-slate-400">{m.email}</span>
+                    <button onClick={() => removeManager(m.userId)} className="ml-auto text-[11px] text-red-500 hover:text-red-700">Remove</button>
+                  </li>
+                ))}
+              </ul>}
+          <div className="flex gap-2 items-end pt-1">
+            <div className="flex-1"><label className="label">Add by email</label><input className="input" placeholder="owner@example.com" value={mgrEmail} onChange={e => setMgrEmail(e.target.value)} /></div>
+            <button onClick={addManager} disabled={!mgrEmail.trim()} className="btn-primary disabled:opacity-50">Add</button>
+          </div>
+          {mgrErr && <p className="text-xs text-red-500">{mgrErr}</p>}
         </div>
       )}
 
