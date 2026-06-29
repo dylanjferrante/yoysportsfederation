@@ -7,8 +7,9 @@ import bcrypt from 'bcryptjs'
 import { nanoid } from 'nanoid'
 import path from 'path'
 import fs from 'fs'
-import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS } from '../lib/defaults'
+import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, RESERVE_SLOTS } from '../lib/defaults'
 import { defaultFederationScoring } from '../lib/federation'
+import { scorePlayer, generateStatLine } from '../lib/scoring'
 
 const DB_DIR = path.join(process.cwd(), 'data')
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true })
@@ -500,6 +501,35 @@ function seedMatchups(season: string, completed: boolean) {
 
 seedMatchups(CURRENT_SEASON, false)
 for (const s of PRIOR_SEASONS) seedMatchups(s, true)
+
+// ── Stat lines (real scoring) for the last ~6 played weeks of each sport ─────
+// Gives every player a real game log and makes recent scores derive from stats.
+const insertPGS = db.prepare(`INSERT OR IGNORE INTO player_game_stats (id,league_id,season,week,sport,player_id,team_id,stats,points) VALUES (?,?,?,?,?,?,?,?,?)`)
+const updMatchup = db.prepare(`UPDATE matchups SET home_score=?, away_score=? WHERE id=?`)
+const isStarterSlot = (slot: string) => !RESERVE_SLOTS.includes(slot)
+const scheduleMap: Record<string, any> = Object.fromEntries(schedule.map((e: any) => [e.sport, e]))
+for (const sport of SPORT_LIST) {
+  const w = scheduleMap[sport]; if (!w) continue
+  const played = Math.min(CURRENT_WEEK, w.endWeek)       // latest week that has been played
+  if (played < w.startWeek) continue
+  const firstLog = Math.max(w.startWeek, played - 5)
+  const rs = db.prepare(`SELECT r.player_id pid, r.team_id tid, r.slot slot, p.position pos, p.projected_points proj FROM rosters r JOIN players p ON p.id=r.player_id WHERE r.sport=?`).all(sport) as any[]
+  const avg = rs.reduce((a, x) => a + (x.proj || 0), 0) / (rs.length || 1)
+  for (let week = firstLog; week <= played; week++) {
+    const games = db.prepare(`SELECT id, home_team_id h, away_team_id a FROM matchups WHERE league_id=? AND sport=? AND week=?`).all(leagueId, sport, week) as any[]
+    if (!games.length) continue
+    const pts: Record<string, number> = {}
+    for (const x of rs) {
+      const stats = generateStatLine(sport, x.pos, (x.proj || avg) / avg)
+      const pp = scorePlayer(stats, (scoring as any)[sport] || {})
+      pts[x.pid] = pp
+      insertPGS.run(id(), leagueId, CURRENT_SEASON, week, sport, x.pid, x.tid, JSON.stringify(stats), pp)
+    }
+    const totals: Record<string, number> = {}
+    for (const x of rs) if (isStarterSlot(x.slot)) totals[x.tid] = +(((totals[x.tid] || 0) + (pts[x.pid] || 0)).toFixed(1))
+    for (const g of games) updMatchup.run(totals[g.h] || 0, totals[g.a] || 0, g.id)
+  }
+}
 
 // ── Reconstruct the inaugural combined dynasty-draft board ──────────────────
 // All players from every sport sit in one pool, ordered by cross-sport value

@@ -3,6 +3,8 @@ import { leagues, teams, matchups } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { safeParse } from '@/lib/utils'
 import ScoresView from './ScoresView'
 
@@ -17,9 +19,11 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
 
+  const session = await getServerSession(authOptions)
   const franchises = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation }).from(teams).where(eq(teams.leagueId, id))
   const all = await db.select().from(matchups).where(eq(matchups.leagueId, id)).limit(3000)
   const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
+  const isCommish = league.commissionerId === session?.user?.id
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -31,10 +35,12 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
       <ScoresView
+        leagueId={id}
         matchups={all as any}
         teams={franchises}
         sportsEnabled={sportsEnabled}
         currentSeason={league.season}
+        isCommish={isCommish}
       />
     </div>
   )

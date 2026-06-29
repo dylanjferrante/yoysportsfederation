@@ -1,14 +1,23 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
 type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 type Team = { id: string; name: string; abbreviation: string }
 
-export default function ScoresView({ matchups, teams, sportsEnabled, currentSeason }: {
-  matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string
+export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason, isCommish }: {
+  leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; isCommish?: boolean
 }) {
+  const router = useRouter()
+  const [simming, setSimming] = useState(false)
+  async function simulate() {
+    setSimming(true)
+    await fetch(`/api/leagues/${leagueId}/simulate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    setSimming(false); router.refresh()
+  }
   const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams])
   const seasons = useMemo(() => {
     const s = [...new Set(matchups.map(m => m.season).filter(Boolean) as string[])]
@@ -41,7 +50,8 @@ export default function ScoresView({ matchups, teams, sportsEnabled, currentSeas
           <button onClick={() => setWeek(weeks[Math.min(weeks.length - 1, idx + 1)])} disabled={idx >= weeks.length - 1} className="btn-secondary text-sm disabled:opacity-40">Next →</button>
         </div>
         <button onClick={() => setWeek(defaultWeek)} className="btn-ghost text-sm">Current week</button>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {isCommish && <button onClick={simulate} disabled={simming} className="btn-primary text-sm">{simming ? 'Scoring…' : 'Simulate Week'}</button>}
           <select className="select" value={season} onChange={e => { setSeason(e.target.value); setWeek(null) }}>
             {seasons.map(s => <option key={s} value={s}>{s}{s === currentSeason ? ' (current)' : ''}</option>)}
           </select>
@@ -66,7 +76,7 @@ export default function ScoresView({ matchups, teams, sportsEnabled, currentSeas
                   const home = teamById[m.homeTeamId], away = m.awayTeamId ? teamById[m.awayTeamId] : null
                   const homeWin = m.homeScore >= m.awayScore
                   return (
-                    <div key={m.id} className="p-4 border-slate-50 sm:border sm:m-1.5 sm:rounded-xl">
+                    <Link key={m.id} href={`/leagues/${leagueId}/matchup/${m.id}`} className="block p-4 border-slate-50 sm:border sm:m-1.5 sm:rounded-xl hover:bg-slate-50 transition-colors">
                       <div className={`flex items-center justify-between text-sm ${m.isComplete && homeWin ? 'font-bold text-slate-900' : 'text-slate-700'}`}>
                         <span className="truncate">{home?.name ?? '—'}</span>
                         <span>{m.homeScore?.toFixed(1)}</span>
@@ -75,8 +85,8 @@ export default function ScoresView({ matchups, teams, sportsEnabled, currentSeas
                         <span className="truncate">{away?.name ?? 'BYE'}</span>
                         <span>{m.awayScore?.toFixed(1)}</span>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-1.5">{m.isComplete ? 'Final' : 'Live'}</p>
-                    </div>
+                      <p className="text-[10px] text-slate-400 mt-1.5">{m.isComplete ? 'Final' : 'Live'} · box score →</p>
+                    </Link>
                   )
                 })}
               </div>
