@@ -89,8 +89,8 @@ export default function WaiversView({
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <Link href={`/leagues/${leagueId}`} className="btn-ghost text-slate-500">← League</Link>
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Waiver Wire</h1>
-          <p className="text-sm text-slate-500">{leagueName} · {isFaab ? `FAAB bidding (${faabMode === 'PER_SPORT' ? 'per-sport' : 'total'} budget)` : 'Rolling waiver priority'}</p>
+          <h1 className="text-xl font-bold text-slate-900">Players &amp; Waivers</h1>
+          <p className="text-sm text-slate-500">{leagueName} · free agents · {isFaab ? `FAAB bidding (${faabMode === 'PER_SPORT' ? 'per-sport' : 'total'} budget)` : 'Rolling waiver priority'}</p>
         </div>
         {isCommissioner && (
           <button onClick={process} disabled={busy || pendingCount === 0}
