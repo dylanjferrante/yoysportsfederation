@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, LEAGUE_SIZE_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
@@ -101,6 +101,7 @@ export default function CommissionerSettings() {
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
         waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, irEligibleDesignations: irDesigObj, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
+        playoffFormat: form.playoffFormat, weeksPerRound: form.weeksPerRound,
         sportSchedule: buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj, startWeeksObj),
       }),
     })
@@ -176,7 +177,7 @@ export default function CommissionerSettings() {
                   {['2023-24', '2024-25', '2025-26', '2026-27', '2027-28', '2028-29'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <div><label className="label">Max Teams</label><input type="number" min={4} max={16} className="input" value={form.maxTeams ?? 12} onChange={e => set('maxTeams', +e.target.value)} /></div>
+              <div><label className="label">Max Teams</label><select className="select" value={form.maxTeams ?? 12} onChange={e => set('maxTeams', +e.target.value)}>{LEAGUE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n} teams</option>)}</select></div>
               <div><label className="label">Dues per franchise ($)</label><input type="number" min={0} className="input" value={form.duesAmount ?? 0} onChange={e => set('duesAmount', +e.target.value)} /></div>
               <div>
                 <label className="label">Visibility</label>
@@ -584,10 +585,44 @@ export default function CommissionerSettings() {
         {tab === 'Playoffs' && (
           <>
             <h3 className="font-semibold text-slate-900">Playoffs</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div><label className="label">Playoff Teams (per sport)</label><select className="select" value={form.playoffTeams ?? 4} onChange={e => set('playoffTeams', +e.target.value)}>{[2, 4, 6, 8].map(n => <option key={n} value={n}>{n} teams</option>)}</select></div>
-              <div><label className="label">Playoff Rounds</label><select className="select" value={form.playoffRounds ?? 2} onChange={e => set('playoffRounds', +e.target.value)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></div>
-            </div>
+            {(() => {
+              const teams = form.playoffTeams ?? 4
+              const maxR = maxPlayoffRounds(teams)
+              const rounds = Math.min(form.playoffRounds ?? 2, maxR)
+              const fmt = (form.playoffFormat ?? 'H2H') as any
+              const wpr = form.weeksPerRound ?? 1
+              const totalWeeks = playoffWeeks(rounds, fmt, wpr)
+              return (
+                <>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div><label className="label">Playoff Teams (per sport)</label>
+                      <select className="select" value={teams} onChange={e => { const t = +e.target.value; set('playoffTeams', t); if ((form.playoffRounds ?? 2) > maxPlayoffRounds(t)) set('playoffRounds', maxPlayoffRounds(t)) }}>
+                        {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n} teams</option>)}
+                      </select>
+                    </div>
+                    <div><label className="label">Playoff Format</label>
+                      <select className="select" value={fmt} onChange={e => set('playoffFormat', e.target.value)}>
+                        {PLAYOFF_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                      </select>
+                    </div>
+                    <div><label className="label">Playoff Rounds</label>
+                      <select className="select" value={rounds} onChange={e => set('playoffRounds', +e.target.value)}>
+                        {Array.from({ length: maxR }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} round{n > 1 ? 's' : ''}</option>)}
+                      </select>
+                      <p className="text-[11px] text-slate-400 mt-1">{teams} teams → up to {maxR} round{maxR > 1 ? 's' : ''}.</p>
+                    </div>
+                    {fmt !== 'H2H' && (
+                      <div><label className="label">Weeks Per {fmt === 'CHAMP_MULTI' ? 'Championship' : 'Round'}</label>
+                        <select className="select" value={wpr} onChange={e => set('weeksPerRound', +e.target.value)}>
+                          {[2, 3].map(n => <option key={n} value={n}>{n} weeks</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">{PLAYOFF_FORMATS.find(f => f.value === fmt)?.help} <strong className="text-slate-700">Postseason spans {totalWeeks} week{totalWeeks > 1 ? 's' : ''}.</strong></p>
+                </>
+              )
+            })()}
             <div className="border-t border-slate-100 pt-4">
               <p className="text-sm font-semibold text-slate-700">Per-sport playoff start</p>
               <p className="text-xs text-slate-500 mb-3">Each sport runs on its own calendar, so <strong>playoffs begin the week after that sport's regular season ends</strong> — they don't all start the same week. Adjust each sport's start week and length in the <strong>Sports &amp; Schedule</strong> tab.</p>

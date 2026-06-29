@@ -30,6 +30,8 @@ const createSchema = z.object({
   playoffTeams: z.number().default(4),
   playoffStartWeek: z.number().default(15),
   playoffRounds: z.number().default(2),
+  playoffFormat: z.enum(['H2H', 'MULTI_WEEK', 'CHAMP_MULTI']).default('H2H'),
+  weeksPerRound: z.number().default(1),
 })
 
 export async function GET(req: Request) {
@@ -104,6 +106,8 @@ export async function POST(req: Request) {
       playoffStartWeek: body.playoffStartWeek,
       regularSeasonWeeks: JSON.stringify(seasonWeeks),
       playoffRounds: body.playoffRounds,
+      playoffFormat: body.playoffFormat,
+      weeksPerRound: body.weeksPerRound,
     }).returning()
 
     // Commissioner membership + their franchise

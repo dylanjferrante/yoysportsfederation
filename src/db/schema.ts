@@ -72,6 +72,8 @@ export const leagues = sqliteTable('leagues', {
   waiverSchedule: text('waiver_schedule').default('{}'),
   irEligibleDesignations: text('ir_eligible_designations').default('{}'),
   defenseMode: text('defense_mode').default('TEAM'), // NFL: TEAM (DST) | IDP
+  playoffFormat: text('playoff_format').default('H2H'), // H2H | MULTI_WEEK | CHAMP_MULTI
+  weeksPerRound: integer('weeks_per_round').default(1),
   lockDay: integer('lock_day').default(0),
 
   // Playoffs

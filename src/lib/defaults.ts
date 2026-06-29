@@ -359,6 +359,28 @@ export const TRADE_DEADLINE_MODES: { value: TradeDeadlineMode; label: string; he
   { value: 'NONE', label: 'No deadline (year-round)', help: 'Dynasty-style — trades are always allowed.' },
 ]
 
+// ── Playoffs format & sizing ─────────────────────────────────────────────────
+export type PlayoffFormat = 'H2H' | 'MULTI_WEEK' | 'CHAMP_MULTI'
+export const PLAYOFF_FORMATS: { value: PlayoffFormat; label: string; help: string }[] = [
+  { value: 'H2H', label: 'Head-to-head (1 week/round)', help: 'Each playoff round is a single-week matchup.' },
+  { value: 'MULTI_WEEK', label: 'Multi-week rounds', help: 'Every round spans multiple weeks; combined score advances.' },
+  { value: 'CHAMP_MULTI', label: 'Multi-week championship only', help: 'Earlier rounds are one week; only the final spans multiple weeks.' },
+]
+// Even team-count options. Playoff brackets: 2–16; league size: 4–16.
+export const EVEN_TEAM_OPTIONS = [2, 4, 6, 8, 10, 12, 14, 16]
+export const LEAGUE_SIZE_OPTIONS = [4, 6, 8, 10, 12, 14, 16]
+// A bracket of N teams needs ceil(log2(N)) rounds (byes fill non-powers of two).
+export function maxPlayoffRounds(teams: number): number {
+  return Math.max(1, Math.ceil(Math.log2(Math.max(2, teams))))
+}
+// Total weeks the postseason occupies, given format + weeks-per-round.
+export function playoffWeeks(rounds: number, format: PlayoffFormat, weeksPerRound: number): number {
+  const w = Math.max(1, weeksPerRound)
+  if (format === 'MULTI_WEEK') return rounds * w
+  if (format === 'CHAMP_MULTI') return (rounds - 1) + w
+  return rounds // H2H
+}
+
 // Per-sport waiver run time (default: Wednesday 3am for each sport).
 export type WaiverRun = { day: number; hour: number }
 export const WAIVER_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
