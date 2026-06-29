@@ -68,20 +68,6 @@ export default async function DashboardPage() {
         <Link href="/leagues/new" className="btn-primary">+ Create League</Link>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Leagues', value: myLeagues.length },
-          { label: 'Franchises', value: myTeams.length },
-          { label: 'Pending Trades', value: pendingTrades.length },
-          { label: 'Sports', value: enabledUnion.length },
-        ].map(s => (
-          <div key={s.label} className="card p-4 text-center">
-            <div className="text-3xl font-black text-slate-900">{s.value}</div>
-            <div className="text-sm text-slate-500 mt-0.5">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
