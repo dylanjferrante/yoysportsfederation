@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Sport {
+  NFL
+  NHL
+  NBA
+  MLB
+}
+
+enum PlayerStatus {
+  ACTIVE
+  INJURED
+  INACTIVE
+}
+
+enum TradeStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum TradeDirection {
+  GIVING
+  RECEIVING
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  teams     Team[]
+}
+
+model League {
+  id          String      @id @default(cuid())
+  name        String
+  sport       Sport
+  season      String
+  maxTeams    Int         @default(12)
+  teams       Team[]
+  picks       DraftPick[]
+  createdAt   DateTime    @default(now())
+}
+
+model Team {
+  id           String      @id @default(cuid())
+  name         String
+  abbreviation String
+  userId       String
+  leagueId     String
+  wins         Int         @default(0)
+  losses       Int         @default(0)
+  ties         Int         @default(0)
+  points       Float       @default(0)
+  user         User        @relation(fields: [userId], references: [id])
+  league       League      @relation(fields: [leagueId], references: [id])
+  roster       Roster[]
+  picksOwned   DraftPick[] @relation("CurrentPickOwner")
+  picksOriginal DraftPick[] @relation("OriginalPickTeam")
+  tradesSent   Trade[]     @relation("TradeInitiator")
+  tradesReceived Trade[]   @relation("TradeRecipient")
+  createdAt    DateTime    @default(now())
+}
+
+model Player {
+  id         String       @id @default(cuid())
+  name       String
+  sport      Sport
+  position   String
+  realTeam   String
+  status     PlayerStatus @default(ACTIVE)
+  points     Float        @default(0)
+  projected  Float        @default(0)
+  roster     Roster[]
+  tradeItems TradeItem[]
+}
+
+model Roster {
+  id        String   @id @default(cuid())
+  teamId    String
+  playerId  String
+  isStarter Boolean  @default(true)
+  team      Team     @relation(fields: [teamId], references: [id])
+  player    Player   @relation(fields: [playerId], references: [id])
+  addedAt   DateTime @default(now())
+
+  @@unique([teamId, playerId])
+}
+
+model DraftPick {
+  id             String      @id @default(cuid())
+  sport          Sport
+  round          Int
+  year           Int
+  leagueId       String
+  originalTeamId String
+  currentTeamId  String
+  isUsed         Boolean     @default(false)
+  league         League      @relation(fields: [leagueId], references: [id])
+  originalTeam   Team        @relation("OriginalPickTeam", fields: [originalTeamId], references: [id])
+  currentTeam    Team        @relation("CurrentPickOwner", fields: [currentTeamId], references: [id])
+  tradeItems     TradeItem[]
+}
+
+model Trade {
+  id            String      @id @default(cuid())
+  initiatorId   String
+  recipientId   String
+  status        TradeStatus @default(PENDING)
+  note          String?
+  initiator     Team        @relation("TradeInitiator", fields: [initiatorId], references: [id])
+  recipient     Team        @relation("TradeRecipient", fields: [recipientId], references: [id])
+  items         TradeItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model TradeItem {
+  id        String         @id @default(cuid())
+  tradeId   String
+  direction TradeDirection
+  playerId  String?
+  pickId    String?
+  trade     Trade          @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  player    Player?        @relation(fields: [playerId], references: [id])
+  pick      DraftPick?     @relation(fields: [pickId], references: [id])
+}
