@@ -14,6 +14,7 @@ db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = OFF')
 
 const drop = `
+DROP TABLE IF EXISTS playoff_games;
 DROP TABLE IF EXISTS league_messages;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS activity;
@@ -362,6 +363,23 @@ CREATE TABLE notifications (
   link TEXT,
   is_read INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE playoff_games (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  season TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  round INTEGER NOT NULL,
+  match_index INTEGER NOT NULL,
+  home_seed INTEGER,
+  away_seed INTEGER,
+  home_team_id TEXT REFERENCES teams(id),
+  away_team_id TEXT REFERENCES teams(id),
+  home_score REAL DEFAULT 0,
+  away_score REAL DEFAULT 0,
+  winner_team_id TEXT REFERENCES teams(id),
+  is_complete INTEGER DEFAULT 0
 );
 
 CREATE TABLE league_messages (

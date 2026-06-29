@@ -6,6 +6,7 @@ import { eq, and, desc } from 'drizzle-orm'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { safeParse, inSeasonNow } from '@/lib/utils'
+import { advanceLeague } from '@/lib/advance'
 import LeagueTabs from './LeagueTabs'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +21,9 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
+
+  // Bring the season up to date automatically (no commissioner action needed).
+  await advanceLeague(league)
 
   const franchises = await db
     .select({ team: teams, userName: users.name })

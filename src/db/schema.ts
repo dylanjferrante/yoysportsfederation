@@ -396,6 +396,25 @@ export const notifications = sqliteTable('notifications', {
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 
+// ── Playoff games ────────────────────────────────────────────────────────────
+
+export const playoffGames = sqliteTable('playoff_games', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  season: text('season').notNull(),
+  sport: text('sport').notNull(),
+  round: integer('round').notNull(),       // 1 = first round
+  matchIndex: integer('match_index').notNull(),
+  homeSeed: integer('home_seed'),
+  awaySeed: integer('away_seed'),
+  homeTeamId: text('home_team_id').references(() => teams.id),
+  awayTeamId: text('away_team_id').references(() => teams.id),
+  homeScore: real('home_score').default(0),
+  awayScore: real('away_score').default(0),
+  winnerTeamId: text('winner_team_id').references(() => teams.id),
+  isComplete: integer('is_complete', { mode: 'boolean' }).default(false),
+})
+
 // ── League chat / message board ─────────────────────────────────────────────
 
 export const leagueMessages = sqliteTable('league_messages', {

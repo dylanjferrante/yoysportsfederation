@@ -1,23 +1,15 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
 type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 type Team = { id: string; name: string; abbreviation: string }
 
-export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason, isCommish }: {
+export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason }: {
   leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; isCommish?: boolean
 }) {
-  const router = useRouter()
-  const [simming, setSimming] = useState(false)
-  async function simulate() {
-    setSimming(true)
-    await fetch(`/api/leagues/${leagueId}/simulate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-    setSimming(false); router.refresh()
-  }
   const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams])
   const seasons = useMemo(() => {
     const s = [...new Set(matchups.map(m => m.season).filter(Boolean) as string[])]
@@ -51,7 +43,6 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
         </div>
         <button onClick={() => setWeek(defaultWeek)} className="btn-ghost text-sm">Current week</button>
         <div className="ml-auto flex items-center gap-2">
-          {isCommish && <button onClick={simulate} disabled={simming} className="btn-primary text-sm">{simming ? 'Scoring…' : 'Simulate Week'}</button>}
           <select className="select" value={season} onChange={e => { setSeason(e.target.value); setWeek(null) }}>
             {seasons.map(s => <option key={s} value={s}>{s}{s === currentSeason ? ' (current)' : ''}</option>)}
           </select>
