@@ -9,6 +9,7 @@ import { safeParse } from '@/lib/utils'
 import { slotEligible, irEligible, defaultIrDesignations } from '@/lib/defaults'
 import { logActivity } from '@/lib/activity'
 import { realOpponents } from '@/lib/realschedule'
+import { isPlayerLocked, playerKickoff } from '@/lib/locks'
 
 // A franchise's full cross-sport roster + tradeable picks + slot options.
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -66,14 +67,19 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     oppMaps[sp] = realOpponents(abbrs, curWeek[sp] ?? 1)
   }
 
+  const season = league?.season ?? ''
   const enriched = roster.map(r => {
     const a = agg[r.id]
+    const wk = curWeek[r.sport] ?? 1
+    const kickoff = playerKickoff(r.sport, r.realTeamAbbr, season, wk)
     return {
       ...r,
       gp: a?.gp ?? 0,
       lastPts: a?.lastPts ?? null,
       seasonStats: a?.season ?? {},
       opp: r.realTeamAbbr ? (oppMaps[r.sport]?.[r.realTeamAbbr] ?? null) : null,
+      kickoff,
+      locked: isPlayerLocked(r.sport, r.realTeamAbbr, season, wk),
     }
   }).sort((x, y) => (y.seasonPoints ?? 0) - (x.seasonPoints ?? 0))
 
@@ -107,10 +113,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
     // Validate the player is eligible for the requested slot.
     const [row] = await db
-      .select({ sport: rosters.sport, position: players.position, status: players.status })
+      .select({ sport: rosters.sport, slot: rosters.slot, position: players.position, status: players.status, realTeamAbbr: players.realTeamAbbr })
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
       .where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
     if (!row) return NextResponse.json({ error: 'Not on roster' }, { status: 400 })
+    // Per-player game-time lock: once a player's game has kicked off, their slot
+    // is frozen for the week. Commissioners may still override.
+    const isCommish = league?.commissionerId === session.user.id
+    if (!isCommish && row.slot !== body.slot) {
+      const [cur] = await db.select({ week: matchups.week })
+        .from(matchups)
+        .where(and(eq(matchups.leagueId, team.leagueId), eq(matchups.sport, row.sport), eq(matchups.isComplete, false)))
+        .orderBy(matchups.week).limit(1)
+      const wk = cur?.week ?? 1
+      if (isPlayerLocked(row.sport, row.realTeamAbbr, league?.season ?? '', wk))
+        return NextResponse.json({ error: `${row.position} is locked — their game has already started` }, { status: 400 })
+    }
     if (!slotEligible(row.position, body.slot)) return NextResponse.json({ error: `Not eligible for ${body.slot}` }, { status: 400 })
     // Injured-reserve slots require an injury designation the commissioner has
     // marked IR-eligible for that sport.
