@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS password_resets;
 DROP TABLE IF EXISTS commissioner_actions;
 DROP TABLE IF EXISTS waiver_claims;
 DROP TABLE IF EXISTS trade_votes;
+DROP TABLE IF EXISTS trade_approvals;
 DROP TABLE IF EXISTS trade_items;
 DROP TABLE IF EXISTS trades;
 DROP TABLE IF EXISTS player_news;
