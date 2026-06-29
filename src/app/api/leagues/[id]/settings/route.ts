@@ -25,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'draftType', 'draftDate', 'auctionBudget', 'secondsPerPick', 'autoPickEnabled', 'draftOrderMethod',
     'rookieDraftMode', 'rookieDraftRounds', 'tradeablePickYears',
     'tradeDeadline', 'tradeDeadlines', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
-    'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'lockDay',
+    'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'waiverSchedule', 'lockDay',
     'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds',
     'duesAmount',
   ] as const
@@ -36,17 +36,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   // Serialize JSON object/array fields.
-  for (const k of ['divisionLogos', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule', 'rookieDraftRounds', 'regularSeasonWeeks', 'tradeDeadlines']) {
+  for (const k of ['divisionLogos', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule', 'rookieDraftRounds', 'regularSeasonWeeks', 'tradeDeadlines', 'waiverSchedule']) {
     if (k in update && typeof update[k] !== 'string') update[k] = JSON.stringify(update[k])
   }
 
-  // If the enabled sports or season anchor changed, recompute the schedule.
-  if ('sportsEnabled' in update || 'seasonStart' in update) {
+  // Recompute the schedule if sports, the season anchor, or any sport's
+  // regular-season length changed (so per-sport playoff start stays correct).
+  if ('sportsEnabled' in update || 'seasonStart' in update || 'regularSeasonWeeks' in update) {
     const sportsEnabled = 'sportsEnabled' in update
       ? safeParse<string[]>(update.sportsEnabled as string, [])
       : safeParse<string[]>(league.sportsEnabled, [])
     const seasonStart = (update.seasonStart as string) ?? league.seasonStart ?? 'FOOTBALL'
-    update.sportSchedule = JSON.stringify(buildSchedule(seasonStart, sportsEnabled))
+    const seasonWeeks = safeParse<Record<string, number>>((update.regularSeasonWeeks as string) ?? league.regularSeasonWeeks, {})
+    update.sportSchedule = JSON.stringify(buildSchedule(seasonStart, sportsEnabled, seasonWeeks))
   }
 
   const [updated] = await db.update(leagues).set(update).where(eq(leagues.id, id)).returning()

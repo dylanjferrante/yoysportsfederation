@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 import { nanoid } from 'nanoid'
 import path from 'path'
 import fs from 'fs'
-import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, RESERVE_SLOTS } from '../lib/defaults'
+import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, dynastyDraftRounds, defaultWaiverSchedule, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, RESERVE_SLOTS } from '../lib/defaults'
 import { defaultFederationScoring } from '../lib/federation'
 import { scorePlayer, generateStatLine } from '../lib/scoring'
 
@@ -294,12 +294,12 @@ const insertLeague = db.prepare(`
   (id,name,season,commissioner_id,status,max_teams,invite_code,description,logo_url,division_logos,
    sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
    federation_scoring,draft_type,draft_status,draft_order_method,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
-   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
+   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
   VALUES
   (@id,@name,@season,@commissioner_id,@status,@max_teams,@invite_code,@description,@logo_url,@division_logos,
    @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
    @federation_scoring,@draft_type,@draft_status,@draft_order_method,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
-   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
+   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
 `)
 
 insertLeague.run({
@@ -337,6 +337,7 @@ insertLeague.run({
   waiver_type: 'FAAB',
   faab_budget: 100,
   faab_mode: 'TOTAL',
+  waiver_schedule: JSON.stringify(defaultWaiverSchedule(SPORT_LIST)),
   playoff_teams: 4,
   playoff_start_week: 15,
   regular_season_weeks: JSON.stringify(seasonWeeks),
@@ -452,7 +453,7 @@ for (const s of PRIOR_SEASONS) seedSeason(s, true)
 // ── Drafts: completed dynasty draft + upcoming rookie drafts ────────────────
 
 const dynastyId = id()
-insertDraft.run(dynastyId, leagueId, 'DYNASTY', 'OVERALL', CURRENT_SEASON, 'SNAKE', 25, 'COMPLETED', null)
+insertDraft.run(dynastyId, leagueId, 'DYNASTY', 'OVERALL', CURRENT_SEASON, 'SNAKE', dynastyDraftRounds(roster), 'COMPLETED', null)
 
 // Default rookie-draft mode is PER_SPORT → one rookie draft per sport for next year.
 // Seed the NFL rookie draft as IN_PROGRESS so the live draft room is demoable.

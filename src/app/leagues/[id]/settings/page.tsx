@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
@@ -30,6 +30,7 @@ export default function CommissionerSettings() {
   const [rookieRoundsObj, setRookieRoundsObj] = useState<Record<string, number>>({})
   const [seasonWeeksObj, setSeasonWeeksObj] = useState<Record<string, number>>({})
   const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
+  const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
 
   const parse = (s: any, f: any) => { try { return JSON.parse(s) } catch { return f } }
@@ -49,6 +50,7 @@ export default function CommissionerSettings() {
       setRookieRoundsObj(parse(l.rookieDraftRounds, {}))
       setSeasonWeeksObj(parse(l.regularSeasonWeeks, {}))
       setDeadlinesObj(parse(l.tradeDeadlines, defaultTradeDeadlines(se)))
+      setWaiverSchedObj(parse(l.waiverSchedule, defaultWaiverSchedule(se)))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
   }, [params.id])
@@ -72,7 +74,7 @@ export default function CommissionerSettings() {
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
         tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate,
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
-        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverDay: form.waiverDay, lockDay: form.lockDay,
+        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
       }),
     })
@@ -92,7 +94,6 @@ export default function CommissionerSettings() {
     })
   }
 
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const subTabs = sportsEnabled.length ? sportsEnabled : ALL_SPORTS
 
   return (
@@ -280,19 +281,19 @@ export default function CommissionerSettings() {
               </div>
             </div>
             <div className="border-t border-slate-100 pt-4">
-              <p className="text-sm font-semibold text-slate-700 mb-2">Per-sport draft rounds</p>
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 mb-4">
+                <p className="text-sm font-semibold text-slate-700">Initial dynasty draft</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  One combined cross-sport draft. Its length is automatically the total roster spots a franchise fills
+                  (starters + bench + taxi, every sport): <span className="font-bold text-slate-800">{dynastyDraftRounds(rosterObj)} rounds</span>.
+                </p>
+              </div>
+              <p className="text-sm font-semibold text-slate-700 mb-2">Per-sport rookie-draft rounds</p>
               <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
-              <div className="grid sm:grid-cols-2 gap-4 mt-3">
-                <div>
-                  <label className="label">{subSport} Dynasty (Initial) Rounds</label>
-                  <input type="number" min={1} max={120} className="input w-32" value={draftRoundsObj[subSport] ?? 15}
-                    onChange={e => setDraftRoundsObj(d => ({ ...d, [subSport]: +e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">{subSport} Rookie Rounds</label>
-                  <input type="number" min={1} max={20} className="input w-32" value={rookieRoundsObj[subSport] ?? 4}
-                    onChange={e => setRookieRoundsObj(d => ({ ...d, [subSport]: +e.target.value }))} />
-                </div>
+              <div className="mt-3">
+                <label className="label">{subSport} Rookie Rounds</label>
+                <input type="number" min={1} max={20} className="input w-32" value={rookieRoundsObj[subSport] ?? 4}
+                  onChange={e => setRookieRoundsObj(d => ({ ...d, [subSport]: +e.target.value }))} />
               </div>
             </div>
           </>
@@ -319,7 +320,31 @@ export default function CommissionerSettings() {
                   </select>
                 </div>
               )}
-              <div><label className="label">Waiver Day</label><select className="select" value={form.waiverDay ?? 3} onChange={e => set('waiverDay', +e.target.value)}>{days.map((d, i) => <option key={d} value={i}>{d}</option>)}</select></div>
+            </div>
+
+            {/* Per-sport waiver processing time */}
+            <div>
+              <label className="label">Waiver Processing Time (per sport)</label>
+              <p className="text-xs text-slate-500 mb-2">Set the day and time each sport&apos;s waiver claims are processed.</p>
+              <div className="space-y-2">
+                {sportsEnabled.map(s => {
+                  const wr = waiverSchedObj[s] ?? { day: 3, hour: 3 }
+                  const meta = sportMeta(s)
+                  return (
+                    <div key={s} className="flex items-center gap-3 rounded-lg border border-slate-200 p-2">
+                      <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
+                      <select className="select flex-1" value={wr.day} onChange={e => setWaiverSchedObj(p => ({ ...p, [s]: { ...wr, day: +e.target.value } }))}>
+                        {WAIVER_DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                      </select>
+                      <select className="select flex-1" value={wr.hour} onChange={e => setWaiverSchedObj(p => ({ ...p, [s]: { ...wr, hour: +e.target.value } }))}>
+                        {Array.from({ length: 24 }, (_, h) => (
+                          <option key={h} value={h}>{h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h - 12}:00 PM`}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </>
         )}
@@ -379,14 +404,29 @@ export default function CommissionerSettings() {
             <h3 className="font-semibold text-slate-900">Playoffs</h3>
             <div className="grid sm:grid-cols-2 gap-4">
               <div><label className="label">Playoff Teams (per sport)</label><select className="select" value={form.playoffTeams ?? 4} onChange={e => set('playoffTeams', +e.target.value)}>{[2, 4, 6, 8].map(n => <option key={n} value={n}>{n} teams</option>)}</select></div>
-              <div><label className="label">Playoffs Start Week</label><input type="number" min={1} max={30} className="input" value={form.playoffStartWeek ?? 15} onChange={e => set('playoffStartWeek', +e.target.value)} /></div>
               <div><label className="label">Playoff Rounds</label><select className="select" value={form.playoffRounds ?? 2} onChange={e => set('playoffRounds', +e.target.value)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></div>
             </div>
             <div className="border-t border-slate-100 pt-4">
-              <p className="text-sm font-semibold text-slate-700 mb-2">Regular-season length (weeks) per sport</p>
-              <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
-              <input type="number" min={4} max={30} className="input w-32 mt-3" value={seasonWeeksObj[subSport] ?? 18}
-                onChange={e => setSeasonWeeksObj(d => ({ ...d, [subSport]: +e.target.value }))} />
+              <p className="text-sm font-semibold text-slate-700">Per-sport schedule</p>
+              <p className="text-xs text-slate-500 mb-3">Each sport runs on its own calendar, so <strong>playoffs begin the week after that sport's regular season ends</strong> — they don't all start the same week. Set each sport's regular-season length below.</p>
+              <div className="space-y-2">
+                {sportsEnabled.map(s => {
+                  const sched = parse(form.sportSchedule, []) as any[]
+                  const startWk = sched.find((x: any) => x.sport === s)?.startWeek ?? 1
+                  const len = seasonWeeksObj[s] ?? DEFAULT_SEASON_WEEKS[s] ?? 18
+                  const playoffStart = startWk + len
+                  return (
+                    <div key={s} className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 p-2.5">
+                      <span className={`text-xs font-bold px-2 py-1 rounded w-14 text-center ${sportMeta(s).light}`}>{sportMeta(s).emoji} {s}</span>
+                      <label className="text-xs text-slate-500 flex items-center gap-2">Reg. season weeks
+                        <input type="number" min={4} max={30} className="input w-20 py-1.5" value={len}
+                          onChange={e => setSeasonWeeksObj(d => ({ ...d, [s]: +e.target.value }))} />
+                      </label>
+                      <span className="text-[11px] text-slate-400 sm:ml-auto">Weeks {startWk}–{startWk + len - 1} · <strong className="text-slate-600">playoffs begin week {playoffStart}</strong></span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </>
         )}
