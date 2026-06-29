@@ -240,15 +240,22 @@ export type ScheduleEntry = { sport: string; phase: string; startWeek: number; e
 
 // Windows deliberately overlap so multiple sports share weeks. Optional per-sport
 // week counts set each sport's window length (defaults to DEFAULT_SEASON_WEEKS).
-export function buildSchedule(seasonStart: string, sportsEnabled: string[], seasonWeeks?: Record<string, number>): ScheduleEntry[] {
+export function buildSchedule(
+  seasonStart: string,
+  sportsEnabled: string[],
+  seasonWeeks?: Record<string, number>,
+  starts?: Record<string, number>,
+): ScheduleEntry[] {
   const order = PHASE_ORDER_FROM[seasonStart] ?? PHASE_ORDER_FROM.FOOTBALL
   const step = 8
   const schedule: ScheduleEntry[] = []
   order.forEach((phase, i) => {
-    const startWeek = 1 + i * step
+    const phaseStart = 1 + i * step
     for (const sport of sportsEnabled) {
       if (SPORT_PHASE[sport] === phase) {
         const len = seasonWeeks?.[sport] ?? DEFAULT_SEASON_WEEKS[sport] ?? 18
+        // Commissioner may override a sport's start week; otherwise it anchors to its phase.
+        const startWeek = starts?.[sport] && starts[sport] > 0 ? starts[sport] : phaseStart
         schedule.push({ sport, phase, startWeek, endWeek: startWeek + len - 1 })
       }
     }
@@ -262,6 +269,27 @@ export function scheduleWeeks(schedule: ScheduleEntry[]): number {
 
 export function sportsActiveInWeek(schedule: ScheduleEntry[], week: number): string[] {
   return schedule.filter(s => week >= s.startWeek && week <= s.endWeek).map(s => s.sport)
+}
+
+// Shared week axis is anchored to Sep 1 of the season's first year; each league
+// week spans 7 days. Mirrors the anchor used by the auto-advance engine.
+export function seasonAnchor(season: string): number {
+  const yr = parseInt(season?.slice(0, 4)) || new Date().getFullYear()
+  return new Date(yr, 8, 1).getTime()
+}
+
+export function weekDateRange(season: string, week: number): { start: Date; end: Date } {
+  const anchor = seasonAnchor(season)
+  const start = new Date(anchor + (week - 1) * 7 * 86_400_000)
+  const end = new Date(start.getTime() + 6 * 86_400_000)
+  return { start, end }
+}
+
+export function formatWeekRange(season: string, week: number, opts?: { year?: boolean }): string {
+  const { start, end } = weekDateRange(season, week)
+  const m = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const yr = opts?.year ? `, ${end.getFullYear()}` : ''
+  return `${m(start)} – ${m(end)}${yr}`
 }
 
 // ── Per-sport trade deadlines ────────────────────────────────────────────────

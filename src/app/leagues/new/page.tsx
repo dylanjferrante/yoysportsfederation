@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { SEASON_STARTS } from '@/lib/defaults'
+import { SEASON_STARTS, buildSchedule, formatWeekRange } from '@/lib/defaults'
 import { sportMeta } from '@/lib/utils'
 
 const ALL_SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
@@ -88,6 +88,23 @@ export default function CreateLeaguePage() {
                 {SEASON_STARTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
               </select>
             </div>
+
+            {/* Live schedule preview — updates with the sports & anchor chosen */}
+            {form.sportsEnabled.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold text-slate-600 mb-2">Season schedule preview</p>
+                <div className="space-y-1.5">
+                  {buildSchedule(form.seasonStart, form.sportsEnabled).map(e => (
+                    <div key={e.sport} className="flex flex-wrap items-center gap-2 text-[11px]">
+                      <span className={`inline-flex items-center gap-1 font-semibold w-14 ${sportMeta(e.sport).color}`}><span>{sportMeta(e.sport).emoji}</span>{e.sport}</span>
+                      <span className="text-slate-600">Weeks {e.startWeek}–{e.endWeek}</span>
+                      <span className="text-slate-400">{formatWeekRange(form.season, e.startWeek)} → {formatWeekRange(form.season, e.endWeek)}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Sports that share weeks play the same matchups. You can fine-tune each start week later in settings.</p>
+              </div>
+            )}
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Season</label>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
@@ -29,6 +29,7 @@ export default function CommissionerSettings() {
   const [draftRoundsObj, setDraftRoundsObj] = useState<Record<string, number>>({})
   const [rookieRoundsObj, setRookieRoundsObj] = useState<Record<string, number>>({})
   const [seasonWeeksObj, setSeasonWeeksObj] = useState<Record<string, number>>({})
+  const [startWeeksObj, setStartWeeksObj] = useState<Record<string, number>>({})
   const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
   const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
@@ -49,6 +50,17 @@ export default function CommissionerSettings() {
       setDraftRoundsObj(parse(l.draftRounds, {}))
       setRookieRoundsObj(parse(l.rookieDraftRounds, {}))
       setSeasonWeeksObj(parse(l.regularSeasonWeeks, {}))
+      {
+        const sched = parse(l.sportSchedule, []) as any[]
+        const starts: Record<string, number> = {}
+        const lens: Record<string, number> = parse(l.regularSeasonWeeks, {})
+        for (const e of sched) {
+          starts[e.sport] = e.startWeek
+          if (lens[e.sport] == null && typeof e.endWeek === 'number') lens[e.sport] = e.endWeek - e.startWeek + 1
+        }
+        setStartWeeksObj(starts)
+        setSeasonWeeksObj(lens)
+      }
       setDeadlinesObj(parse(l.tradeDeadlines, defaultTradeDeadlines(se)))
       setWaiverSchedObj(parse(l.waiverSchedule, defaultWaiverSchedule(se)))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
@@ -76,6 +88,7 @@ export default function CommissionerSettings() {
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
         waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
+        sportSchedule: buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj, startWeeksObj),
       }),
     })
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000)
@@ -175,8 +188,42 @@ export default function CommissionerSettings() {
               <select className="select" value={form.seasonStart ?? 'FOOTBALL'} onChange={e => set('seasonStart', e.target.value)}>
                 {SEASON_STARTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
               </select>
-              <p className="text-xs text-slate-400 mt-1">Determines the order sports run and which overlap each week. Overlapping sports share weekly matchups.</p>
+              <p className="text-xs text-slate-400 mt-1">Sets the default order sports run; you can fine-tune each sport&apos;s start week below.</p>
             </div>
+
+            {/* Editable weekly schedule */}
+            <div>
+              <label className="label">Weekly Schedule</label>
+              <p className="text-xs text-slate-500 mb-2">Set when each sport&apos;s regular season starts and how many weeks it runs. Dates are based on the season&apos;s calendar. Playoffs begin the week after each sport&apos;s regular season ends.</p>
+              <div className="space-y-2">
+                {sportsEnabled.map(s => {
+                  const startWk = startWeeksObj[s] || (buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj).find(e => e.sport === s)?.startWeek ?? 1)
+                  const len = seasonWeeksObj[s] ?? DEFAULT_SEASON_WEEKS[s] ?? 18
+                  const endWk = startWk + len - 1
+                  const meta = sportMeta(s)
+                  return (
+                    <div key={s} className="rounded-lg border border-slate-200 p-3">
+                      <div className="flex flex-wrap items-end gap-3">
+                        <span className={`inline-flex items-center gap-1.5 font-semibold w-20 ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
+                        <label className="text-xs text-slate-500">Start week
+                          <input type="number" min={1} max={40} className="input w-20 py-1.5 mt-0.5" value={startWk}
+                            onChange={e => setStartWeeksObj(d => ({ ...d, [s]: Math.max(1, +e.target.value) }))} />
+                        </label>
+                        <label className="text-xs text-slate-500"># Weeks
+                          <input type="number" min={4} max={30} className="input w-20 py-1.5 mt-0.5" value={len}
+                            onChange={e => setSeasonWeeksObj(d => ({ ...d, [s]: +e.target.value }))} />
+                        </label>
+                      </div>
+                      <div className="mt-2 text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span>Reg. season: <strong className="text-slate-700">Week {startWk}</strong> ({formatWeekRange(form.season, startWk)}) → <strong className="text-slate-700">Week {endWk}</strong> ({formatWeekRange(form.season, endWk)})</span>
+                        <span className="text-slate-400">Playoffs begin Week {endWk + 1} ({formatWeekRange(form.season, endWk + 1)})</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
             <div>
               <label className="label">Division Logos (per sport, optional)</label>
               <div className="space-y-2">
@@ -407,22 +454,18 @@ export default function CommissionerSettings() {
               <div><label className="label">Playoff Rounds</label><select className="select" value={form.playoffRounds ?? 2} onChange={e => set('playoffRounds', +e.target.value)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></div>
             </div>
             <div className="border-t border-slate-100 pt-4">
-              <p className="text-sm font-semibold text-slate-700">Per-sport schedule</p>
-              <p className="text-xs text-slate-500 mb-3">Each sport runs on its own calendar, so <strong>playoffs begin the week after that sport's regular season ends</strong> — they don't all start the same week. Set each sport's regular-season length below.</p>
+              <p className="text-sm font-semibold text-slate-700">Per-sport playoff start</p>
+              <p className="text-xs text-slate-500 mb-3">Each sport runs on its own calendar, so <strong>playoffs begin the week after that sport's regular season ends</strong> — they don't all start the same week. Adjust each sport's start week and length in the <strong>Sports &amp; Schedule</strong> tab.</p>
               <div className="space-y-2">
                 {sportsEnabled.map(s => {
-                  const sched = parse(form.sportSchedule, []) as any[]
-                  const startWk = sched.find((x: any) => x.sport === s)?.startWeek ?? 1
+                  const startWk = startWeeksObj[s] || (buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj).find(e => e.sport === s)?.startWeek ?? 1)
                   const len = seasonWeeksObj[s] ?? DEFAULT_SEASON_WEEKS[s] ?? 18
                   const playoffStart = startWk + len
                   return (
                     <div key={s} className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 p-2.5">
                       <span className={`text-xs font-bold px-2 py-1 rounded w-14 text-center ${sportMeta(s).light}`}>{sportMeta(s).emoji} {s}</span>
-                      <label className="text-xs text-slate-500 flex items-center gap-2">Reg. season weeks
-                        <input type="number" min={4} max={30} className="input w-20 py-1.5" value={len}
-                          onChange={e => setSeasonWeeksObj(d => ({ ...d, [s]: +e.target.value }))} />
-                      </label>
-                      <span className="text-[11px] text-slate-400 sm:ml-auto">Weeks {startWk}–{startWk + len - 1} · <strong className="text-slate-600">playoffs begin week {playoffStart}</strong></span>
+                      <span className="text-[11px] text-slate-500">Weeks {startWk}–{startWk + len - 1}</span>
+                      <span className="text-[11px] text-slate-400 sm:ml-auto"><strong className="text-slate-600">Playoffs begin week {playoffStart}</strong> ({formatWeekRange(form.season, playoffStart)})</span>
                     </div>
                   )
                 })}
