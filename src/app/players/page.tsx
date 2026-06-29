@@ -102,7 +102,7 @@ export default function PlayersPage() {
                         <div className={`w-8 h-8 rounded-lg ${meta.bg} text-white flex items-center justify-center text-xs font-bold flex-shrink-0`}>
                           {p.position.slice(0, 2)}
                         </div>
-                        <span className="font-medium text-slate-900">{p.name}</span>
+                        <a href={`/players/${p.id}`} className="font-medium text-slate-900 hover:text-blue-600">{p.name}</a>
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell text-slate-500">{p.realTeam}</td>

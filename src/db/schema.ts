@@ -230,6 +230,22 @@ export const draftPicks = sqliteTable('draft_picks', {
   pickNumber: integer('pick_number'),
 })
 
+// ── Player Game Stats (weekly stat lines + computed fantasy points) ─────────
+
+export const playerGameStats = sqliteTable('player_game_stats', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  season: text('season').notNull(),
+  week: integer('week').notNull(),
+  sport: text('sport').notNull(),
+  playerId: text('player_id').notNull().references(() => players.id),
+  teamId: text('team_id').references(() => teams.id),
+  stats: text('stats').default('{}'),
+  points: real('points').default(0),
+}, (t) => ({
+  uniq: uniqueIndex('pgs_uniq').on(t.leagueId, t.season, t.week, t.playerId),
+}))
+
 // ── Matchups ───────────────────────────────────────────────────────────────
 
 export const matchups = sqliteTable('matchups', {
