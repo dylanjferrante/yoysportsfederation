@@ -27,7 +27,7 @@ const createSchema = z.object({
   waiverType:  z.enum(['PRIORITY', 'FAAB', 'FREE_AGENT']).default('PRIORITY'),
   faabBudget:  z.number().default(100),
   faabMode:    z.enum(['TOTAL', 'PER_SPORT']).default('TOTAL'),
-  playoffTeams: z.number().default(4),
+  playoffTeams: z.number().default(6),
   playoffStartWeek: z.number().default(15),
   playoffRounds: z.number().default(2),
   playoffFormat: z.enum(['H2H', 'MULTI_WEEK', 'CHAMP_MULTI']).default('H2H'),
@@ -110,6 +110,10 @@ export async function POST(req: Request) {
       weeksPerRound: body.weeksPerRound,
       positionLimits: '{}',
       rookieDraftDates: JSON.stringify(Object.fromEntries(body.sportsEnabled.map((s: string) => [s, '']))),
+      divisions: 0,
+      sportNames: '{}',
+      championshipNames: '{}',
+      championshipLogos: '{}',
     }).returning()
 
     // Commissioner membership + their franchise

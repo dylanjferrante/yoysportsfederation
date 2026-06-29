@@ -22,7 +22,7 @@ export default function CreateLeaguePage() {
     maxTeams: 12, isPublic: false, description: '',
     draftType: 'SNAKE', rookieDraftMode: 'PER_SPORT', rookieDraftRounds: 4, tradeablePickYears: 3,
     waiverType: 'FAAB', faabBudget: 100, tradeReview: 'COMMISSIONER',
-    playoffTeams: 4, playoffStartWeek: 15, regularSeasonWeeks: 18, playoffRounds: 2, playoffFormat: 'H2H', weeksPerRound: 2,
+    playoffTeams: 6, playoffStartWeek: 15, regularSeasonWeeks: 18, playoffRounds: 2, playoffFormat: 'H2H', weeksPerRound: 2,
   })
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
   const toggleSport = (s: string) => set('sportsEnabled', form.sportsEnabled.includes(s) ? form.sportsEnabled.filter((x: string) => x !== s) : [...form.sportsEnabled, s])
