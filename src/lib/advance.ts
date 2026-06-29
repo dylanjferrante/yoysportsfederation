@@ -11,6 +11,20 @@ import { logActivity } from '@/lib/activity'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
+// MLB weekly starting-pitcher cap: only the top `cap` SP scores count; extra
+// starting pitchers contribute nothing that week. cap <= 0 means unlimited.
+function sumWithSpCap(sport: string, starters: { position: string; pts: number }[], cap: number): number {
+  if (sport !== 'MLB' || !cap || cap <= 0) return starters.reduce((a, s) => a + s.pts, 0)
+  const sp = starters.filter(s => s.position === 'SP').sort((a, b) => b.pts - a.pts)
+  const counted = new Set(sp.slice(0, cap))
+  let total = 0
+  for (const s of starters) {
+    if (s.position === 'SP' && !counted.has(s)) continue
+    total += s.pts
+  }
+  return total
+}
+
 // Shared week axis is anchored to ~Sep 1 of the season's first year; each
 // fantasy week is 7 real days. So games complete on their own as time passes —
 // no commissioner action required.
@@ -45,8 +59,12 @@ async function scoreSportWeek(league: any, sport: string, week: number, detailed
     if (detailed) rows.push({ id: nanoid(), leagueId: league.id, season: league.season, week, sport, playerId: r.playerId, teamId: r.teamId, stats: JSON.stringify(stats), points: p })
   }
   if (detailed && rows.length) await db.insert(playerGameStats).values(rows)
+  // Sum each team's starters, applying the MLB starting-pitcher cap.
+  const spCap = league.mlbSpCap ?? 0
+  const byTeamStarters: Record<string, { position: string; pts: number }[]> = {}
+  for (const r of roster) if (isStarter(r.slot)) (byTeamStarters[r.teamId] ??= []).push({ position: r.position, pts: pts[r.playerId] ?? 0 })
   const teamTotal: Record<string, number> = {}
-  for (const r of roster) if (isStarter(r.slot)) teamTotal[r.teamId] = +(((teamTotal[r.teamId] ?? 0) + (pts[r.playerId] ?? 0)).toFixed(1))
+  for (const [tid, st] of Object.entries(byTeamStarters)) teamTotal[tid] = +sumWithSpCap(sport, st, spCap).toFixed(1)
 
   const games = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.sport, sport), eq(matchups.week, week)))
   for (const g of games) {
@@ -80,16 +98,15 @@ function seedOrder(n: number): number[] {
   return r
 }
 
-async function scoreTeam(sport: string, teamId: string, scoring: Record<string, number>) {
+async function scoreTeam(sport: string, teamId: string, scoring: Record<string, number>, spCap = 0) {
   const roster = await db.select({ slot: rosters.slot, position: players.position, projected: players.projectedPoints })
     .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
     .where(and(eq(rosters.teamId, teamId), eq(rosters.sport, sport)))
   const starters = roster.filter(r => isStarter(r.slot))
   if (!starters.length) return 0
   const avg = starters.reduce((a, r) => a + (r.projected ?? 0), 0) / starters.length || 1
-  let total = 0
-  for (const r of starters) total += scorePlayer(generateStatLine(sport, r.position, (r.projected ?? avg) / avg), scoring)
-  return +total.toFixed(1)
+  const scored = starters.map(r => ({ position: r.position, pts: scorePlayer(generateStatLine(sport, r.position, (r.projected ?? avg) / avg), scoring) }))
+  return +sumWithSpCap(sport, scored, spCap).toFixed(1)
 }
 
 async function runPlayoffs(league: any, sports: string[], target: number) {
@@ -148,8 +165,8 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
           if (g.homeTeamId && !g.awayTeamId) winner = g.homeTeamId
           else if (!g.homeTeamId && g.awayTeamId) winner = g.awayTeamId
           else if (g.homeTeamId && g.awayTeamId) {
-            hs = await scoreTeam(sport, g.homeTeamId, scoring)
-            as = await scoreTeam(sport, g.awayTeamId, scoring)
+            hs = await scoreTeam(sport, g.homeTeamId, scoring, league.mlbSpCap ?? 0)
+            as = await scoreTeam(sport, g.awayTeamId, scoring, league.mlbSpCap ?? 0)
             if (hs === as) hs += 0.1
             winner = hs > as ? g.homeTeamId : g.awayTeamId
           }

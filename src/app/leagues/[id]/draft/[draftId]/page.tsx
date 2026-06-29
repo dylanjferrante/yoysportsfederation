@@ -221,8 +221,8 @@ export default function DraftRoom() {
       {tab === 'board' && (
         <div className="card p-4 overflow-x-auto">
           <div className="inline-block min-w-full">
-            {/* Team header row — franchise colors, logo + name */}
-            <div className="flex gap-1.5 mb-1.5">
+            {/* Team header row — franchise colors, logo + name; sticks on scroll */}
+            <div className="flex gap-1.5 mb-1.5 sticky top-0 z-10 bg-white py-1">
               <span className="w-8 flex-shrink-0" />
               {(s.order ?? []).map((t: any) => (
                 <div key={t.id} className="w-32 flex-shrink-0 rounded-lg px-2 py-1.5 flex items-center gap-1.5"
