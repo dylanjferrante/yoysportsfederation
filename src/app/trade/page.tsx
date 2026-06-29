@@ -5,15 +5,17 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { sportMeta, tradeStatusClass } from '@/lib/utils'
 
+type TeamRef = { id: string; name: string; abbreviation: string }
 type TradeItem = {
-  id: string; direction: string
+  id: string; direction: string | null
+  fromTeam?: TeamRef | null; toTeam?: TeamRef | null
   player?: { name: string; sport: string; position: string; realTeam: string } | null
-  pick?: { sport: string; round: number; year: number } | null
+  pick?: { sport: string | null; round: number; year: number } | null
 }
 type Trade = {
   id: string; status: string; note: string | null; createdAt: string
-  initiatorTeam?: { id: string; name: string }
-  recipientTeam?: { id: string; name: string }
+  initiatorTeam?: { id: string; name: string; abbreviation?: string }
+  recipientTeam?: { id: string; name: string; abbreviation?: string }
   items: TradeItem[]
 }
 
@@ -75,30 +77,16 @@ export default function TradeCenterPage() {
 }
 
 function TradeCard({ trade, onAction, readonly }: { trade: Trade; onAction: (id: string, action: 'ACCEPT'|'REJECT'|'CANCEL') => void; readonly?: boolean }) {
-  const giving    = trade.items.filter(i => i.direction === 'GIVING')
-  const receiving = trade.items.filter(i => i.direction === 'RECEIVING')
+  // Participating franchises (from item routing, falling back to initiator/recipient).
+  const partAbbr = new Set<string>()
+  trade.items.forEach(i => { if (i.fromTeam) partAbbr.add(i.fromTeam.abbreviation); if (i.toTeam) partAbbr.add(i.toTeam.abbreviation) })
+  if (partAbbr.size === 0) { if (trade.initiatorTeam?.abbreviation) partAbbr.add(trade.initiatorTeam.abbreviation); if (trade.recipientTeam?.abbreviation) partAbbr.add(trade.recipientTeam.abbreviation) }
+  const header = partAbbr.size ? [...partAbbr].join(' ↔ ') : `${trade.initiatorTeam?.name} ↔ ${trade.recipientTeam?.name}`
+  const multi = partAbbr.size > 2
 
-  function ItemPill({ item }: { item: TradeItem }) {
-    if (item.player) {
-      const meta = sportMeta(item.player.sport)
-      return (
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm">
-          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{item.player.sport}</span>
-          <span className="font-medium text-slate-900">{item.player.name}</span>
-          <span className="text-slate-400 text-xs">{item.player.position} · {item.player.realTeam}</span>
-        </div>
-      )
-    }
-    if (item.pick) {
-      const meta = sportMeta(item.pick.sport)
-      return (
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm">
-          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{item.pick.sport}</span>
-          <span className="font-medium text-slate-900">{item.pick.year} {item.pick.sport} Rd {item.pick.round}</span>
-          <span className="text-slate-400 text-xs">Draft Pick</span>
-        </div>
-      )
-    }
+  function assetLabel(item: TradeItem) {
+    if (item.player) return { sport: item.player.sport, label: item.player.name, sub: `${item.player.position} · ${item.player.realTeam}` }
+    if (item.pick) return { sport: item.pick.sport ?? 'OVERALL', label: `${item.pick.year} ${item.pick.sport ?? ''} Rd ${item.pick.round}`, sub: 'Draft Pick' }
     return null
   }
 
@@ -106,40 +94,32 @@ function TradeCard({ trade, onAction, readonly }: { trade: Trade; onAction: (id:
     <div className="card mb-3">
       <div className="card-header flex items-center justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="font-medium text-slate-900 truncate">
-            {trade.initiatorTeam?.name} ↔ {trade.recipientTeam?.name}
-          </span>
-          <span className={`badge border ${tradeStatusClass(trade.status)} flex-shrink-0`}>
-            {trade.status}
-          </span>
+          <span className="font-medium text-slate-900 truncate">{header}</span>
+          {multi && <span className="badge bg-purple-100 text-purple-700">{partAbbr.size}-team</span>}
+          <span className={`badge border ${tradeStatusClass(trade.status)} flex-shrink-0`}>{trade.status}</span>
         </div>
-        <span className="text-xs text-slate-400 flex-shrink-0">
-          {new Date(trade.createdAt ?? '').toLocaleDateString()}
-        </span>
+        <span className="text-xs text-slate-400 flex-shrink-0">{new Date(trade.createdAt ?? '').toLocaleDateString()}</span>
       </div>
 
-      <div className="p-4 grid sm:grid-cols-2 gap-4">
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase mb-2">{trade.initiatorTeam?.name} gives</p>
-          <div className="space-y-1.5">
-            {giving.map(i => <ItemPill key={i.id} item={i} />)}
-            {giving.length === 0 && <p className="text-sm text-slate-300">Nothing</p>}
-          </div>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase mb-2">{trade.recipientTeam?.name} gives</p>
-          <div className="space-y-1.5">
-            {receiving.map(i => <ItemPill key={i.id} item={i} />)}
-            {receiving.length === 0 && <p className="text-sm text-slate-300">Nothing</p>}
-          </div>
-        </div>
+      <div className="p-4 space-y-1.5">
+        {trade.items.map(item => {
+          const a = assetLabel(item)
+          if (!a) return null
+          const meta = sportMeta(a.sport)
+          const from = item.fromTeam?.abbreviation ?? trade.initiatorTeam?.abbreviation
+          const to = item.toTeam?.abbreviation ?? trade.recipientTeam?.abbreviation
+          return (
+            <div key={item.id} className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm">
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{a.sport}</span>
+              <span className="font-medium text-slate-900">{a.label}</span>
+              <span className="text-slate-400 text-xs hidden sm:inline">{a.sub}</span>
+              <span className="ml-auto text-xs text-slate-500 font-medium whitespace-nowrap">{from} → {to}</span>
+            </div>
+          )
+        })}
       </div>
 
-      {trade.note && (
-        <div className="px-4 pb-3">
-          <p className="text-xs text-slate-500 italic">"{trade.note}"</p>
-        </div>
-      )}
+      {trade.note && <div className="px-4 pb-3"><p className="text-xs text-slate-500 italic">"{trade.note}"</p></div>}
 
       {!readonly && trade.status === 'PENDING' && (
         <div className="px-4 pb-4 flex gap-2">
