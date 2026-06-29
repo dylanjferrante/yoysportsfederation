@@ -4,7 +4,7 @@ import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStat
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
-import { RESERVE_SLOTS } from '@/lib/defaults'
+import { RESERVE_SLOTS, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, type ScheduleEntry } from '@/lib/defaults'
 import { scorePlayer, generateStatLine } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
@@ -224,6 +224,69 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
 
 // Bring a league fully up to date: score every due regular-season week and
 // resolve playoffs through the current date. Safe to call repeatedly.
+// Advance ONE federation season (league.season is the target). Date-driven, so
+// each season progresses on its own calendar axis.
+async function advanceSeason(league: any): Promise<void> {
+  const sports = safeParse<string[]>(league.sportsEnabled, [])
+  const target = targetWeek(league.season)
+  if (target < 1) return
+
+  const due = await db.select({ sport: matchups.sport, week: matchups.week }).from(matchups)
+    .where(and(eq(matchups.leagueId, league.id), eq(matchups.season, league.season), eq(matchups.isComplete, false)))
+  const toScore = [...new Map(due.filter(d => d.week <= target).map(d => [`${d.sport}:${d.week}`, d])).values()]
+    .sort((a, b) => a.week - b.week)
+  for (const d of toScore) await scoreSportWeek(league, d.sport, d.week, d.week >= target - 3)
+
+  await runPlayoffs(league, sports, target)
+}
+
+// "2025-26" → "2026-27" and back.
+function nextSeason(s: string): string { const y = parseInt(s.slice(0, 4)) || new Date().getFullYear(); return `${y + 1}-${String(y + 2).slice(2)}` }
+function prevSeason(s: string): string { const y = parseInt(s.slice(0, 4)) || new Date().getFullYear(); return `${y - 1}-${String(y).slice(2)}` }
+
+async function seasonExists(leagueId: string, season: string): Promise<boolean> {
+  const [m] = await db.select({ id: matchups.id }).from(matchups)
+    .where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season))).limit(1)
+  return !!m
+}
+async function seasonCrowned(leagueId: string, season: string): Promise<boolean> {
+  const [h] = await db.select({ id: leagueHistory.id }).from(leagueHistory)
+    .where(and(eq(leagueHistory.leagueId, leagueId), eq(leagueHistory.season, season), eq(leagueHistory.scope, 'OVERALL'))).limit(1)
+  return !!h
+}
+
+// Spin up the next federation season: fresh per-sport records (rosters carry over
+// in this dynasty model) and a full overlapping matchup schedule.
+async function createSeason(league: any, season: string): Promise<void> {
+  const sports = safeParse<string[]>(league.sportsEnabled, [])
+  const schedule = safeParse<ScheduleEntry[]>(league.sportSchedule, [])
+  if (!schedule.length) return
+  const breaks = safeParse<Record<string, number[]>>(league.breakWeeks, {})
+  const teamRows = await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, league.id))
+  const teamIds = teamRows.map(t => t.id)
+  if (teamIds.length < 2) return
+
+  // Per-sport records for the new season.
+  for (const t of teamIds) for (const sport of sports) {
+    await db.insert(teamRecords).values({ id: nanoid(), teamId: t, leagueId: league.id, season, sport, faabRemaining: league.faabBudget ?? 100 }).onConflictDoNothing()
+  }
+
+  // Overlapping matchups (same weekly pairing across concurrently-active sports).
+  const pairings = buildWeeklyPairings(teamIds)
+  if (!pairings.length) return
+  const maxWeek = scheduleWeeks(schedule)
+  const rows: any[] = []
+  for (let week = 1; week <= maxWeek; week++) {
+    const active = sportsActiveInWeek(schedule, week)
+    const pairs = pairings[(week - 1) % pairings.length]
+    for (const sport of active) {
+      if ((breaks[sport] ?? []).includes(week)) continue
+      for (const [home, away] of pairs) rows.push({ id: nanoid(), leagueId: league.id, sport, season, week, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, isComplete: false })
+    }
+  }
+  if (rows.length) await db.insert(matchups).values(rows)
+}
+
 export async function advanceLeague(leagueOrId: string | any, force = false): Promise<void> {
   try {
     const league = typeof leagueOrId === 'string'
@@ -233,18 +296,23 @@ export async function advanceLeague(leagueOrId: string | any, force = false): Pr
     if (!force) { const last = lastRun.get(league.id) ?? 0; if (Date.now() - last < 30_000) return }
     lastRun.set(league.id, Date.now())
 
-    const sports = safeParse<string[]>(league.sportsEnabled, [])
-    const target = targetWeek(league.season)
-    if (target < 1) return
+    // Roll over into the next season once its calendar has started — the prior
+    // season keeps running below (its playoffs finish concurrently).
+    let current = league.season
+    const nxt = nextSeason(current)
+    if (targetWeek(nxt) >= 1 && !(await seasonExists(league.id, nxt))) {
+      await createSeason(league, nxt)
+      await db.update(leagues).set({ season: nxt }).where(eq(leagues.id, league.id))
+      league.season = nxt
+      current = nxt
+    }
 
-    // Score any due, still-incomplete regular-season weeks.
-    const due = await db.select({ sport: matchups.sport, week: matchups.week }).from(matchups)
-      .where(and(eq(matchups.leagueId, league.id), eq(matchups.season, league.season), eq(matchups.isComplete, false)))
-    const toScore = [...new Map(due.filter(d => d.week <= target).map(d => [`${d.sport}:${d.week}`, d])).values()]
-      .sort((a, b) => a.week - b.week)
-    for (const d of toScore) await scoreSportWeek(league, d.sport, d.week, d.week >= target - 3)
-
-    await runPlayoffs(league, sports, target)
+    // Advance the current season and, concurrently, the immediately-prior season
+    // if it hasn't crowned its federation champion yet (overlapping postseasons).
+    const toAdvance = [current]
+    const prev = prevSeason(current)
+    if (await seasonExists(league.id, prev) && !(await seasonCrowned(league.id, prev))) toAdvance.push(prev)
+    for (const s of toAdvance) await advanceSeason({ ...league, season: s })
   } catch (e) {
     console.error('advanceLeague failed', e)
   }
