@@ -304,6 +304,9 @@ addPlayers(NBA_ALL)
 addPlayers(NHL_ALL)
 addPlayers(MLB_ALL)
 
+// Synthetic ADP: rank within each sport by projected points (1 = first off the board).
+db.exec(`UPDATE players SET adp = (SELECT COUNT(*) + 1 FROM players p2 WHERE p2.sport = players.sport AND p2.projected_points > players.projected_points)`)
+
 // ── One unified federation league ──────────────────────────────────────────
 
 const SPORT_LIST = ['NFL', 'NBA', 'NHL', 'MLB']
@@ -332,12 +335,12 @@ const insertLeague = db.prepare(`
   (id,name,season,commissioner_id,status,max_teams,invite_code,description,logo_url,division_logos,
    sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
    federation_scoring,draft_type,draft_status,draft_order_method,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
-   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,ir_eligible_designations,defense_mode,playoff_format,weeks_per_round,position_limits,mlb_sp_cap,rookie_draft_dates,divisions,sport_names,championship_names,championship_logos,break_weeks,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
+   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,ir_eligible_designations,defense_mode,playoff_format,weeks_per_round,position_limits,mlb_sp_cap,rookie_draft_dates,divisions,sport_names,championship_names,championship_logos,break_weeks,lineup_locks,salary_cap_enabled,salary_cap,cap_mode,keeper_enabled,keeper_count,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
   VALUES
   (@id,@name,@season,@commissioner_id,@status,@max_teams,@invite_code,@description,@logo_url,@division_logos,
    @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
    @federation_scoring,@draft_type,@draft_status,@draft_order_method,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
-   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@ir_eligible_designations,@defense_mode,@playoff_format,@weeks_per_round,@position_limits,@mlb_sp_cap,@rookie_draft_dates,@divisions,@sport_names,@championship_names,@championship_logos,@break_weeks,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
+   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@ir_eligible_designations,@defense_mode,@playoff_format,@weeks_per_round,@position_limits,@mlb_sp_cap,@rookie_draft_dates,@divisions,@sport_names,@championship_names,@championship_logos,@break_weeks,@lineup_locks,@salary_cap_enabled,@salary_cap,@cap_mode,@keeper_enabled,@keeper_count,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
 `)
 
 insertLeague.run({
@@ -388,6 +391,12 @@ insertLeague.run({
   championship_names: '{}',
   championship_logos: '{}',
   break_weeks: '{}',
+  lineup_locks: '{}',
+  salary_cap_enabled: 0,
+  salary_cap: 200,
+  cap_mode: 'TOTAL',
+  keeper_enabled: 0,
+  keeper_count: 0,
   playoff_teams: 6,
   playoff_start_week: 15,
   regular_season_weeks: JSON.stringify(seasonWeeks),
