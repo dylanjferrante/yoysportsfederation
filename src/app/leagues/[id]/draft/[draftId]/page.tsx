@@ -120,11 +120,11 @@ export default function DraftRoom() {
               return (
                 <div key={r} className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-400 w-10 flex-shrink-0">R{r + 1}</span>
-                  <div className="flex gap-1.5 flex-wrap">
+                  <div className="flex gap-1.5 flex-nowrap">
                     {picks.map((b: any) => {
                       const isCurrent = b.pickNumber === s.current && d.status === 'IN_PROGRESS'
                       return (
-                        <div key={b.pickNumber} className={`w-28 rounded-lg border px-2 py-1.5 ${isCurrent ? 'border-blue-500 bg-blue-50' : b.player ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50'}`}>
+                        <div key={b.pickNumber} className={`w-28 flex-shrink-0 rounded-lg border px-2 py-1.5 ${isCurrent ? 'border-blue-500 bg-blue-50' : b.player ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50'}`}>
                           <div className="text-[9px] text-slate-400">#{b.pickNumber} · {abbrOf(b.teamId)}</div>
                           {b.player ? <div className="text-xs font-semibold text-slate-800 truncate">{b.player.name}</div> : <div className="text-xs text-slate-300">{isCurrent ? 'on the clock' : '—'}</div>}
                         </div>
