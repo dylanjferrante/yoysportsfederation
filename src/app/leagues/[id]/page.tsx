@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { leagues, teams, teamRecords, matchups, users, activity } from '@/db/schema'
+import { leagues, teams, teamRecords, matchups, users, activity, leagueHistory } from '@/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -53,8 +53,23 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
   const isCommissioner = league.commissionerId === session?.user?.id
   const activeNow = inSeasonNow(sportsEnabled)
 
+  // All-time aggregates for the Teams tab: combined record + titles per franchise.
+  const allRecords = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, id))
+  const history = await db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, id))
+  const teamStats: Record<string, { allTime: { w: number; l: number; t: number }; fedTitles: number; sportTitles: number }> = {}
+  for (const f of franchises) teamStats[f.team.id] = { allTime: { w: 0, l: 0, t: 0 }, fedTitles: 0, sportTitles: 0 }
+  for (const r of allRecords) {
+    const s = teamStats[r.teamId]; if (!s) continue
+    s.allTime.w += r.wins ?? 0; s.allTime.l += r.losses ?? 0; s.allTime.t += r.ties ?? 0
+  }
+  for (const h of history) {
+    const s = h.championTeamId ? teamStats[h.championTeamId] : null; if (!s) continue
+    if (h.scope === 'OVERALL') s.fedTitles++; else s.sportTitles++
+  }
+
   const teamsLite = franchises.map(f => ({
     id: f.team.id, name: f.team.name, abbreviation: f.team.abbreviation, logo: f.team.logo, owner: f.userName,
+    primaryColor: f.team.primaryColor, secondaryColor: f.team.secondaryColor,
   }))
 
   return (
@@ -103,6 +118,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         rosterSettings={rosterSettings}
         playoffTeams={league.playoffTeams ?? 6}
         currentUserId={session?.user?.id}
+        teamStats={teamStats}
       />
 
       {/* League activity feed */}
