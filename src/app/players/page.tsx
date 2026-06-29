@@ -25,9 +25,12 @@ export default function PlayersPage() {
   const [position, setPosition] = useState('')
   const [search, setSearch] = useState('')
   const [faOnly, setFaOnly] = useState(false)
+  const [watchOnly, setWatchOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState('seasonPoints')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [watch, setWatch] = useState<Set<string>>(new Set())
+  const [compare, setCompare] = useState<string[]>([])
 
   useEffect(() => {
     setLoading(true)
@@ -37,6 +40,16 @@ export default function PlayersPage() {
     if (search) params.set('q', search)
     fetch(`/api/players?${params}`).then(r => r.json()).then(data => { setPlayers(Array.isArray(data) ? data : []); setLoading(false) })
   }, [sport, position, search])
+
+  useEffect(() => { fetch('/api/watchlist').then(r => r.json()).then(d => setWatch(new Set(d.ids ?? []))) }, [])
+
+  async function toggleWatch(id: string) {
+    setWatch(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+    await fetch('/api/watchlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerId: id }) }).catch(() => {})
+  }
+  function toggleCompare(id: string) {
+    setCompare(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length >= 3 ? prev : [...prev, id])
+  }
 
   // Category columns only when a single sport is selected.
   const cats = sport ? boxScoreColumns(sport) : []
@@ -56,10 +69,11 @@ export default function PlayersPage() {
   const rows = useMemo(() => {
     let r = players
     if (faOnly) r = r.filter(p => !p.owned)
+    if (watchOnly) r = r.filter(p => watch.has(p.id))
     const col = cols.find(c => c.key === sortKey)
     const get = col ? col.val : (p: Player) => p.seasonPoints ?? 0
     return [...r].sort((a, b) => { const d = (get(a) as number) - (get(b) as number); return sortDir === 'desc' ? -d : d })
-  }, [players, faOnly, sortKey, sortDir, cols])
+  }, [players, faOnly, watchOnly, watch, sortKey, sortDir, cols])
 
   function sortBy(key: string) {
     if (sortKey === key) setSortDir(d => (d === 'desc' ? 'asc' : 'desc'))
@@ -89,20 +103,33 @@ export default function PlayersPage() {
           </select>
         )}
         <label className="flex items-center gap-1.5 text-sm text-slate-600 ml-auto cursor-pointer">
+          <input type="checkbox" checked={watchOnly} onChange={e => setWatchOnly(e.target.checked)} className="rounded" />
+          ★ Watchlist
+        </label>
+        <label className="flex items-center gap-1.5 text-sm text-slate-600 cursor-pointer">
           <input type="checkbox" checked={faOnly} onChange={e => setFaOnly(e.target.checked)} className="rounded" />
           Free agents only
         </label>
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-slate-400">Loading players…</div>
+        <div className="card divide-y divide-slate-50">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-2.5 animate-pulse">
+              <div className="w-6 h-6 rounded bg-slate-100" />
+              <div className="h-3 bg-slate-100 rounded w-40" />
+              <div className="ml-auto h-3 bg-slate-100 rounded w-10" />
+              <div className="h-3 bg-slate-100 rounded w-10" />
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-2 py-2 font-semibold w-8">{position ? '#' : ''}</th>
-                <th className="text-left px-2 py-2 font-semibold sticky left-0 bg-slate-50">Player</th>
+                <th className="px-1 py-2 font-semibold w-6"></th>
+                <th className="text-left px-2 py-2 font-semibold">Player</th>
                 <th className="text-center px-2 py-2 font-semibold">Own</th>
                 {cols.map(c => (
                   <th key={c.key} onClick={() => sortBy(c.key)} className={`px-2 py-2 font-semibold cursor-pointer hover:text-slate-700 whitespace-nowrap text-${c.align} ${c.hide}`}>{c.label}{arrow(c.key)}</th>
@@ -114,10 +141,14 @@ export default function PlayersPage() {
                 const m = sportMeta(p.sport)
                 return (
                   <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-2 py-1.5 text-slate-300 tabular-nums text-xs">{position ? p.posRank : i + 1}</td>
-                    <td className="px-2 py-1.5 sticky left-0 bg-white whitespace-nowrap">
+                    <td className="px-1 py-1.5 text-center">
+                      <button onClick={() => toggleWatch(p.id)} className={`text-base leading-none ${watch.has(p.id) ? 'text-amber-400' : 'text-slate-200 hover:text-amber-300'}`} title="Watchlist">{watch.has(p.id) ? '★' : '☆'}</button>
+                    </td>
+                    <td className="px-2 py-1.5 bg-white whitespace-nowrap">
                       <div className="flex items-center gap-2">
+                        <input type="checkbox" checked={compare.includes(p.id)} onChange={() => toggleCompare(p.id)} className="rounded flex-shrink-0" title="Compare" />
                         <span className={`w-6 h-6 rounded ${m.bg} text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0`}>{p.position.slice(0, 2)}</span>
+                        <span className="text-[10px] text-slate-300 tabular-nums w-5 flex-shrink-0">{position ? p.posRank : i + 1}</span>
                         <span>
                           <Link href={`/players/${p.id}`} className="font-medium text-slate-900 hover:text-blue-600">{p.name}</Link>
                           <span className="text-[11px] text-slate-400"> {p.sport} · {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
@@ -136,6 +167,15 @@ export default function PlayersPage() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Compare bar */}
+      {compare.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white rounded-full shadow-lg px-4 py-2 flex items-center gap-3">
+          <span className="text-sm">{compare.length} selected</span>
+          <button onClick={() => setCompare([])} className="text-xs text-slate-300 hover:text-white">clear</button>
+          <Link href={`/players/compare?ids=${compare.join(',')}`} className={`text-sm font-semibold px-3 py-1 rounded-full ${compare.length >= 2 ? 'bg-blue-500 hover:bg-blue-400' : 'bg-slate-700 pointer-events-none opacity-50'}`}>Compare →</Link>
         </div>
       )}
     </div>

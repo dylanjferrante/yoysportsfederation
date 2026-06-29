@@ -396,6 +396,17 @@ export const notifications = sqliteTable('notifications', {
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 
+// ── Watchlist (per-user starred players) ────────────────────────────────────
+
+export const watchlist = sqliteTable('watchlist', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+}, (t) => ({
+  uniq: uniqueIndex('watchlist_uniq').on(t.userId, t.playerId),
+}))
+
 // ── Playoff games ────────────────────────────────────────────────────────────
 
 export const playoffGames = sqliteTable('playoff_games', {
