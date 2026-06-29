@@ -41,8 +41,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   // Recompute the schedule if sports, the season anchor, or any sport's
-  // regular-season length changed (so per-sport playoff start stays correct).
-  if ('sportsEnabled' in update || 'seasonStart' in update || 'regularSeasonWeeks' in update) {
+  // regular-season length changed (so per-sport playoff start stays correct) —
+  // unless the client sent an explicit, fully-edited schedule, which wins.
+  if (!('sportSchedule' in update) && ('sportsEnabled' in update || 'seasonStart' in update || 'regularSeasonWeeks' in update)) {
     const sportsEnabled = 'sportsEnabled' in update
       ? safeParse<string[]>(update.sportsEnabled as string, [])
       : safeParse<string[]>(league.sportsEnabled, [])

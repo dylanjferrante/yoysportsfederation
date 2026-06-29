@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
+import { formatWeekRange } from '@/lib/defaults'
 
 type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 type Team = { id: string; name: string; abbreviation: string }
@@ -38,7 +39,10 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
       <div className="card p-4 mb-5 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <button onClick={() => setWeek(weeks[Math.max(0, idx - 1)])} disabled={idx <= 0} className="btn-secondary text-sm disabled:opacity-40">← Prev</button>
-          <span className="font-semibold text-slate-900 w-20 text-center">Week {activeWeek}</span>
+          <span className="text-center leading-tight">
+            <span className="block font-semibold text-slate-900">Week {activeWeek}</span>
+            <span className="block text-[11px] text-slate-400">{formatWeekRange(season, activeWeek)}</span>
+          </span>
           <button onClick={() => setWeek(weeks[Math.min(weeks.length - 1, idx + 1)])} disabled={idx >= weeks.length - 1} className="btn-secondary text-sm disabled:opacity-40">Next →</button>
         </div>
         <button onClick={() => setWeek(defaultWeek)} className="btn-ghost text-sm">Current week</button>
