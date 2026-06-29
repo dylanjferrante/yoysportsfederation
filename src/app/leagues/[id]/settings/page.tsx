@@ -38,6 +38,8 @@ export default function CommissionerSettings() {
   const [teamSaving, setTeamSaving] = useState<string | null>(null)
   const [teamSavedId, setTeamSavedId] = useState<string | null>(null)
   const [teamError, setTeamError] = useState<string>('')
+  const [newFr, setNewFr] = useState({ name: '', abbreviation: '', ownerName: '', ownerEmail: '' })
+  const [addingFr, setAddingFr] = useState(false)
 
   const parse = (s: any, f: any) => { try { return JSON.parse(s) } catch { return f } }
 
@@ -129,6 +131,35 @@ export default function CommissionerSettings() {
       return
     }
     setTeamSavedId(f.id); setTimeout(() => setTeamSavedId(null), 2000)
+  }
+
+  async function reloadFranchises() {
+    const d = await fetch(`/api/leagues/${params.id}`).then(r => r.json())
+    setFranchises((d.teams ?? []).map((t: any) => ({
+      id: t.team.id, name: t.team.name, abbreviation: t.team.abbreviation,
+      logo: t.team.logo ?? '', wordmark: t.team.wordmark ?? '',
+      primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6',
+      ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '',
+    })))
+  }
+
+  async function addFranchise() {
+    setAddingFr(true); setTeamError('')
+    const res = await fetch(`/api/leagues/${params.id}/teams`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newFr),
+    })
+    setAddingFr(false)
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setTeamError(typeof d.error === 'string' ? d.error : 'Could not add franchise'); return }
+    setNewFr({ name: '', abbreviation: '', ownerName: '', ownerEmail: '' })
+    await reloadFranchises()
+  }
+
+  async function removeFranchise(f: any) {
+    if (!confirm(`Remove ${f.name}? This deletes the franchise and all its roster, records, and matchups. This cannot be undone.`)) return
+    setTeamError('')
+    const res = await fetch(`/api/teams/${f.id}`, { method: 'DELETE' })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setTeamError(typeof d.error === 'string' ? d.error : 'Could not remove franchise'); return }
+    setFranchises(prev => prev.filter(x => x.id !== f.id))
   }
 
   function toggleSport(s: string) {
@@ -244,15 +275,34 @@ export default function CommissionerSettings() {
                     <div><label className="label">Owner Name</label><input className="input" value={f.ownerName} onChange={e => setFranchise(f.id, { ownerName: e.target.value })} /></div>
                     <div><label className="label">Owner Email</label><input className="input" type="email" value={f.ownerEmail} onChange={e => setFranchise(f.id, { ownerEmail: e.target.value })} /></div>
                   </div>
-                  <div className="flex items-center justify-end gap-3 mt-3">
-                    {teamSavedId === f.id && <span className="text-sm text-green-600">Saved ✓</span>}
-                    <button onClick={() => saveFranchise(f)} disabled={teamSaving === f.id} className="btn-secondary text-sm disabled:opacity-50">
-                      {teamSaving === f.id ? 'Saving…' : 'Save franchise'}
-                    </button>
+                  <div className="flex items-center justify-between gap-3 mt-3">
+                    <button onClick={() => removeFranchise(f)} className="text-sm text-red-500 hover:text-red-700 font-medium">Remove franchise</button>
+                    <div className="flex items-center gap-3">
+                      {teamSavedId === f.id && <span className="text-sm text-green-600">Saved ✓</span>}
+                      <button onClick={() => saveFranchise(f)} disabled={teamSaving === f.id} className="btn-secondary text-sm disabled:opacity-50">
+                        {teamSaving === f.id ? 'Saving…' : 'Save franchise'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
               {franchises.length === 0 && <p className="text-slate-400 text-sm py-6 text-center">No franchises yet.</p>}
+            </div>
+
+            {/* Add franchise */}
+            <div className="rounded-xl border border-dashed border-slate-300 p-4">
+              <p className="font-semibold text-slate-900 text-sm mb-1">Add a franchise</p>
+              <p className="text-xs text-slate-500 mb-3">Creates the franchise and its owner. {franchises.length}/{form.maxTeams ?? 12} teams used.</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div><label className="label">Franchise Name</label><input className="input" value={newFr.name} onChange={e => setNewFr(v => ({ ...v, name: e.target.value }))} placeholder="New Dynasty" /></div>
+                <div><label className="label">Abbreviation</label><input className="input" maxLength={5} value={newFr.abbreviation} onChange={e => setNewFr(v => ({ ...v, abbreviation: e.target.value.toUpperCase() }))} placeholder="ND" /></div>
+                <div><label className="label">Owner Name</label><input className="input" value={newFr.ownerName} onChange={e => setNewFr(v => ({ ...v, ownerName: e.target.value }))} /></div>
+                <div><label className="label">Owner Email</label><input className="input" type="email" value={newFr.ownerEmail} onChange={e => setNewFr(v => ({ ...v, ownerEmail: e.target.value }))} /></div>
+              </div>
+              <div className="flex justify-end mt-3">
+                <button onClick={addFranchise} disabled={addingFr || !newFr.name || !newFr.abbreviation || !newFr.ownerName || !newFr.ownerEmail || franchises.length >= (form.maxTeams ?? 12)}
+                  className="btn-primary text-sm disabled:opacity-50">{addingFr ? 'Adding…' : 'Add franchise'}</button>
+              </div>
             </div>
           </>
         )}
