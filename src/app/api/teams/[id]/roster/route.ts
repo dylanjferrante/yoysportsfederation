@@ -139,6 +139,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .innerJoin(teams, eq(rosters.teamId, teams.id))
       .where(and(eq(rosters.playerId, body.playerId), eq(teams.leagueId, team.leagueId))).limit(1)
     if (existing.length) return NextResponse.json({ error: 'Player is already rostered' }, { status: 400 })
+    // Enforce the optional per-position max-rostered cap.
+    const limits = safeParse<Record<string, Record<string, { maxRostered?: number }>>>(league?.positionLimits, {})
+    const cap = limits[pl.sport]?.[pl.position]?.maxRostered
+    if (cap != null) {
+      const atPos = await db.select({ id: rosters.id }).from(rosters)
+        .innerJoin(players, eq(rosters.playerId, players.id))
+        .where(and(eq(rosters.teamId, id), eq(players.sport, pl.sport), eq(players.position, pl.position)))
+      // Account for a simultaneous drop of a same-position player.
+      let count = atPos.length
+      if (body.dropRosterId) {
+        const [dropRow] = await db.select({ position: players.position }).from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).where(eq(rosters.id, body.dropRosterId)).limit(1)
+        if (dropRow?.position === pl.position) count -= 1
+      }
+      if (count >= cap) return NextResponse.json({ error: `Roster limit reached: max ${cap} at ${pl.position}` }, { status: 400 })
+    }
     if (body.dropRosterId) await db.delete(rosters).where(and(eq(rosters.id, body.dropRosterId), eq(rosters.teamId, id)))
     await db.insert(rosters).values({ id: nanoid(), teamId: id, playerId: body.playerId, sport: pl.sport, slot: 'BN', acquisitionType: 'FA' }).onConflictDoNothing()
     await logActivity(team.leagueId, 'ROSTER', `${team.name} added ${pl.name} (${pl.sport})`, id)

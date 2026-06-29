@@ -33,6 +33,7 @@ export default function CommissionerSettings() {
   const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
   const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
   const [irDesigObj, setIrDesigObj] = useState<Record<string, string[]>>({})
+  const [posLimits, setPosLimits] = useState<Record<string, Record<string, { maxStarters?: number; maxRostered?: number }>>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
   const [franchises, setFranchises] = useState<any[]>([])
   const [teamSaving, setTeamSaving] = useState<string | null>(null)
@@ -78,6 +79,7 @@ export default function CommissionerSettings() {
       setDeadlinesObj(parse(l.tradeDeadlines, defaultTradeDeadlines(se)))
       setWaiverSchedObj(parse(l.waiverSchedule, defaultWaiverSchedule(se)))
       setIrDesigObj(parse(l.irEligibleDesignations, defaultIrDesignations(se)))
+      setPosLimits(parse(l.positionLimits, {}))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
   }, [params.id])
@@ -95,7 +97,7 @@ export default function CommissionerSettings() {
       body: JSON.stringify({
         name: form.name, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
         duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
-        sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj,
+        sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
@@ -412,15 +414,34 @@ export default function CommissionerSettings() {
               <h3 className="font-semibold text-slate-900">{subSport} Roster Positions</h3>
               <button onClick={() => setRosterObj(r => ({ ...r, [subSport]: { ...(subSport === 'NFL' ? nflRosterFor(form.defenseMode ?? 'TEAM') : DEFAULT_ROSTER[subSport]) } }))} className="btn-ghost text-xs">Reset to default</button>
             </div>
-            <div className="grid sm:grid-cols-3 gap-3">
-              {Object.entries(rosterObj[subSport] ?? {}).map(([pos, count]) => (
-                <div key={pos} className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-700 w-20 flex-shrink-0">{pos}</span>
-                  <input type="number" min={0} max={20} value={count}
-                    onChange={e => setRosterObj(r => ({ ...r, [subSport]: { ...r[subSport], [pos]: +e.target.value } }))} className="input w-20" />
-                  <button onClick={() => setRosterObj(r => { const n = { ...r[subSport] }; delete n[pos]; return { ...r, [subSport]: n } })} className="text-red-400 hover:text-red-600">×</button>
-                </div>
-              ))}
+            <p className="text-xs text-slate-500">Set how many <strong>start</strong> at each position. <strong>Max starters</strong> and <strong>max rostered</strong> are optional caps (leave blank for no limit).</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                    <th className="py-1.5 pr-2">Position</th>
+                    <th className="py-1.5 px-2 w-24">Starters</th>
+                    <th className="py-1.5 px-2 w-28">Max Starters</th>
+                    <th className="py-1.5 px-2 w-28">Max Rostered</th>
+                    <th className="py-1.5 w-8" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(rosterObj[subSport] ?? {}).map(([pos, count]) => {
+                    const lim = posLimits[subSport]?.[pos] ?? {}
+                    const setLim = (patch: any) => setPosLimits(p => ({ ...p, [subSport]: { ...(p[subSport] ?? {}), [pos]: { ...lim, ...patch } } }))
+                    return (
+                      <tr key={pos} className="border-b border-slate-50">
+                        <td className="py-1.5 pr-2 font-medium text-slate-700">{pos}</td>
+                        <td className="py-1.5 px-2"><input type="number" min={0} max={30} value={count} onChange={e => setRosterObj(r => ({ ...r, [subSport]: { ...r[subSport], [pos]: +e.target.value } }))} className="input w-20 py-1" /></td>
+                        <td className="py-1.5 px-2"><input type="number" min={0} max={30} placeholder="—" value={lim.maxStarters ?? ''} onChange={e => setLim({ maxStarters: e.target.value === '' ? undefined : +e.target.value })} className="input w-24 py-1" /></td>
+                        <td className="py-1.5 px-2"><input type="number" min={0} max={40} placeholder="—" value={lim.maxRostered ?? ''} onChange={e => setLim({ maxRostered: e.target.value === '' ? undefined : +e.target.value })} className="input w-24 py-1" /></td>
+                        <td className="py-1.5"><button onClick={() => setRosterObj(r => { const n = { ...r[subSport] }; delete n[pos]; return { ...r, [subSport]: n } })} className="text-red-400 hover:text-red-600">×</button></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
 
             {/* IR-eligible designations */}
