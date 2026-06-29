@@ -294,6 +294,11 @@ export type ScheduleEntry = { sport: string; phase: string; startWeek: number; e
 
 // Windows deliberately overlap so multiple sports share weeks. Optional per-sport
 // week counts set each sport's window length (defaults to DEFAULT_SEASON_WEEKS).
+// Approximate calendar week-of-year each phase really begins (football early Sep,
+// winter mid-Oct, baseball late March). Used to space the phases realistically so
+// e.g. baseball runs spring→late August instead of being crammed into winter.
+const PHASE_CAL_WEEK: Record<string, number> = { FOOTBALL: 36, WINTER: 42, BASEBALL: 12 }
+
 export function buildSchedule(
   seasonStart: string,
   sportsEnabled: string[],
@@ -301,10 +306,11 @@ export function buildSchedule(
   starts?: Record<string, number>,
 ): ScheduleEntry[] {
   const order = PHASE_ORDER_FROM[seasonStart] ?? PHASE_ORDER_FROM.FOOTBALL
-  const step = 8
+  const anchorCal = PHASE_CAL_WEEK[order[0]] ?? 36
   const schedule: ScheduleEntry[] = []
-  order.forEach((phase, i) => {
-    const phaseStart = 1 + i * step
+  for (const phase of order) {
+    // Weeks from the season anchor to this phase's real-world start.
+    const phaseStart = (((PHASE_CAL_WEEK[phase] ?? 36) - anchorCal + 52) % 52) + 1
     for (const sport of sportsEnabled) {
       if (SPORT_PHASE[sport] === phase) {
         const len = seasonWeeks?.[sport] ?? DEFAULT_SEASON_WEEKS[sport] ?? 18
@@ -313,7 +319,7 @@ export function buildSchedule(
         schedule.push({ sport, phase, startWeek, endWeek: startWeek + len - 1 })
       }
     }
-  })
+  }
   return schedule.sort((a, b) => a.startWeek - b.startWeek || a.sport.localeCompare(b.sport))
 }
 
