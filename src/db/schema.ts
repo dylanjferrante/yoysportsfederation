@@ -328,6 +328,26 @@ export const waiverClaims = sqliteTable('waiver_claims', {
   processedAt: text('processed_at'),
 })
 
+// ── Activity feed + notifications ──────────────────────────────────────────
+
+export const activity = sqliteTable('activity', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // TRADE | WAIVER | DRAFT | SCORE | ROSTER | LEAGUE
+  message: text('message').notNull(),
+  teamId: text('team_id').references(() => teams.id),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
+export const notifications = sqliteTable('notifications', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  message: text('message').notNull(),
+  link: text('link'),
+  isRead: integer('is_read', { mode: 'boolean' }).default(false),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
 // ── Commissioner Actions (audit log) ──────────────────────────────────────
 
 export const commissionerActions = sqliteTable('commissioner_actions', {

@@ -1,8 +1,8 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { leagues, teams, teamRecords, matchups, users } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { leagues, teams, teamRecords, matchups, users, activity } from '@/db/schema'
+import { eq, and, desc } from 'drizzle-orm'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { safeParse, inSeasonNow } from '@/lib/utils'
@@ -35,6 +35,12 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
     .select().from(matchups)
     .where(eq(matchups.leagueId, id))
     .limit(1000)
+
+  const feed = await db
+    .select().from(activity)
+    .where(eq(activity.leagueId, id))
+    .orderBy(desc(activity.createdAt))
+    .limit(12)
 
   const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
   const schedule = safeParse<any[]>(league.sportSchedule, [])
@@ -87,6 +93,29 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         rosterSettings={rosterSettings}
         currentUserId={session?.user?.id}
       />
+
+      {/* League activity feed */}
+      <div className="card mt-8">
+        <div className="card-header"><h2 className="font-semibold text-slate-900">League Activity</h2></div>
+        {feed.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-slate-400">No recent activity.</p>
+        ) : (
+          <ul className="divide-y divide-slate-50">
+            {feed.map(a => {
+              const icon = a.type === 'TRADE' ? '🔁' : a.type === 'SCORES' ? '📊' : a.type === 'WAIVER' ? '📝' : a.type === 'DRAFT' ? '🏈' : '•'
+              return (
+                <li key={a.id} className="flex items-start gap-3 px-4 py-2.5">
+                  <span className="text-base leading-5">{icon}</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-700">{a.message}</p>
+                    <p className="text-[11px] text-slate-400">{a.createdAt ? new Date(a.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { eq, and, or, desc } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta, safeParse } from '@/lib/utils'
-import { statMeta } from '@/lib/scoring-categories'
+import { gameLogColumns } from '@/lib/scoring-categories'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -45,10 +45,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   const log = await db.select().from(playerGameStats).where(eq(playerGameStats.playerId, id)).orderBy(desc(playerGameStats.week)).limit(20)
 
   const eligible = safeParse<string[]>(p.eligiblePositions, [p.position])
-  const statLine = (s: string) => {
-    const obj = safeParse<Record<string, number>>(s, {})
-    return Object.entries(obj).filter(([, v]) => v).map(([k, v]) => `${statMeta(p.sport, k).label} ${v}`).slice(0, 6).join(' · ')
-  }
+  const cols = gameLogColumns(p.sport, p.position)
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -98,26 +95,31 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           ) : <p className="text-sm text-slate-400">Free agent — not currently rostered.</p>}
         </div>
 
-        {/* Game log */}
-        <div className="lg:col-span-2 card overflow-hidden">
+        {/* Game log — one column per stat */}
+        <div className="lg:col-span-2 card overflow-x-auto">
           <div className="card-header"><h2 className="font-semibold text-slate-900">Game Log</h2></div>
           {log.length === 0 ? <p className="px-4 py-6 text-slate-400 text-sm">No game data yet.</p> : (
-            <div className="max-h-96 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-slate-50"><tr className="text-xs text-slate-400 border-b border-slate-100">
-                  <th className="text-left px-4 py-2 font-medium">Wk</th><th className="text-center px-2 py-2 font-medium">Pts</th><th className="text-left px-2 py-2 font-medium">Stat line</th>
-                </tr></thead>
-                <tbody className="divide-y divide-slate-50">
-                  {log.map(g => (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
+                  <th className="text-left px-4 py-2 font-semibold">Wk</th>
+                  {cols.map(c => <th key={c.label} className="text-center px-2 py-2 font-semibold">{c.label}</th>)}
+                  <th className="text-right px-4 py-2 font-semibold">Pts</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {log.map(g => {
+                  const stats = safeParse<Record<string, number>>(g.stats ?? '{}', {})
+                  return (
                     <tr key={g.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-2 text-slate-500">{g.week}</td>
-                      <td className="px-2 py-2 text-center font-bold" style={{ color: meta.hex }}>{(g.points ?? 0).toFixed(1)}</td>
-                      <td className="px-2 py-2 text-xs text-slate-500">{statLine(g.stats ?? '{}') || '—'}</td>
+                      <td className="px-4 py-2 text-slate-500 tabular-nums">{g.week}</td>
+                      {cols.map(c => <td key={c.label} className="px-2 py-2 text-center tabular-nums text-slate-700">{+c.get(stats).toFixed(1) || 0}</td>)}
+                      <td className="px-4 py-2 text-right font-bold tabular-nums" style={{ color: meta.hex }}>{(g.points ?? 0).toFixed(1)}</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  )
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       </div>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
+import NotificationBell from './NotificationBell'
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -46,6 +47,7 @@ export default function Navbar() {
           )}
 
           <div className="ml-auto flex items-center gap-3">
+            {session && <NotificationBell />}
             {session ? (
               <div className="relative">
                 <button onClick={() => setMenuOpen(!menuOpen)}
