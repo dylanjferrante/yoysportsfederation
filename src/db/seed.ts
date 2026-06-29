@@ -158,10 +158,103 @@ const MLB: PlayerSeed[] = [
   { id:'mlb-hader',    name:'Josh Hader',           sport:'MLB', pos:'RP',  team:'HOU', pts:271.8, proj:15.1 },
 ]
 
-addPlayers(NFL)
-addPlayers(NBA)
-addPlayers(NHL)
-addPlayers(MLB)
+// ── Generated filler players ──────────────────────────────────────────────
+// Real stars (above) sit at the top of each pool; we generate a deep pool of
+// additional players so every team can roster 80+ players (like Fantrax).
+
+const FIRST_NAMES = [
+  'Jalen','Mason','Caleb','Trey','Brock','Dawson','Kade','Tank','Marvin','Rome',
+  'Drake','Xavier','Quinn','Tyson','Bryce','Cooper','Hunter','Easton','Jaxon','Cole',
+  'Malik','Deshaun','Tariq','Isaiah','Elijah','Amari','Jamal','Darius','Keenan','Devon',
+  'Logan','Carter','Brady','Garrett','Connor','Riley','Cameron','Bennett','Spencer','Grant',
+  'Diego','Mateo','Andres','Rafael','Carlos','Luis','Miguel','Javier','Emilio','Hugo',
+  'Anton','Viktor','Niklas','Mikael','Henrik','Patrik','Erik','Oskar','Lukas','Filip',
+  'Owen','Wyatt','Brennan','Tucker','Knox','Beau','Reid','Asher','Maddox','Jonah',
+  'Demarcus','Tyrell','Donte','Marquise','Jaylen','Kobe','Trevon','Daquan','Rashad','Cordell',
+  'Nolan','Declan','Finn','Sawyer','Holden','Pierce','Graham','Walker','Porter','Hayes',
+]
+
+const LAST_NAMES = [
+  'Anderson','Brooks','Carter','Donovan','Ellis','Foster','Grayson','Hawkins','Ingram','Jennings',
+  'Knox','Lawson','Mercer','Nash','Owens','Porter','Quinn','Reyes','Sutton','Tate',
+  'Underwood','Vance','Walters','Yates','Zimmerman','Abbott','Boone','Castillo','Dalton','Easton',
+  'Fletcher','Gibson','Hartman','Irwin','Jacobs','Keller','Larkin','Mathis','Norris','Osborne',
+  'Pearson','Ramsey','Sloan','Thornton','Upton','Vaughn','Whitaker','Yorke','Ackerman','Bowers',
+  'Calloway','Driscoll','Everett','Fairbanks','Goodwin','Hollis','Iverson','Jablonski','Koenig','Lindgren',
+  'Maddox','Novak','Pratt','Rasmussen','Sandoval','Trevino','Vega','Westbrook','Zamora','Becker',
+  'Cervantes','Delgado','Fuentes','Galvan','Herrera','Ibarra','Juarez','Lozano','Montoya','Nieves',
+  'Okafor','Petrov','Quintana','Rojas','Salas','Tovar','Ulloa','Varga','Wozniak','Yashin',
+]
+
+const TEAMS: Record<string, string[]> = {
+  NFL: ['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB','HOU','IND','JAC','KC','LV','LAC','LAR','MIA','MIN','NE','NO','NYG','NYJ','PHI','PIT','SF','SEA','TB','TEN','WAS'],
+  NBA: ['ATL','BOS','BKN','CHA','CHI','CLE','DAL','DEN','DET','GSW','HOU','IND','LAC','LAL','MEM','MIA','MIL','MIN','NOP','NYK','OKC','ORL','PHI','PHX','POR','SAC','SAS','TOR','UTA','WAS'],
+  NHL: ['ANA','BOS','BUF','CGY','CAR','CHI','COL','CBJ','DAL','DET','EDM','FLA','LAK','MIN','MTL','NSH','NJD','NYI','NYR','OTT','PHI','PIT','SJS','SEA','STL','TBL','TOR','VAN','VGK','WSH','WPG','UTA'],
+  MLB: ['ARI','ATL','BAL','BOS','CHC','CWS','CIN','CLE','COL','DET','HOU','KC','LAA','LAD','MIA','MIL','MIN','NYM','NYY','OAK','PHI','PIT','SD','SF','SEA','STL','TB','TEX','TOR','WSH'],
+}
+
+const POS_POOL: Record<string, string[]> = {
+  NFL: ['QB','QB','RB','RB','RB','WR','WR','WR','WR','TE','TE','K'],
+  NBA: ['PG','PG','SG','SG','SF','SF','PF','PF','C','C'],
+  NHL: ['C','C','LW','LW','RW','RW','D','D','D','D','G'],
+  MLB: ['C','1B','2B','3B','SS','OF','OF','OF','SP','SP','SP','SP','RP','RP'],
+}
+
+// Base season points per sport — generated players descend from here with jitter.
+const BASE_PTS: Record<string, number> = { NFL: 230, NBA: 1040, NHL: 190, MLB: 430 }
+const GAMES: Record<string, number> = { NFL: 17, NBA: 70, NHL: 70, MLB: 90 }
+
+const usedNames = new Set<string>()
+function genName(): string {
+  for (let i = 0; i < 500; i++) {
+    const n = `${FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]}`
+    if (!usedNames.has(n)) { usedNames.add(n); return n }
+  }
+  // Fallback: append a suffix to guarantee uniqueness
+  let n = `${FIRST_NAMES[0]} ${LAST_NAMES[0]}`, k = 2
+  while (usedNames.has(n)) n = `${FIRST_NAMES[0]} ${LAST_NAMES[0]} ${k++}`
+  usedNames.add(n)
+  return n
+}
+
+function generatePlayers(sport: string, count: number): PlayerSeed[] {
+  const teams = TEAMS[sport]
+  const posPool = POS_POOL[sport]
+  const base = BASE_PTS[sport]
+  const games = GAMES[sport]
+  const out: PlayerSeed[] = []
+  for (let i = 0; i < count; i++) {
+    const pts = +Math.max(base * (1 - i / (count * 1.3)) + (Math.random() - 0.5) * base * 0.12, base * 0.08).toFixed(1)
+    out.push({
+      id: `${sport.toLowerCase()}-gen-${i}`,
+      name: genName(),
+      sport,
+      pos: posPool[Math.floor(Math.random() * posPool.length)],
+      team: teams[Math.floor(Math.random() * teams.length)],
+      pts,
+      proj: +(pts / games).toFixed(1),
+      status: Math.random() < 0.05 ? 'INJURED' : 'ACTIVE',
+    })
+  }
+  return out
+}
+
+// Seed the curated star names first so genName never collides with them.
+for (const p of [...NFL, ...NBA, ...NHL, ...MLB]) usedNames.add(p.name)
+
+// Team counts per league (must match the *TeamDefs arrays below).
+const TEAM_COUNT: Record<string, number> = { NFL: 6, NBA: 5, NHL: 5, MLB: 6 }
+const PER_TEAM = 85 // each team rosters 85 players; extras become free agents
+
+const NFL_ALL = [...NFL, ...generatePlayers('NFL', TEAM_COUNT.NFL * PER_TEAM + 40 - NFL.length)]
+const NBA_ALL = [...NBA, ...generatePlayers('NBA', TEAM_COUNT.NBA * PER_TEAM + 40 - NBA.length)]
+const NHL_ALL = [...NHL, ...generatePlayers('NHL', TEAM_COUNT.NHL * PER_TEAM + 40 - NHL.length)]
+const MLB_ALL = [...MLB, ...generatePlayers('MLB', TEAM_COUNT.MLB * PER_TEAM + 40 - MLB.length)]
+
+addPlayers(NFL_ALL)
+addPlayers(NBA_ALL)
+addPlayers(NHL_ALL)
+addPlayers(MLB_ALL)
 
 // ── Leagues ──────────────────────────────────────────────────────────────
 
@@ -198,7 +291,7 @@ const insertTeam = db.prepare(`
 const insertRoster = db.prepare(`INSERT OR IGNORE INTO rosters (id,team_id,player_id,slot,acquisition_type) VALUES (?,?,?,?,?)`)
 const insertPick = db.prepare(`INSERT OR IGNORE INTO draft_picks (id,sport,round,year,league_id,original_team_id,current_team_id) VALUES (?,?,?,?,?,?,?)`)
 
-function buildTeams(sport: string, leagueId: string, playerIds: string[], teams: TeamSeed[]) {
+function buildTeams(sport: string, leagueId: string, pool: PlayerSeed[], teams: TeamSeed[]) {
   const teamIds: string[] = []
   for (const t of teams) {
     const tid = id()
@@ -207,12 +300,19 @@ function buildTeams(sport: string, leagueId: string, playerIds: string[], teams:
     insertMember.run(id(), leagueId, t.uid, 'MEMBER')
   }
 
-  // Distribute players evenly across teams
-  const perTeam = Math.floor(playerIds.length / teams.length)
+  // Distribute players across teams in a snake order so talent is spread evenly,
+  // leaving any remainder as unrostered free agents.
+  const perTeam = Math.min(PER_TEAM, Math.floor(pool.length / teams.length))
+  let cursor = 0
   for (let i = 0; i < teamIds.length; i++) {
-    const slice = playerIds.slice(i * perTeam, (i + 1) * perTeam)
-    slice.forEach((pid, idx) => {
-      insertRoster.run(id(), teamIds[i], pid, idx === 0 ? 'QB' : 'BN', 'DRAFT')
+    const slice = pool.slice(cursor, cursor + perTeam)
+    cursor += perTeam
+    const filled: Record<string, number> = {}
+    slice.forEach((p) => {
+      // Assign to a starting position slot until that position is full, else bench.
+      const slot = (filled[p.pos] ?? 0) < 1 ? p.pos : 'BN'
+      filled[p.pos] = (filled[p.pos] ?? 0) + 1
+      insertRoster.run(id(), teamIds[i], p.id, slot, 'DRAFT')
     })
     // Give each team draft picks for next 3 rounds
     for (let r = 1; r <= 3; r++) {
@@ -255,15 +355,10 @@ const mlbTeamDefs: TeamSeed[] = [
   { uid: userIds.morgan, name: 'Strikeout Squad',     abbr: 'STK', w:32, l:58, pf:1480.1, pa:1601.4 },
 ]
 
-const nflPlayerIds = NFL.map(p => p.id)
-const nbaPlayerIds = NBA.map(p => p.id)
-const nhlPlayerIds = NHL.map(p => p.id)
-const mlbPlayerIds = MLB.map(p => p.id)
-
-const nflTeamIds = buildTeams('NFL', leagueIds.nfl, nflPlayerIds, nflTeamDefs)
-const nbaTeamIds = buildTeams('NBA', leagueIds.nba, nbaPlayerIds, nbaTeamDefs)
-const nhlTeamIds = buildTeams('NHL', leagueIds.nhl, nhlPlayerIds, nhlTeamDefs)
-const mlbTeamIds = buildTeams('MLB', leagueIds.mlb, mlbPlayerIds, mlbTeamDefs)
+const nflTeamIds = buildTeams('NFL', leagueIds.nfl, NFL_ALL, nflTeamDefs)
+const nbaTeamIds = buildTeams('NBA', leagueIds.nba, NBA_ALL, nbaTeamDefs)
+const nhlTeamIds = buildTeams('NHL', leagueIds.nhl, NHL_ALL, nhlTeamDefs)
+const mlbTeamIds = buildTeams('MLB', leagueIds.mlb, MLB_ALL, mlbTeamDefs)
 
 // ── Sample Cross-Sport Trade ─────────────────────────────────────────────
 
