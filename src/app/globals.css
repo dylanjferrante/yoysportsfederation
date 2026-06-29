@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ysf-navy: #0A1628;
+  --ysf-blue: #1E3A5F;
+  --ysf-gold: #C9A84C;
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .sport-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide;
+  }
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100;
+  }
+  .btn-primary {
+    @apply bg-ysf-navy text-white px-4 py-2 rounded-lg font-medium hover:bg-ysf-blue transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-white text-ysf-navy border border-ysf-navy px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors;
+  }
+  .btn-gold {
+    @apply bg-ysf-gold text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity;
+  }
+}
