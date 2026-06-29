@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 import { nanoid } from 'nanoid'
 import path from 'path'
 import fs from 'fs'
-import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks } from '../lib/defaults'
+import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS } from '../lib/defaults'
 import { defaultFederationScoring } from '../lib/federation'
 
 const DB_DIR = path.join(process.cwd(), 'data')
@@ -246,16 +246,19 @@ function generatePlayers(sport: string, count: number): PlayerSeed[] {
 // Seed the curated star names first so genName never collides with them.
 for (const p of [...NFL, ...NBA, ...NHL, ...MLB]) usedNames.add(p.name)
 
-// 12 franchises each field a roster in every sport, plus a deep free-agent pool.
+// Each franchise fills its roster slots per sport (~20 players/sport → ~80 total),
+// plus a healthy free-agent pool for waivers.
 const NUM_TEAMS = 12
-const PER_TEAM = 85   // players rostered per franchise per sport
-const FREE_AGENTS = 250 // extra unrostered players per sport
-const poolSize = (curated: number) => NUM_TEAMS * PER_TEAM + FREE_AGENTS - curated
+const FREE_AGENTS = 150
+const ROSTER_FILL: Record<string, number> = Object.fromEntries(
+  Object.entries(DEFAULT_ROSTER).map(([s, slots]) => [s, Object.values(slots).reduce((a, b) => a + b, 0)])
+)
+const poolSize = (sport: string, curated: number) => NUM_TEAMS * ROSTER_FILL[sport] + FREE_AGENTS - curated
 
-const NFL_ALL = [...NFL, ...generatePlayers('NFL', poolSize(NFL.length))]
-const NBA_ALL = [...NBA, ...generatePlayers('NBA', poolSize(NBA.length))]
-const NHL_ALL = [...NHL, ...generatePlayers('NHL', poolSize(NHL.length))]
-const MLB_ALL = [...MLB, ...generatePlayers('MLB', poolSize(MLB.length))]
+const NFL_ALL = [...NFL, ...generatePlayers('NFL', poolSize('NFL', NFL.length))]
+const NBA_ALL = [...NBA, ...generatePlayers('NBA', poolSize('NBA', NBA.length))]
+const NHL_ALL = [...NHL, ...generatePlayers('NHL', poolSize('NHL', NHL.length))]
+const MLB_ALL = [...MLB, ...generatePlayers('MLB', poolSize('MLB', MLB.length))]
 
 addPlayers(NFL_ALL)
 addPlayers(NBA_ALL)
@@ -281,21 +284,21 @@ const LEAGUE_LOGO = 'data:image/svg+xml,' + encodeURIComponent(
 )
 
 const leagueId = id()
-const { roster, scoring, draftRounds } = buildPerSportSettings(SPORT_LIST)
-const schedule = buildSchedule('FOOTBALL', SPORT_LIST)
+const { roster, scoring, draftRounds, rookieRounds, seasonWeeks } = buildPerSportSettings(SPORT_LIST)
+const schedule = buildSchedule('FOOTBALL', SPORT_LIST, seasonWeeks)
 const fedScoring = defaultFederationScoring(12, SPORT_LIST)
 
 const insertLeague = db.prepare(`
   INSERT INTO leagues
   (id,name,season,commissioner_id,status,max_teams,description,logo_url,division_logos,
    sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
-   federation_scoring,draft_type,draft_status,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
-   trade_review,waiver_type,faab_budget,playoff_teams,playoff_start_week,regular_season_weeks)
+   federation_scoring,draft_type,draft_status,draft_order_method,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
+   trade_review,waiver_type,faab_budget,faab_mode,playoff_teams,playoff_start_week,regular_season_weeks)
   VALUES
   (@id,@name,@season,@commissioner_id,@status,@max_teams,@description,@logo_url,@division_logos,
    @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
-   @federation_scoring,@draft_type,@draft_status,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
-   @trade_review,@waiver_type,@faab_budget,@playoff_teams,@playoff_start_week,@regular_season_weeks)
+   @federation_scoring,@draft_type,@draft_status,@draft_order_method,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
+   @trade_review,@waiver_type,@faab_budget,@faab_mode,@playoff_teams,@playoff_start_week,@regular_season_weeks)
 `)
 
 insertLeague.run({
@@ -317,15 +320,17 @@ insertLeague.run({
   federation_scoring: JSON.stringify(fedScoring),
   draft_type: 'SNAKE',
   draft_status: 'COMPLETED',
+  draft_order_method: 'REVERSE_STANDINGS',
   rookie_draft_mode: 'PER_SPORT',
-  rookie_draft_rounds: ROOKIE_ROUNDS,
+  rookie_draft_rounds: JSON.stringify(rookieRounds),
   tradeable_pick_years: 3,
   trade_review: 'COMMISSIONER',
   waiver_type: 'FAAB',
   faab_budget: 100,
+  faab_mode: 'TOTAL',
   playoff_teams: 4,
   playoff_start_week: 15,
-  regular_season_weeks: 18,
+  regular_season_weeks: JSON.stringify(seasonWeeks),
 })
 
 // ── Franchises (one per owner, same name across all sports) ─────────────────
@@ -341,8 +346,9 @@ const insertPick = db.prepare(`INSERT INTO draft_picks (id,league_id,draft_id,sp
 const insertMatchup = db.prepare(`INSERT INTO matchups (id,league_id,sport,season,week,home_team_id,away_team_id,home_score,away_score,is_complete) VALUES (?,?,?,?,?,?,?,?,?,?)`)
 const insertHistory = db.prepare(`INSERT INTO league_history (id,league_id,season,scope,champion_team_id,runner_up_team_id,note) VALUES (?,?,?,?,?,?,?)`)
 const insertTrade = db.prepare(`INSERT INTO trades (id,league_id,initiator_id,recipient_id,status,note) VALUES (?,?,?,?,?,?)`)
-const insertTradeItemPick = db.prepare(`INSERT INTO trade_items (id,trade_id,direction,pick_id) VALUES (?,?,?,?)`)
-const insertTradeItemPlayer = db.prepare(`INSERT INTO trade_items (id,trade_id,direction,player_id) VALUES (?,?,?,?)`)
+const insertTradeItemPick = db.prepare(`INSERT INTO trade_items (id,trade_id,from_team_id,to_team_id,direction,pick_id) VALUES (?,?,?,?,?,?)`)
+const insertTradeItemPlayer = db.prepare(`INSERT INTO trade_items (id,trade_id,from_team_id,to_team_id,direction,player_id) VALUES (?,?,?,?,?,?)`)
+const insertApproval = db.prepare(`INSERT INTO trade_approvals (id,trade_id,team_id,user_id,status) VALUES (?,?,?,?,?)`)
 
 const teamIds: string[] = []
 FRANCHISES.forEach((f, i) => {
@@ -354,21 +360,39 @@ FRANCHISES.forEach((f, i) => {
 
 // ── Rosters: distribute each sport's deep pool across the franchises ────────
 
+const RESERVE = ['BN', 'TAXI', 'IR', 'IL', 'DL']
+
+// Place a player into the best available slot, respecting per-slot capacity.
+function pickSlot(pos: string, remaining: Record<string, number>): string | null {
+  if ((remaining[pos] ?? 0) > 0) return pos
+  const flex = Object.keys(remaining).find(k => remaining[k] > 0 && k.includes('/') && k.split('/').includes(pos))
+  if (flex) return flex
+  if ((remaining['UTIL'] ?? 0) > 0) return 'UTIL'
+  if ((remaining['G'] ?? 0) > 0 && ['PG', 'SG'].includes(pos)) return 'G'
+  if ((remaining['F'] ?? 0) > 0 && ['SF', 'PF'].includes(pos)) return 'F'
+  for (const r of RESERVE) if ((remaining[r] ?? 0) > 0) return r
+  return null
+}
+
 for (const sport of SPORT_LIST) {
   const pool = POOLS[sport]
   const slots = roster[sport] ?? {}
-  const perTeam = Math.min(PER_TEAM, Math.floor(pool.length / teamIds.length))
-  let cursor = 0
-  for (let i = 0; i < teamIds.length; i++) {
-    const slice = pool.slice(cursor, cursor + perTeam)
-    cursor += perTeam
-    const filled: Record<string, number> = {}
-    slice.forEach((p) => {
-      const cap = slots[p.pos] ?? 0
-      const slot = (filled[p.pos] ?? 0) < cap ? p.pos : 'BN'
-      filled[p.pos] = (filled[p.pos] ?? 0) + 1
-      insertRoster.run(id(), teamIds[i], p.id, sport, slot, 'DRAFT')
-    })
+  const perTeam = ROSTER_FILL[sport]
+  // Snake-deal the pool so talent spreads evenly; rotate the start per sport so
+  // each sport's #1 lands on a different franchise.
+  const sportIdx = Math.max(0, SPORT_LIST.indexOf(sport))
+  const base = [...teamIds.slice(sportIdx), ...teamIds.slice(0, sportIdx)]
+  const remaining: Record<string, Record<string, number>> = Object.fromEntries(teamIds.map(t => [t, { ...slots }]))
+  let idx = 0
+  for (let r = 0; r < perTeam; r++) {
+    const order = r % 2 === 0 ? base : [...base].reverse()
+    for (const tid of order) {
+      const p = pool[idx++]
+      if (!p) continue
+      const slot = pickSlot(p.pos, remaining[tid]) ?? 'BN'
+      if (remaining[tid][slot] != null) remaining[tid][slot]--
+      insertRoster.run(id(), tid, p.id, sport, slot, 'DRAFT')
+    }
   }
 }
 
@@ -414,18 +438,21 @@ const dynastyId = id()
 insertDraft.run(dynastyId, leagueId, 'DYNASTY', 'OVERALL', CURRENT_SEASON, 'SNAKE', 25, 'COMPLETED', null)
 
 // Default rookie-draft mode is PER_SPORT → one rookie draft per sport for next year.
+// Seed the NFL rookie draft as IN_PROGRESS so the live draft room is demoable.
 const rookieDraftId: Record<string, string> = {}
 for (const sport of SPORT_LIST) {
   const did = id()
   rookieDraftId[sport] = did
-  insertDraft.run(did, leagueId, 'ROOKIE', sport, String(NEXT_DRAFT_YEAR), 'SNAKE', ROOKIE_ROUNDS, 'PENDING', '2026-08-15T18:00')
+  const status = sport === 'NFL' ? 'IN_PROGRESS' : 'PENDING'
+  insertDraft.run(did, leagueId, 'ROOKIE', sport, String(NEXT_DRAFT_YEAR), 'SNAKE', rookieRounds[sport] ?? 4, status, '2026-08-15T18:00')
 }
 
-// Tradeable future picks (per-sport, matching the rookie-draft mode).
+// Tradeable future picks (per-sport, rounds match each sport's rookie-draft length).
 for (const tid of teamIds) {
   for (const year of PICK_YEARS) {
-    for (let round = 1; round <= ROOKIE_ROUNDS; round++) {
-      for (const sport of SPORT_LIST) {
+    for (const sport of SPORT_LIST) {
+      const rounds = rookieRounds[sport] ?? 4
+      for (let round = 1; round <= rounds; round++) {
         const did = year === NEXT_DRAFT_YEAR ? rookieDraftId[sport] : null
         insertPick.run(id(), leagueId, did, sport, round, year, tid, tid)
       }
@@ -445,20 +472,55 @@ function genScore(sport: string, played: boolean) {
   return +(lo + Math.random() * (hi - lo)).toFixed(1)
 }
 
-if (pairings.length) {
+// Seed an overlapping schedule for a season. Prior seasons are fully complete
+// (for all-time head-to-head + opponent history); the current season is live.
+function seedMatchups(season: string, completed: boolean) {
+  if (!pairings.length) return
   for (let week = 1; week <= maxWeek; week++) {
     const active = sportsActiveInWeek(schedule, week)
     if (!active.length) continue
     const pairs = pairings[(week - 1) % pairings.length]
-    const played = week <= CURRENT_WEEK
+    const played = completed || week <= CURRENT_WEEK
+    const isComplete = completed ? 1 : (week < CURRENT_WEEK ? 1 : 0)
     for (const sport of active) {
       for (const [home, away] of pairs) {
-        insertMatchup.run(id(), leagueId, sport, CURRENT_SEASON, week, home, away,
-          genScore(sport, played), genScore(sport, played), week < CURRENT_WEEK ? 1 : 0)
+        insertMatchup.run(id(), leagueId, sport, season, week, home, away,
+          genScore(sport, played), genScore(sport, played), isComplete)
       }
     }
   }
 }
+
+seedMatchups(CURRENT_SEASON, false)
+for (const s of PRIOR_SEASONS) seedMatchups(s, true)
+
+// ── Reconstruct the inaugural combined dynasty-draft board ──────────────────
+// All players from every sport sit in one pool, ordered by cross-sport value
+// (normalized to each sport's max), so e.g. the top MLB/NHL/NFL/NBA stars go early.
+const sportMax: Record<string, number> = {}
+for (const sport of SPORT_LIST) {
+  sportMax[sport] = ((db.prepare('SELECT MAX(season_points) m FROM players WHERE sport=?').get(sport) as any).m) || 1
+}
+const dynastyRounds = SPORT_LIST.reduce((s, sp) => s + ROSTER_FILL[sp], 0)
+db.prepare('UPDATE drafts SET rounds=? WHERE id=?').run(dynastyRounds, dynastyId)
+
+const rostered = db.prepare(`
+  SELECT r.player_id pid, r.team_id tid, r.sport sport, p.season_points sp
+  FROM rosters r JOIN players p ON p.id = r.player_id
+`).all() as { pid: string; tid: string; sport: string; sp: number }[]
+rostered.forEach((x: any) => { x.val = (x.sp ?? 0) / (sportMax[x.sport] || 1) })
+rostered.sort((a: any, b: any) => b.val - a.val)
+
+const insertDynPick = db.prepare(
+  `INSERT INTO draft_picks (id,league_id,draft_id,sport,round,year,original_team_id,current_team_id,is_used,picked_player_id,pick_number)
+   VALUES (?,?,?,?,?,?,?,?,1,?,?)`
+)
+rostered.forEach((x, i) => {
+  const pickNo = i + 1
+  const round = Math.ceil(pickNo / teamIds.length)
+  insertDynPick.run(id(), leagueId, dynastyId, x.sport, round, 2025, x.tid, x.tid, x.pid, pickNo)
+})
+db.prepare("UPDATE drafts SET status='COMPLETED' WHERE id=?").run(dynastyId)
 
 // ── Sample cross-sport trade (real roster + real pick) ──────────────────────
 
@@ -475,8 +537,11 @@ if (giftPick && wantPlayer) {
   const tradeId = id()
   insertTrade.run(tradeId, leagueId, teamIds[0], teamIds[1], 'PENDING',
     `Cross-sport blockbuster: my ${NEXT_DRAFT_YEAR} NFL 1st-round pick for ${wantPlayer.name}. Deal?`)
-  insertTradeItemPick.run(id(), tradeId, 'GIVING', giftPick.id)
-  insertTradeItemPlayer.run(id(), tradeId, 'RECEIVING', wantPlayer.pid)
+  // team[0] gives the pick to team[1]; team[1] gives the player to team[0]
+  insertTradeItemPick.run(id(), tradeId, teamIds[0], teamIds[1], 'GIVING', giftPick.id)
+  insertTradeItemPlayer.run(id(), tradeId, teamIds[1], teamIds[0], 'RECEIVING', wantPlayer.pid)
+  // recipient must approve
+  insertApproval.run(id(), tradeId, teamIds[1], ownerIds[1], 'PENDING')
 }
 
 db.close()

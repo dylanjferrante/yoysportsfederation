@@ -89,7 +89,12 @@ export default function CreateLeaguePage() {
               </select>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <div><label className="label">Season</label><input className="input" value={form.season} onChange={e => set('season', e.target.value)} /></div>
+              <div>
+                <label className="label">Season</label>
+                <select className="select" value={form.season} onChange={e => set('season', e.target.value)}>
+                  {['2025-26', '2026-27', '2027-28', '2028-29'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="label">Max Teams</label>
                 <select className="select" value={form.maxTeams} onChange={e => set('maxTeams', +e.target.value)}>
@@ -129,9 +134,9 @@ export default function CreateLeaguePage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div><label className="label">Playoff Teams (per sport)</label><select className="select" value={form.playoffTeams} onChange={e => set('playoffTeams', +e.target.value)}>{[2, 4, 6, 8].map(n => <option key={n} value={n}>{n} teams</option>)}</select></div>
               <div><label className="label">Playoff Rounds</label><select className="select" value={form.playoffRounds} onChange={e => set('playoffRounds', +e.target.value)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></div>
-              <div><label className="label">Regular Season Weeks</label><input type="number" min={6} max={25} className="input" value={form.regularSeasonWeeks} onChange={e => set('regularSeasonWeeks', +e.target.value)} /></div>
               <div><label className="label">Playoffs Start Week</label><input type="number" min={1} max={30} className="input" value={form.playoffStartWeek} onChange={e => set('playoffStartWeek', +e.target.value)} /></div>
             </div>
+            <p className="text-xs text-slate-400">Per-sport season length, rookie-draft rounds, taxi/IR slots and more are configured in commissioner settings after creation.</p>
           </>
         )}
 

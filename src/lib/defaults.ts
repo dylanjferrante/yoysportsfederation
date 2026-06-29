@@ -5,15 +5,28 @@ export const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB'] as const
 export type Sport = (typeof SPORTS)[number]
 
 export const DEFAULT_ROSTER: Record<string, RosterSettings> = {
-  NFL: { QB: 1, RB: 2, WR: 3, TE: 1, 'RB/WR/TE': 1, K: 1, DEF: 1, BN: 7, IR: 2 },
-  NBA: { PG: 1, SG: 1, SF: 1, PF: 1, C: 1, G: 1, F: 1, UTIL: 1, BN: 4, IL: 2 },
-  NHL: { C: 2, LW: 2, RW: 2, D: 4, G: 2, UTIL: 1, BN: 4, IR: 2 },
-  MLB: { C: 1, '1B': 1, '2B': 1, '3B': 1, SS: 1, OF: 3, UTIL: 1, SP: 4, RP: 2, BN: 5, DL: 2 },
+  NFL: { QB: 1, RB: 2, WR: 3, TE: 1, 'RB/WR/TE': 1, K: 1, DEF: 1, BN: 7, IR: 2, TAXI: 3 },
+  NBA: { PG: 1, SG: 1, SF: 1, PF: 1, C: 1, G: 1, F: 1, UTIL: 1, BN: 4, IR: 2, TAXI: 3 },
+  NHL: { C: 2, LW: 2, RW: 2, D: 4, G: 2, UTIL: 1, BN: 4, IR: 2, TAXI: 3 },
+  MLB: { C: 1, '1B': 1, '2B': 1, '3B': 1, SS: 1, OF: 3, UTIL: 1, SP: 4, RP: 2, BN: 5, IR: 2, TAXI: 3 },
 }
+
+// Bench/reserve slot keys (not in the active scoring lineup).
+export const RESERVE_SLOTS = ['BN', 'IR', 'IL', 'DL', 'TAXI']
 
 // Dynasty-draft size per sport (full initial draft). Rookie drafts use rookieDraftRounds.
 export const DEFAULT_DRAFT_ROUNDS: Record<string, number> = {
   NFL: 15, NBA: 13, NHL: 20, MLB: 25,
+}
+
+// Rookie-draft rounds per sport.
+export const DEFAULT_ROOKIE_ROUNDS: Record<string, number> = {
+  NFL: 4, NBA: 2, NHL: 4, MLB: 5,
+}
+
+// Regular-season length (weeks) per sport.
+export const DEFAULT_SEASON_WEEKS: Record<string, number> = {
+  NFL: 14, NBA: 19, NHL: 22, MLB: 24,
 }
 
 // ── Comprehensive, Fantrax-level scoring per sport ──────────────────────────
@@ -163,12 +176,16 @@ export function buildPerSportSettings(sportsEnabled: string[]) {
   const roster: Record<string, RosterSettings> = {}
   const scoring: Record<string, ScoringSettings> = {}
   const draftRounds: Record<string, number> = {}
+  const rookieRounds: Record<string, number> = {}
+  const seasonWeeks: Record<string, number> = {}
   for (const s of sportsEnabled) {
     roster[s] = { ...(DEFAULT_ROSTER[s] ?? {}) }
     scoring[s] = { ...(DEFAULT_SCORING[s] ?? {}) }
     draftRounds[s] = DEFAULT_DRAFT_ROUNDS[s] ?? 12
+    rookieRounds[s] = DEFAULT_ROOKIE_ROUNDS[s] ?? 4
+    seasonWeeks[s] = DEFAULT_SEASON_WEEKS[s] ?? 18
   }
-  return { roster, scoring, draftRounds }
+  return { roster, scoring, draftRounds, rookieRounds, seasonWeeks }
 }
 
 // ── Season schedule (calendar anchor → overlapping per-sport windows) ────────
@@ -189,17 +206,19 @@ const PHASE_ORDER_FROM: Record<string, string[]> = {
 
 export type ScheduleEntry = { sport: string; phase: string; startWeek: number; endWeek: number }
 
-// Windows deliberately overlap so multiple sports share weeks.
-export function buildSchedule(seasonStart: string, sportsEnabled: string[]): ScheduleEntry[] {
+// Windows deliberately overlap so multiple sports share weeks. Optional per-sport
+// week counts set each sport's window length (defaults to DEFAULT_SEASON_WEEKS).
+export function buildSchedule(seasonStart: string, sportsEnabled: string[], seasonWeeks?: Record<string, number>): ScheduleEntry[] {
   const order = PHASE_ORDER_FROM[seasonStart] ?? PHASE_ORDER_FROM.FOOTBALL
   const step = 8
-  const windowLen = 18
   const schedule: ScheduleEntry[] = []
   order.forEach((phase, i) => {
     const startWeek = 1 + i * step
-    const endWeek = startWeek + windowLen - 1
     for (const sport of sportsEnabled) {
-      if (SPORT_PHASE[sport] === phase) schedule.push({ sport, phase, startWeek, endWeek })
+      if (SPORT_PHASE[sport] === phase) {
+        const len = seasonWeeks?.[sport] ?? DEFAULT_SEASON_WEEKS[sport] ?? 18
+        schedule.push({ sport, phase, startWeek, endWeek: startWeek + len - 1 })
+      }
     }
   })
   return schedule.sort((a, b) => a.startWeek - b.startWeek || a.sport.localeCompare(b.sport))

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, SEASON_STARTS } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
 
@@ -26,6 +26,8 @@ export default function CommissionerSettings() {
   const [rosterObj, setRosterObj] = useState<Record<string, Record<string, number>>>({})
   const [scoringObj, setScoringObj] = useState<Record<string, Record<string, number>>>({})
   const [draftRoundsObj, setDraftRoundsObj] = useState<Record<string, number>>({})
+  const [rookieRoundsObj, setRookieRoundsObj] = useState<Record<string, number>>({})
+  const [seasonWeeksObj, setSeasonWeeksObj] = useState<Record<string, number>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
 
   const parse = (s: any, f: any) => { try { return JSON.parse(s) } catch { return f } }
@@ -42,6 +44,8 @@ export default function CommissionerSettings() {
       setRosterObj(parse(l.rosterSettings, {}))
       setScoringObj(parse(l.scoringSettings, {}))
       setDraftRoundsObj(parse(l.draftRounds, {}))
+      setRookieRoundsObj(parse(l.rookieDraftRounds, {}))
+      setSeasonWeeksObj(parse(l.regularSeasonWeeks, {}))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
   }, [params.id])
@@ -61,11 +65,12 @@ export default function CommissionerSettings() {
         logoUrl: form.logoUrl, seasonStart: form.seasonStart,
         sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj,
         draftRounds: draftRoundsObj, federationScoring: fed,
-        draftType: form.draftType, rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: form.rookieDraftRounds,
+        draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
+        rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
         tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate,
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadline: form.tradeDeadline,
-        waiverType: form.waiverType, faabBudget: form.faabBudget, waiverDay: form.waiverDay, lockDay: form.lockDay,
-        playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: form.regularSeasonWeeks, playoffRounds: form.playoffRounds,
+        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverDay: form.waiverDay, lockDay: form.lockDay,
+        playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
       }),
     })
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000)
@@ -78,6 +83,8 @@ export default function CommissionerSettings() {
       setRosterObj(r => ({ ...r, [s]: r[s] ?? DEFAULT_ROSTER[s] }))
       setScoringObj(sc => ({ ...sc, [s]: sc[s] ?? DEFAULT_SCORING[s] }))
       setDraftRoundsObj(d => ({ ...d, [s]: d[s] ?? DEFAULT_DRAFT_ROUNDS[s] }))
+      setRookieRoundsObj(d => ({ ...d, [s]: d[s] ?? DEFAULT_ROOKIE_ROUNDS[s] }))
+      setSeasonWeeksObj(d => ({ ...d, [s]: d[s] ?? DEFAULT_SEASON_WEEKS[s] }))
       return [...prev, s]
     })
   }
@@ -110,7 +117,12 @@ export default function CommissionerSettings() {
             <h3 className="font-semibold text-slate-900">General</h3>
             <div className="grid sm:grid-cols-2 gap-4">
               <div><label className="label">League Name</label><input className="input" value={form.name ?? ''} onChange={e => set('name', e.target.value)} /></div>
-              <div><label className="label">Season</label><input className="input" value={form.season ?? ''} onChange={e => set('season', e.target.value)} /></div>
+              <div>
+                <label className="label">Season</label>
+                <select className="select" value={form.season ?? '2025-26'} onChange={e => set('season', e.target.value)}>
+                  {['2023-24', '2024-25', '2025-26', '2026-27', '2027-28', '2028-29'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
               <div><label className="label">Max Teams</label><input type="number" min={4} max={16} className="input" value={form.maxTeams ?? 12} onChange={e => set('maxTeams', +e.target.value)} /></div>
               <div>
                 <label className="label">Visibility</label>
@@ -243,19 +255,37 @@ export default function CommissionerSettings() {
                 </select>
               </div>
               <div>
-                <label className="label">Rookie Draft Rounds</label>
-                <input type="number" min={1} max={20} className="input" value={form.rookieDraftRounds ?? 4} onChange={e => set('rookieDraftRounds', +e.target.value)} />
+                <label className="label">Draft Order Method</label>
+                <select className="select" value={form.draftOrderMethod ?? 'REVERSE_STANDINGS'} onChange={e => set('draftOrderMethod', e.target.value)}>
+                  <option value="REVERSE_STANDINGS">Reverse standings</option>
+                  <option value="RANDOM">Randomized</option>
+                  <option value="MANUAL">Manual (commissioner sets)</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Seconds Per Pick</label>
+                <input type="number" min={15} max={600} className="input" value={form.secondsPerPick ?? 90} onChange={e => set('secondsPerPick', +e.target.value)} />
               </div>
               <div>
                 <label className="label">Tradeable Future Pick Years</label>
                 <input type="number" min={0} max={7} className="input" value={form.tradeablePickYears ?? 3} onChange={e => set('tradeablePickYears', +e.target.value)} />
               </div>
             </div>
-            <div>
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-slate-700 mb-2">Per-sport draft rounds</p>
               <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
-              <label className="label">{subSport} Dynasty Draft Rounds</label>
-              <input type="number" min={1} max={50} className="input w-32" value={draftRoundsObj[subSport] ?? 15}
-                onChange={e => setDraftRoundsObj(d => ({ ...d, [subSport]: +e.target.value }))} />
+              <div className="grid sm:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label className="label">{subSport} Dynasty (Initial) Rounds</label>
+                  <input type="number" min={1} max={120} className="input w-32" value={draftRoundsObj[subSport] ?? 15}
+                    onChange={e => setDraftRoundsObj(d => ({ ...d, [subSport]: +e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">{subSport} Rookie Rounds</label>
+                  <input type="number" min={1} max={20} className="input w-32" value={rookieRoundsObj[subSport] ?? 4}
+                    onChange={e => setRookieRoundsObj(d => ({ ...d, [subSport]: +e.target.value }))} />
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -272,6 +302,15 @@ export default function CommissionerSettings() {
                 </select>
               </div>
               {form.waiverType === 'FAAB' && <div><label className="label">FAAB Budget ($)</label><input type="number" className="input" value={form.faabBudget ?? 100} onChange={e => set('faabBudget', +e.target.value)} /></div>}
+              {form.waiverType === 'FAAB' && (
+                <div>
+                  <label className="label">FAAB Budget Scope</label>
+                  <select className="select" value={form.faabMode ?? 'TOTAL'} onChange={e => set('faabMode', e.target.value)}>
+                    <option value="TOTAL">One total budget</option>
+                    <option value="PER_SPORT">Separate budget per sport</option>
+                  </select>
+                </div>
+              )}
               <div><label className="label">Waiver Day</label><select className="select" value={form.waiverDay ?? 3} onChange={e => set('waiverDay', +e.target.value)}>{days.map((d, i) => <option key={d} value={i}>{d}</option>)}</select></div>
             </div>
           </>
@@ -302,10 +341,15 @@ export default function CommissionerSettings() {
           <>
             <h3 className="font-semibold text-slate-900">Playoffs</h3>
             <div className="grid sm:grid-cols-2 gap-4">
-              <div><label className="label">Playoff Teams</label><select className="select" value={form.playoffTeams ?? 4} onChange={e => set('playoffTeams', +e.target.value)}>{[2, 4, 6, 8].map(n => <option key={n} value={n}>{n} teams</option>)}</select></div>
-              <div><label className="label">Regular Season Weeks</label><input type="number" min={6} max={25} className="input" value={form.regularSeasonWeeks ?? 18} onChange={e => set('regularSeasonWeeks', +e.target.value)} /></div>
+              <div><label className="label">Playoff Teams (per sport)</label><select className="select" value={form.playoffTeams ?? 4} onChange={e => set('playoffTeams', +e.target.value)}>{[2, 4, 6, 8].map(n => <option key={n} value={n}>{n} teams</option>)}</select></div>
               <div><label className="label">Playoffs Start Week</label><input type="number" min={1} max={30} className="input" value={form.playoffStartWeek ?? 15} onChange={e => set('playoffStartWeek', +e.target.value)} /></div>
               <div><label className="label">Playoff Rounds</label><select className="select" value={form.playoffRounds ?? 2} onChange={e => set('playoffRounds', +e.target.value)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></div>
+            </div>
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-slate-700 mb-2">Regular-season length (weeks) per sport</p>
+              <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
+              <input type="number" min={4} max={30} className="input w-32 mt-3" value={seasonWeeksObj[subSport] ?? 18}
+                onChange={e => setSeasonWeeksObj(d => ({ ...d, [subSport]: +e.target.value }))} />
             </div>
           </>
         )}

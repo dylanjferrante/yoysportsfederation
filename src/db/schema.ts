@@ -49,8 +49,9 @@ export const leagues = sqliteTable('leagues', {
   secondsPerPick: integer('seconds_per_pick').default(90),
   autoPickEnabled: integer('auto_pick_enabled', { mode: 'boolean' }).default(true),
   rookieDraftMode: text('rookie_draft_mode').default('PER_SPORT'), // COMBINED | PER_SPORT
-  rookieDraftRounds: integer('rookie_draft_rounds').default(4),
+  rookieDraftRounds: text('rookie_draft_rounds').default('{}'),    // per-sport JSON map { NFL: 4, ... }
   tradeablePickYears: integer('tradeable_pick_years').default(3),
+  draftOrderMethod: text('draft_order_method').default('REVERSE_STANDINGS'), // REVERSE_STANDINGS | RANDOM | MANUAL
 
   // Trades
   tradeDeadline: text('trade_deadline'),
@@ -61,6 +62,7 @@ export const leagues = sqliteTable('leagues', {
   // Waivers
   waiverType: text('waiver_type').default('PRIORITY'), // PRIORITY | FAAB | FREE_AGENT
   faabBudget: integer('faab_budget').default(100),
+  faabMode: text('faab_mode').default('TOTAL'), // TOTAL | PER_SPORT
   waiverDay: integer('waiver_day').default(3),
   waiverHour: integer('waiver_hour').default(3),
   lockDay: integer('lock_day').default(0),
@@ -68,7 +70,7 @@ export const leagues = sqliteTable('leagues', {
   // Playoffs
   playoffTeams: integer('playoff_teams').default(4),
   playoffStartWeek: integer('playoff_start_week').default(15),
-  regularSeasonWeeks: integer('regular_season_weeks').default(14),
+  regularSeasonWeeks: text('regular_season_weeks').default('{}'), // per-sport JSON map { NFL: 14, ... }
   playoffRounds: integer('playoff_rounds').default(2),
 
   createdAt: text('created_at').default(sql`(datetime('now'))`),
@@ -225,7 +227,7 @@ export const trades = sqliteTable('trades', {
   id: text('id').primaryKey(),
   leagueId: text('league_id').references(() => leagues.id),
   initiatorId: text('initiator_id').notNull().references(() => teams.id),
-  recipientId: text('recipient_id').notNull().references(() => teams.id),
+  recipientId: text('recipient_id').references(() => teams.id), // primary partner (null for >2-team)
   status: text('status').default('PENDING'), // PENDING | ACCEPTED | REJECTED | CANCELLED | VETOED
   note: text('note'),
   reviewDeadline: text('review_deadline'),
@@ -234,13 +236,28 @@ export const trades = sqliteTable('trades', {
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 })
 
+// Each asset moves from one franchise to another — supports 2-team and N-team trades.
 export const tradeItems = sqliteTable('trade_items', {
   id: text('id').primaryKey(),
   tradeId: text('trade_id').notNull().references(() => trades.id, { onDelete: 'cascade' }),
-  direction: text('direction').notNull(), // GIVING | RECEIVING (from initiator's perspective)
+  fromTeamId: text('from_team_id').references(() => teams.id),
+  toTeamId: text('to_team_id').references(() => teams.id),
+  direction: text('direction'), // legacy GIVING | RECEIVING (kept for display fallback)
   playerId: text('player_id').references(() => players.id),
   pickId: text('pick_id').references(() => draftPicks.id),
 })
+
+// Per-participant approval for a (possibly multi-team) trade.
+export const tradeApprovals = sqliteTable('trade_approvals', {
+  id: text('id').primaryKey(),
+  tradeId: text('trade_id').notNull().references(() => trades.id, { onDelete: 'cascade' }),
+  teamId: text('team_id').notNull().references(() => teams.id),
+  userId: text('user_id').references(() => users.id),
+  status: text('status').default('PENDING'), // PENDING | ACCEPTED | REJECTED
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+}, (t) => ({
+  uniq: uniqueIndex('trade_approval_uniq').on(t.tradeId, t.teamId),
+}))
 
 // ── Trade Votes (for league-vote review) ──────────────────────────────────
 
