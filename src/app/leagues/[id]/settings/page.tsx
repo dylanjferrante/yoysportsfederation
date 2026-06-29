@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
@@ -32,6 +32,7 @@ export default function CommissionerSettings() {
   const [startWeeksObj, setStartWeeksObj] = useState<Record<string, number>>({})
   const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
   const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
+  const [irDesigObj, setIrDesigObj] = useState<Record<string, string[]>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
   const [franchises, setFranchises] = useState<any[]>([])
   const [teamSaving, setTeamSaving] = useState<string | null>(null)
@@ -74,6 +75,7 @@ export default function CommissionerSettings() {
       }
       setDeadlinesObj(parse(l.tradeDeadlines, defaultTradeDeadlines(se)))
       setWaiverSchedObj(parse(l.waiverSchedule, defaultWaiverSchedule(se)))
+      setIrDesigObj(parse(l.irEligibleDesignations, defaultIrDesignations(se)))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
   }, [params.id])
@@ -97,7 +99,7 @@ export default function CommissionerSettings() {
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
         tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate,
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
-        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, lockDay: form.lockDay,
+        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, irEligibleDesignations: irDesigObj, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
         sportSchedule: buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj, startWeeksObj),
       }),
@@ -343,6 +345,27 @@ export default function CommissionerSettings() {
                   <button onClick={() => setRosterObj(r => { const n = { ...r[subSport] }; delete n[pos]; return { ...r, [subSport]: n } })} className="text-red-400 hover:text-red-600">×</button>
                 </div>
               ))}
+            </div>
+
+            {/* IR-eligible designations */}
+            <div className="border-t border-slate-100 pt-4">
+              <h4 className="font-semibold text-slate-900 text-sm">{subSport} IR-Eligible Designations</h4>
+              <p className="text-xs text-slate-500 mb-2">Only players carrying one of these injury designations may be placed in an IR slot.</p>
+              <div className="flex flex-wrap gap-2">
+                {(IR_DESIGNATIONS[subSport] ?? []).map(d => {
+                  const on = (irDesigObj[subSport] ?? []).includes(d)
+                  return (
+                    <button key={d} type="button"
+                      onClick={() => setIrDesigObj(prev => {
+                        const cur = prev[subSport] ?? []
+                        return { ...prev, [subSport]: on ? cur.filter(x => x !== d) : [...cur, d] }
+                      })}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${on ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                      {on ? '✓ ' : ''}{d}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </>
         )}

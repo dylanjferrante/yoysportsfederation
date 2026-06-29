@@ -6,7 +6,7 @@ import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, m
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
-import { slotEligible } from '@/lib/defaults'
+import { slotEligible, irEligible, defaultIrDesignations } from '@/lib/defaults'
 import { logActivity } from '@/lib/activity'
 import { realOpponents } from '@/lib/realschedule'
 
@@ -105,11 +105,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
     // Validate the player is eligible for the requested slot.
     const [row] = await db
-      .select({ sport: rosters.sport, position: players.position })
+      .select({ sport: rosters.sport, position: players.position, status: players.status })
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
       .where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
     if (!row) return NextResponse.json({ error: 'Not on roster' }, { status: 400 })
     if (!slotEligible(row.position, body.slot)) return NextResponse.json({ error: `Not eligible for ${body.slot}` }, { status: 400 })
+    // Injured-reserve slots require an injury designation the commissioner has
+    // marked IR-eligible for that sport.
+    if (['IR', 'IL', 'DL'].includes(body.slot)) {
+      const config = safeParse<Record<string, string[]>>(league?.irEligibleDesignations, defaultIrDesignations([row.sport]))
+      if (!irEligible(row.sport, row.status, config))
+        return NextResponse.json({ error: `Player's status (${row.status || 'ACTIVE'}) is not IR-eligible in this league` }, { status: 400 })
+    }
     await db.update(rosters).set({ slot: body.slot }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     return NextResponse.json({ ok: true })
   }

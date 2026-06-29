@@ -70,6 +70,7 @@ export const leagues = sqliteTable('leagues', {
   waiverHour: integer('waiver_hour').default(3),
   // Per-sport waiver run time: { [sport]: { day: 0-6 (Sun-Sat), hour: 0-23 } }
   waiverSchedule: text('waiver_schedule').default('{}'),
+  irEligibleDesignations: text('ir_eligible_designations').default('{}'),
   lockDay: integer('lock_day').default(0),
 
   // Playoffs
