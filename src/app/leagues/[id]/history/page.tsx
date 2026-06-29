@@ -23,7 +23,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
 
   const history = await db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, id))
   const records = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, id))
-  const allMatchups = await db.select({ sport: matchups.sport, homeTeamId: matchups.homeTeamId, awayTeamId: matchups.awayTeamId, homeScore: matchups.homeScore, awayScore: matchups.awayScore, isComplete: matchups.isComplete }).from(matchups).where(eq(matchups.leagueId, id)).limit(5000)
+  const allMatchups = await db.select({ sport: matchups.sport, season: matchups.season, week: matchups.week, homeTeamId: matchups.homeTeamId, awayTeamId: matchups.awayTeamId, homeScore: matchups.homeScore, awayScore: matchups.awayScore, isComplete: matchups.isComplete }).from(matchups).where(eq(matchups.leagueId, id)).limit(5000)
 
   const seasons = [...new Set(history.map(h => h.season))].sort().reverse()
 
