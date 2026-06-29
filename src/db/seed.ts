@@ -598,6 +598,29 @@ const seedActivity: [string, string, string | null, string][] = [
 ]
 for (const [type, msg, tid, when] of seedActivity) insertActivity.run(id(), leagueId, type, msg, tid, when)
 
+// ── Seed pending waiver claims (FAAB) ───────────────────────────────────────
+
+const insertClaim = db.prepare(
+  `INSERT INTO waiver_claims (id, league_id, team_id, sport, add_player_id, drop_player_id, bid_amount, priority, status) VALUES (?,?,?,?,?,?,?,?,?)`
+)
+for (const sp of ['NFL', 'NBA', 'NHL'] as const) {
+  // Two different franchises bidding on the same top free agent → a contested claim.
+  const freeAgents = db.prepare(
+    `SELECT p.id FROM players p WHERE p.sport=? AND p.id NOT IN (SELECT player_id FROM rosters) ORDER BY p.season_points DESC LIMIT 2`
+  ).all(sp) as { id: string }[]
+  if (!freeAgents.length) continue
+  const bidders = [1, 2, 3]
+  freeAgents.forEach((fa, i) => {
+    const t = teamIds[bidders[i % bidders.length]]
+    const pr = db.prepare(`SELECT waiver_priority p, faab_remaining f FROM team_records WHERE team_id=? AND season=? AND sport=?`).get(t, CURRENT_SEASON, sp) as { p: number; f: number } | undefined
+    insertClaim.run(id(), leagueId, t, sp, fa.id, null, Math.min((pr?.f ?? 50), 10 + i * 7), pr?.p ?? 1, 'PENDING')
+  })
+  // A second franchise contests the first free agent.
+  const t2 = teamIds[4]
+  const pr2 = db.prepare(`SELECT waiver_priority p, faab_remaining f FROM team_records WHERE team_id=? AND season=? AND sport=?`).get(t2, CURRENT_SEASON, sp) as { p: number; f: number } | undefined
+  insertClaim.run(id(), leagueId, t2, sp, freeAgents[0].id, null, Math.min((pr2?.f ?? 50), 14), pr2?.p ?? 1, 'PENDING')
+}
+
 db.close()
 console.log('✅ Database seeded successfully!')
 console.log('   League: Nexus Federation (NFL · NBA · NHL · MLB)')
