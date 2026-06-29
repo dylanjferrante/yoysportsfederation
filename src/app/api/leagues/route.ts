@@ -108,6 +108,7 @@ export async function POST(req: Request) {
       playoffRounds: body.playoffRounds,
       playoffFormat: body.playoffFormat,
       weeksPerRound: body.weeksPerRound,
+      positionLimits: '{}',
     }).returning()
 
     // Commissioner membership + their franchise

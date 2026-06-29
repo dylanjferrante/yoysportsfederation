@@ -37,13 +37,16 @@ async function main() {
   const env = { ...loadEnv(), ...process.env }
   const sport = ((process.argv[2] || 'NFL').toUpperCase()) as Sport
   const endpoint = process.argv[3] || `get${sport}Teams`
+  // Any further args of the form key=value become query params, e.g.
+  //   npm run tank01:probe MLB getMLBProjections date=20260629
+  const query = process.argv.slice(4).filter(a => a.includes('=')).join('&')
   const key = env.TANK01_RAPIDAPI_KEY
   const host = env[`TANK01_HOST_${sport}`] || HOSTS[sport]
 
   if (!HOSTS[sport]) { console.error(`Unknown sport "${sport}". Use NFL | NBA | NHL | MLB.`); process.exit(1) }
   if (!key) { console.error('TANK01_RAPIDAPI_KEY is not set in .env'); process.exit(1) }
 
-  const url = `https://${host}/${endpoint}`
+  const url = `https://${host}/${endpoint}${query ? `?${query}` : ''}`
   console.log(`→ ${url}\n  host: ${host}\n  (1 request)\n`)
 
   const res = await fetch(url, { headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, 'Content-Type': 'application/json' } })

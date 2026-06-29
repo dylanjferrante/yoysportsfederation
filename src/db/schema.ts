@@ -74,6 +74,7 @@ export const leagues = sqliteTable('leagues', {
   defenseMode: text('defense_mode').default('TEAM'), // NFL: TEAM (DST) | IDP
   playoffFormat: text('playoff_format').default('H2H'), // H2H | MULTI_WEEK | CHAMP_MULTI
   weeksPerRound: integer('weeks_per_round').default(1),
+  positionLimits: text('position_limits').default('{}'), // per-sport {pos:{maxStarters?,maxRostered?}}
   lockDay: integer('lock_day').default(0),
 
   // Playoffs
