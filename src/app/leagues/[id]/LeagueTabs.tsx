@@ -197,10 +197,10 @@ function SportView({ sport, teamById, records, matchups, rosterSettings, playoff
                 <th className="text-center px-2 py-2 font-semibold">W</th>
                 <th className="text-center px-2 py-2 font-semibold">L</th>
                 <th className="text-center px-1.5 py-2 font-semibold">Pct</th>
-                <th className="text-center px-1.5 py-2 font-semibold">Strk</th>
-                <th className="text-center px-2 py-2 font-semibold">Last 5</th>
-                <th className="text-right px-2 py-2 font-semibold">PF</th>
-                <th className="text-right px-2 py-2 font-semibold">PA</th>
+                <th className="text-center px-1.5 py-2 font-semibold hidden sm:table-cell">Strk</th>
+                <th className="text-center px-2 py-2 font-semibold hidden md:table-cell">Last 5</th>
+                <th className="text-right px-2 py-2 font-semibold hidden sm:table-cell">PF</th>
+                <th className="text-right px-2 py-2 font-semibold hidden md:table-cell">PA</th>
                 <th className="text-right px-3 py-2 font-semibold">Odds</th>
               </tr>
             </thead>
@@ -225,18 +225,18 @@ function SportView({ sport, teamById, records, matchups, rosterSettings, playoff
                     <td className="text-center px-2 py-2.5 font-semibold tabular-nums">{r.wins}</td>
                     <td className="text-center px-2 py-2.5 text-slate-500 tabular-nums">{r.losses}</td>
                     <td className="text-center px-1.5 py-2.5 text-slate-500 tabular-nums">{pct}</td>
-                    <td className="text-center px-1.5 py-2.5 tabular-nums text-xs font-semibold">
+                    <td className="text-center px-1.5 py-2.5 tabular-nums text-xs font-semibold hidden sm:table-cell">
                       <span className={a?.streak?.startsWith('W') ? 'text-green-600' : a?.streak?.startsWith('L') ? 'text-red-500' : 'text-slate-400'}>{a?.streak ?? '—'}</span>
                     </td>
-                    <td className="text-center px-2 py-2.5">
+                    <td className="text-center px-2 py-2.5 hidden md:table-cell">
                       <span className="inline-flex gap-0.5">
                         {(a?.last5 ?? []).map((x: string, k: number) => (
                           <span key={k} className={`w-3.5 h-3.5 rounded-sm text-[8px] font-bold text-white flex items-center justify-center ${x === 'W' ? 'bg-green-500' : x === 'L' ? 'bg-red-400' : 'bg-slate-300'}`}>{x}</span>
                         ))}
                       </span>
                     </td>
-                    <td className="text-right px-2 py-2.5 text-slate-700 tabular-nums">{r.pointsFor?.toFixed(0)}</td>
-                    <td className="text-right px-2 py-2.5 text-slate-400 tabular-nums">{r.pointsAgainst?.toFixed(0)}</td>
+                    <td className="text-right px-2 py-2.5 text-slate-700 tabular-nums hidden sm:table-cell">{r.pointsFor?.toFixed(0)}</td>
+                    <td className="text-right px-2 py-2.5 text-slate-400 tabular-nums hidden md:table-cell">{r.pointsAgainst?.toFixed(0)}</td>
                     <td className="text-right px-3 py-2.5 tabular-nums font-semibold" style={{ color: (a?.odds ?? 0) >= 50 ? meta.hex : undefined }}>{a ? `${a.odds}%` : '—'}</td>
                   </tr>
                 )

@@ -43,13 +43,13 @@ export default function PlayersPage() {
 
   const cols = useMemo(() => {
     const base = [
-      { key: 'proj', label: 'Proj', val: (p: Player) => p.projectedPoints ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, dim: true },
-      { key: 'avg', label: 'Avg', val: (p: Player) => p.avg ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const },
-      { key: 'last', label: 'Last', val: (p: Player) => p.lastPts ?? 0, fmt: (v: number) => (v ? v.toFixed(1) : '—'), align: 'right' as const },
-      { key: 'gp', label: 'GP', val: (p: Player) => p.gp ?? 0, fmt: (v: number) => String(v), align: 'right' as const, dim: true },
-      { key: 'seasonPoints', label: 'Pts', val: (p: Player) => p.seasonPoints ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, bold: true },
+      { key: 'proj', label: 'Proj', val: (p: Player) => p.projectedPoints ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, dim: true, hide: 'hidden sm:table-cell' },
+      { key: 'avg', label: 'Avg', val: (p: Player) => p.avg ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, hide: '' },
+      { key: 'last', label: 'Last', val: (p: Player) => p.lastPts ?? 0, fmt: (v: number) => (v ? v.toFixed(1) : '—'), align: 'right' as const, hide: 'hidden md:table-cell' },
+      { key: 'gp', label: 'GP', val: (p: Player) => p.gp ?? 0, fmt: (v: number) => String(v), align: 'right' as const, dim: true, hide: 'hidden md:table-cell' },
+      { key: 'seasonPoints', label: 'Pts', val: (p: Player) => p.seasonPoints ?? 0, fmt: (v: number) => v.toFixed(1), align: 'right' as const, bold: true, hide: '' },
     ]
-    const catCols = cats.map(c => ({ key: `cat:${c.label}`, label: c.label, val: (p: Player) => +c.get(p.seasonStats ?? {}).toFixed(0), fmt: (v: number) => (v ? String(v) : '—'), align: 'right' as const, dim: false, bold: false }))
+    const catCols = cats.map(c => ({ key: `cat:${c.label}`, label: c.label, val: (p: Player) => +c.get(p.seasonStats ?? {}).toFixed(0), fmt: (v: number) => (v ? String(v) : '—'), align: 'right' as const, dim: false, bold: false, hide: 'hidden lg:table-cell' }))
     return [...base, ...catCols]
   }, [cats])
 
@@ -105,7 +105,7 @@ export default function PlayersPage() {
                 <th className="text-left px-2 py-2 font-semibold sticky left-0 bg-slate-50">Player</th>
                 <th className="text-center px-2 py-2 font-semibold">Own</th>
                 {cols.map(c => (
-                  <th key={c.key} onClick={() => sortBy(c.key)} className={`px-2 py-2 font-semibold cursor-pointer hover:text-slate-700 whitespace-nowrap text-${c.align}`}>{c.label}{arrow(c.key)}</th>
+                  <th key={c.key} onClick={() => sortBy(c.key)} className={`px-2 py-2 font-semibold cursor-pointer hover:text-slate-700 whitespace-nowrap text-${c.align} ${c.hide}`}>{c.label}{arrow(c.key)}</th>
                 ))}
               </tr>
             </thead>
@@ -129,7 +129,7 @@ export default function PlayersPage() {
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${p.owned ? 'bg-slate-100 text-slate-400' : 'bg-green-50 text-green-600'}`}>{p.owned ? 'ROST' : 'FA'}</span>
                     </td>
                     {cols.map(c => (
-                      <td key={c.key} className={`px-2 py-1.5 tabular-nums text-${c.align} ${c.bold ? 'font-bold text-slate-900' : c.dim ? 'text-slate-400' : 'text-slate-600'}`}>{c.fmt(c.val(p) as number)}</td>
+                      <td key={c.key} className={`px-2 py-1.5 tabular-nums text-${c.align} ${c.hide} ${c.bold ? 'font-bold text-slate-900' : c.dim ? 'text-slate-400' : 'text-slate-600'}`}>{c.fmt(c.val(p) as number)}</td>
                     ))}
                   </tr>
                 )
