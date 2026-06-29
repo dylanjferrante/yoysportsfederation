@@ -90,7 +90,7 @@ export default function TeamPage() {
           {team.wordmark && team.wordmark.startsWith('http')
             ? <img src={team.wordmark} alt={team.name} className="h-8 mb-1" />
             : <h1 className="text-2xl font-black text-white">{team.wordmark || team.name}</h1>}
-          <p className="text-white/70 text-sm">{team.ownerName} · {players.length} players{canManage && ' · your franchise'}</p>
+          <p className="text-white/70 text-sm">{team.ownerName} · {players.length} players{data.isOwner ? ' · your franchise' : data.isCommish ? ' · 🛠 commissioner control' : ''}</p>
         </div>
         {team.altLogo && <img src={team.altLogo} alt="" className="w-12 h-12 rounded-xl object-cover bg-white/10 hidden sm:block" />}
         <div className="flex gap-2">

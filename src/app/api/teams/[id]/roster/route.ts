@@ -79,12 +79,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   picks.sort((a, b) => a.year - b.year || (a.sport ?? '').localeCompare(b.sport ?? '') || a.round - b.round)
 
-  const canManage = !!session && (session.user.id === team.userId || session.user.id === league?.commissionerId)
+  const isOwner = !!session && session.user.id === team.userId
+  const isCommish = !!session && session.user.id === league?.commissionerId
+  const canManage = isOwner || isCommish
 
   return NextResponse.json({
     team, players: enriched, picks,
     rosterSettings: safeParse(league?.rosterSettings, {}),
-    canManage,
+    canManage, isOwner, isCommish,
   })
 }
 
