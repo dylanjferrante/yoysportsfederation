@@ -1,5 +1,6 @@
 /**
- * Run this once to create all tables: npx tsx src/db/migrate.ts
+ * Run this once to (re)create all tables: npx tsx src/db/migrate.ts
+ * This is a dev-only clean rebuild — it drops existing tables first.
  */
 import Database from 'better-sqlite3'
 import path from 'path'
@@ -10,10 +11,30 @@ if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true })
 
 const db = new Database(path.join(DB_DIR, 'nexus.db'))
 db.pragma('journal_mode = WAL')
-db.pragma('foreign_keys = ON')
+db.pragma('foreign_keys = OFF')
+
+const drop = `
+DROP TABLE IF EXISTS commissioner_actions;
+DROP TABLE IF EXISTS waiver_claims;
+DROP TABLE IF EXISTS trade_votes;
+DROP TABLE IF EXISTS trade_items;
+DROP TABLE IF EXISTS trades;
+DROP TABLE IF EXISTS matchups;
+DROP TABLE IF EXISTS draft_picks;
+DROP TABLE IF EXISTS drafts;
+DROP TABLE IF EXISTS draft_order;
+DROP TABLE IF EXISTS rosters;
+DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS league_history;
+DROP TABLE IF EXISTS team_records;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS league_members;
+DROP TABLE IF EXISTS leagues;
+DROP TABLE IF EXISTS users;
+`
 
 const schema = `
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
@@ -21,10 +42,9 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS leagues (
+CREATE TABLE leagues (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  sport TEXT NOT NULL,
   season TEXT NOT NULL,
   commissioner_id TEXT NOT NULL REFERENCES users(id),
   is_public INTEGER DEFAULT 0,
@@ -32,14 +52,24 @@ CREATE TABLE IF NOT EXISTS leagues (
   status TEXT DEFAULT 'SETUP',
   max_teams INTEGER DEFAULT 12,
   description TEXT,
+  logo_url TEXT,
+  division_logos TEXT DEFAULT '{}',
+  sports_enabled TEXT DEFAULT '["NFL","NBA","NHL","MLB"]',
+  season_start TEXT DEFAULT 'FOOTBALL',
+  sport_schedule TEXT DEFAULT '[]',
   roster_settings TEXT DEFAULT '{}',
   scoring_settings TEXT DEFAULT '{}',
+  draft_rounds TEXT DEFAULT '{}',
+  federation_scoring TEXT DEFAULT '{}',
   draft_type TEXT DEFAULT 'SNAKE',
   draft_date TEXT,
   draft_status TEXT DEFAULT 'PENDING',
   auction_budget INTEGER DEFAULT 200,
   seconds_per_pick INTEGER DEFAULT 90,
   auto_pick_enabled INTEGER DEFAULT 1,
+  rookie_draft_mode TEXT DEFAULT 'PER_SPORT',
+  rookie_draft_rounds INTEGER DEFAULT 4,
+  tradeable_pick_years INTEGER DEFAULT 3,
   trade_deadline TEXT,
   trade_review TEXT DEFAULT 'COMMISSIONER',
   trade_review_hours INTEGER DEFAULT 48,
@@ -57,7 +87,7 @@ CREATE TABLE IF NOT EXISTS leagues (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS league_members (
+CREATE TABLE league_members (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -66,24 +96,46 @@ CREATE TABLE IF NOT EXISTS league_members (
   UNIQUE(league_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS teams (
+CREATE TABLE teams (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   abbreviation TEXT NOT NULL,
   logo TEXT,
   user_id TEXT NOT NULL REFERENCES users(id),
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(league_id, user_id)
+);
+
+CREATE TABLE team_records (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  season TEXT NOT NULL,
+  sport TEXT NOT NULL,
   wins INTEGER DEFAULT 0,
   losses INTEGER DEFAULT 0,
   ties INTEGER DEFAULT 0,
   points_for REAL DEFAULT 0,
   points_against REAL DEFAULT 0,
+  finish_position INTEGER,
+  is_champion INTEGER DEFAULT 0,
   faab_remaining INTEGER DEFAULT 100,
   waiver_priority INTEGER DEFAULT 1,
-  created_at TEXT DEFAULT (datetime('now'))
+  UNIQUE(team_id, season, sport)
 );
 
-CREATE TABLE IF NOT EXISTS players (
+CREATE TABLE league_history (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  season TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  champion_team_id TEXT REFERENCES teams(id),
+  runner_up_team_id TEXT REFERENCES teams(id),
+  note TEXT
+);
+
+CREATE TABLE players (
   id TEXT PRIMARY KEY,
   external_id TEXT,
   name TEXT NOT NULL,
@@ -96,6 +148,7 @@ CREATE TABLE IF NOT EXISTS players (
   injury_note TEXT,
   bye_week INTEGER,
   photo_url TEXT,
+  is_rookie INTEGER DEFAULT 0,
   season_points REAL DEFAULT 0,
   weekly_avg REAL DEFAULT 0,
   projected_points REAL DEFAULT 0,
@@ -103,22 +156,38 @@ CREATE TABLE IF NOT EXISTS players (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS rosters (
+CREATE TABLE rosters (
   id TEXT PRIMARY KEY,
   team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   player_id TEXT NOT NULL REFERENCES players(id),
+  sport TEXT NOT NULL,
   slot TEXT NOT NULL,
   acquisition_type TEXT DEFAULT 'DRAFT',
   acquired_at TEXT DEFAULT (datetime('now')),
   UNIQUE(team_id, player_id)
 );
 
-CREATE TABLE IF NOT EXISTS draft_picks (
+CREATE TABLE drafts (
   id TEXT PRIMARY KEY,
-  sport TEXT NOT NULL,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  season TEXT NOT NULL,
+  type TEXT DEFAULT 'SNAKE',
+  rounds INTEGER DEFAULT 4,
+  status TEXT DEFAULT 'PENDING',
+  starts_at TEXT,
+  current_pick INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE draft_picks (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id),
+  draft_id TEXT REFERENCES drafts(id),
+  sport TEXT,
   round INTEGER NOT NULL,
   year INTEGER NOT NULL,
-  league_id TEXT NOT NULL REFERENCES leagues(id),
   original_team_id TEXT NOT NULL REFERENCES teams(id),
   current_team_id TEXT NOT NULL REFERENCES teams(id),
   is_used INTEGER DEFAULT 0,
@@ -126,16 +195,11 @@ CREATE TABLE IF NOT EXISTS draft_picks (
   pick_number INTEGER
 );
 
-CREATE TABLE IF NOT EXISTS draft_order (
+CREATE TABLE matchups (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id),
-  team_id TEXT NOT NULL REFERENCES teams(id),
-  position INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS matchups (
-  id TEXT PRIMARY KEY,
-  league_id TEXT NOT NULL REFERENCES leagues(id),
+  sport TEXT NOT NULL,
+  season TEXT,
   week INTEGER NOT NULL,
   home_team_id TEXT NOT NULL REFERENCES teams(id),
   away_team_id TEXT REFERENCES teams(id),
@@ -145,8 +209,9 @@ CREATE TABLE IF NOT EXISTS matchups (
   is_playoff INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS trades (
+CREATE TABLE trades (
   id TEXT PRIMARY KEY,
+  league_id TEXT REFERENCES leagues(id),
   initiator_id TEXT NOT NULL REFERENCES teams(id),
   recipient_id TEXT NOT NULL REFERENCES teams(id),
   status TEXT DEFAULT 'PENDING',
@@ -157,7 +222,7 @@ CREATE TABLE IF NOT EXISTS trades (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS trade_items (
+CREATE TABLE trade_items (
   id TEXT PRIMARY KEY,
   trade_id TEXT NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
   direction TEXT NOT NULL,
@@ -165,7 +230,7 @@ CREATE TABLE IF NOT EXISTS trade_items (
   pick_id TEXT REFERENCES draft_picks(id)
 );
 
-CREATE TABLE IF NOT EXISTS trade_votes (
+CREATE TABLE trade_votes (
   id TEXT PRIMARY KEY,
   trade_id TEXT NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -174,10 +239,11 @@ CREATE TABLE IF NOT EXISTS trade_votes (
   UNIQUE(trade_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS waiver_claims (
+CREATE TABLE waiver_claims (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id),
   team_id TEXT NOT NULL REFERENCES teams(id),
+  sport TEXT,
   add_player_id TEXT NOT NULL REFERENCES players(id),
   drop_player_id TEXT REFERENCES players(id),
   bid_amount INTEGER DEFAULT 0,
@@ -187,7 +253,7 @@ CREATE TABLE IF NOT EXISTS waiver_claims (
   processed_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS commissioner_actions (
+CREATE TABLE commissioner_actions (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -197,6 +263,7 @@ CREATE TABLE IF NOT EXISTS commissioner_actions (
 );
 `
 
+db.exec(drop)
 db.exec(schema)
 console.log('Database schema created successfully.')
 db.close()

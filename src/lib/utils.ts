@@ -41,3 +41,32 @@ export function draftTypeLabel(t: string) {
   if (t === 'LINEAR') return 'Linear'
   return 'Snake'
 }
+
+export function safeParse<T = any>(s: string | null | undefined, fallback: T): T {
+  if (!s) return fallback
+  try { return JSON.parse(s) as T } catch { return fallback }
+}
+
+// Real-calendar months each sport is in season (1 = Jan … 12 = Dec).
+const SPORT_MONTHS: Record<string, number[]> = {
+  NFL: [9, 10, 11, 12, 1],
+  NBA: [10, 11, 12, 1, 2, 3, 4, 5, 6],
+  NHL: [10, 11, 12, 1, 2, 3, 4, 5, 6],
+  MLB: [3, 4, 5, 6, 7, 8, 9, 10],
+}
+
+// Which enabled sports are "in season" right now (by real calendar month).
+export function inSeasonNow(sportsEnabled: string[], now: Date = new Date()): string[] {
+  const m = now.getMonth() + 1
+  return sportsEnabled.filter(s => SPORT_MONTHS[s]?.includes(m))
+}
+
+// Best logo image URL for a sport division: division logo → league logo → ''.
+export function divisionLogo(
+  divisionLogos: Record<string, string> | string | null | undefined,
+  sport: string,
+  fallbackUrl?: string | null,
+): string {
+  const map = typeof divisionLogos === 'string' ? safeParse<Record<string, string>>(divisionLogos, {}) : (divisionLogos ?? {})
+  return (map?.[sport]?.trim()) || (fallbackUrl?.trim?.() ?? '') || ''
+}

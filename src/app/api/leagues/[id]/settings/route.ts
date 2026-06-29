@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { leagues } from '@/db/schema'
 import { eq } from 'drizzle-orm'
+import { buildSchedule } from '@/lib/defaults'
+import { safeParse } from '@/lib/utils'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -16,11 +18,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const body = await req.json()
 
-  // Only allow updating certain fields
   const allowed = [
-    'name', 'description', 'isPublic', 'maxTeams',
-    'rosterSettings', 'scoringSettings',
+    'name', 'description', 'isPublic', 'maxTeams', 'season',
+    'logoUrl', 'divisionLogos', 'sportsEnabled', 'seasonStart', 'sportSchedule',
+    'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring',
     'draftType', 'draftDate', 'auctionBudget', 'secondsPerPick', 'autoPickEnabled',
+    'rookieDraftMode', 'rookieDraftRounds', 'tradeablePickYears',
     'tradeDeadline', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
     'waiverType', 'faabBudget', 'waiverDay', 'waiverHour', 'lockDay',
     'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds',
@@ -31,9 +34,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (key in body) update[key] = body[key]
   }
 
-  // Serialize JSON fields if passed as objects
-  if (typeof update.rosterSettings === 'object') update.rosterSettings = JSON.stringify(update.rosterSettings)
-  if (typeof update.scoringSettings === 'object') update.scoringSettings = JSON.stringify(update.scoringSettings)
+  // Serialize JSON object/array fields.
+  for (const k of ['divisionLogos', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule']) {
+    if (k in update && typeof update[k] !== 'string') update[k] = JSON.stringify(update[k])
+  }
+
+  // If the enabled sports or season anchor changed, recompute the schedule.
+  if ('sportsEnabled' in update || 'seasonStart' in update) {
+    const sportsEnabled = 'sportsEnabled' in update
+      ? safeParse<string[]>(update.sportsEnabled as string, [])
+      : safeParse<string[]>(league.sportsEnabled, [])
+    const seasonStart = (update.seasonStart as string) ?? league.seasonStart ?? 'FOOTBALL'
+    update.sportSchedule = JSON.stringify(buildSchedule(seasonStart, sportsEnabled))
+  }
 
   const [updated] = await db.update(leagues).set(update).where(eq(leagues.id, id)).returning()
   return NextResponse.json(updated)
