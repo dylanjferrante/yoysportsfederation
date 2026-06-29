@@ -1,5 +1,5 @@
 import { db } from '@/db'
-import { players, rosters, teams, users, leagues, matchups, playerGameStats } from '@/db/schema'
+import { players, rosters, teams, users, leagues, matchups, playerGameStats, playerNews } from '@/db/schema'
 import { eq, and, or, desc } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -44,6 +44,9 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   // Game log
   const log = await db.select().from(playerGameStats).where(eq(playerGameStats.playerId, id)).orderBy(desc(playerGameStats.week)).limit(20)
 
+  // News
+  const news = await db.select().from(playerNews).where(eq(playerNews.playerId, id)).orderBy(desc(playerNews.createdAt)).limit(10)
+
   const eligible = safeParse<string[]>(p.eligiblePositions, [p.position])
   const cols = gameLogColumns(p.sport, p.position)
 
@@ -54,16 +57,41 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
       {/* Header */}
       <div className="rounded-2xl p-6 mb-6 text-white" style={{ background: `linear-gradient(135deg, ${meta.hex} 0%, ${meta.hex}cc 100%)` }}>
         <div className="flex items-center gap-4 flex-wrap">
-          <div className="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center text-xl font-black">{p.position}</div>
+          {p.photoUrl
+            ? <img src={p.photoUrl} alt="" className="w-16 h-16 rounded-2xl object-cover bg-white/15" />
+            : <div className="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center text-xl font-black">{p.name.split(' ').map(w => w[0]).slice(0, 2).join('')}</div>}
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-black">{p.name}</h1>
               {p.status !== 'ACTIVE' && <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded">{p.status}</span>}
             </div>
             <p className="text-white/80 text-sm">{meta.emoji} {p.sport} · {p.position} · {p.realTeam} · eligible: {eligible.join(', ')}</p>
+            {p.status !== 'ACTIVE' && p.injuryNote && <p className="text-white/90 text-sm mt-1 font-medium">🚑 {p.injuryNote}</p>}
           </div>
         </div>
       </div>
+
+      {/* News */}
+      {news.length > 0 && (
+        <div className="card mb-6">
+          <div className="card-header"><h2 className="font-semibold text-slate-900">Latest News</h2></div>
+          <ul className="divide-y divide-slate-50">
+            {news.map(n => {
+              const icon = n.category === 'INJURY' ? '🚑' : n.category === 'PERFORMANCE' ? '📈' : n.category === 'TRANSACTION' ? '🔁' : '📰'
+              return (
+                <li key={n.id} className="flex items-start gap-3 px-4 py-3">
+                  <span className="text-base leading-5">{icon}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-900">{n.headline}</p>
+                    {n.body && <p className="text-sm text-slate-500 mt-0.5">{n.body}</p>}
+                    <p className="text-[11px] text-slate-400 mt-0.5">{n.createdAt ? new Date(n.createdAt + 'Z').toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">

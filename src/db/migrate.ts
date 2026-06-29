@@ -14,6 +14,7 @@ db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = OFF')
 
 const drop = `
+DROP TABLE IF EXISTS league_messages;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS activity;
 DROP TABLE IF EXISTS password_resets;
@@ -22,6 +23,7 @@ DROP TABLE IF EXISTS waiver_claims;
 DROP TABLE IF EXISTS trade_votes;
 DROP TABLE IF EXISTS trade_items;
 DROP TABLE IF EXISTS trades;
+DROP TABLE IF EXISTS player_news;
 DROP TABLE IF EXISTS player_game_stats;
 DROP TABLE IF EXISTS matchups;
 DROP TABLE IF EXISTS draft_queues;
@@ -265,6 +267,15 @@ CREATE TABLE player_game_stats (
   UNIQUE(league_id, season, week, player_id)
 );
 
+CREATE TABLE player_news (
+  id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  headline TEXT NOT NULL,
+  body TEXT,
+  category TEXT DEFAULT 'NOTE',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE matchups (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id),
@@ -350,6 +361,14 @@ CREATE TABLE notifications (
   message TEXT NOT NULL,
   link TEXT,
   is_read INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE league_messages (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

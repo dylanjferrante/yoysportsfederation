@@ -610,6 +610,47 @@ const seedActivity: [string, string, string | null, string][] = [
 ]
 for (const [type, msg, tid, when] of seedActivity) insertActivity.run(id(), leagueId, type, msg, tid, when)
 
+// ── Seed league chat ────────────────────────────────────────────────────────
+
+const insertMessage = db.prepare(
+  `INSERT INTO league_messages (id, league_id, user_id, body, created_at) VALUES (?,?,?,?,datetime('now', ?))`
+)
+const seedChat: [number, string, string][] = [
+  [0, 'Who else is starting their hockey goalie this week? Mine has a brutal schedule.', '-2 days'],
+  [1, 'Just dropped a stinker in NBA, time to make some moves. Anyone selling a center?', '-2 days'],
+  [2, "Don't trade with @Alex, he fleeced me last year 😂", '-1 days'],
+  [0, "That's slander. It was a perfectly fair deal.", '-1 days'],
+  [3, 'Waivers run tonight — good luck everyone, I want that RB.', '-20 hours'],
+  [4, 'Federation standings are tight this year. May the best franchise win.', '-5 hours'],
+  [1, 'Anyone want to talk a cross-sport deal? I have NFL picks to move.', '-2 hours'],
+]
+for (const [ownerIdx, body, when] of seedChat) insertMessage.run(id(), leagueId, ownerIds[ownerIdx], body, when)
+
+// ── Seed player news + injuries ─────────────────────────────────────────────
+
+const insertNews = db.prepare(
+  `INSERT INTO player_news (id, player_id, headline, body, category, created_at) VALUES (?,?,?,?,?,datetime('now', ?))`
+)
+const updPlayerStatus = db.prepare(`UPDATE players SET status=?, injury_note=? WHERE id=?`)
+
+for (const sp of SPORT_LIST) {
+  const top = db.prepare(`SELECT id, name FROM players WHERE sport=? ORDER BY season_points DESC LIMIT 3`).all(sp) as { id: string; name: string }[]
+  top.forEach((p, i) => {
+    insertNews.run(id(), p.id, `${p.name} stays red-hot`, `Posted another strong line and remains a top-tier ${sp} fantasy option heading into the week.`, 'PERFORMANCE', `-${i + 1} hours`)
+  })
+  // A couple of injuries among mid-tier players per sport.
+  const injuries: [string, string, string][] = [
+    ['INJURED', 'Questionable (ankle)', 'is dealing with a sprained ankle and is questionable for the upcoming slate.'],
+    ['IR', 'Out (hamstring)', 'was placed on injured reserve with a hamstring strain; no timetable to return.'],
+  ]
+  const mids = (db.prepare(`SELECT id, name FROM players WHERE sport=? ORDER BY season_points DESC LIMIT 16`).all(sp) as { id: string; name: string }[]).slice(12, 14)
+  mids.forEach((p, i) => {
+    const [status, note, blurb] = injuries[i % injuries.length]
+    updPlayerStatus.run(status, note, p.id)
+    insertNews.run(id(), p.id, `${p.name}: ${note}`, `${p.name} ${blurb}`, 'INJURY', `-${i + 2} hours`)
+  })
+}
+
 // ── Seed pending waiver claims (FAAB) ───────────────────────────────────────
 
 const insertClaim = db.prepare(
