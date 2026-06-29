@@ -71,6 +71,7 @@ export const leagues = sqliteTable('leagues', {
   // Per-sport waiver run time: { [sport]: { day: 0-6 (Sun-Sat), hour: 0-23 } }
   waiverSchedule: text('waiver_schedule').default('{}'),
   irEligibleDesignations: text('ir_eligible_designations').default('{}'),
+  defenseMode: text('defense_mode').default('TEAM'), // NFL: TEAM (DST) | IDP
   lockDay: integer('lock_day').default(0),
 
   // Playoffs

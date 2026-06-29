@@ -95,6 +95,7 @@ CREATE TABLE leagues (
   waiver_hour INTEGER DEFAULT 3,
   waiver_schedule TEXT DEFAULT '{}',
   ir_eligible_designations TEXT DEFAULT '{}',
+  defense_mode TEXT DEFAULT 'TEAM',
   lock_day INTEGER DEFAULT 0,
   playoff_teams INTEGER DEFAULT 4,
   playoff_start_week INTEGER DEFAULT 15,

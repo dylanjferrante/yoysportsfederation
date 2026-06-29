@@ -14,6 +14,18 @@ export const DEFAULT_ROSTER: Record<string, RosterSettings> = {
 // Bench/reserve slot keys (not in the active scoring lineup).
 export const RESERVE_SLOTS = ['BN', 'IR', 'IL', 'DL', 'TAXI']
 
+// IDP (individual defensive player) slot → eligible real positions. Used when a
+// league runs individual defenders instead of a single team defense (DST).
+// Note: 'DL' is both an IDP slot here and a reserve key above; reserve wins in
+// slotEligible (handled by order), so name an IDP defensive-line slot 'DLINE'.
+export const IDP_SLOT_POSITIONS: Record<string, string[]> = {
+  DLINE: ['DL', 'DE', 'DT', 'NT', 'EDGE'],
+  LB: ['LB', 'ILB', 'OLB', 'MLB'],
+  DB: ['DB', 'CB', 'S', 'FS', 'SS', 'SAF'],
+}
+const ALL_IDP_POSITIONS = [...new Set(Object.values(IDP_SLOT_POSITIONS).flat())]
+export const IDP_POSITIONS = ALL_IDP_POSITIONS
+
 // Is a player (by position) eligible to occupy a given roster slot?
 export function slotEligible(position: string, slot: string): boolean {
   if (RESERVE_SLOTS.includes(slot)) return true       // bench / taxi / IR open to anyone
@@ -22,7 +34,49 @@ export function slotEligible(position: string, slot: string): boolean {
   if (slot === 'UTIL') return true                    // utility takes any
   if (slot === 'G') return ['PG', 'SG'].includes(position)
   if (slot === 'F') return ['SF', 'PF'].includes(position)
+  if (IDP_SLOT_POSITIONS[slot]) return IDP_SLOT_POSITIONS[slot].includes(position)
+  if (slot === 'IDP') return ALL_IDP_POSITIONS.includes(position)
   return false
+}
+
+// ── NFL defense mode: team defense (DST) vs individual defenders (IDP) ────────
+export type DefenseMode = 'TEAM' | 'IDP'
+// Roster's defensive slots differ by mode; offense is identical.
+const NFL_OFFENSE_SLOTS = { QB: 1, RB: 2, WR: 3, TE: 1, 'RB/WR/TE': 1, K: 1 }
+const NFL_BENCH_SLOTS = { BN: 7, IR: 2, TAXI: 3 }
+export function nflRosterFor(mode: DefenseMode): Record<string, number> {
+  return mode === 'IDP'
+    ? { ...NFL_OFFENSE_SLOTS, DLINE: 1, LB: 2, DB: 2, ...NFL_BENCH_SLOTS }
+    : { ...NFL_OFFENSE_SLOTS, DEF: 1, ...NFL_BENCH_SLOTS }
+}
+
+// Team-defense (DST) scoring keys within DEFAULT_SCORING.NFL — removed in IDP mode.
+const NFL_DST_KEYS = [
+  'sack', 'interception', 'fumbleRecovery', 'defensiveTD', 'specialTeamsTD', 'safeties', 'blockedKick',
+  'ptsAllowed0', 'ptsAllowed1_6', 'ptsAllowed7_13', 'ptsAllowed14_20', 'ptsAllowed21_27', 'ptsAllowed28_34', 'ptsAllowed35plus',
+  'yardsAllowedUnder100', 'yardsAllowed100_199', 'yardsAllowed350_399', 'yardsAllowed400plus',
+]
+// Individual-defender scoring (used in IDP mode).
+export const IDP_SCORING: Record<string, number> = {
+  idpSoloTackle: 1,
+  idpAssistTackle: 0.5,
+  idpSack: 2,
+  idpTackleForLoss: 1,
+  idpQbHit: 1,
+  idpPassDefended: 1,
+  idpInterception: 3,
+  idpForcedFumble: 3,
+  idpFumbleRecovery: 2,
+  idpDefTD: 6,
+  idpSafety: 2,
+}
+export function nflScoringFor(mode: DefenseMode): Record<string, number> {
+  const base: Record<string, number> = { ...DEFAULT_SCORING.NFL }
+  if (mode === 'IDP') {
+    for (const k of NFL_DST_KEYS) delete base[k]
+    return { ...base, ...IDP_SCORING }
+  }
+  return base
 }
 
 // The ordered list of slots (that exist in this sport's roster) a player can fill.

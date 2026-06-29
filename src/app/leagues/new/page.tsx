@@ -151,7 +151,21 @@ export default function CreateLeaguePage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div><label className="label">Playoff Teams (per sport)</label><select className="select" value={form.playoffTeams} onChange={e => set('playoffTeams', +e.target.value)}>{[2, 4, 6, 8].map(n => <option key={n} value={n}>{n} teams</option>)}</select></div>
               <div><label className="label">Playoff Rounds</label><select className="select" value={form.playoffRounds} onChange={e => set('playoffRounds', +e.target.value)}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></div>
-              <div><label className="label">Playoffs Start Week</label><input type="number" min={1} max={30} className="input" value={form.playoffStartWeek} onChange={e => set('playoffStartWeek', +e.target.value)} /></div>
+            </div>
+
+            {/* Playoffs start per-sport, after each sport's own regular season — not one shared week. */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-600 mb-1">When playoffs begin (per sport)</p>
+              <p className="text-[11px] text-slate-500 mb-2">Each sport&apos;s playoffs start the week after its own regular season ends — they don&apos;t all start the same week. Fine-tune each sport&apos;s schedule in settings after creating.</p>
+              <div className="space-y-1">
+                {buildSchedule(form.seasonStart, form.sportsEnabled).map(e => (
+                  <div key={e.sport} className="flex items-center gap-2 text-[11px]">
+                    <span className={`inline-flex items-center gap-1 font-semibold w-14 ${sportMeta(e.sport).color}`}><span>{sportMeta(e.sport).emoji}</span>{e.sport}</span>
+                    <span className="text-slate-600">Playoffs begin Week {e.endWeek + 1}</span>
+                    <span className="text-slate-400">({formatWeekRange(form.season, e.endWeek + 1)})</span>
+                  </div>
+                ))}
+              </div>
             </div>
             <p className="text-xs text-slate-400">Per-sport season length, rookie-draft rounds, taxi/IR slots and more are configured in commissioner settings after creation.</p>
           </>

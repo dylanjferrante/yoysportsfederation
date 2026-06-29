@@ -267,15 +267,16 @@ const poolSize = (sport: string, curated: number) => NUM_TEAMS * ROSTER_FILL[spo
 // precedence over generated ones. Falls back to generated when no file exists.
 type PulledPlayer = { externalId: string; name: string; sport: string; position: string; team: string; status: string; injuryNote: string; photoUrl: string | null; isRookie: boolean; projectedPoints: number; stats: Record<string, number> }
 
-function loadRealPool(sport: string, count: number): PlayerSeed[] | null {
+function loadRealPool(sport: string): PlayerSeed[] | null {
   const file = path.resolve(process.cwd(), 'src/fixtures', `tank01-${sport}.json`)
   if (!fs.existsSync(file)) return null
   let rows: PulledPlayer[]
   try { rows = JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return null }
   if (!Array.isArray(rows) || rows.length === 0) return null
   const games = GAMES[sport] ?? 17
-  // Sorted by projection in the fixture; take the most fantasy-relevant `count`.
-  return rows.slice(0, count).map((p, i) => {
+  // Keep the ENTIRE real pool so every player is an available free agent; the
+  // fixture is sorted by projection, so the draft still takes the best first.
+  return rows.map((p, i) => {
     const proj = p.projectedPoints || 0
     return {
       id: `${sport.toLowerCase()}-${p.externalId || i}`,
@@ -288,9 +289,8 @@ function loadRealPool(sport: string, count: number): PlayerSeed[] | null {
 }
 
 function buildPool(sport: string, curated: PlayerSeed[]): PlayerSeed[] {
-  const target = poolSize(sport, 0)
-  const real = loadRealPool(sport, target)
-  if (real) { console.log(`  ${sport}: using ${real.length} real players from Tank01 fixture`); return real }
+  const real = loadRealPool(sport)
+  if (real) { console.log(`  ${sport}: using ${real.length} real players from Tank01 fixture (full free-agent pool)`); return real }
   return [...curated, ...generatePlayers(sport, poolSize(sport, curated.length))]
 }
 
@@ -332,12 +332,12 @@ const insertLeague = db.prepare(`
   (id,name,season,commissioner_id,status,max_teams,invite_code,description,logo_url,division_logos,
    sports_enabled,season_start,sport_schedule,roster_settings,scoring_settings,draft_rounds,
    federation_scoring,draft_type,draft_status,draft_order_method,rookie_draft_mode,rookie_draft_rounds,tradeable_pick_years,
-   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,ir_eligible_designations,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
+   trade_review,trade_deadlines,waiver_type,faab_budget,faab_mode,waiver_schedule,ir_eligible_designations,defense_mode,playoff_teams,playoff_start_week,regular_season_weeks,dues_amount)
   VALUES
   (@id,@name,@season,@commissioner_id,@status,@max_teams,@invite_code,@description,@logo_url,@division_logos,
    @sports_enabled,@season_start,@sport_schedule,@roster_settings,@scoring_settings,@draft_rounds,
    @federation_scoring,@draft_type,@draft_status,@draft_order_method,@rookie_draft_mode,@rookie_draft_rounds,@tradeable_pick_years,
-   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@ir_eligible_designations,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
+   @trade_review,@trade_deadlines,@waiver_type,@faab_budget,@faab_mode,@waiver_schedule,@ir_eligible_designations,@defense_mode,@playoff_teams,@playoff_start_week,@regular_season_weeks,@dues_amount)
 `)
 
 insertLeague.run({
@@ -377,6 +377,7 @@ insertLeague.run({
   faab_mode: 'TOTAL',
   waiver_schedule: JSON.stringify(defaultWaiverSchedule(SPORT_LIST)),
   ir_eligible_designations: JSON.stringify(defaultIrDesignations(SPORT_LIST)),
+  defense_mode: 'TEAM',
   playoff_teams: 4,
   playoff_start_week: 15,
   regular_season_weeks: JSON.stringify(seasonWeeks),

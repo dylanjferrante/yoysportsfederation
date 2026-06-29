@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
@@ -332,9 +332,34 @@ export default function CommissionerSettings() {
         {tab === 'Roster' && (
           <>
             <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
+
+            {/* NFL defense mode: team defense (DST) vs individual defenders (IDP) */}
+            {subSport === 'NFL' && (
+              <div className="rounded-xl border border-slate-200 p-3">
+                <p className="text-sm font-semibold text-slate-800">NFL Defense Format</p>
+                <p className="text-xs text-slate-500 mb-2">Choose team defense (one DST per lineup) or IDP (individual defenders with their own slots & scoring). Switching updates the NFL roster slots and scoring.</p>
+                <div className="flex gap-2">
+                  {([['TEAM', 'Team Defense (DST)'], ['IDP', 'Individual Defenders (IDP)']] as const).map(([mode, label]) => {
+                    const active = (form.defenseMode ?? 'TEAM') === mode
+                    return (
+                      <button key={mode} type="button"
+                        onClick={() => {
+                          set('defenseMode', mode)
+                          setRosterObj(r => ({ ...r, NFL: nflRosterFor(mode) }))
+                          setScoringObj(s => ({ ...s, NFL: nflScoringFor(mode) }))
+                        }}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border ${active ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                        {active ? '✓ ' : ''}{label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-slate-900">{subSport} Roster Positions</h3>
-              <button onClick={() => setRosterObj(r => ({ ...r, [subSport]: { ...DEFAULT_ROSTER[subSport] } }))} className="btn-ghost text-xs">Reset to default</button>
+              <button onClick={() => setRosterObj(r => ({ ...r, [subSport]: { ...(subSport === 'NFL' ? nflRosterFor(form.defenseMode ?? 'TEAM') : DEFAULT_ROSTER[subSport]) } }))} className="btn-ghost text-xs">Reset to default</button>
             </div>
             <div className="grid sm:grid-cols-3 gap-3">
               {Object.entries(rosterObj[subSport] ?? {}).map(([pos, count]) => (
