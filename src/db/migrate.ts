@@ -26,6 +26,7 @@ DROP TABLE IF EXISTS player_game_stats;
 DROP TABLE IF EXISTS matchups;
 DROP TABLE IF EXISTS draft_queues;
 DROP TABLE IF EXISTS draft_autopick;
+DROP TABLE IF EXISTS auction_budgets;
 DROP TABLE IF EXISTS draft_picks;
 DROP TABLE IF EXISTS drafts;
 DROP TABLE IF EXISTS draft_order;
@@ -204,7 +205,19 @@ CREATE TABLE drafts (
   current_pick INTEGER DEFAULT 0,
   pick_seconds INTEGER DEFAULT 90,
   pick_deadline TEXT,
+  nom_player_id TEXT REFERENCES players(id),
+  nom_team_id TEXT REFERENCES teams(id),
+  nom_bid INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE auction_budgets (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  budget INTEGER DEFAULT 200,
+  spent INTEGER DEFAULT 0,
+  UNIQUE(draft_id, team_id)
 );
 
 CREATE TABLE draft_queues (
