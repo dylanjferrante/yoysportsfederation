@@ -14,11 +14,6 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
   leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; sportNames?: Record<string, string>; schedule?: ScheduleEntry[]; records?: Rec[]; divisionLogos?: Record<string, string>; isCommish?: boolean
 }) {
   const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams])
-  const recBy = useMemo(() => {
-    const m: Record<string, string> = {}
-    for (const r of records) m[`${r.teamId}:${r.sport}`] = `${r.wins ?? 0}-${r.losses ?? 0}${(r.ties ?? 0) ? `-${r.ties}` : ''}`
-    return m
-  }, [records])
   const seasons = useMemo(() => {
     const s = [...new Set(matchups.map(m => m.season).filter(Boolean) as string[])]
     return s.sort().reverse()
@@ -39,6 +34,23 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
   const weekMatchups = seasonMatchups.filter(m => m.week === activeWeek)
   const activeSports = sportsEnabled.filter(s => weekMatchups.some(m => m.sport === s))
   const idx = weeks.indexOf(activeWeek)
+
+  // Each franchise's record as of the week being viewed (regular-season games through
+  // activeWeek), not the current season-to-date record.
+  const recBy = useMemo(() => {
+    const rec: Record<string, { w: number; l: number; t: number }> = {}
+    for (const m of seasonMatchups) {
+      if (!m.isComplete || m.playoff || !m.awayTeamId || m.week > activeWeek) continue
+      const hk = `${m.homeTeamId}:${m.sport}`, ak = `${m.awayTeamId}:${m.sport}`
+      rec[hk] ??= { w: 0, l: 0, t: 0 }; rec[ak] ??= { w: 0, l: 0, t: 0 }
+      if (m.homeScore === m.awayScore) { rec[hk].t++; rec[ak].t++ }
+      else if (m.homeScore > m.awayScore) { rec[hk].w++; rec[ak].l++ }
+      else { rec[ak].w++; rec[hk].l++ }
+    }
+    const out: Record<string, string> = {}
+    for (const k in rec) out[k] = `${rec[k].w}-${rec[k].l}${rec[k].t ? `-${rec[k].t}` : ''}`
+    return out
+  }, [seasonMatchups, activeWeek])
 
   return (
     <div>
