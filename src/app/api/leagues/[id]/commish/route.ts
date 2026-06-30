@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { leagues, leagueMembers, users, matchups, trades, realStatLines, players, commissionerActions } from '@/db/schema'
+import { leagues, leagueMembers, users, matchups, trades, tradeItems, teams, realStatLines, players, commissionerActions } from '@/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
+import { safeParse } from '@/lib/utils'
 import { isCommissioner } from '@/lib/permissions'
 import { logCommissionerAction, logActivity, notify } from '@/lib/activity'
 import { executeTrade } from '@/lib/trades'
@@ -21,8 +22,10 @@ async function loadLeague(id: string) {
   return league
 }
 
-// GET: audit log + member roster (for the commissioner panel).
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+// GET: audit log + member roster (for the commissioner panel). With
+// ?statPlayerId&statSport&statWeek, returns just that player's stored stat line
+// (so the stat-correction editor can prefill it).
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
@@ -30,16 +33,47 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!league) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (!(await isCommissioner(id, session.user.id))) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
 
+  const sp = new URL(req.url).searchParams
+  if (sp.get('statPlayerId')) {
+    const [row] = await db.select({ stats: realStatLines.stats }).from(realStatLines)
+      .where(and(eq(realStatLines.playerId, sp.get('statPlayerId')!), eq(realStatLines.sport, sp.get('statSport') ?? ''), eq(realStatLines.season, league.season), eq(realStatLines.week, Number(sp.get('statWeek') ?? 0)))).limit(1)
+    return NextResponse.json({ stats: safeParse<Record<string, number>>(row?.stats, {}) })
+  }
+
   const actions = await db.select({ id: commissionerActions.id, action: commissionerActions.action, details: commissionerActions.details, createdAt: commissionerActions.createdAt, byName: users.name })
     .from(commissionerActions).leftJoin(users, eq(commissionerActions.userId, users.id))
     .where(eq(commissionerActions.leagueId, id)).orderBy(desc(commissionerActions.createdAt)).limit(50)
   const members = await db.select({ userId: leagueMembers.userId, role: leagueMembers.role, name: users.name, email: users.email })
     .from(leagueMembers).leftJoin(users, eq(leagueMembers.userId, users.id)).where(eq(leagueMembers.leagueId, id))
 
+  // Teams (id → name) for labelling matchups and trades.
+  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation }).from(teams).where(eq(teams.leagueId, id))
+
+  // Pending trades, with a short asset summary for the force/veto list.
+  const pendingRows = await db.select().from(trades).where(and(eq(trades.leagueId, id), eq(trades.status, 'PENDING')))
+  const itemsByTrade: Record<string, { playerId: string | null; pickId: string | null }[]> = {}
+  for (const t of pendingRows) itemsByTrade[t.id] = await db.select({ playerId: tradeItems.playerId, pickId: tradeItems.pickId }).from(tradeItems).where(eq(tradeItems.tradeId, t.id))
+  const nameOf = (tid: string | null) => teamRows.find(t => t.id === tid)?.name ?? '—'
+  const pendingTrades = pendingRows.map(t => ({
+    id: t.id,
+    initiator: nameOf(t.initiatorId),
+    recipient: nameOf(t.recipientId),
+    assets: (itemsByTrade[t.id] ?? []).filter(i => i.playerId || i.pickId).length,
+    createdAt: t.createdAt,
+  }))
+
+  // All matchups (compact) — the score-override picker filters client-side by sport/week.
+  const matchupRows = await db.select({ id: matchups.id, sport: matchups.sport, week: matchups.week, homeTeamId: matchups.homeTeamId, awayTeamId: matchups.awayTeamId, homeScore: matchups.homeScore, awayScore: matchups.awayScore, isComplete: matchups.isComplete })
+    .from(matchups).where(and(eq(matchups.leagueId, id), eq(matchups.season, league.season))).limit(3000)
+
   return NextResponse.json({
     isPrimaryCommissioner: league.commissionerId === session.user.id,
     inviteCode: league.inviteCode,
-    members, actions,
+    season: league.season,
+    sportsEnabled: safeParse<string[]>(league.sportsEnabled, []),
+    teams: teamRows,
+    members, actions, pendingTrades,
+    matchups: matchupRows,
   })
 }
 
