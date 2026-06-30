@@ -189,15 +189,29 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
   await runA(async () => {
     const res: Headline[] = []
     for (const sp of sportsEnabled) {
-      const wk = bySport[sp].lastWeek
-      if (!wk) continue
-      const top = await db.select({ playerId: playerGameStats.playerId, teamId: playerGameStats.teamId, points: playerGameStats.points, name: players.name })
-        .from(playerGameStats).innerJoin(players, eq(playerGameStats.playerId, players.id))
-        .where(and(eq(playerGameStats.leagueId, leagueId), eq(playerGameStats.season, season), eq(playerGameStats.sport, sp), eq(playerGameStats.week, wk)))
-      if (!top.length) continue
-      const best = top.reduce((a, b) => ((b.points ?? 0) > (a.points ?? 0) ? b : a))
-      if ((best.points ?? 0) > 0) res.push({ id: `perf-${sp}-${wk}`, category: 'PERFORMANCE', sport: sp, priority: 52, ts: tsOfWeek(wk),
-        text: `${best.name} (${nm(best.teamId)}) leads ${sp} scorers in Week ${wk} with ${(best.points ?? 0).toFixed(1)}`, href: `${base}/scores` })
+      const weeks = [bySport[sp].curWeek, bySport[sp].lastWeek].filter((w, i, a) => !!w && a.indexOf(w) === i) as number[]
+      for (const wk of weeks) {
+        const rows = await db.select({ playerId: playerGameStats.playerId, teamId: playerGameStats.teamId, points: playerGameStats.points, name: players.name })
+          .from(playerGameStats).innerJoin(players, eq(playerGameStats.playerId, players.id))
+          .where(and(eq(playerGameStats.leagueId, leagueId), eq(playerGameStats.season, season), eq(playerGameStats.sport, sp), eq(playerGameStats.week, wk)))
+        const scored = rows.filter(r => (r.points ?? 0) > 0)
+        if (!scored.length) continue
+        const live = wk === bySport[sp].curWeek
+        const avg = scored.reduce((a, b) => a + (b.points ?? 0), 0) / scored.length
+        const studs = scored.filter(r => (r.points ?? 0) >= avg * 1.7).sort((a, b) => (b.points ?? 0) - (a.points ?? 0)).slice(0, 3)
+        const list = studs.length ? studs : [scored.reduce((a, b) => ((b.points ?? 0) > (a.points ?? 0) ? b : a))]
+        const ts = live ? tsOfWeek(wk) + 3 * 86_400_000 : tsOfWeek(wk)
+        for (const p of list) {
+          const pts = (p.points ?? 0).toFixed(1)
+          res.push({
+            id: `perf-${sp}-${wk}-${p.playerId}`, category: 'PERFORMANCE', sport: sp, priority: live ? 56 : 52, ts,
+            text: live
+              ? vary(`perf${p.playerId}${wk}`, `🔥 ${p.name} (${nm(p.teamId)}) is going off in ${sp} Week ${wk} — ${pts} so far`, `🔥 ${p.name} already has ${pts} for ${nm(p.teamId)} mid-week in ${sp}`)
+              : vary(`perf${p.playerId}${wk}`, `${p.name} (${nm(p.teamId)}) dropped ${pts} in ${sp} Week ${wk}`, `${p.name} led the way with ${pts} for ${nm(p.teamId)} in Week ${wk}`),
+            href: `${base}/scores`,
+          })
+        }
+      }
     }
     return res
   })
@@ -463,12 +477,14 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
     return res
   }))
 
+  const latestWeek = Math.max(0, ...sportsEnabled.map(sp => Math.max(bySport[sp]?.lastWeek ?? 0, bySport[sp]?.curWeek ?? 0)))
+  const freshCutoff = latestWeek > 1 ? tsOfWeek(latestWeek - 1) : 0
   const seen = new Set<string>()
   const ranked = out
-    .filter(h => h.text && (seen.has(h.id) ? false : (seen.add(h.id), true)))
+    .filter(h => h.text && (!h.ts || h.ts >= freshCutoff) && (seen.has(h.id) ? false : (seen.add(h.id), true)))
     .sort((a, b) => b.priority - a.priority || b.ts - a.ts)
   const CAP: Record<string, number> = {
-    SCORE: 7, LIVE: 4, PREVIEW: 4, STREAK: 4, STANDINGS: 4, SUPERLATIVE: 3, PERFORMANCE: 3,
+    SCORE: 7, LIVE: 4, PREVIEW: 4, STREAK: 4, STANDINGS: 4, SUPERLATIVE: 3, PERFORMANCE: 5,
     MILESTONE: 6, SHOOTOUT: 3, POWER: 4, PACE: 3, FORM: 4, RIVALRY: 3, DRAFT: 4,
     TRANSACTION: 5, PLAYOFF: 6, CHAMPION: 4, FEDERATION: 3, GOVERNANCE: 3, SCHEDULE: 4,
   }
