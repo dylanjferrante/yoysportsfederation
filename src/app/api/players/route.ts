@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { players, rosters, teams, playerGameStats } from '@/db/schema'
+import { players, rosters, teams, playerGameStats, waiverWire } from '@/db/schema'
 import { eq, like, and, notInArray, inArray, desc } from 'drizzle-orm'
 import { safeParse, crossSportValue } from '@/lib/utils'
 
@@ -69,6 +69,13 @@ export async function GET(req: Request) {
   const ownerByPlayer = new Map(ownerRows.map(r => [r.playerId, r]))
   const ownedSet = new Set(ownerRows.map(r => r.playerId))
 
+  // Waiver-wire holds: players that can only be claimed (not added) until they clear.
+  const wireRows = leagueId
+    ? await db.select({ playerId: waiverWire.playerId, clearsAt: waiverWire.clearsAt }).from(waiverWire).where(eq(waiverWire.leagueId, leagueId))
+    : []
+  const nowIso = new Date().toISOString()
+  const wireBy = new Map(wireRows.filter(w => w.clearsAt > nowIso).map(w => [w.playerId, w.clearsAt]))
+
   // Positional rank within the returned set (already sorted by season points).
   const posCount: Record<string, number> = {}
   const enriched = result.map(p => {
@@ -82,6 +89,8 @@ export async function GET(req: Request) {
       lastPts: a?.lastPts ?? null,
       avg: a && a.gp ? +( (p.seasonPoints ?? 0) / a.gp ).toFixed(1) : (p.weeklyAvg ?? 0),
       owned: ownedSet.has(p.id),
+      onWaivers: wireBy.has(p.id),
+      waiverClearsAt: wireBy.get(p.id) ?? null,
       ownerTeamId: ownerByPlayer.get(p.id)?.teamId ?? null,
       ownerTeamName: ownerByPlayer.get(p.id)?.teamName ?? null,
       ownerTeamAbbr: ownerByPlayer.get(p.id)?.teamAbbr ?? null,

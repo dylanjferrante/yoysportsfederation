@@ -406,6 +406,16 @@ CREATE TABLE waiver_claims (
   processed_at TEXT
 );
 
+CREATE TABLE waiver_wire (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  player_id TEXT NOT NULL REFERENCES players(id),
+  sport TEXT,
+  dropped_by_team_id TEXT REFERENCES teams(id),
+  clears_at TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE activity (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
