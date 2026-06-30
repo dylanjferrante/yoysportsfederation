@@ -1,6 +1,6 @@
 import { db } from '@/db'
 import { leagues, teams, teamRecords, matchups, leagueHistory, playoffGames, trades, tradeItems, waiverClaims, proposals, players, playerGameStats } from '@/db/schema'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { safeParse } from '@/lib/utils'
 import { weekDateRange } from '@/lib/defaults'
 
@@ -233,22 +233,72 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
     return res
   })
 
-  // ── G. Transactions ────────────────────────────────────────────────────────
+  // ── G. Transactions (incl. blockbusters & splashy acquisitions) ────────────
   await runA(async () => {
     const res: Headline[] = []
+    // Per-sport max season points, to gauge a traded/added player's star value
+    // across sports (an NBA total dwarfs an NFL one, so normalize within sport).
+    const maxBySport: Record<string, number> = Object.fromEntries(
+      (await db.select({ sport: players.sport, m: sql<number>`max(${players.seasonPoints})` }).from(players).groupBy(players.sport))
+        .map(r => [r.sport, Number(r.m) || 1]))
+    const star = (sp: number | null, sport: string | null) => (sp ?? 0) / (maxBySport[sport ?? ''] || 1) >= 0.6
+
     const done = await db.select().from(trades).where(and(eq(trades.leagueId, leagueId), eq(trades.status, 'ACCEPTED')))
-    const recent = done.sort((a, b) => (Date.parse(b.processedAt ?? b.updatedAt ?? '') || 0) - (Date.parse(a.processedAt ?? a.updatedAt ?? '') || 0)).slice(0, 3)
+    const recent = done.sort((a, b) => (Date.parse(b.processedAt ?? b.updatedAt ?? '') || 0) - (Date.parse(a.processedAt ?? a.updatedAt ?? '') || 0)).slice(0, 4)
     for (const tr of recent) {
-      const items = await db.select({ toTeamId: tradeItems.toTeamId, name: players.name }).from(tradeItems).leftJoin(players, eq(tradeItems.playerId, players.id)).where(eq(tradeItems.tradeId, tr.id))
-      const names = items.filter(i => i.name).map(i => i.name)
-      const label = names.length ? names.slice(0, 4).join(', ') : 'players & picks'
-      res.push({ id: `trade-${tr.id}`, category: 'TRANSACTION', priority: 55, ts: Date.parse(tr.processedAt ?? tr.updatedAt ?? '') || 0, text: `Trade: ${nm(tr.initiatorId)} and ${nm(tr.recipientId)} swap ${label}`, href: `${base}/transactions` })
+      const items = await db.select({ toTeamId: tradeItems.toTeamId, pickId: tradeItems.pickId, name: players.name, sp: players.seasonPoints, sport: players.sport })
+        .from(tradeItems).leftJoin(players, eq(tradeItems.playerId, players.id)).where(eq(tradeItems.tradeId, tr.id))
+      const pieces = items.length
+      const withVal = items.filter(i => i.name).map(i => ({ ...i, val: (i.sp ?? 0) / (maxBySport[i.sport ?? ''] || 1) })).sort((a, b) => b.val - a.val)
+      const head = withVal[0]
+      const ts = Date.parse(tr.processedAt ?? tr.updatedAt ?? '') || 0
+      const isBlockbuster = pieces >= 4 || (head && head.val >= 0.6)
+      if (isBlockbuster && head) {
+        res.push({ id: `trade-${tr.id}`, category: 'TRANSACTION', sport: head.sport ?? undefined, priority: 64, ts,
+          text: vary(tr.id,
+            `Blockbuster! ${nm(tr.initiatorId)} and ${nm(tr.recipientId)} swing a ${pieces}-piece deal — ${head.name} to ${nm(head.toTeamId)}`,
+            `Blockbuster: ${head.name} headed to ${nm(head.toTeamId)} in a ${pieces}-piece swap`), href: `${base}/transactions` })
+      } else {
+        const names = withVal.map(i => i.name).slice(0, 4)
+        res.push({ id: `trade-${tr.id}`, category: 'TRANSACTION', priority: 55, ts,
+          text: `Trade: ${nm(tr.initiatorId)} and ${nm(tr.recipientId)} swap ${names.length ? names.join(', ') : 'players & picks'}`, href: `${base}/transactions` })
+      }
     }
-    const claims = await db.select({ teamId: waiverClaims.teamId, sport: waiverClaims.sport, bid: waiverClaims.bidAmount, processedAt: waiverClaims.processedAt, name: players.name })
+
+    const claims = await db.select({ teamId: waiverClaims.teamId, sport: waiverClaims.sport, bid: waiverClaims.bidAmount, processedAt: waiverClaims.processedAt, name: players.name, sp: players.seasonPoints, psport: players.sport })
       .from(waiverClaims).innerJoin(players, eq(waiverClaims.addPlayerId, players.id))
       .where(and(eq(waiverClaims.leagueId, leagueId), eq(waiverClaims.status, 'SUCCESS')))
     for (const c of claims.sort((a, b) => (Date.parse(b.processedAt ?? '') || 0) - (Date.parse(a.processedAt ?? '') || 0)).slice(0, 3)) {
-      res.push({ id: `waiver-${c.teamId}-${c.name}`, category: 'TRANSACTION', sport: c.sport ?? undefined, priority: 40, ts: Date.parse(c.processedAt ?? '') || 0, text: `${nm(c.teamId)} lands ${c.name} off waivers${(c.bid ?? 0) > 0 ? ` ($${c.bid} FAAB)` : ''}`, href: `${base}/transactions` })
+      const splash = star(c.sp, c.psport) || (c.bid ?? 0) >= 50
+      const faab = (c.bid ?? 0) > 0 ? ` ($${c.bid} FAAB)` : ''
+      res.push({ id: `waiver-${c.teamId}-${c.name}`, category: 'TRANSACTION', sport: c.sport ?? undefined, priority: splash ? 50 : 40, ts: Date.parse(c.processedAt ?? '') || 0,
+        text: splash ? `${nm(c.teamId)} wins the ${c.name} sweepstakes${faab}` : `${nm(c.teamId)} lands ${c.name} off waivers${faab}`, href: `${base}/transactions` })
+    }
+    return res
+  })
+
+  // ── G2. Rookie draft: #1 pick locked (reverse-standings order) ─────────────
+  if ((league.draftOrderMethod ?? 'REVERSE_STANDINGS') === 'REVERSE_STANDINGS') run(() => {
+    const res: Headline[] = []
+    const combined = (league.rookieDraftMode ?? 'PER_SPORT') === 'COMBINED'
+    // A team locks the #1 (worst-record) pick when, even winning out, it still
+    // can't climb out of last: its best-case wins < the next-worst team's
+    // current wins.
+    if (combined) {
+      const tot = new Map<string, { w: number }>()
+      for (const r of recs) { const a = tot.get(r.teamId) ?? { w: 0 }; a.w += r.wins ?? 0; tot.set(r.teamId, a) }
+      const rem = sportsEnabled.reduce((s, sp) => s + Math.max(0, (bySport[sp].win ? bySport[sp].win!.endWeek - bySport[sp].lastWeek : 0)), 0)
+      const asc = [...tot.entries()].sort((a, b) => a[1].w - b[1].w)
+      if (asc.length >= 2 && rem > 0 && asc[0][1].w + rem < asc[1][1].w)
+        res.push({ id: 'pick1-overall', category: 'DRAFT', priority: 70, ts: Date.now(), text: `${nm(asc[0][0])} locks up the #1 overall rookie pick`, href: `${base}/draft` })
+    } else {
+      for (const sp of sportsEnabled) {
+        const win = bySport[sp].win; if (!win || !bySport[sp].lastWeek) continue
+        const asc = recsBySport(sp).slice().reverse() // worst first
+        const rem = Math.max(0, win.endWeek - bySport[sp].lastWeek)
+        if (asc.length >= 2 && rem > 0 && (asc[0].wins ?? 0) + rem < (asc[1].wins ?? 0))
+          res.push({ id: `pick1-${sp}`, category: 'DRAFT', sport: sp, priority: 68, ts: tsOfWeek(bySport[sp].lastWeek), text: `${nm(asc[0].teamId)} locks up the #1 ${sp} rookie pick`, href: `${base}/draft` })
+      }
     }
     return res
   })
@@ -476,12 +526,43 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
   // crowd out streaks/standings/previews/transactions (ESPN-style variety).
   const CAP: Record<string, number> = {
     SCORE: 7, LIVE: 4, PREVIEW: 4, STREAK: 4, STANDINGS: 4, SUPERLATIVE: 3, PERFORMANCE: 3,
-    MILESTONE: 6, SHOOTOUT: 3, POWER: 4, PACE: 3, FORM: 4, RIVALRY: 3,
-    TRANSACTION: 4, PLAYOFF: 6, CHAMPION: 4, FEDERATION: 3, GOVERNANCE: 3, SCHEDULE: 4,
+    MILESTONE: 6, SHOOTOUT: 3, POWER: 4, PACE: 3, FORM: 4, RIVALRY: 3, DRAFT: 4,
+    TRANSACTION: 5, PLAYOFF: 6, CHAMPION: 4, FEDERATION: 3, GOVERNANCE: 3, SCHEDULE: 4,
   }
   const perCat: Record<string, number> = {}
   return ranked
     .filter(h => { const n = (perCat[h.category] = (perCat[h.category] ?? 0) + 1); return n <= (CAP[h.category] ?? 4) })
     .sort((a, b) => b.priority - a.priority || b.ts - a.ts)
     .slice(0, 40)
+}
+
+// ── Scoreboard for the static (non-scrolling) panel ──────────────────────────
+// ESPN-TV-style: the score strip stays put (team abbr, logo, score, status) and
+// flips between games, while the headline feed scrolls separately.
+export type ScoreSide = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; score: number; win: boolean }
+export type ScoreCard = { id: string; sport: string; status: 'Final' | 'LIVE'; home: ScoreSide; away: ScoreSide }
+
+export async function buildScoreboard(leagueId: string): Promise<ScoreCard[]> {
+  const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId)).limit(1)
+  if (!league) return []
+  const season = league.season
+  const sports = safeParse<string[]>(league.sportsEnabled, [])
+  const teamRows = await db.select({ id: teams.id, name: teams.name, abbr: teams.abbreviation, logo: teams.logo, p: teams.primaryColor, s: teams.secondaryColor }).from(teams).where(eq(teams.leagueId, leagueId))
+  const t = new Map(teamRows.map(r => [r.id, r]))
+  const ms = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season)))
+  const side = (id: string | null, score: number, other: number, complete: boolean): ScoreSide => {
+    const tm = id ? t.get(id) : undefined
+    return { name: tm?.name ?? '—', abbr: (tm?.abbr || tm?.name || '?').slice(0, 4).toUpperCase(), logo: tm?.logo ?? null, primary: tm?.p ?? '#0f172a', secondary: tm?.s ?? '#ffffff', score: +score.toFixed(1), win: complete && score >= other }
+  }
+  const cards: ScoreCard[] = []
+  for (const sp of sports) {
+    const all = ms.filter(m => m.sport === sp && m.awayTeamId)
+    const complete = all.filter(m => m.isComplete)
+    const lastWeek = complete.length ? Math.max(...complete.map(m => m.week)) : 0
+    if (league.liveScoring) for (const m of all.filter(m => !m.isComplete && ((m.homeScore ?? 0) > 0 || (m.awayScore ?? 0) > 0)))
+      cards.push({ id: m.id, sport: sp, status: 'LIVE', home: side(m.homeTeamId, m.homeScore ?? 0, m.awayScore ?? 0, false), away: side(m.awayTeamId, m.awayScore ?? 0, m.homeScore ?? 0, false) })
+    for (const m of complete.filter(m => m.week === lastWeek && Math.min(m.homeScore ?? 0, m.awayScore ?? 0) > 0))
+      cards.push({ id: m.id, sport: sp, status: 'Final', home: side(m.homeTeamId, m.homeScore ?? 0, m.awayScore ?? 0, true), away: side(m.awayTeamId, m.awayScore ?? 0, m.homeScore ?? 0, true) })
+  }
+  return cards.slice(0, 18)
 }

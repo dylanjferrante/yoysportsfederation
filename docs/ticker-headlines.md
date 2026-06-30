@@ -8,6 +8,11 @@ then recency; deduped; **capped per category**; top **28** shown.
 only exist for weeks with ingested (or seeded) results. Previews, governance and
 schedule headlines work regardless.
 
+**Layout (ESPN TV style):** the ticker has two zones — a **static score panel**
+that flips between games (team abbr, logo, score, Final/LIVE) every ~4.5s, and a
+**scrolling news feed** of everything else. Raw scores live only in the static
+panel; the marquee carries the news headlines below.
+
 ---
 
 ## Blowout / nail-biter bands (adaptive)
@@ -86,8 +91,20 @@ Per-category cap is in the last column.
 
 | Headline | Body | Requirement | P / cap |
 |----------|------|-------------|---------|
-| Trade | `Trade: {A} and {B} swap {players}` | Up to the **3 most recent ACCEPTED** trades | 55 / 4 |
-| Waiver add | `{Team} lands {Player} off waivers ($23 FAAB)` | Up to the **3 most recent successful** waiver claims | 40 / 4 |
+| Trade | `Trade: {A} and {B} swap {players}` | A recent accepted trade (up to 4) | 55 / 5 |
+| Blockbuster | `Blockbuster! {A} and {B} swing a N-piece deal — {Star} to {Team}` | A recent trade with **≥ 4 pieces** OR a **star** (≥ 60% of the sport's top season-points) involved; names the highest-value player | 64 / 5 |
+| Waiver add | `{Team} lands {Player} off waivers ($23 FAAB)` | A recent successful waiver claim (up to 3) | 40 / 5 |
+| Splashy add | `{Team} wins the {Player} sweepstakes ($N FAAB)` | Same, but the add is a **star** or the bid is **≥ $50 FAAB** | 50 / 5 |
+| Busiest GM | `{Team} has been the league's busiest GM (N moves)` | Most accepted trades + successful waivers (≥ 3) | 33 / 5 |
+
+### G2 · Rookie draft  → /draft
+
+Only when the league's `draftOrderMethod` is **REVERSE_STANDINGS**.
+
+| Headline | Body | Requirement | P / cap |
+|----------|------|-------------|---------|
+| #1 pick locked (per sport) | `{Team} locks up the #1 {Sport} rookie pick` | `rookieDraftMode = PER_SPORT`: the worst team in a sport is **mathematically locked into last** (best-case wins < next-worst team's current wins) | 68 / 4 |
+| #1 pick locked (overall) | `{Team} locks up the #1 overall rookie pick` | `rookieDraftMode = COMBINED`: same, on combined cross-sport record | 70 / 4 |
 
 ### H · Playoffs  → /playoffs
 
@@ -164,10 +181,6 @@ Detected from the latest completed week's real player stats; phrasing varies. Up
 |----------|------|-------------|---------|
 | Rematch | `Rematch in {Sport}: {A} took the first meeting with {B}` (or `…run it back`) | This week's opponents already played earlier in the season | 30 / 3 |
 
-### R · Busiest GM  → /transactions
-
-| Headline | Body | Requirement | P / cap |
-|----------|------|-------------|---------|
-| Busiest GM | `{Team} has been the league's busiest GM (N moves)` | Most accepted trades + successful waivers (≥ 3) | 33 / 4 |
-
-*Total feed is capped at **40** items after per-category caps and ranking.*
+*(Busiest GM is listed under Transactions above.) Total feed is capped at **40**
+items after per-category caps and ranking; the static score panel holds up to 18
+games.*
