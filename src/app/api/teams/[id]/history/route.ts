@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { teams, teamRecords, matchups, leagueHistory } from '@/db/schema'
+import { teams, teamRecords, matchups, leagueHistory, leagues } from '@/db/schema'
 import { eq, or } from 'drizzle-orm'
+import { safeParse } from '@/lib/utils'
+import { computeFederationStandings } from '@/lib/federation'
 
 // Season-by-season records, championships, and opponent results for one franchise.
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +18,21 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const games = await db.select().from(matchups).where(or(eq(matchups.homeTeamId, id), eq(matchups.awayTeamId, id))).limit(2000)
   const titles = await db.select().from(leagueHistory).where(eq(leagueHistory.championTeamId, id))
 
+  // Per-season federation points + overall finish, recomputed from the whole league.
+  const [league] = await db.select().from(leagues).where(eq(leagues.id, team.leagueId)).limit(1)
+  const fedScoring = safeParse<any>(league?.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: [] })
+  const leagueRecords = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, team.leagueId))
+  const fedBySeason: Record<string, { points: number; finish: number; of: number }> = {}
+  for (const season of [...new Set(records.map(r => r.season))]) {
+    const standings = computeFederationStandings(
+      leagueTeams.map(t => ({ id: t.id })),
+      leagueRecords.filter(r => r.season === season).map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: r.isChampion })),
+      fedScoring, fedScoring.includedSports ?? [],
+    )
+    const idx = standings.findIndex(s => s.team.id === id)
+    if (idx >= 0) fedBySeason[season] = { points: standings[idx].total ?? 0, finish: idx + 1, of: standings.length }
+  }
+
   const opponents = games.map(m => {
     const isHome = m.homeTeamId === id
     const oppId = isHome ? m.awayTeamId : m.homeTeamId
@@ -29,5 +46,5 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     }
   })
 
-  return NextResponse.json({ team, records, opponents, titles })
+  return NextResponse.json({ team, records, opponents, titles, fedBySeason })
 }

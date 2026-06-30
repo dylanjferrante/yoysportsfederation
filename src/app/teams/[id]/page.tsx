@@ -398,18 +398,25 @@ function FranchiseHistory({ history }: { history: any }) {
             <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
               <th className="text-left px-4 py-2 font-medium">Season</th>
               {sportsPresent.map(s => <th key={s} className="text-center px-3 py-2 font-medium">{sportMeta(s).emoji} {s}</th>)}
+              <th className="text-center px-3 py-2 font-medium border-l border-slate-200">Fed Pts</th>
+              <th className="text-center px-3 py-2 font-medium">Overall</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {seasons.map(season => (
+            {seasons.map(season => {
+              const fed = (history.fedBySeason ?? {})[season]
+              return (
               <tr key={season} className="hover:bg-slate-50">
                 <td className="px-4 py-2 text-slate-600">{season}</td>
                 {sportsPresent.map(s => {
                   const r = records.find(x => x.season === season && x.sport === s)
                   return <td key={s} className="text-center px-3 py-2">{r ? <span>{r.wins}-{r.losses}{r.isChampion ? ' 🏆' : ''} <span className="text-xs text-slate-400">#{r.finishPosition}</span></span> : '—'}</td>
                 })}
+                <td className="text-center px-3 py-2 font-bold text-slate-900 tabular-nums border-l border-slate-200">{fed ? fed.points : '—'}</td>
+                <td className="text-center px-3 py-2 tabular-nums">{fed ? <span className={fed.finish === 1 ? 'font-bold text-amber-600' : 'text-slate-600'}>{fed.finish === 1 ? '🏆 ' : ''}#{fed.finish}<span className="text-xs text-slate-400">/{fed.of}</span></span> : '—'}</td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>
