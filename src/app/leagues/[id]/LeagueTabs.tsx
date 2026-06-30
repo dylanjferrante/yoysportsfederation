@@ -6,14 +6,14 @@ import { sportMeta, sportLabel, sportAbbrLabel } from '@/lib/utils'
 import { computeFederationStandings, type FederationScoring } from '@/lib/federation'
 import SportChip from '@/components/SportChip'
 
-type TeamLite = { id: string; name: string; abbreviation: string; logo: string | null; owner: string | null; primaryColor?: string | null; secondaryColor?: string | null }
+type TeamLite = { id: string; name: string; abbreviation: string; logo: string | null; owner: string | null; primaryColor?: string | null; secondaryColor?: string | null; division?: number | null }
 type TeamStat = { allTime: { w: number; l: number; t: number }; fedTitles: number; sportTitles: number }
 type TeamRec = { teamId: string; sport: string; wins: number; losses: number; ties: number; pointsFor: number; pointsAgainst: number; finishPosition: number | null; isChampion: boolean }
 type Matchup = { id: string; sport: string; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 type ColorMap = Record<string, { p?: string; s?: string }>
 
 export default function LeagueTabs({
-  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId, teamStats = {}, sportNames = {}, sportAbbr = {}, divisionLogos = {}, divisionLogoBg = {}, championshipColors = {},
+  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, divisions = 0, divisionNames = {}, currentUserId, teamStats = {}, sportNames = {}, sportAbbr = {}, divisionLogos = {}, divisionLogoBg = {}, championshipColors = {},
 }: {
   leagueId: string
   sportsEnabled: string[]
@@ -23,6 +23,8 @@ export default function LeagueTabs({
   federationScoring: FederationScoring
   rosterSettings: Record<string, never> | Record<string, Record<string, number>>
   playoffTeams?: number
+  divisions?: number
+  divisionNames?: Record<string, string>
   currentUserId?: string
   teamStats?: Record<string, TeamStat>
   sportNames?: Record<string, string>
@@ -88,15 +90,67 @@ export default function LeagueTabs({
       </div>
 
       {tab === 'OVERALL'
-        ? <Overall standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
-        : <SportView sport={tab} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
+        ? <Overall standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} divisions={divisions} divisionNames={divisionNames} />
+        : <SportView sport={tab} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} divisions={divisions} divisionNames={divisionNames} />}
     </div>
   )
 }
 
-function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, championshipColors = {}, included, toggle, teamById, currentUserId, fed }: any) {
+// Division label (custom name from settings, else "Division N").
+const divLabel = (idx: number, names: Record<string, string>) => names[String(idx)]?.trim() || `Division ${idx}`
+
+function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, championshipColors = {}, included, toggle, teamById, currentUserId, fed, divisions = 0, divisionNames = {} }: any) {
+  const countedSports = sportsEnabled.filter((s: string) => included.has(s))
+  // When divisions are enabled, the federation standings split into divisions
+  // (re-ranked within each) on top of the league-wide overall table below.
+  const divGroups = divisions > 0
+    ? Array.from({ length: divisions }, (_, i) => i + 1)
+        .map(d => ({ d, rows: standings.filter((row: any) => teamById[row.team.id]?.division === d) }))
+        .filter(g => g.rows.length)
+    : []
   return (
     <div className="space-y-4">
+      {divGroups.length > 0 && (
+        <div className="grid md:grid-cols-2 gap-4">
+          {divGroups.map(({ d, rows }) => (
+            <div key={d} className="card overflow-x-auto">
+              <div className="card-header"><h2 className="font-semibold text-slate-900">{divLabel(d, divisionNames)}</h2></div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
+                    <th className="text-left px-3 py-2 font-medium">#</th>
+                    <th className="text-left px-2 py-2 font-medium">Franchise</th>
+                    {countedSports.map((s: string) => (
+                      <th key={s} className="text-center px-1.5 py-2 font-medium hidden sm:table-cell"><SportChip sport={s} logos={divisionLogos} colors={championshipColors} chip={18} size={12} /></th>
+                    ))}
+                    <th className="text-center px-3 py-2 font-medium">Fed</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {rows.map((row: any, i: number) => {
+                    const t = teamById[row.team.id]
+                    return (
+                      <tr key={row.team.id} className={`hover:bg-slate-50 ${i === 0 ? 'bg-amber-50/40' : ''}`}>
+                        <td className="px-3 py-2 text-slate-400 font-medium">{i + 1}</td>
+                        <td className="px-2 py-2">
+                          <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
+                            <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>
+                            <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
+                          </Link>
+                        </td>
+                        {countedSports.map((s: string) => (
+                          <td key={s} className="text-center px-1.5 py-2 text-slate-500 tabular-nums hidden sm:table-cell">{row.perSport[s] ?? '—'}</td>
+                        ))}
+                        <td className="text-center px-3 py-2 font-bold text-slate-900">{row.total}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="card p-4 flex flex-wrap items-center gap-3">
         <span className="text-sm font-semibold text-slate-700">Count sports:</span>
         {sportsEnabled.map((s: string) => (
@@ -111,6 +165,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
       </div>
 
       <div className="card overflow-x-auto">
+        {divisions > 0 && <div className="card-header"><h2 className="font-semibold text-slate-900">Overall Federation Standings</h2></div>}
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
@@ -204,10 +259,18 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
   )
 }
 
-function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {}, championshipColors = {}, teamById, records, matchups, rosterSettings, playoffTeams = 6, currentUserId }: any) {
+function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {}, championshipColors = {}, teamById, records, matchups, rosterSettings, playoffTeams = 6, currentUserId, divisions = 0, divisionNames = {} }: any) {
   const meta = sportMeta(sport)
   const ranked = [...records].sort((a: TeamRec, b: TeamRec) =>
     (a.finishPosition ?? 99) - (b.finishPosition ?? 99) || b.wins - a.wins || b.pointsFor - a.pointsFor)
+
+  // When divisions are enabled, split this sport's standings by division (re-ranked
+  // within each) above the league-wide overall table.
+  const divGroups = divisions > 0
+    ? Array.from({ length: divisions }, (_, i) => i + 1)
+        .map(d => ({ d, rows: ranked.filter((r: TeamRec) => teamById[r.teamId]?.division === d) }))
+        .filter(g => g.rows.length)
+    : []
 
   // Current week = lowest week not yet complete (else latest).
   const incomplete = matchups.filter((m: Matchup) => !m.isComplete)
@@ -263,8 +326,51 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
+        {divGroups.length > 0 && (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {divGroups.map(({ d, rows }: any) => (
+              <div key={d} className="card overflow-x-auto">
+                <div className="card-header"><h2 className="font-semibold text-slate-900">{divLabel(d, divisionNames)}</h2></div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                      <th className="text-left px-3 py-2 font-semibold">#</th>
+                      <th className="text-left px-2 py-2 font-semibold">Franchise</th>
+                      <th className="text-center px-2 py-2 font-semibold">W</th>
+                      <th className="text-center px-2 py-2 font-semibold">L</th>
+                      <th className="text-center px-1.5 py-2 font-semibold">Pct</th>
+                      <th className="text-right px-3 py-2 font-semibold">PF</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {rows.map((r: TeamRec, i: number) => {
+                      const t = teamById[r.teamId]
+                      const gp = (r.wins ?? 0) + (r.losses ?? 0) + (r.ties ?? 0)
+                      const pct = gp ? (((r.wins ?? 0) + 0.5 * (r.ties ?? 0)) / gp).toFixed(3).replace(/^0/, '') : '—'
+                      return (
+                        <tr key={r.teamId} className={`hover:bg-slate-50 ${i === 0 ? 'bg-amber-50/40' : ''}`}>
+                          <td className="px-3 py-2 font-medium text-slate-400">{i + 1}</td>
+                          <td className="px-2 py-2">
+                            <Link href={`/teams/${r.teamId}`} className="flex items-center gap-2 group">
+                              <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>
+                              <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
+                            </Link>
+                          </td>
+                          <td className="text-center px-2 py-2 font-semibold tabular-nums">{r.wins}</td>
+                          <td className="text-center px-2 py-2 text-slate-500 tabular-nums">{r.losses}</td>
+                          <td className="text-center px-1.5 py-2 text-slate-500 tabular-nums">{pct}</td>
+                          <td className="text-right px-3 py-2 text-slate-700 tabular-nums">{r.pointsFor?.toFixed(0)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="card overflow-x-auto">
-          <div className="card-header"><h2 className="font-semibold text-slate-900 flex items-center gap-2"><SportChip sport={sport} logos={divisionLogos} colors={championshipColors} chip={24} size={16} /> {sportLabel(sport, sportNames)} Standings</h2></div>
+          <div className="card-header"><h2 className="font-semibold text-slate-900 flex items-center gap-2"><SportChip sport={sport} logos={divisionLogos} colors={championshipColors} chip={24} size={16} /> {sportLabel(sport, sportNames)} {divGroups.length > 0 ? 'Overall ' : ''}Standings</h2></div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
