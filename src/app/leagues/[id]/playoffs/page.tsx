@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { sportMeta, safeParse, sportLabel, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import TeamChip from '@/components/TeamChip'
+import SportIcon from '@/components/SportIcon'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -32,6 +33,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
   const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
   const champNames = safeParse<Record<string, string>>(league.championshipNames, {})
   const champLogos = safeParse<Record<string, string>>(league.championshipLogos, {})
+  const divisionLogos = safeParse<Record<string, string>>(league.divisionLogos, {})
   const champColors = safeParse<Record<string, { p?: string; s?: string }>>(league.championshipColors, {})
   const champGrad = (scope: string, fallback: string) => {
     const c = champColors[scope]
@@ -88,7 +90,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
           return (
             <div key={sport} className="card p-5">
               <div className="flex items-center gap-2 mb-4">
-                <span className={`w-8 h-8 rounded-lg ${meta.bg} text-white flex items-center justify-center`}>{meta.emoji}</span>
+                <span className={`w-8 h-8 rounded-lg ${meta.bg} text-white flex items-center justify-center`}><SportIcon sport={sport} logo={divisionLogos[sport]} size={20} /></span>
                 <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)} — {champNames[sport] || 'Playoffs'}</h2>
                 {champ && <span className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-amber-600">
                   {champLogos[sport] && <img src={champLogos[sport]} alt="" className="w-6 h-6 object-contain" />}
@@ -117,18 +119,19 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
                   {(() => {
                     const champTeam = champ ? teamById[champ.championTeamId ?? ''] : null
                     return (
-                      <div className="flex-shrink-0 w-40 flex flex-col items-center justify-center">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold uppercase tracking-wide" style={{ color: champInk(sport, '#f59e0b') }}>Champion</p>
+                      <div className="flex-1 min-w-[15rem] flex flex-col items-center justify-center gap-4 py-6">
+                        <div className="flex flex-col items-center gap-1.5">
                           {champLogos[sport]
-                            ? <img src={champLogos[sport]} alt="" className="w-12 h-12 object-contain" />
-                            : <span className="text-2xl">🏆</span>}
+                            ? <img src={champLogos[sport]} alt="" className="w-20 h-20 object-contain" />
+                            : <span className="text-5xl">🏆</span>}
+                          <p className="text-lg font-black uppercase tracking-widest" style={{ color: champInk(sport, '#f59e0b') }}>Champion</p>
+                          {champNames[sport] && <p className="text-xs text-slate-400">{champNames[sport]}</p>}
                         </div>
-                        <div className="mt-3 border-2 rounded-xl px-4 py-3 flex flex-col items-center gap-1.5 min-w-[8rem]" style={{ borderColor: champInk(sport, '#fcd34d') + '88', background: champInk(sport, '#f59e0b') + '14' }}>
+                        <div className="border-2 rounded-2xl px-10 py-7 flex flex-col items-center gap-3 min-w-[13rem]" style={{ borderColor: champInk(sport, '#fcd34d') + '88', background: champInk(sport, '#f59e0b') + '14' }}>
                           {champTeam?.logo
-                            ? <img src={champTeam.logo} alt="" className="w-12 h-12 object-contain" style={champTeam.logoBg ? { background: champTeam.primaryColor ?? undefined } : undefined} />
-                            : <span className="w-12 h-12 flex items-center justify-center text-sm font-black" style={{ background: champTeam?.secondaryColor ?? '#fde68a', color: champTeam?.primaryColor ?? '#92400e' }}>{champTeam?.abbreviation ?? 'TBD'}</span>}
-                          <span className="text-sm font-bold text-amber-800 text-center">{champTeam?.name ?? 'TBD'}</span>
+                            ? <img src={champTeam.logo} alt="" className="w-32 h-32 object-contain" style={champTeam.logoBg ? { background: champTeam.primaryColor ?? undefined } : undefined} />
+                            : <span className="w-32 h-32 flex items-center justify-center text-4xl font-black" style={{ background: champTeam?.secondaryColor ?? '#fde68a', color: champTeam?.primaryColor ?? '#92400e' }}>{champTeam?.abbreviation ?? 'TBD'}</span>}
+                          <span className="text-xl font-bold text-center" style={{ color: champInk(sport, '#92400e') }}>{champTeam?.name ?? 'TBD'}</span>
                         </div>
                       </div>
                     )

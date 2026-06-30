@@ -25,6 +25,7 @@ export default function CommissionerSettings() {
   const [form, setForm] = useState<any>({})
   const [sportsEnabled, setSportsEnabled] = useState<string[]>([])
   const [divisionLogos, setDivisionLogos] = useState<Record<string, string>>({})
+  const [divisionLogoBg, setDivisionLogoBg] = useState<Record<string, boolean>>({})
   const [rosterObj, setRosterObj] = useState<Record<string, Record<string, number>>>({})
   const [scoringObj, setScoringObj] = useState<Record<string, Record<string, number>>>({})
   const [draftRoundsObj, setDraftRoundsObj] = useState<Record<string, number>>({})
@@ -70,6 +71,7 @@ export default function CommissionerSettings() {
       setSportsEnabled(se)
       setSubSport(se[0] ?? 'NFL')
       setDivisionLogos(parse(l.divisionLogos, {}))
+      setDivisionLogoBg(parse(l.divisionLogoBg, {}))
       setRosterObj(parse(l.rosterSettings, {}))
       setScoringObj(parse(l.scoringSettings, {}))
       setDraftRoundsObj(parse(l.draftRounds, {}))
@@ -126,7 +128,7 @@ export default function CommissionerSettings() {
         duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
         primaryColor: form.primaryColor, secondaryColor: form.secondaryColor, championshipColors: champColors,
         divisions: form.divisions, divisionNames, sportNames, sportAbbr, championshipNames: champNames, championshipLogos: champLogos, breakWeeks,
-        sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
+        sportsEnabled, divisionLogos, divisionLogoBg, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
@@ -488,14 +490,22 @@ export default function CommissionerSettings() {
 
             <div>
               <label className="label">Division Logos (per sport, optional)</label>
+              <p className="text-xs text-slate-500 mb-2">When a logo is set it replaces the sport emoji across the league. Check the box to sit it on the sport&apos;s primary color.</p>
               <div className="space-y-2">
-                {orderedEnabled.map(s => (
-                  <div key={s} className="flex items-center gap-2">
-                    <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
-                    <input className="input flex-1 text-sm" placeholder="https://…" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
-                    {divisionLogos[s] && <img src={divisionLogos[s]} alt="" className="w-8 h-8 object-contain bg-slate-100" />}
-                  </div>
-                ))}
+                {orderedEnabled.map(s => {
+                  const primary = champColors[s]?.p ?? '#0f172a'
+                  return (
+                    <div key={s} className="flex items-center gap-2">
+                      <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
+                      <input className="input flex-1 text-sm" placeholder="https://…" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
+                      <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap cursor-pointer">
+                        <input type="checkbox" checked={!!divisionLogoBg[s]} onChange={e => setDivisionLogoBg(d => ({ ...d, [s]: e.target.checked }))} />
+                        Primary bg
+                      </label>
+                      {divisionLogos[s] && <img src={divisionLogos[s]} alt="" className="w-8 h-8 object-contain" style={{ background: divisionLogoBg[s] ? primary : '#f1f5f9' }} />}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 

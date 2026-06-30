@@ -256,7 +256,7 @@ export default function DraftRoom() {
       )}
 
       {tab === 'board' && (
-        <div className="card p-2 overflow-auto max-h-[72vh]">
+        <div className="card p-2 overflow-auto max-h-[72vh] relative left-1/2 right-1/2 -mx-[50vw] w-screen px-4">
           <div className="inline-block min-w-full">
             {/* Team header row — franchise colors, logo + full name; pins to the
                 top of the board while scrolling through rounds. */}

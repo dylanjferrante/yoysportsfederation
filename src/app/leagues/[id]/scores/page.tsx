@@ -38,6 +38,7 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
         sportsEnabled={sportsEnabled}
         currentSeason={league.season}
         sportNames={safeParse<Record<string, string>>(league.sportNames, {})}
+        divisionLogos={safeParse<Record<string, string>>(league.divisionLogos, {})}
         schedule={safeParse<any[]>(league.sportSchedule, [])}
         records={recs as any}
         isCommish={isCommish}

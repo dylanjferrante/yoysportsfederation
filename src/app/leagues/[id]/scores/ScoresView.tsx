@@ -4,13 +4,14 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta, sportLabel } from '@/lib/utils'
 import { formatWeekRange, sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
+import SportIcon from '@/components/SportIcon'
 
 type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 type Team = { id: string; name: string; abbreviation: string; logo?: string | null; primaryColor?: string | null; secondaryColor?: string | null; logoBg?: boolean | null }
 type Rec = { teamId: string; sport: string; wins: number; losses: number; ties: number }
 
-export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason, sportNames = {}, schedule = [], records = [] }: {
-  leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; sportNames?: Record<string, string>; schedule?: ScheduleEntry[]; records?: Rec[]; isCommish?: boolean
+export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason, sportNames = {}, schedule = [], records = [], divisionLogos = {} }: {
+  leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; sportNames?: Record<string, string>; schedule?: ScheduleEntry[]; records?: Rec[]; divisionLogos?: Record<string, string>; isCommish?: boolean
 }) {
   const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams])
   const recBy = useMemo(() => {
@@ -51,6 +52,9 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
           </span>
           <button onClick={() => setWeek(weeks[Math.min(weeks.length - 1, idx + 1)])} disabled={idx >= weeks.length - 1} className="btn-secondary text-sm disabled:opacity-40">Next →</button>
         </div>
+        <select className="select text-sm" value={activeWeek} onChange={e => setWeek(+e.target.value)}>
+          {weeks.map(w => <option key={w} value={w}>Week {w}</option>)}
+        </select>
         <button onClick={() => setWeek(defaultWeek)} className="btn-ghost text-sm">Current week</button>
         <div className="ml-auto flex items-center gap-2">
           <select className="select" value={season} onChange={e => { setSeason(e.target.value); setWeek(null) }}>
@@ -68,7 +72,7 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
           return (
             <div key={sport} className="card">
               <div className="card-header flex items-center gap-2">
-                <span className={`w-7 h-7 rounded-lg ${meta.bg} text-white flex items-center justify-center`}>{meta.emoji}</span>
+                <span className={`w-7 h-7 rounded-lg ${meta.bg} text-white flex items-center justify-center`}><SportIcon sport={sport} logo={divisionLogos[sport]} size={18} /></span>
                 <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)}</h2>
                 {(() => { const sw = sportWeekOf(schedule, sport, activeWeek); return sw ? <span className="text-xs font-medium text-slate-500">{sport} Wk {sw}</span> : null })()}
                 <span className="text-xs text-slate-400">{games.length} games</span>
@@ -94,21 +98,21 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
   )
 }
 
-// Full-width franchise bar: the team's primary→secondary gradient fills the row,
-// logo + name + record on the left, score on the right (white text for contrast).
+// Full-width franchise bar: solid primary color fills the row, with the logo, name,
+// record and score all in the team's secondary color.
 function TeamBar({ team, score, win, rec, bye }: { team: Team | null; score: number; win: boolean; rec?: string | null; bye?: boolean }) {
   if (bye || !team) return <div className="px-3 py-2.5 bg-slate-100 text-slate-400 text-sm font-medium">BYE</div>
   const primary = team.primaryColor || '#0f172a'
-  const secondary = team.secondaryColor || '#3b82f6'
-  const ink = { color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.45)' }
+  const secondary = team.secondaryColor || '#ffffff'
+  const ink = { color: secondary }
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ background: `linear-gradient(100deg, ${primary} 0%, ${secondary} 100%)` }}>
+    <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ background: primary }}>
       {team.logo
         ? <img src={team.logo} alt="" className="w-8 h-8 object-contain flex-shrink-0" style={team.logoBg ? { background: primary } : undefined} />
-        : <span className="w-8 h-8 flex items-center justify-center text-[10px] font-black flex-shrink-0" style={{ background: '#ffffff33', color: '#fff' }}>{(team.abbreviation || '?').slice(0, 3)}</span>}
+        : <span className="w-8 h-8 flex items-center justify-center text-[10px] font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(team.abbreviation || '?').slice(0, 3)}</span>}
       <div className="flex-1 min-w-0">
         <div className="font-bold truncate leading-tight" style={ink}>{team.name}{win ? ' ▸' : ''}</div>
-        {rec && <div className="text-[11px] leading-tight" style={ink}>{rec}</div>}
+        {rec && <div className="text-[11px] leading-tight opacity-80" style={ink}>{rec}</div>}
       </div>
       <span className="tabular-nums font-black text-lg flex-shrink-0" style={ink}>{(score ?? 0).toFixed(1)}</span>
     </div>
