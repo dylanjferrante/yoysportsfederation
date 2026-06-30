@@ -481,12 +481,11 @@ CREATE TABLE commissioner_actions (
 );
 `
 
-// Dynamically drop every existing table first, so a forgotten DROP in the static
-// list can never leave the database half-built ("table … already exists").
+// Drop every existing table first, so a forgotten DROP in the static list can
+// never leave the database half-built ("table ... already exists").
 const existing = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]
 for (const { name } of existing) db.exec(`DROP TABLE IF EXISTS "${name}";`)
 
-db.exec(drop) // explicit list kept for clarity / ordering
 db.exec(schema)
 console.log('Database schema created successfully.')
 db.close()
