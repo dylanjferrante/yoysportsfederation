@@ -71,7 +71,7 @@ function SettingsInner() {
       setFranchises((d.teams ?? []).map((t: any) => ({
         id: t.team.id,
         name: t.team.name, abbreviation: t.team.abbreviation,
-        logo: t.team.logo ?? '', wordmark: t.team.wordmark ?? '',
+        logo: t.team.logo ?? '', altLogo: t.team.altLogo ?? '', wordmark: t.team.wordmark ?? '',
         primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6', logoBg: t.team.logoBg ?? false,
         ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '', division: t.team.division ?? null,
       })))
@@ -168,7 +168,7 @@ function SettingsInner() {
     const res = await fetch(`/api/teams/${f.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: f.name, abbreviation: f.abbreviation, logo: f.logo, wordmark: f.wordmark,
+        name: f.name, abbreviation: f.abbreviation, logo: f.logo, altLogo: f.altLogo, wordmark: f.wordmark,
         primaryColor: f.primaryColor, secondaryColor: f.secondaryColor, logoBg: !!f.logoBg,
         ownerName: f.ownerName, ownerEmail: f.ownerEmail, division: f.division,
       }),
@@ -388,9 +388,10 @@ function SettingsInner() {
                     <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={f.abbreviation} onChange={e => setFranchise(f.id, { abbreviation: e.target.value })} /></div>
                     <div className="sm:col-span-2">
                       <label className="label">Logo URL</label>
-                      <input className="input" placeholder="https://…/logo.png" value={f.logo} onChange={e => setFranchise(f.id, { logo: e.target.value })} />
+                      <input className="input" autoComplete="off" placeholder="https://…/logo.png" value={f.logo} onChange={e => setFranchise(f.id, { logo: e.target.value })} />
                     </div>
-                    <div><label className="label">Wordmark URL</label><input className="input" placeholder="https://…" value={f.wordmark} onChange={e => setFranchise(f.id, { wordmark: e.target.value })} /></div>
+                    <div><label className="label">Alternate Logo URL</label><input className="input" autoComplete="off" placeholder="https://…/icon.png" value={f.altLogo ?? ''} onChange={e => setFranchise(f.id, { altLogo: e.target.value })} /></div>
+                    <div><label className="label">Wordmark URL</label><input className="input" autoComplete="off" placeholder="https://…/wordmark.png" value={f.wordmark} onChange={e => setFranchise(f.id, { wordmark: e.target.value })} /></div>
                     <div className="flex gap-3">
                       <div>
                         <label className="label">Primary</label>
