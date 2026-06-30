@@ -16,7 +16,7 @@ export default function CreateLeaguePage() {
   const [error, setError] = useState('')
 
   const [form, setForm] = useState<any>({
-    name: '', teamName: '', season: '2025-26', logoUrl: '',
+    name: '', teamName: '', season: '2026-27', logoUrl: '',
     sportsEnabled: ['NFL', 'NHL', 'NBA', 'MLB'], seasonStart: 'FOOTBALL', maxTeams: 12,
   })
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
@@ -90,7 +90,7 @@ export default function CreateLeaguePage() {
           <div>
             <label className="label">Season</label>
             <select className="select" value={form.season} onChange={e => set('season', e.target.value)}>
-              {['2025-26', '2026-27', '2027-28', '2028-29'].map(s => <option key={s} value={s}>{s}</option>)}
+              {['2026-27', '2027-28', '2028-29'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
