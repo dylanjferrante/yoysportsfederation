@@ -66,6 +66,29 @@ const EP = (sport: Sport) => ({
   gamesForDate: `get${sport}GamesForDate`,
 })
 
+// Flatten a provider stat object to a numeric stat line (defensive: real field
+// names vary by sport — confirm with scripts/tank01-probe.ts against a live key).
+function flattenStats(raw: any): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [k, v] of Object.entries(raw ?? {})) {
+    if (typeof v === 'number' || (typeof v === 'string' && v !== '' && !isNaN(parseFloat(v)))) out[k] = num(v)
+    else if (v && typeof v === 'object') for (const [k2, v2] of Object.entries(v)) if (typeof v2 === 'number' || typeof v2 === 'string') { const n = num(v2); if (n) out[`${k}_${k2}`] = n }
+  }
+  return out
+}
+
+// One provider call each (budget-tracked by the caller). Used by the ingestion job.
+export async function tank01GamesForDate(sport: Sport, yyyymmdd: string): Promise<{ gameId: string; status: string }[]> {
+  const body = await call<any>(sport, EP(sport).gamesForDate, { gameDate: yyyymmdd }, 0)
+  const rows: any[] = Array.isArray(body) ? body : Object.values(body ?? {})
+  return rows.map(g => ({ gameId: String(g.gameID ?? g.gameId ?? g.id ?? ''), status: String(g.gameStatus ?? g.status ?? '') }))
+}
+export async function tank01BoxScore(sport: Sport, gameId: string): Promise<{ externalId: string; stats: Record<string, number> }[]> {
+  const body = await call<any>(sport, EP(sport).boxScore, { gameID: gameId }, 0)
+  const ps = body?.playerStats ?? body?.PlayerStats ?? body?.playerStatsMap ?? {}
+  return Object.entries<any>(ps).map(([playerID, raw]) => ({ externalId: String((raw?.playerID ?? playerID)), stats: flattenStats(raw) }))
+}
+
 export class Tank01Provider implements SportsDataProvider {
   readonly id = 'tank01'
   supports(_sport: Sport) { return tank01Configured() }
