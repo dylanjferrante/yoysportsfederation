@@ -1,7 +1,8 @@
 import { db } from '@/db'
-import { teams, teamSeasonBranding, rosters, players, rosterSnapshots } from '@/db/schema'
+import { teams, teamSeasonBranding, rosters, players, rosterSnapshots, playerGameStats } from '@/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
+import { safeParse } from '@/lib/utils'
 
 // Resolve which season a league page should render from its ?season= param,
 // and whether that's a past (read-only) season.
@@ -55,6 +56,54 @@ export async function seasonRoster(leagueId: string, teamId: string, season: str
   const cur = await db.select({ playerId: rosters.playerId, slot: rosters.slot, sport: rosters.sport, name: players.name, position: players.position })
     .from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).where(eq(rosters.teamId, teamId))
   return { isSnapshot: false, players: cur.map(c => ({ playerId: c.playerId, name: c.name, sport: c.sport, position: c.position, slot: c.slot })) }
+}
+
+export type SeasonRosterPlayer = SeasonPlayer & {
+  realTeamAbbr: string | null
+  seasonPoints: number; weeklyAvg: number; gp: number; lastPts: number | null
+  seasonStats: Record<string, number>
+}
+
+// A franchise's season roster enriched with that season's scoring, reconstructed
+// from the persisted per-game stat lines (playerGameStats stays keyed by season,
+// so a finished season's box-score totals survive). Drives the historical roster
+// view, which mirrors the live My Team table.
+export async function seasonRosterWithStats(leagueId: string, teamId: string, season: string): Promise<{ players: SeasonRosterPlayer[]; isSnapshot: boolean }> {
+  const { players: base, isSnapshot } = await seasonRoster(leagueId, teamId, season)
+  const ids = base.map(p => p.playerId).filter(Boolean) as string[]
+
+  const logs = ids.length
+    ? await db.select({ playerId: playerGameStats.playerId, week: playerGameStats.week, points: playerGameStats.points, stats: playerGameStats.stats })
+        .from(playerGameStats)
+        .where(and(eq(playerGameStats.leagueId, leagueId), eq(playerGameStats.season, season), inArray(playerGameStats.playerId, ids)))
+    : []
+  const agg: Record<string, { season: Record<string, number>; gp: number; pts: number; lastWk: number; lastPts: number }> = {}
+  for (const g of logs) {
+    const a = (agg[g.playerId] ??= { season: {}, gp: 0, pts: 0, lastWk: -1, lastPts: 0 })
+    const s = safeParse<Record<string, number>>(g.stats ?? '{}', {})
+    for (const k in s) a.season[k] = (a.season[k] ?? 0) + (s[k] ?? 0)
+    a.gp++; a.pts += g.points ?? 0
+    if (g.week > a.lastWk) { a.lastWk = g.week; a.lastPts = g.points ?? 0 }
+  }
+
+  // Real-team abbr for the "POS · TEAM" label (best-effort: current player row).
+  const teamAbbr = ids.length
+    ? Object.fromEntries((await db.select({ id: players.id, abbr: players.realTeamAbbr }).from(players).where(inArray(players.id, ids))).map(r => [r.id, r.abbr]))
+    : {}
+
+  const enriched = base.map(p => {
+    const a = p.playerId ? agg[p.playerId] : undefined
+    return {
+      ...p,
+      realTeamAbbr: (p.playerId ? teamAbbr[p.playerId] : null) ?? null,
+      seasonPoints: a ? +a.pts.toFixed(1) : 0,
+      gp: a?.gp ?? 0,
+      weeklyAvg: a && a.gp ? +(a.pts / a.gp).toFixed(1) : 0,
+      lastPts: a ? a.lastPts : null,
+      seasonStats: a?.season ?? {},
+    }
+  })
+  return { players: enriched, isSnapshot }
 }
 
 // teamId → branding for a season: the snapshot if one exists, otherwise the
