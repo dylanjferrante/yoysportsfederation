@@ -16,7 +16,8 @@ export default async function LeagueLayout({ children, params }: { children: Rea
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
 
-  const franchises = await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, id))
+  const franchises = await db.select({ id: teams.id, userId: teams.userId }).from(teams).where(eq(teams.leagueId, id))
+  const myTeamId = session?.user?.id ? franchises.find(f => f.userId === session.user!.id)?.id ?? null : null
   const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
   const isCommissioner = league.commissionerId === session?.user?.id
@@ -50,7 +51,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
         </div>
       </div>
 
-      <LeagueNav leagueId={id} isCommissioner={isCommissioner} sideGamesEnabled={sideGamesEnabled} />
+      <LeagueNav leagueId={id} isCommissioner={isCommissioner} sideGamesEnabled={sideGamesEnabled} myTeamId={myTeamId} />
 
       {children}
     </div>

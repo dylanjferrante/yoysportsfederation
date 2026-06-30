@@ -21,7 +21,7 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
     .limit(300)
 
   // Team lookup for the "Team" column.
-  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation }).from(teams).where(eq(teams.leagueId, id))
+  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, primaryColor: teams.primaryColor }).from(teams).where(eq(teams.leagueId, id))
   const teamById = Object.fromEntries(teamRows.map(t => [t.id, t]))
 
   // Pull player names out of each message and resolve position / pro team / sport.
@@ -42,7 +42,7 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
     const team = row.teamId ? teamById[row.teamId] : null
     return {
       id: row.id, type: row.type, message: row.message, createdAt: row.createdAt,
-      teamName: team?.name ?? null, teamAbbr: team?.abbreviation ?? null,
+      teamName: team?.name ?? null, teamAbbr: team?.abbreviation ?? null, teamLogo: team?.logo ?? null, teamPrimary: team?.primaryColor ?? null,
       player: playerName, position: pl?.position ?? null, proTeam: pl?.realTeamAbbr ?? null,
       sport: sport ?? pl?.sport ?? null,
     }
