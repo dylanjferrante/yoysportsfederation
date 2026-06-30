@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { trades, teams, rosters, tradeItems, tradeApprovals, draftPicks, players } from '@/db/schema'
+import { trades, teams, rosters, tradeItems, tradeApprovals, draftPicks, players, leagues } from '@/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { logActivity, notify } from '@/lib/activity'
+import { safeParse } from '@/lib/utils'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -58,6 +59,64 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Execute: route every asset from its source franchise to its destination, and log
   // a separate transaction entry for each asset (player or pick) with its details.
   const nameOf = (tid: string | null | undefined) => teamRows.find(t => t.id === tid)?.name ?? 'A franchise'
+
+  // Resolve an item's from/to (mirrors the execution loop below).
+  const routeOf = (it: typeof items[number]) => {
+    let from = it.fromTeamId, to = it.toTeamId
+    if (!from || !to) {
+      from = it.direction === 'GIVING' ? trade.initiatorId : (trade.recipientId ?? trade.initiatorId)
+      to = it.direction === 'GIVING' ? (trade.recipientId ?? trade.initiatorId) : trade.initiatorId
+    }
+    return { from, to }
+  }
+
+  // Pre-execution validation: hard salary cap and per-position roster limits on the
+  // resulting rosters (only when the league enables them).
+  const [lg] = await db.select().from(leagues).where(eq(leagues.id, trade.leagueId!)).limit(1)
+  const capOn = !!lg?.salaryCapEnabled && (lg?.capMode ?? 'SOFT') === 'HARD'
+  const posLimits = safeParse<Record<string, Record<string, { maxRostered?: number }>>>(lg?.positionLimits, {})
+  const hasPosLimits = Object.keys(posLimits).length > 0
+  if (capOn || hasPosLimits) {
+    const teamIds = [...teamSet]
+    const current = await db.select({ teamId: rosters.teamId, playerId: rosters.playerId, salary: rosters.salary, sport: players.sport, position: players.position })
+      .from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).where(inArray(rosters.teamId, teamIds))
+    type RP = { playerId: string; salary: number; sport: string; position: string }
+    const rosterByTeam: Record<string, RP[]> = Object.fromEntries(teamIds.map(t => [t, [] as RP[]]))
+    const metaByPlayer: Record<string, RP> = {}
+    for (const r of current) {
+      const rp: RP = { playerId: r.playerId, salary: r.salary ?? 0, sport: r.sport, position: r.position }
+      rosterByTeam[r.teamId].push(rp)
+      metaByPlayer[r.playerId] = rp
+    }
+    // Apply each player move to the simulated rosters.
+    for (const it of items) {
+      if (!it.playerId) continue
+      const { from, to } = routeOf(it)
+      if (from && rosterByTeam[from]) rosterByTeam[from] = rosterByTeam[from].filter(p => p.playerId !== it.playerId)
+      const meta = metaByPlayer[it.playerId]
+      if (to && rosterByTeam[to] && meta) rosterByTeam[to].push(meta)
+    }
+    for (const tid of teamIds) {
+      const list = rosterByTeam[tid] ?? []
+      if (capOn) {
+        const total = list.reduce((s, p) => s + (p.salary || 0), 0)
+        if (total > (lg!.salaryCap ?? 0))
+          return NextResponse.json({ error: `Trade rejected: ${nameOf(tid)} would be over the hard salary cap (${total} > ${lg!.salaryCap ?? 0})` }, { status: 400 })
+      }
+      if (hasPosLimits) {
+        const counts: Record<string, number> = {}
+        for (const p of list) {
+          const cap = posLimits[p.sport]?.[p.position]?.maxRostered
+          if (cap == null) continue
+          const key = `${p.sport}:${p.position}`
+          counts[key] = (counts[key] ?? 0) + 1
+          if (counts[key] > cap)
+            return NextResponse.json({ error: `Trade rejected: ${nameOf(tid)} would exceed the ${p.position} roster limit (${cap}) in ${p.sport}` }, { status: 400 })
+        }
+      }
+    }
+  }
+
   for (const it of items) {
     let from = it.fromTeamId, to = it.toTeamId
     if (!from || !to) {
