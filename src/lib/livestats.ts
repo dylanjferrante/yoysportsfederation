@@ -1,5 +1,5 @@
 import { db } from '@/db'
-import { apiUsage, realStatLines, players } from '@/db/schema'
+import { apiUsage, realStatLines, players, gameSchedule } from '@/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { weekDateRange, DEFAULT_SCORING } from '@/lib/defaults'
@@ -53,6 +53,9 @@ async function fetchDayStats(sport: Sport, date: Date, mode: IngestMode): Promis
   if ((await budgetLeft()) < 2) return { agg: {}, calls: 0, budget: false }
   let calls = 0
   const games = await tank01GamesForDate(sport, yyyymmdd(date)); calls++; await bumpUsage(1)
+  // Refresh the schedule's live status (quarter/clock, inning) so the matchup
+  // game-tracker reflects in-progress games. gameID is the game_schedule row id.
+  for (const g of games) if (g.gameId && g.status) await db.update(gameSchedule).set({ status: g.status }).where(eq(gameSchedule.id, g.gameId))
   const want = gamesToIngest(games, mode)
 
   const agg: Record<string, Record<string, number>> = {}

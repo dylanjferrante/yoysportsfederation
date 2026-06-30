@@ -7,9 +7,32 @@ import { sportMeta, safeParse } from '@/lib/utils'
 import { sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
 import { RESERVE_SLOTS } from '@/lib/defaults'
 import { boxScoreColumns } from '@/lib/scoring-categories'
+import { weekGameStatus, type GameStatus } from '@/lib/schedule'
+import { playerKickoff } from '@/lib/locks'
+import { oppLabel } from '@/lib/realschedule'
 import MatchupChat from './MatchupChat'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
+
+// Classify a player's real game: final (scored / game over), live (started, not
+// final), or pending (yet to play). The status string carries live detail
+// (quarter/clock, inning) once the live ingest refreshes it.
+const FINAL_RE = /final|completed|closed/i
+const LIVE_RE = /in.?progress|live|q[1-4]\b|\bhalf\b|inning|period|\bot\b|delay|active|top\b|bot\b|\bmid\b|\bend\b/i
+type Bucket = 'final' | 'live' | 'pending'
+function gameBucket(points: number | null, gs: { kickoff: number | null; status: string | null }, now: number): Bucket {
+  if (points != null) return 'final'
+  if (gs.status && FINAL_RE.test(gs.status)) return 'final'
+  if (gs.status && LIVE_RE.test(gs.status)) return 'live'
+  if (gs.kickoff != null && now >= gs.kickoff) return 'live'
+  return 'pending'
+}
+function gameLabel(bucket: Bucket, gs: { kickoff: number | null; status: string | null }): string {
+  if (bucket === 'final') return 'Final'
+  if (bucket === 'live') return gs.status && !FINAL_RE.test(gs.status) ? gs.status : 'In progress'
+  if (gs.kickoff != null) return new Date(gs.kickoff).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  return 'Scheduled'
+}
 
 export default async function MatchupPage({ params }: { params: Promise<{ id: string; matchupId: string }> }) {
   const { id, matchupId } = await params
@@ -19,22 +42,38 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
   const meta = sportMeta(m.sport)
   const cols = boxScoreColumns(m.sport)
 
+  const season = m.season ?? league.season
+  const now = Date.now()
+  const statusMap = await weekGameStatus(m.sport, season, m.week)
+
   async function lineup(teamId: string | null) {
-    if (!teamId) return { team: null, starters: [] as any[], bench: [] as any[], proj: 0, optimal: 0, benchPts: 0, yetToPlay: 0 }
+    if (!teamId) return { team: null, starters: [] as any[], bench: [] as any[], proj: 0, optimal: 0, benchPts: 0, final: 0, live: 0, pending: 0, ptsIn: 0, projLeft: 0 }
     const [team] = await db.select().from(teams).where(eq(teams.id, teamId)).limit(1)
     const rows = await db
-      .select({ slot: rosters.slot, name: players.name, position: players.position, realTeam: players.realTeam, playerId: players.id, projected: players.projectedPoints, points: playerGameStats.points, stats: playerGameStats.stats })
+      .select({ slot: rosters.slot, name: players.name, position: players.position, realTeam: players.realTeam, realTeamAbbr: players.realTeamAbbr, playerId: players.id, projected: players.projectedPoints, points: playerGameStats.points, stats: playerGameStats.stats })
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
-      .leftJoin(playerGameStats, and(eq(playerGameStats.playerId, rosters.playerId), eq(playerGameStats.leagueId, id), eq(playerGameStats.season, m.season ?? league!.season), eq(playerGameStats.week, m.week)))
+      .leftJoin(playerGameStats, and(eq(playerGameStats.playerId, rosters.playerId), eq(playerGameStats.leagueId, id), eq(playerGameStats.season, season), eq(playerGameStats.week, m.week)))
       .where(and(eq(rosters.teamId, teamId), eq(rosters.sport, m.sport)))
+    // Attach real-game status to each player (real schedule, else synthetic lock).
+    for (const r of rows as any[]) {
+      const gs: GameStatus | undefined = r.realTeamAbbr ? statusMap?.[r.realTeamAbbr] : undefined
+      const kickoff = gs?.kickoff ?? playerKickoff(m.sport, r.realTeamAbbr, season, m.week)
+      const eff = { kickoff, status: gs?.status ?? null }
+      // A completed matchup is authoritative: every game in it is final.
+      const bucket: Bucket = m.isComplete ? 'final' : gameBucket(r.points, eff, now)
+      r.game = { bucket, label: gameLabel(bucket, eff), opp: gs ? oppLabel(gs) : null }
+    }
     const starters = rows.filter(r => isStarter(r.slot)).sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
     const bench = rows.filter(r => !isStarter(r.slot)).sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
     const proj = +starters.reduce((s, r) => s + (r.projected ?? 0), 0).toFixed(1)
     const benchPts = +bench.reduce((s, r) => s + (r.points ?? 0), 0).toFixed(1)
-    // Best possible starter total from the whole roster (points left on bench).
     const optimal = +[...rows].map(r => r.points ?? 0).sort((a, b) => b - a).slice(0, starters.length).reduce((s, v) => s + v, 0).toFixed(1)
-    const yetToPlay = starters.filter(r => r.points == null).length
-    return { team, starters, bench, proj, optimal, benchPts, yetToPlay }
+    const final = starters.filter((r: any) => r.game.bucket === 'final').length
+    const live = starters.filter((r: any) => r.game.bucket === 'live').length
+    const pending = starters.filter((r: any) => r.game.bucket === 'pending').length
+    const ptsIn = +starters.reduce((s, r) => s + (r.points ?? 0), 0).toFixed(1)
+    const projLeft = +starters.filter((r: any) => r.game.bucket !== 'final').reduce((s, r) => s + (r.projected ?? 0), 0).toFixed(1)
+    return { team, starters, bench, proj, optimal, benchPts, final, live, pending, ptsIn, projLeft }
   }
 
   const home = await lineup(m.homeTeamId)
@@ -77,6 +116,9 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
             <span className="text-[11px] text-slate-400"> {p.position}</span>
           </td>
           {cols.map(c => <td key={c.label} className="px-2 py-1.5 text-center tabular-nums text-slate-600">{p.points == null ? '—' : (+c.get(stats).toFixed(1) || 0)}</td>)}
+          <td className="px-2 py-1.5 text-center whitespace-nowrap">
+            {p.game ? <span className={`text-[10px] font-semibold ${p.game.bucket === 'live' ? 'text-red-500' : p.game.bucket === 'final' ? 'text-slate-400' : 'text-blue-600'}`}>{p.game.bucket === 'live' ? '🔴 ' : ''}{p.game.label}</span> : '—'}
+          </td>
           <td className="px-3 py-1.5 text-right font-bold tabular-nums" style={{ color: dim ? undefined : meta.hex }}>{p.points == null ? '—' : p.points.toFixed(1)}</td>
         </tr>
       )
@@ -93,12 +135,13 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
               <th className="px-2 py-1.5 text-left font-semibold">Pos</th>
               <th className="px-2 py-1.5 text-left font-semibold">Starter</th>
               {cols.map(c => <th key={c.label} className="px-2 py-1.5 text-center font-semibold">{c.label}</th>)}
+              <th className="px-2 py-1.5 text-center font-semibold">Game</th>
               <th className="px-3 py-1.5 text-right font-semibold">Pts</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {side.starters.map((p: any) => <Row key={p.playerId} p={p} />)}
-            <tr className="bg-slate-50"><td colSpan={cols.length + 3} className="px-2 py-1 text-[10px] uppercase font-bold text-slate-400">Bench</td></tr>
+            <tr className="bg-slate-50"><td colSpan={cols.length + 4} className="px-2 py-1 text-[10px] uppercase font-bold text-slate-400">Bench</td></tr>
             {side.bench.slice(0, 10).map((p: any) => <Row key={p.playerId} p={p} dim />)}
           </tbody>
         </table>
@@ -161,7 +204,26 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
           <Fact label="Projected" h={home.proj} a={away.proj} fmt={n => n.toFixed(1)} />
           <Fact label="Optimal" h={home.optimal} a={away.optimal} fmt={n => n.toFixed(1)} />
           <Fact label="Bench Pts" h={home.benchPts} a={away.benchPts} fmt={n => n.toFixed(1)} />
-          <Fact label="Yet to Play" h={home.yetToPlay} a={away.yetToPlay} />
+        </div>
+      </div>
+
+      {/* Game tracker: played / playing / yet to play, with points in & to come */}
+      <div className="card p-5 mb-6">
+        <h2 className="font-semibold text-slate-900 mb-3">📡 Game Tracker</h2>
+        <div className="grid grid-cols-2 gap-5">
+          {[home, away].map((side, i) => side.team && (
+            <div key={i}>
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="font-semibold text-slate-800 truncate">{side.team.name}</span>
+                <span className="text-sm text-slate-500 tabular-nums"><b className="text-slate-800">{side.ptsIn.toFixed(1)}</b> in · ~{side.projLeft.toFixed(0)} to come</span>
+              </div>
+              <div className="flex gap-2 text-xs font-semibold">
+                <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-500">✓ {side.final} played</span>
+                <span className={`px-2 py-1 rounded-lg ${side.live ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'}`}>🔴 {side.live} playing</span>
+                <span className={`px-2 py-1 rounded-lg ${side.pending ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>⏳ {side.pending} yet to play</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
