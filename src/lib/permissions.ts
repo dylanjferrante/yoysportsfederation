@@ -1,6 +1,18 @@
 import { db } from '@/db'
-import { teamManagers } from '@/db/schema'
+import { teamManagers, leagues, leagueMembers } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
+
+// Is this user a commissioner of the league — the primary commissioner OR a
+// member granted the CO_COMMISSIONER role? Use this for commissioner-gated
+// actions so co-commissioners are honored, not just leagues.commissionerId.
+export async function isCommissioner(leagueId: string, userId: string | null | undefined): Promise<boolean> {
+  if (!userId) return false
+  const [lg] = await db.select({ c: leagues.commissionerId }).from(leagues).where(eq(leagues.id, leagueId)).limit(1)
+  if (lg?.c === userId) return true
+  const [m] = await db.select({ role: leagueMembers.role }).from(leagueMembers)
+    .where(and(eq(leagueMembers.leagueId, leagueId), eq(leagueMembers.userId, userId))).limit(1)
+  return m?.role === 'CO_COMMISSIONER'
+}
 
 // Co-managers: additional users a franchise's owner (or the commissioner) has
 // granted full management rights — lineups, adds/drops, trades. The primary

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { leagues, matchups } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
+import { isCommissioner } from '@/lib/permissions'
 
 // Commissioner editing of regular-season matchups: set pairings, override
 // scores/results, or copy one sport's weekly pairings onto every other sport
@@ -15,7 +16,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (league.commissionerId !== session.user.id) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
+  if (!(await isCommissioner(id, session.user.id))) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
 
   const body = await req.json()
 
