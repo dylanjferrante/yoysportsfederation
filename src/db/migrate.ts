@@ -408,6 +408,22 @@ CREATE TABLE waiver_claims (
   processed_at TEXT
 );
 
+CREATE TABLE api_usage (
+  id TEXT PRIMARY KEY,
+  year_month TEXT NOT NULL,
+  count INTEGER DEFAULT 0
+);
+
+CREATE TABLE real_stat_lines (
+  id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL REFERENCES players(id),
+  sport TEXT NOT NULL,
+  season TEXT NOT NULL,
+  week INTEGER NOT NULL,
+  stats TEXT DEFAULT '{}',
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE waiver_wire (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,

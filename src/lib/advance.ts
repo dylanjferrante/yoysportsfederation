@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/db'
-import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStats, playoffGames, leagueHistory } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStats, playoffGames, leagueHistory, realStatLines } from '@/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, type ScheduleEntry } from '@/lib/defaults'
@@ -76,10 +76,18 @@ async function scoreSportWeek(league: any, sport: string, week: number, detailed
   // Persist per-player box-score rows only for recent weeks (keeps bulk season
   // catch-up fast); older weeks still score the matchups + standings.
   if (detailed) await db.delete(playerGameStats).where(and(eq(playerGameStats.leagueId, league.id), eq(playerGameStats.season, league.season), eq(playerGameStats.week, week), eq(playerGameStats.sport, sport)))
+  // Prefer real ingested stat lines for this week; fall back to the simulator.
+  const ids = roster.map(r => r.playerId)
+  const realRows = ids.length
+    ? await db.select({ playerId: realStatLines.playerId, stats: realStatLines.stats }).from(realStatLines)
+        .where(and(eq(realStatLines.sport, sport), eq(realStatLines.season, league.season), eq(realStatLines.week, week), inArray(realStatLines.playerId, ids)))
+    : []
+  const realBy = new Map(realRows.map(r => [r.playerId, safeParse<Record<string, number>>(r.stats, {})]))
+
   const pts: Record<string, number> = {}
   const rows: any[] = []
   for (const r of roster) {
-    const stats = generateStatLine(sport, r.position, (r.projected ?? avgProj) / avgProj)
+    const stats = realBy.get(r.playerId) ?? generateStatLine(sport, r.position, (r.projected ?? avgProj) / avgProj)
     const p = scorePlayer(stats, scoring)
     pts[r.playerId] = p
     if (detailed) rows.push({ id: nanoid(), leagueId: league.id, season: league.season, week, sport, playerId: r.playerId, teamId: r.teamId, stats: JSON.stringify(stats), points: p })

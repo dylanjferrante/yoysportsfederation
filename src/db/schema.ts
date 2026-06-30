@@ -463,6 +463,27 @@ export const waiverClaims = sqliteTable('waiver_claims', {
   processedAt: text('processed_at'),
 })
 
+// ── Live stats ingestion ────────────────────────────────────────────────────
+// Tracks monthly external-API call usage so a free-tier key (e.g. ~1000/mo) is
+// never exceeded; one row per YYYY-MM.
+export const apiUsage = sqliteTable('api_usage', {
+  id: text('id').primaryKey(),
+  yearMonth: text('year_month').notNull(), // e.g. 2026-06
+  count: integer('count').default(0),
+})
+
+// Real per-player stat lines pulled from the provider, keyed to a fantasy week.
+// League-independent (raw stats); each league computes points from its scoring.
+export const realStatLines = sqliteTable('real_stat_lines', {
+  id: text('id').primaryKey(),
+  playerId: text('player_id').notNull().references(() => players.id),
+  sport: text('sport').notNull(),
+  season: text('season').notNull(),
+  week: integer('week').notNull(),
+  stats: text('stats').default('{}'), // JSON stat line
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+})
+
 // ── Waiver Wire ────────────────────────────────────────────────────────────
 // A player dropped in a league sits on the wire (claim-only) until `clearsAt`,
 // then becomes an ordinary free agent. One row per (league, player) on waivers.
