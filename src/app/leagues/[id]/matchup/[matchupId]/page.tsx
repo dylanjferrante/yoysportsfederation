@@ -4,6 +4,7 @@ import { eq, and, or, ne } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta, safeParse } from '@/lib/utils'
+import { sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
 import { RESERVE_SLOTS } from '@/lib/defaults'
 import { boxScoreColumns } from '@/lib/scoring-categories'
 import MatchupChat from './MatchupChat'
@@ -118,7 +119,10 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       <div className="flex items-center gap-3 mb-5">
         <Link href={`/leagues/${id}/scores`} className="btn-ghost text-slate-500">← Scores</Link>
         <div>
-          <h1 className="text-xl font-bold text-slate-900">{meta.emoji} {m.sport} · Week {m.week}</h1>
+          {(() => {
+            const sw = sportWeekOf(safeParse<ScheduleEntry[]>(league.sportSchedule, []), m.sport, m.week)
+            return <h1 className="text-xl font-bold text-slate-900">{meta.emoji} {m.sport} · {sw ? `Week ${sw}` : `Week ${m.week}`}{sw ? <span className="text-sm font-normal text-slate-400"> · Federation Wk {m.week}</span> : null}</h1>
+          })()}
           <p className="text-sm text-slate-500">{league.name} · {m.isComplete ? 'Final' : 'Live'}</p>
         </div>
       </div>
