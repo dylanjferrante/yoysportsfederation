@@ -35,8 +35,13 @@ export default function LeagueTabs({
   championshipColors?: Record<string, { p?: string; s?: string }>
 }) {
   const [tab, setTab] = useState<string>('OVERALL')
-  const [included, setIncluded] = useState<Set<string>>(
-    () => new Set((federationScoring.includedSports ?? sportsEnabled).filter(s => sportsEnabled.includes(s)))
+  const [countMode, setCountMode] = useState<'ALL' | 'COMPLETED'>('ALL')
+  const completedSports = useMemo(() => new Set(records.filter(r => r.isChampion).map(r => r.sport)), [records])
+  const included = useMemo(
+    () => countMode === 'COMPLETED'
+      ? new Set([...completedSports].filter(s => sportsEnabled.includes(s)))
+      : new Set(sportsEnabled),
+    [countMode, completedSports, sportsEnabled],
   )
 
   const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams])
@@ -68,14 +73,6 @@ export default function LeagueTabs({
       .sort((a, b) => b.power - a.power)
   }, [records, teams, included])
 
-  function toggle(sport: string) {
-    setIncluded(prev => {
-      const next = new Set(prev)
-      next.has(sport) ? next.delete(sport) : next.add(sport)
-      return next
-    })
-  }
-
   return (
     <div>
       {/* Tabs */}
@@ -91,7 +88,7 @@ export default function LeagueTabs({
       </div>
 
       {tab === 'OVERALL'
-        ? <Overall standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} divisions={divisions} divisionNames={divisionNames} />
+        ? <Overall standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} included={included} countMode={countMode} setCountMode={setCountMode} completedSports={completedSports} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} divisions={divisions} divisionNames={divisionNames} />
         : <SportView sport={tab} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} divisions={divisions} divisionNames={divisionNames} />}
     </div>
   )
@@ -100,7 +97,7 @@ export default function LeagueTabs({
 // Division label (custom name from settings, else "Division N").
 const divLabel = (idx: number, names: Record<string, string>) => names[String(idx)]?.trim() || `Division ${idx}`
 
-function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, championshipColors = {}, included, toggle, teamById, currentUserId, fed, divisions = 0, divisionNames = {} }: any) {
+function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, championshipColors = {}, included, countMode, setCountMode, completedSports, teamById, currentUserId, fed, divisions = 0, divisionNames = {} }: any) {
   const countedSports = sportsEnabled.filter((s: string) => included.has(s))
   // When divisions are enabled, the federation standings split into divisions
   // (re-ranked within each) on top of the league-wide overall table below.
@@ -153,13 +150,15 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
         </div>
       )}
       <div className="card p-4 flex flex-wrap items-center gap-3">
-        <span className="text-sm font-semibold text-slate-700">Count active + completed sports:</span>
-        {sportsEnabled.map((s: string) => (
-          <label key={s} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
-            <input type="checkbox" checked={included.has(s)} onChange={() => toggle(s)} className="w-4 h-4" />
-            <span className="inline-flex items-center gap-1.5"><SportChip sport={s} logos={divisionLogos} colors={championshipColors} chip={20} size={14} />{sportAbbrLabel(s, sportAbbr)}</span>
-          </label>
-        ))}
+        <span className="text-sm font-semibold text-slate-700">Count sports:</span>
+        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+          <input type="checkbox" checked={countMode === 'COMPLETED'} onChange={() => setCountMode('COMPLETED')} className="w-4 h-4" />
+          <span>Completed only{completedSports?.size ? ` (${completedSports.size})` : ''}</span>
+        </label>
+        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+          <input type="checkbox" checked={countMode === 'ALL'} onChange={() => setCountMode('ALL')} className="w-4 h-4" />
+          <span>All sports</span>
+        </label>
         <span className="text-xs text-slate-400 ml-auto">
           Champion bonus +{fed.championBonus} · placement {fed.placement?.[0] ?? '—'} → 1
         </span>
