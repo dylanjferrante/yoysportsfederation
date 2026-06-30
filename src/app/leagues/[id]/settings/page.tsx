@@ -142,7 +142,7 @@ function SettingsInner() {
         divisions: form.divisions, divisionNames, sportNames, sportAbbr, championshipNames: champNames, championshipLogos: champLogos, breakWeeks,
         sportsEnabled, divisionLogos, divisionLogoBg, divisionLogosAlt, divisionWordmarks, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
         draftRounds: draftRoundsObj, federationScoring: fed,
-        draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
+        draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick, autoPickEnabled: form.autoPickEnabled, auctionBudget: form.auctionBudget,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
         tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate, rookieDraftDates: rookieDates,
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj, tradeReopen: reopenObj,
@@ -838,8 +838,19 @@ function SettingsInner() {
                 <label className="label">Tradeable Future Pick Years</label>
                 <input type="number" min={0} max={7} className="input" value={form.tradeablePickYears ?? 3} onChange={e => set('tradeablePickYears', +e.target.value)} />
               </div>
+              {form.draftType === 'AUCTION' && (
+                <div>
+                  <label className="label">Auction Budget ($)</label>
+                  <input type="number" min={1} disabled={locked} className="input" value={form.auctionBudget ?? 200} onChange={e => set('auctionBudget', +e.target.value)} />
+                </div>
+              )}
             </div>
             ) })()}
+
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={!!form.autoPickEnabled} onChange={e => set('autoPickEnabled', e.target.checked)} />
+              <span><span className="text-sm font-medium text-slate-800">Auto-pick when the timer expires</span><span className="block text-xs text-slate-500">If a manager runs out of time, their queue (or the best available player) is drafted automatically instead of stalling the draft.</span></span>
+            </label>
 
             {/* Rookie draft date(s) — per sport when drafts run per sport */}
             <div className="border-t border-slate-100 pt-4">
