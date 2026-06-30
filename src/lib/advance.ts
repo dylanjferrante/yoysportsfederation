@@ -123,6 +123,21 @@ function seedOrder(n: number): number[] {
   return r
 }
 
+// Playoff seeding tiebreakers.
+const winPct = (r: any) => { const gp = (r.wins ?? 0) + (r.losses ?? 0) + (r.ties ?? 0); return gp ? ((r.wins ?? 0) + 0.5 * (r.ties ?? 0)) / gp : 0 }
+function coinHash(teamId: string, season: string): number { let h = 0; const s = `${teamId}:${season}`; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h }
+async function headToHeadWins(leagueId: string, season: string, sport: string): Promise<Record<string, number>> {
+  const ms = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season), eq(matchups.sport, sport), eq(matchups.isComplete, true)))
+  const wins: Record<string, number> = {}
+  for (const m of ms) {
+    if (!m.awayTeamId) continue
+    const homeWin = (m.homeScore ?? 0) >= (m.awayScore ?? 0)
+    const w = homeWin ? m.homeTeamId : m.awayTeamId
+    if (w) wins[w] = (wins[w] ?? 0) + 1
+  }
+  return wins
+}
+
 async function scoreTeam(sport: string, teamId: string, scoring: Record<string, number>, spCap = 0, week = 0) {
   const roster = await db.select({ slot: rosters.slot, position: players.position, projected: players.projectedPoints, status: players.status, byeWeek: players.byeWeek })
     .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
@@ -154,10 +169,20 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
     // Build the bracket pools from final standings: the championship bracket (top seeds),
     // an optional consolation bracket (the next tier), and an optional losers/toilet bowl
     // bracket (the bottom seeds). Consolation and losers never overlap.
-    const ranked = records.filter(r => r.sport === sport)
-      .sort((a, b) => (a.finishPosition ?? 99) - (b.finishPosition ?? 99) || (b.wins ?? 0) - (a.wins ?? 0))
-    const losersPool = league.losersBracket ? ranked.slice(Math.max(nTeams, ranked.length - nTeams)) : []
-    const consolationPool = league.consolationBracket ? ranked.slice(nTeams, ranked.length - losersPool.length) : []
+    // Seed by wins, then the configured tiebreaker (deterministic so re-runs are stable).
+    const tb = league.playoffTiebreaker ?? 'POINTS_FOR'
+    const h2h = tb === 'HEAD_TO_HEAD' ? await headToHeadWins(league.id, season, sport) : null
+    const ranked = records.filter(r => r.sport === sport).sort((a, b) => {
+      if ((b.wins ?? 0) !== (a.wins ?? 0)) return (b.wins ?? 0) - (a.wins ?? 0)
+      if (tb === 'HEAD_TO_HEAD' && h2h) { const d = (h2h[b.teamId] ?? 0) - (h2h[a.teamId] ?? 0); if (d) return d }
+      if (tb === 'RECORD') { const d = winPct(b) - winPct(a); if (d) return d }
+      if (tb === 'COIN_FLIP') return coinHash(a.teamId, season) - coinHash(b.teamId, season)
+      return (b.pointsFor ?? 0) - (a.pointsFor ?? 0) // POINTS_FOR (and final fallback)
+    })
+    const losersN = league.losersBracket ? (league.losersTeams ?? nTeams) : 0
+    const consolationN = league.consolationBracket ? (league.consolationTeams ?? nTeams) : 0
+    const losersPool = losersN ? ranked.slice(Math.max(nTeams, ranked.length - losersN)) : []
+    const consolationPool = consolationN ? ranked.slice(nTeams, Math.min(ranked.length - losersPool.length, nTeams + consolationN)) : []
     const pools: { kind: string; pool: typeof ranked }[] = [{ kind: 'WINNERS', pool: ranked.slice(0, nTeams) }]
     if (consolationPool.length >= 2) pools.push({ kind: 'CONSOLATION', pool: consolationPool })
     if (losersPool.length >= 2) pools.push({ kind: 'LOSERS', pool: losersPool })

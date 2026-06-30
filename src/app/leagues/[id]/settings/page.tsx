@@ -34,6 +34,7 @@ export default function CommissionerSettings() {
   const [startWeeksObj, setStartWeeksObj] = useState<Record<string, number>>({})
   const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
   const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
+  const [txLimits, setTxLimits] = useState<Record<string, { max: number; period: string }>>({})
   const [irDesigObj, setIrDesigObj] = useState<Record<string, string[]>>({})
   const [posLimits, setPosLimits] = useState<Record<string, Record<string, { maxStarters?: number; maxRostered?: number }>>>({})
   const [rookieDates, setRookieDates] = useState<Record<string, string>>({})
@@ -90,6 +91,7 @@ export default function CommissionerSettings() {
       }
       setDeadlinesObj(parse(l.tradeDeadlines, defaultTradeDeadlines(se)))
       setWaiverSchedObj(parse(l.waiverSchedule, defaultWaiverSchedule(se)))
+      setTxLimits(parse(l.transactionLimits, {}))
       setIrDesigObj(parse(l.irEligibleDesignations, defaultIrDesignations(se)))
       setPosLimits(parse(l.positionLimits, {}))
       setRookieDates(parse(l.rookieDraftDates, {}))
@@ -134,10 +136,11 @@ export default function CommissionerSettings() {
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
         tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate, rookieDraftDates: rookieDates,
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
-        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, irEligibleDesignations: irDesigObj, lockDay: form.lockDay,
+        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, waiverPeriodDays: form.waiverPeriodDays, transactionLimits: txLimits, irEligibleDesignations: irDesigObj, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
         playoffFormat: form.playoffFormat, weeksPerRound: form.weeksPerRound,
         playoffReseed: form.playoffReseed, consolationBracket: form.consolationBracket, losersBracket: form.losersBracket,
+        playoffTiebreaker: form.playoffTiebreaker, consolationTeams: form.consolationTeams, losersTeams: form.losersTeams,
         keeperEnabled: form.keeperEnabled, keeperCount: form.keeperCount,
         salaryCapEnabled: form.salaryCapEnabled, salaryCap: form.salaryCap, capMode: form.capMode,
         sportSchedule: buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj, startWeeksObj),
@@ -838,6 +841,15 @@ export default function CommissionerSettings() {
                   </select>
                 </div>
               )}
+              {form.waiverType !== 'FREE_AGENT' && (
+                <div>
+                  <label className="label">Waiver Period (days on waivers)</label>
+                  <select className="select" value={form.waiverPeriodDays ?? 2} onChange={e => set('waiverPeriodDays', +e.target.value)}>
+                    {[0, 1, 2, 3, 4, 5, 7].map(n => <option key={n} value={n}>{n === 0 ? 'None — clears immediately' : `${n} day${n > 1 ? 's' : ''}`}</option>)}
+                  </select>
+                  <p className="text-[11px] text-slate-400 mt-1">How long a dropped player sits on waivers before clearing to free agency.</p>
+                </div>
+              )}
             </div>
 
             {/* Per-sport waiver processing time */}
@@ -858,6 +870,30 @@ export default function CommissionerSettings() {
                         {Array.from({ length: 24 }, (_, h) => (
                           <option key={h} value={h}>{h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h - 12}:00 PM`}</option>
                         ))}
+                      </select>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Per-sport transaction limits */}
+            <div className="border-t border-slate-100 pt-4">
+              <label className="label">Transaction Limits (per sport)</label>
+              <p className="text-xs text-slate-500 mb-2">Cap how many adds/claims a franchise can make in each sport. Leave at 0 for unlimited.</p>
+              <div className="space-y-2">
+                {orderedEnabled.map(s => {
+                  const lim = txLimits[s] ?? { max: 0, period: 'WEEKLY' }
+                  const meta = sportMeta(s)
+                  return (
+                    <div key={s} className="flex items-center gap-3 rounded-lg border border-slate-200 p-2">
+                      <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
+                      <input type="number" min={0} className="input w-24 text-sm" value={lim.max} onChange={e => setTxLimits(p => ({ ...p, [s]: { ...lim, max: Math.max(0, +e.target.value) } }))} />
+                      <span className="text-xs text-slate-400">moves per</span>
+                      <select className="select w-auto text-sm" value={lim.period} onChange={e => setTxLimits(p => ({ ...p, [s]: { ...lim, period: e.target.value } }))}>
+                        <option value="DAILY">day</option>
+                        <option value="WEEKLY">week</option>
+                        <option value="SEASON">season</option>
                       </select>
                     </div>
                   )
@@ -979,18 +1015,48 @@ export default function CommissionerSettings() {
 
             <div className="border-t border-slate-100 pt-4 space-y-3">
               <p className="text-sm font-semibold text-slate-700">Bracket options</p>
+              <div className="max-w-xs">
+                <label className="label">Seeding tiebreaker</label>
+                <select className="select" value={form.playoffTiebreaker ?? 'POINTS_FOR'} onChange={e => set('playoffTiebreaker', e.target.value)}>
+                  <option value="POINTS_FOR">Points For</option>
+                  <option value="HEAD_TO_HEAD">Head-to-Head</option>
+                  <option value="RECORD">Win % (record)</option>
+                  <option value="COIN_FLIP">Coin flip (random)</option>
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">Breaks ties between franchises with the same number of wins when seeding the bracket.</p>
+              </div>
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input type="checkbox" className="mt-0.5" checked={!!form.playoffReseed} onChange={e => set('playoffReseed', e.target.checked)} />
                 <span><span className="text-sm font-medium text-slate-800">Re-seed after round 1</span><span className="block text-xs text-slate-500">Re-pair survivors by seed each round (1 plays the lowest remaining seed, 2 the next, …) instead of a fixed bracket.</span></span>
               </label>
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input type="checkbox" className="mt-0.5" checked={!!form.consolationBracket} onChange={e => set('consolationBracket', e.target.checked)} />
-                <span><span className="text-sm font-medium text-slate-800">Consolation bracket</span><span className="block text-xs text-slate-500">Franchises that just missed the playoffs play their own bracket for a consolation title.</span></span>
-              </label>
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input type="checkbox" className="mt-0.5" checked={!!form.losersBracket} onChange={e => set('losersBracket', e.target.checked)} />
-                <span><span className="text-sm font-medium text-slate-800">Losers bracket (toilet bowl)</span><span className="block text-xs text-slate-500">The bottom franchises play a bracket to settle last place.</span></span>
-              </label>
+              <div>
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input type="checkbox" className="mt-0.5" checked={!!form.consolationBracket} onChange={e => set('consolationBracket', e.target.checked)} />
+                  <span><span className="text-sm font-medium text-slate-800">Consolation bracket</span><span className="block text-xs text-slate-500">Franchises that just missed the playoffs play their own bracket for a consolation title.</span></span>
+                </label>
+                {form.consolationBracket && (
+                  <div className="mt-2 ml-7 flex items-center gap-2">
+                    <label className="text-xs text-slate-500">Teams</label>
+                    <select className="select w-auto text-sm" value={form.consolationTeams ?? (form.playoffTeams ?? 6)} onChange={e => set('consolationTeams', +e.target.value)}>
+                      {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input type="checkbox" className="mt-0.5" checked={!!form.losersBracket} onChange={e => set('losersBracket', e.target.checked)} />
+                  <span><span className="text-sm font-medium text-slate-800">Losers bracket (toilet bowl)</span><span className="block text-xs text-slate-500">The bottom franchises play a bracket to settle last place.</span></span>
+                </label>
+                {form.losersBracket && (
+                  <div className="mt-2 ml-7 flex items-center gap-2">
+                    <label className="text-xs text-slate-500">Teams</label>
+                    <select className="select w-auto text-sm" value={form.losersTeams ?? (form.playoffTeams ?? 6)} onChange={e => set('losersTeams', +e.target.value)}>
+                      {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}

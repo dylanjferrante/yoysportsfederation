@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, matchups } from '@/db/schema'
+import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, matchups, activity } from '@/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
@@ -201,6 +201,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .innerJoin(teams, eq(rosters.teamId, teams.id))
       .where(and(eq(rosters.playerId, body.playerId), eq(teams.leagueId, team.leagueId))).limit(1)
     if (existing.length) return NextResponse.json({ error: 'Player is already rostered' }, { status: 400 })
+    // Enforce the optional per-sport transaction limit (adds + waiver claims in the period).
+    const txLimits = safeParse<Record<string, { max: number; period: string }>>(league?.transactionLimits, {})
+    const tl = txLimits[pl.sport]
+    if (tl && tl.max > 0) {
+      const since = tl.period === 'DAILY' ? Date.now() - 86_400_000 : tl.period === 'WEEKLY' ? Date.now() - 7 * 86_400_000 : 0
+      const rows = await db.select({ message: activity.message, createdAt: activity.createdAt }).from(activity)
+        .where(and(eq(activity.teamId, id), inArray(activity.type, ['ROSTER', 'WAIVER'])))
+      const used = rows.filter(r => {
+        const t = r.createdAt ? new Date(r.createdAt).getTime() : 0
+        return t >= since && new RegExp(`\\(${pl.sport}\\)`).test(r.message ?? '') && /\b(added|claimed)\b/i.test(r.message ?? '')
+      }).length
+      if (used >= tl.max) return NextResponse.json({ error: `Transaction limit reached: ${tl.max} ${pl.sport} move${tl.max > 1 ? 's' : ''} per ${tl.period.toLowerCase()}` }, { status: 400 })
+    }
     // Enforce the optional per-position max-rostered cap.
     const limits = safeParse<Record<string, Record<string, { maxRostered?: number }>>>(league?.positionLimits, {})
     const cap = limits[pl.sport]?.[pl.position]?.maxRostered
