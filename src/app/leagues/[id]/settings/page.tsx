@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, formatWeekRangeWithBreaks, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, LEAGUE_SIZE_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
@@ -12,9 +12,13 @@ import ScheduleEditor from './ScheduleEditor'
 
 const ALL_SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 const TABS = ['General', 'Franchises', 'Sports & Schedule', 'Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Live Stats']
+const SETUP_STEPS = ['General', 'Sports & Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Franchises']
 
-export default function CommissionerSettings() {
+function SettingsInner() {
   const params = useParams<{ id: string }>()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const setupMode = searchParams.get('setup') === '1'
   const { data: session } = useSession()
   const [league, setLeague] = useState<any>(null)
   const [tab, setTab] = useState('General')
@@ -233,6 +237,22 @@ export default function CommissionerSettings() {
           <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
         </div>
       </div>
+
+      {setupMode && (() => {
+        const idx = Math.max(SETUP_STEPS.indexOf(tab), 0)
+        return (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-blue-900">Setting up your federation — step {idx + 1} of {SETUP_STEPS.length}: {SETUP_STEPS[idx]}</p>
+              <Link href={`/leagues/${params.id}`} className="text-xs text-blue-700 underline">Skip for now</Link>
+            </div>
+            <div className="h-1.5 rounded-full bg-blue-100 overflow-hidden">
+              <div className="h-full bg-blue-500 transition-all" style={{ width: `${((idx + 1) / SETUP_STEPS.length) * 100}%` }} />
+            </div>
+            <p className="text-xs text-blue-700 mt-2">Review each section and save as you go. Everything here can be changed later.</p>
+          </div>
+        )
+      })()}
 
       <div className="flex gap-0 border-b border-slate-200 mb-6 overflow-x-auto">
         {TABS.map(t => <button key={t} onClick={() => setTab(t)} className={tab === t ? 'tab-active' : 'tab-inactive'}>{t}</button>)}
@@ -1105,12 +1125,28 @@ export default function CommissionerSettings() {
 
         {tab === 'Live Stats' && <LiveStatsPanel leagueId={params.id as string} />}
       </div>
+
+      {setupMode && (() => {
+        const idx = Math.max(SETUP_STEPS.indexOf(tab), 0)
+        const last = idx === SETUP_STEPS.length - 1
+        const go = async (next: number) => { await save(); setTab(SETUP_STEPS[next]); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }) }
+        return (
+          <div className="flex items-center justify-between mt-6">
+            <button onClick={() => idx > 0 && setTab(SETUP_STEPS[idx - 1])} disabled={idx === 0} className="btn-secondary disabled:opacity-40">← Back</button>
+            {last
+              ? <button onClick={async () => { await save(); router.push(`/leagues/${params.id}`) }} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Finish setup →'}</button>
+              : <button onClick={() => go(idx + 1)} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save & continue →'}</button>}
+          </div>
+        )
+      })()}
     </div>
   )
 }
 
-// Commissioner live-stats control: shows the monthly API budget and lets the
-// commissioner pull finished games now (re-scoring affected weeks from real stats).
+export default function CommissionerSettings() {
+  return <Suspense fallback={<div className="max-w-5xl mx-auto px-4 py-8 text-slate-400">Loading settings…</div>}><SettingsInner /></Suspense>
+}
+
 function LiveStatsPanel({ leagueId }: { leagueId: string }) {
   const [status, setStatus] = useState<{ configured: boolean; used: number; cap: number; live: boolean } | null>(null)
   const [days, setDays] = useState(2)
