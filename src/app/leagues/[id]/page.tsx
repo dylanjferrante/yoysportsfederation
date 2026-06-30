@@ -5,7 +5,7 @@ import { leagues, teams, teamRecords, matchups, users, activity, leagueHistory }
 import { eq, and, desc } from 'drizzle-orm'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { safeParse, inSeasonNow } from '@/lib/utils'
+import { safeParse, inSeasonNow, sportLabel } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import LeagueTabs from './LeagueTabs'
 
@@ -86,7 +86,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
               <span className="badge bg-slate-100 text-slate-600">{league.status}</span>
             </div>
             <p className="text-slate-500 text-sm">
-              {sportsEnabled.join(' · ')} · {league.season} · {teamsLite.length} franchises
+              {sportsEnabled.map(s => sportLabel(s, safeParse<Record<string, string>>(league.sportNames, {}))).join(' · ')} · {league.season} · {teamsLite.length} franchises
             </p>
             {activeNow.length > 0 && (
               <p className="text-xs text-green-600 font-medium mt-1">● In season now: {activeNow.join(', ')}</p>

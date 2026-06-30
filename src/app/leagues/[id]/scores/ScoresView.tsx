@@ -2,15 +2,15 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { sportMeta } from '@/lib/utils'
+import { sportMeta, sportLabel } from '@/lib/utils'
 import { formatWeekRange } from '@/lib/defaults'
 import TeamChip from '@/components/TeamChip'
 
 type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 type Team = { id: string; name: string; abbreviation: string; logo?: string | null; primaryColor?: string | null; secondaryColor?: string | null; logoBg?: boolean | null }
 
-export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason }: {
-  leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; isCommish?: boolean
+export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason, sportNames = {} }: {
+  leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; sportNames?: Record<string, string>; isCommish?: boolean
 }) {
   const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams])
   const seasons = useMemo(() => {
@@ -64,7 +64,7 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
             <div key={sport} className="card">
               <div className="card-header flex items-center gap-2">
                 <span className={`w-7 h-7 rounded-lg ${meta.bg} text-white flex items-center justify-center`}>{meta.emoji}</span>
-                <h2 className="font-semibold text-slate-900">{sport}</h2>
+                <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)}</h2>
                 <span className="text-xs text-slate-400">{games.length} games</span>
               </div>
               <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 divide-slate-50">
