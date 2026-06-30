@@ -3,6 +3,7 @@ import { leagues, teams, teamRecords, matchups, leagueHistory, playoffGames, tra
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { safeParse } from '@/lib/utils'
 import { weekDateRange } from '@/lib/defaults'
+import { computeFederationStandings } from '@/lib/federation'
 
 export type Headline = { id: string; category: string; sport?: string; priority: number; ts: number; text: string; href: string }
 
@@ -159,7 +160,14 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
       const remaining = win ? Math.max(0, win.endWeek - bySport[sp].lastWeek) : 0
       const ts = tsOfWeek(bySport[sp].lastWeek)
       const leader = table[0], second = table[1]
-      res.push({ id: `lead-${sp}`, category: 'STANDINGS', sport: sp, priority: 40, ts, text: `${nm(leader.teamId)} leads ${sp} at ${rec3(leader.wins ?? 0, leader.losses ?? 0, leader.ties ?? 0)}`, href: base })
+      const lr = rec3(leader.wins ?? 0, leader.losses ?? 0, leader.ties ?? 0)
+      const ahead = (leader.wins ?? 0) - (second.wins ?? 0)
+      const leadText = ahead <= 0
+        ? vary(`lead${sp}`, `Deadlock atop ${sp}: ${nm(leader.teamId)} and ${nm(second.teamId)} are even at ${lr}`, `${nm(leader.teamId)} and ${nm(second.teamId)} share the ${sp} lead at ${lr}`)
+        : ahead === 1
+          ? vary(`lead${sp}`, `${nm(leader.teamId)} leads ${sp} at ${lr}, a single game up on ${nm(second.teamId)}`, `Tight at the top of ${sp}: ${nm(leader.teamId)} (${lr}) edges ${nm(second.teamId)} by one`)
+          : vary(`lead${sp}`, `${nm(leader.teamId)} controls ${sp} at ${lr}, ${ahead} games clear of ${nm(second.teamId)}`, `${nm(leader.teamId)} has separated atop ${sp} — ${ahead} up on second-place ${nm(second.teamId)}`)
+      res.push({ id: `lead-${sp}`, category: 'STANDINGS', sport: sp, priority: 40, ts, text: leadText, href: base })
       if (remaining > 0) {
         const lead = (leader.wins ?? 0) - (second.wins ?? 0)
         if (lead > remaining) res.push({ id: `clinch1-${sp}`, category: 'STANDINGS', sport: sp, priority: 75, ts, text: `${nm(leader.teamId)} clinches the ${sp} #1 seed`, href: base })
@@ -439,9 +447,46 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
   run(() => {
     const pf = new Map<string, number>()
     for (const r of recs) pf.set(r.teamId, (pf.get(r.teamId) ?? 0) + (r.pointsFor ?? 0))
-    const top = [...pf.entries()].sort((a, b) => b[1] - a[1])[0]
+    const sorted = [...pf.entries()].sort((a, b) => b[1] - a[1])
+    const top = sorted[0]
     if (!top || top[1] <= 0) return []
-    return [{ id: 'fedpts', category: 'FEDERATION', priority: 42, ts: Date.now(), text: `${nm(top[0])} leads the federation in total points (${top[1].toFixed(0)})`, href: base }]
+    const second = sorted[1]
+    if (!second) return [{ id: 'fedpts', category: 'FEDERATION', priority: 42, ts: Date.now(), text: `${nm(top[0])} leads the federation in total points (${top[1].toFixed(0)})`, href: base }]
+    const gap = top[1] - second[1]
+    const text = gap < top[1] * 0.03
+      ? vary('fedtp', `${nm(top[0])} holds the federation scoring lead by a whisker — ${gap.toFixed(0)} over ${nm(second[0])}`, `Tight scoring race: ${nm(top[0])} (${top[1].toFixed(0)}) noses ahead of ${nm(second[0])} for most federation points`)
+      : vary('fedtp', `${nm(top[0])} is the federation's top scorer at ${top[1].toFixed(0)}, ${gap.toFixed(0)} clear of ${nm(second[0])}`, `Nobody has scored more across the federation than ${nm(top[0])} — ${gap.toFixed(0)} ahead of ${nm(second[0])}`)
+    return [{ id: 'fedpts', category: 'FEDERATION', priority: 42, ts: Date.now(), text, href: base }]
+  })
+
+  run(() => {
+    const fs = safeParse<any>(league.federationScoring, null)
+    if (!fs) return []
+    const included = (fs.includedSports?.length ? fs.includedSports : sportsEnabled) as string[]
+    const standings = computeFederationStandings(
+      teamRows.map(t => ({ id: t.id })),
+      recs.map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: !!r.isChampion })),
+      fs, included,
+    )
+    if (standings.length < 2 || standings[0].total <= 0) return []
+    const a = standings[0], b = standings[1]
+    const gap = a.total - b.total
+    const res: Headline[] = []
+    res.push({
+      id: 'fed-race', category: 'FEDERATION', priority: 52, ts: Date.now(),
+      text: gap <= 0
+        ? vary('fedrace', `Deadlock at the top: ${nm(a.team.id)} and ${nm(b.team.id)} are tied atop the federation on ${a.total} points`, `${nm(a.team.id)} and ${nm(b.team.id)} are locked together at the summit of the federation`)
+        : gap <= 3
+          ? vary('fedrace', `It is a tight race at the top of the federation — ${nm(a.team.id)} clings to a ${gap}-point edge over ${nm(b.team.id)}`, `${nm(a.team.id)} leads the federation by just ${gap}, with ${nm(b.team.id)} breathing down its neck`)
+          : vary('fedrace', `${nm(a.team.id)} has built a commanding ${gap}-point lead atop the federation over second-place ${nm(b.team.id)}`, `${nm(a.team.id)} is pulling away in the federation race, ${gap} clear of ${nm(b.team.id)}`),
+      href: base,
+    })
+    if (standings.length >= 3) {
+      const c = standings[2]
+      const g2 = b.total - c.total
+      if (b.total > 0 && g2 >= 0 && g2 <= 2) res.push({ id: 'fed-chase', category: 'FEDERATION', priority: 38, ts: Date.now(), text: `${nm(c.team.id)} is hunting ${nm(b.team.id)} for second in the federation, within ${g2 || 1}`, href: base })
+    }
+    return res
   })
 
   run(() => sportsEnabled.flatMap(sp => {
