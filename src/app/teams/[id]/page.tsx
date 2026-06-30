@@ -21,6 +21,13 @@ type FA = { id: string; name: string; position: string; realTeam: string; season
 
 const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 const STARTER = (slot: string) => !['BN', 'IR', 'IL', 'DL', 'TAXI'].includes(slot)
+// Canonical position/slot order per sport (used to sort the roster and the lineup).
+const SLOT_ORDER: Record<string, string[]> = {
+  NFL: ['QB', 'RB', 'WR', 'TE', 'RB/WR/TE', 'WR/RB', 'FLEX', 'OP', 'DEF', 'D/ST', 'DST', 'K'],
+  NBA: ['PG', 'SG', 'SF', 'PF', 'C', 'G', 'F', 'UTIL'],
+  NHL: ['C', 'LW', 'RW', 'D', 'G', 'UTIL'],
+  MLB: ['C', '1B', '2B', '3B', 'SS', 'OF', 'LF', 'CF', 'RF', 'UTIL', 'SP', 'RP', 'P'],
+}
 
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>()
@@ -106,15 +113,26 @@ export default function TeamPage() {
   const totalSalary = players.reduce((s, p) => s + (p.salary ?? 0), 0)
   const overCap = capEnabled && cap > 0 && totalSalary > cap
 
-  // Split the sport's roster into its sections; players still move between them via the
-  // slot dropdown on each row (SET_SLOT). Only non-empty sections render a table.
   const cols = boxScoreColumns(sport)
-  const sections = [
-    { key: 'Starting Lineup', rows: rosterForSport.filter(p => STARTER(p.slot)) },
-    { key: 'Bench', rows: rosterForSport.filter(p => p.slot === 'BN') },
-    { key: 'Taxi Squad', rows: rosterForSport.filter(p => p.slot === 'TAXI') },
-    { key: 'Injured Reserve', rows: rosterForSport.filter(p => ['IR', 'IL', 'DL'].includes(p.slot)) },
-  ].filter(s => s.rows.length > 0)
+  const cfg: Record<string, number> = (data.rosterSettings ?? {})[sport] ?? {}
+  const RESERVE = ['BN', 'IR', 'IL', 'DL', 'TAXI']
+  const order = SLOT_ORDER[sport] ?? []
+  const rank = (s: string) => { const i = order.indexOf(s); return i === -1 ? 99 : i }
+
+  // Starting lineup: every configured starter slot in position order, filled or empty,
+  // so e.g. an empty K slot always shows. Players still move via the slot dropdown.
+  const bySlot: Record<string, P[]> = {}
+  for (const p of rosterForSport.filter(p => STARTER(p.slot))) (bySlot[p.slot] ??= []).push(p)
+  for (const k in bySlot) bySlot[k].sort((a, b) => (b.seasonPoints ?? 0) - (a.seasonPoints ?? 0))
+  const starterSlots = Object.keys(cfg).filter(k => !RESERVE.includes(k)).sort((a, b) => rank(a) - rank(b))
+  const lineup: { slot: string; player: P | null }[] = []
+  for (const slot of starterSlots) for (let i = 0; i < (cfg[slot] || 0); i++) lineup.push({ slot, player: bySlot[slot]?.shift() ?? null })
+  for (const p of Object.values(bySlot).flat()) lineup.push({ slot: p.slot, player: p }) // any extras
+
+  const byPos = (a: P, b: P) => rank(a.position) - rank(b.position) || (b.seasonPoints ?? 0) - (a.seasonPoints ?? 0)
+  const bench = rosterForSport.filter(p => p.slot === 'BN').sort(byPos)
+  const taxi = rosterForSport.filter(p => p.slot === 'TAXI').sort(byPos)
+  const ir = rosterForSport.filter(p => ['IR', 'IL', 'DL'].includes(p.slot)).sort(byPos)
 
   const renderHead = () => (
     <thead className="sticky top-0 z-10 bg-slate-50">
@@ -128,7 +146,7 @@ export default function TeamPage() {
         <th className="text-right px-1.5 py-2 font-semibold hidden md:table-cell">GP</th>
         <th className="text-right px-2 py-2 font-semibold">Pts</th>
         {cols.map(c => <th key={c.label} className="text-right px-1.5 py-2 font-semibold whitespace-nowrap hidden lg:table-cell">{c.label}</th>)}
-        {canManage && <th className="text-right px-3 py-2 font-semibold"></th>}
+        {canManage && <th className="text-right px-3 py-2 font-semibold sticky right-0 bg-slate-50">Actions</th>}
       </tr>
     </thead>
   )
@@ -175,15 +193,24 @@ export default function TeamPage() {
           const v = +c.get(p.seasonStats ?? {}).toFixed(0)
           return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600 hidden lg:table-cell">{v || '—'}</td>
         })}
-        {canManage && <td className="px-3 py-1.5 text-right whitespace-nowrap">
-          {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} className="text-[11px] mr-2 text-slate-400 hover:text-emerald-600">$</button>}
+        {canManage && <td className="px-3 py-1.5 text-right whitespace-nowrap sticky right-0 bg-white shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)]">
+          {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} title="Set salary / contract" className="text-[11px] mr-2 text-slate-400 hover:text-emerald-600">$</button>}
           {data.keeperEnabled && <button onClick={() => act({ action: 'SET_KEEPER', rosterId: p.rosterId, isKeeper: !p.isKeeper })} className={`text-[11px] mr-2 ${p.isKeeper ? 'text-emerald-600 font-semibold' : 'text-slate-400 hover:text-emerald-600'}`}>{p.isKeeper ? '🔑 Keeper' : 'Keep'}</button>}
-          <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} className={`text-[11px] mr-2 ${p.onBlock ? 'text-amber-600 font-semibold' : 'text-slate-400 hover:text-amber-600'}`}>{p.onBlock ? '◉ Block' : 'Block'}</button>
-          <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] text-red-500 hover:text-red-700">Drop</button>
+          <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} title="Trade block — flag this player as available to trade" className={`text-[11px] mr-2 ${p.onBlock ? 'text-amber-600 font-semibold' : 'text-slate-400 hover:text-amber-600'}`}>{p.onBlock ? '◉ On block' : 'Trade block'}</button>
+          <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] font-semibold text-red-600 hover:text-white hover:bg-red-600 px-1.5 py-0.5 rounded border border-red-200">Drop</button>
         </td>}
       </tr>
     )
   }
+
+  // An empty, unfilled starter slot (e.g. an open K) — always shown so the lineup is complete.
+  const emptyRow = (slot: string, i: number) => (
+    <tr key={`empty-${slot}-${i}`} className="bg-slate-50/40">
+      <td className="px-2 py-1.5"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{slot}</span></td>
+      <td className="px-2 py-1.5 text-slate-400 italic text-xs" colSpan={7 + cols.length}>Empty slot{canManage && showFA ? ' — add a free agent →' : ''}</td>
+      {canManage && <td className="sticky right-0 bg-white" />}
+    </tr>
+  )
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -292,21 +319,26 @@ export default function TeamPage() {
 
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-              {sections.map(section => (
+              {([
+                { key: 'Starting Lineup', count: lineup.length, body: lineup.map((e, i) => e.player ? renderRow(e.player) : emptyRow(e.slot, i)) },
+                { key: 'Bench', count: bench.length, body: bench.map(renderRow) },
+                { key: 'Taxi Squad', count: taxi.length, body: taxi.map(renderRow) },
+                { key: 'Injured Reserve', count: ir.length, body: ir.map(renderRow) },
+              ] as const).filter(s => s.count > 0).map(section => (
                 <div key={section.key} className="card overflow-hidden">
                   <div className="card-header flex items-center justify-between">
                     <h2 className="font-semibold text-slate-900">{section.key}</h2>
-                    <span className="text-xs text-slate-400">{section.rows.length} {section.rows.length === 1 ? 'player' : 'players'}</span>
+                    <span className="text-xs text-slate-400">{section.count} {section.count === 1 ? 'spot' : 'spots'}</span>
                   </div>
                   <div className="overflow-auto">
                     <table className="w-full text-sm">
                       {renderHead()}
-                      <tbody className="divide-y divide-slate-50">{section.rows.map(renderRow)}</tbody>
+                      <tbody className="divide-y divide-slate-50">{section.body}</tbody>
                     </table>
                   </div>
                 </div>
               ))}
-              {sections.length === 0 && <div className="card p-8 text-center text-slate-400 text-sm">No {sport} players rostered.</div>}
+              {lineup.length === 0 && bench.length === 0 && taxi.length === 0 && ir.length === 0 && <div className="card p-8 text-center text-slate-400 text-sm">No {sport} players rostered.</div>}
             </div>
 
             <div className="space-y-4">
