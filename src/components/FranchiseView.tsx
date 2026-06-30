@@ -59,6 +59,17 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   }, [id])
 
   useEffect(() => { load() }, [load])
+  // Live scoring: while the league is in live mode and this tab is visible,
+  // re-pull the roster every 45s so in-game scores refresh without a manual
+  // reload. This only re-reads the DB (no provider calls) — actual freshness
+  // still depends on how often the ingestion cron runs.
+  useEffect(() => {
+    if (!data?.liveScoring) return
+    const tick = () => { if (document.visibilityState === 'visible') load() }
+    const iv = setInterval(tick, 45_000)
+    document.addEventListener('visibilitychange', tick)
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', tick) }
+  }, [data?.liveScoring, load])
   useEffect(() => { fetch(`/api/teams/${id}/history`).then(r => r.json()).then(setHistory) }, [id])
   useEffect(() => {
     if (showFA && data?.team) fetch(`/api/players?sport=${sport}&free=true&leagueId=${data.team.leagueId}`).then(r => r.json()).then(setFa)
