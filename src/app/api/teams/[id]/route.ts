@@ -12,7 +12,7 @@ import { z } from 'zod'
 
 const schema = z.object({
   name: z.string().min(1).max(60).optional(),
-  abbreviation: z.string().min(1).max(5).optional(),
+  abbreviation: z.string().min(1).max(4).optional(),
   logo: z.string().max(2000).optional(),
   altLogo: z.string().max(2000).optional(),
   wordmark: z.string().max(2000).optional(),

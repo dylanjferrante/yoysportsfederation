@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     const teamId = nanoid()
     const name = teamName?.trim() || `${session.user.name ?? 'New'} Franchise`
     await db.insert(teams).values({
-      id: teamId, name, abbreviation: name.slice(0, 3).toUpperCase(),
+      id: teamId, name, abbreviation: name.slice(0, 4).toUpperCase(),
       userId: session.user.id, leagueId: league.id,
     })
 

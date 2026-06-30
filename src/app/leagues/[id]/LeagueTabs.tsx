@@ -340,7 +340,7 @@ function TeamsList({ teams, records, sportsEnabled, teamStats }: { teams: TeamLi
             <div className="p-3 flex items-center gap-3" style={{ background: primary, color: secondary }}>
               {t.logo
                 ? <img src={t.logo} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-white/10" />
-                : <span className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 3).toUpperCase()}</span>}
+                : <span className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 4).toUpperCase()}</span>}
               <div className="min-w-0">
                 <p className="font-bold leading-tight truncate">{t.name}</p>
                 <p className="text-xs opacity-80 truncate">{t.owner ?? '—'} · {t.abbreviation}</p>

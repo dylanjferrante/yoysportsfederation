@@ -27,6 +27,8 @@ export const pushSubscriptions = sqliteTable('push_subscriptions', {
 export const leagues = sqliteTable('leagues', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  abbreviation: text('abbreviation'), // league short code (up to 4) for draft tiles etc.
+  timezone: text('timezone').default('America/New_York'), // commissioner-set league timezone
   season: text('season').notNull(),
   commissionerId: text('commissioner_id').notNull().references(() => users.id),
   isPublic: integer('is_public', { mode: 'boolean' }).default(false),
@@ -89,7 +91,9 @@ export const leagues = sqliteTable('leagues', {
   mlbSpCap: integer('mlb_sp_cap').default(0), // max starting pitchers counted per week (0 = unlimited)
   rookieDraftDates: text('rookie_draft_dates').default('{}'), // per-scope rookie draft datetimes
   divisions: integer('divisions').default(0), // number of divisions (0 = none)
+  divisionNames: text('division_names').default('{}'), // per-division custom names { "1": "East", ... }
   sportNames: text('sport_names').default('{}'), // per-league custom sport labels
+  sportAbbr: text('sport_abbr').default('{}'), // per-league custom sport abbreviations
   championshipNames: text('championship_names').default('{}'), // per-sport championship names
   championshipLogos: text('championship_logos').default('{}'), // per-sport trophy/logo URLs
   breakWeeks: text('break_weeks').default('{}'), // per-sport bye/break weeks (all-star, Olympics): { sport: number[] }
