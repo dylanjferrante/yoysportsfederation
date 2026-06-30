@@ -33,7 +33,7 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
     .select({ team: teams, userName: users.name })
     .from(teams)
     .leftJoin(users, eq(teams.userId, users.id))
-    .where(eq(teams.leagueId, id))
+    .where(and(eq(teams.leagueId, id), isPast ? undefined : eq(teams.archived, false)))
   const branding = isPast ? await seasonBranding(id, viewSeason) : null
 
   const records = await db

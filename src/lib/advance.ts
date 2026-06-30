@@ -402,7 +402,7 @@ async function createSeason(league: any, season: string): Promise<void> {
   const schedule = safeParse<ScheduleEntry[]>(league.sportSchedule, [])
   if (!schedule.length) return
   const breaks = safeParse<Record<string, number[]>>(league.breakWeeks, {})
-  const teamRows = await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, league.id))
+  const teamRows = await db.select({ id: teams.id }).from(teams).where(and(eq(teams.leagueId, league.id), eq(teams.archived, false)))
   const teamIds = teamRows.map(t => t.id)
   if (teamIds.length < 2) return
 

@@ -276,6 +276,8 @@ export const teams = sqliteTable('teams', {
   logoBg: integer('logo_bg', { mode: 'boolean' }).default(false), // fill logo background with primary color
   userId: text('user_id').notNull().references(() => users.id),
   leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  archived: integer('archived', { mode: 'boolean' }).default(false),
+  archivedAt: text('archived_at'),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 }, (t) => ({
   uniq: uniqueIndex('team_user_league_uniq').on(t.leagueId, t.userId),

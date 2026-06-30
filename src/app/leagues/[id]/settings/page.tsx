@@ -58,6 +58,10 @@ function SettingsInner() {
   const [teamSavedId, setTeamSavedId] = useState<string | null>(null)
   const [teamError, setTeamError] = useState<string>('')
   const [newFr, setNewFr] = useState({ name: '', abbreviation: '', ownerName: '', ownerEmail: '' })
+  const [replaceFor, setReplaceFor] = useState<string | null>(null)
+  const [replaceForm, setReplaceForm] = useState({ name: '', abbreviation: '', ownerName: '', ownerEmail: '', transferAssets: true })
+  const [replaceErr, setReplaceErr] = useState('')
+  const [replacing, setReplacing] = useState(false)
   const [addingFr, setAddingFr] = useState(false)
   const [dynasty, setDynasty] = useState<{ id: string; status: string } | null>(null)
 
@@ -68,7 +72,7 @@ function SettingsInner() {
       const l = d.league
       setLeague(l)
       setForm(l)
-      setFranchises((d.teams ?? []).map((t: any) => ({
+      setFranchises((d.teams ?? []).filter((t: any) => !t.team.archived).map((t: any) => ({
         id: t.team.id,
         name: t.team.name, abbreviation: t.team.abbreviation,
         logo: t.team.logo ?? '', altLogo: t.team.altLogo ?? '', wordmark: t.team.wordmark ?? '',
@@ -201,6 +205,16 @@ function SettingsInner() {
     if (!res.ok) { const d = await res.json().catch(() => ({})); setTeamError(typeof d.error === 'string' ? d.error : 'Could not add club'); return }
     setNewFr({ name: '', abbreviation: '', ownerName: '', ownerEmail: '' })
     await reloadFranchises()
+  }
+
+  async function doReplace(archiveTeamId: string) {
+    setReplacing(true); setReplaceErr('')
+    const res = await fetch(`/api/leagues/${params.id}/teams/replace`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archiveTeamId, ...replaceForm }),
+    })
+    setReplacing(false)
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setReplaceErr(typeof d.error === 'string' ? d.error : 'Could not replace club'); return }
+    setReplaceFor(null); setReplaceForm({ name: '', abbreviation: '', ownerName: '', ownerEmail: '', transferAssets: true }); await reloadFranchises()
   }
 
   async function removeFranchise(f: any) {
@@ -415,7 +429,10 @@ function SettingsInner() {
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-3 mt-3">
-                    <button onClick={() => removeFranchise(f)} className="text-sm text-red-500 hover:text-red-700 font-medium">Remove club</button>
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => removeFranchise(f)} className="text-sm text-red-500 hover:text-red-700 font-medium">Remove club</button>
+                      <button onClick={() => { setReplaceFor(replaceFor === f.id ? null : f.id); setReplaceForm({ name: '', abbreviation: '', ownerName: '', ownerEmail: '', transferAssets: true }); setReplaceErr('') }} className="text-sm text-amber-600 hover:text-amber-700 font-medium">Archive &amp; replace</button>
+                    </div>
                     <div className="flex items-center gap-3">
                       {teamSavedId === f.id && <span className="text-sm text-green-600">Saved ✓</span>}
                       <button onClick={() => saveFranchise(f)} disabled={teamSaving === f.id} className="btn-secondary text-sm disabled:opacity-50">
@@ -423,6 +440,23 @@ function SettingsInner() {
                       </button>
                     </div>
                   </div>
+                  {replaceFor === f.id && (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+                      <p className="text-xs text-slate-600">Archive <strong>{f.name}</strong> (its records and past seasons are kept) and create a replacement club.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input className="input text-sm" autoComplete="off" placeholder="New club name" value={replaceForm.name} onChange={e => setReplaceForm(v => ({ ...v, name: e.target.value }))} />
+                        <input className="input text-sm" autoComplete="off" maxLength={4} placeholder="Abbreviation" value={replaceForm.abbreviation} onChange={e => setReplaceForm(v => ({ ...v, abbreviation: e.target.value }))} />
+                        <input className="input text-sm" autoComplete="off" placeholder="New owner name" value={replaceForm.ownerName} onChange={e => setReplaceForm(v => ({ ...v, ownerName: e.target.value }))} />
+                        <input className="input text-sm" autoComplete="off" type="email" placeholder="New owner email" value={replaceForm.ownerEmail} onChange={e => setReplaceForm(v => ({ ...v, ownerEmail: e.target.value }))} />
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" checked={replaceForm.transferAssets} onChange={e => setReplaceForm(v => ({ ...v, transferAssets: e.target.checked }))} /> Transfer the current roster, draft picks &amp; FAAB to the new club</label>
+                      {replaceErr && <p className="text-xs text-red-600">{replaceErr}</p>}
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => setReplaceFor(null)} className="btn-secondary text-xs">Cancel</button>
+                        <button onClick={() => doReplace(f.id)} disabled={replacing || !replaceForm.name || !replaceForm.abbreviation || !replaceForm.ownerName || !replaceForm.ownerEmail} className="btn-primary text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50">{replacing ? 'Working…' : 'Archive & create'}</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {franchises.length === 0 && <p className="text-slate-400 text-sm py-6 text-center">No clubs yet.</p>}
