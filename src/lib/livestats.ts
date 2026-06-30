@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { weekDateRange } from '@/lib/defaults'
 import { tank01Configured, tank01GamesForDate, tank01BoxScore } from '@/lib/providers/tank01'
+import { mapBoxScoreBase, deriveWeekly } from '@/lib/providers/boxscore-map'
 
 type Sport = 'NFL' | 'NBA' | 'NHL' | 'MLB'
 
@@ -36,30 +37,33 @@ const yyyymmdd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padS
 
 // Pull every finished game for a sport on a date and upsert real per-player stat
 // lines for that fantasy week. Idempotent; respects the monthly call budget.
-export async function ingestDate(sport: Sport, date: Date, season: string): Promise<{ ingested: number; calls: number; skipped?: string }> {
+export async function ingestDate(sport: Sport, date: Date, season: string): Promise<{ ingested: number; calls: number; week?: number; skipped?: string }> {
   if (!tank01Configured()) return { ingested: 0, calls: 0, skipped: 'no API key' }
   const week = fantasyWeekOf(season, date)
   if (week == null) return { ingested: 0, calls: 0, skipped: 'date outside season' }
-  if ((await budgetLeft()) < 2) return { ingested: 0, calls: 0, skipped: 'monthly API budget reached' }
+  if ((await budgetLeft()) < 2) return { ingested: 0, calls: 0, week, skipped: 'monthly API budget reached' }
 
   let calls = 0
   const games = await tank01GamesForDate(sport, yyyymmdd(date)); calls++; await bumpUsage(1)
   const finished = games.filter(g => /final|completed|closed/i.test(g.status))
 
-  // externalId → aggregated stat line for the week.
+  // externalId → aggregated base stat line (our scoring keys) for the week.
   const agg: Record<string, Record<string, number>> = {}
   for (const g of finished) {
     if ((await budgetLeft()) < 1) break
     const lines = await tank01BoxScore(sport, g.gameId); calls++; await bumpUsage(1)
     for (const l of lines) {
+      const base = mapBoxScoreBase(sport, l.raw)
       const a = (agg[l.externalId] ??= {})
-      for (const [k, v] of Object.entries(l.stats)) a[k] = (a[k] ?? 0) + v
+      for (const [k, v] of Object.entries(base)) a[k] = (a[k] ?? 0) + v
     }
   }
+  // Non-linear categories (bonuses, tiers, double-doubles) on the weekly totals.
+  for (const eid of Object.keys(agg)) agg[eid] = deriveWeekly(sport, agg[eid])
 
   // Map provider externalIds to our players and upsert this week's line.
   const ext = Object.keys(agg)
-  if (!ext.length) return { ingested: 0, calls }
+  if (!ext.length) return { ingested: 0, calls, week }
   const ours = await db.select({ id: players.id, externalId: players.externalId }).from(players).where(eq(players.sport, sport))
   const byExt = new Map(ours.filter(p => p.externalId).map(p => [String(p.externalId), p.id]))
   let ingested = 0

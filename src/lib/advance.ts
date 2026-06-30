@@ -404,3 +404,20 @@ export async function advanceLeague(leagueOrId: string | any, force = false): Pr
     console.error('advanceLeague failed', e)
   }
 }
+
+// Re-score specific (sport, week) pairs even if already complete. Used when real
+// stats arrive after a week was first scored (daily-finalize / live / "pull now").
+// scoreSportWeek recomputes standings from scratch, so this is idempotent.
+export async function rescoreWeeks(leagueOrId: string | any, pairs: { sport: string; week: number }[]): Promise<void> {
+  const league = typeof leagueOrId === 'string'
+    ? (await db.select().from(leagues).where(eq(leagues.id, leagueOrId)).limit(1))[0]
+    : leagueOrId
+  if (!league) return
+  const seen = new Set<string>()
+  for (const { sport, week } of pairs) {
+    const k = `${sport}:${week}`
+    if (seen.has(k) || !week) continue
+    seen.add(k)
+    await scoreSportWeek(league, sport, week, true)
+  }
+}
