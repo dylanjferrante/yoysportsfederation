@@ -7,9 +7,8 @@ import { notFound } from 'next/navigation'
 import { safeParse, inSeasonNow, orderedSports } from '@/lib/utils'
 import { isCommissioner as checkCommissioner } from '@/lib/permissions'
 import LeagueNav from './LeagueNav'
+import Ticker from './Ticker'
 
-// Persistent league shell: header + unified inline tab bar. Section routes render below as
-// `children`, so selecting a tab swaps the content in place without reloading the header.
 export default async function LeagueLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   const { id } = await params
@@ -33,8 +32,9 @@ export default async function LeagueLayout({ children, params }: { children: Rea
   const sideGamesEnabled = Object.values(sideGames).some(Boolean)
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Persistent header */}
+    <>
+      <Ticker leagueId={id} />
+      <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-5">
         {league.logoUrl
           ? <img src={league.logoUrl} alt="" className="w-14 h-14 object-contain bg-slate-100 flex-shrink-0" />
@@ -55,6 +55,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
       <LeagueNav leagueId={id} isCommissioner={isCommissioner} sideGamesEnabled={sideGamesEnabled} myTeamId={myTeamId} currentSeason={league.season} />
 
       {children}
-    </div>
+      </div>
+    </>
   )
 }
