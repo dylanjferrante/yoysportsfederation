@@ -307,6 +307,7 @@ function SettingsInner() {
               <h4 className="font-semibold text-slate-900 mb-2 text-sm">Dues Tracker</h4>
               <DuesPanel leagueId={params.id as string} isCommissioner />
             </div>
+            <DangerZone leagueId={params.id as string} leagueName={league.name} />
           </>
         )}
 
@@ -1145,6 +1146,49 @@ function SettingsInner() {
 
 export default function CommissionerSettings() {
   return <Suspense fallback={<div className="max-w-5xl mx-auto px-4 py-8 text-slate-400">Loading settings…</div>}><SettingsInner /></Suspense>
+}
+
+function DangerZone({ leagueId, leagueName }: { leagueId: string; leagueName: string }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [ack, setAck] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const matches = name.trim().length > 0 && name.trim() === (leagueName ?? '').trim()
+
+  async function destroy() {
+    setBusy(true); setError('')
+    const res = await fetch(`/api/leagues/${leagueId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmName: name.trim(), confirm: true }) })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setBusy(false); setError(typeof d.error === 'string' ? d.error : 'Delete failed'); return }
+    router.push('/leagues')
+  }
+
+  return (
+    <div className="mt-8 border border-red-200 rounded-xl p-4 bg-red-50/40">
+      <h4 className="font-semibold text-red-700 text-sm">Danger Zone</h4>
+      <p className="text-xs text-slate-500 mt-1">Permanently delete this league and every team, roster, draft, trade, matchup and record in it. This cannot be undone.</p>
+      {!open
+        ? <button onClick={() => setOpen(true)} className="btn-secondary text-red-600 border-red-200 mt-3">Delete this league…</button>
+        : (
+          <div className="mt-3 space-y-3">
+            <div>
+              <label className="label">Type <strong className="text-slate-700">{leagueName}</strong> to confirm</label>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder={leagueName} />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-slate-700 select-none">
+              <input type="checkbox" checked={ack} onChange={e => setAck(e.target.checked)} className="w-4 h-4" />
+              I understand this permanently deletes the league for everyone.
+            </label>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setOpen(false); setName(''); setAck(false); setError('') }} className="btn-secondary">Cancel</button>
+              <button onClick={destroy} disabled={!matches || !ack || busy} className="btn-primary bg-red-600 hover:bg-red-700 disabled:opacity-40">{busy ? 'Deleting…' : 'Permanently delete'}</button>
+            </div>
+          </div>
+        )}
+    </div>
+  )
 }
 
 function LiveStatsPanel({ leagueId }: { leagueId: string }) {
