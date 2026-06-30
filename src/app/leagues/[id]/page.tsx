@@ -5,7 +5,7 @@ import { leagues, teams, teamRecords, matchups, users, activity, leagueHistory }
 import { eq, and, desc } from 'drizzle-orm'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { safeParse, inSeasonNow, sportLabel, orderedSports } from '@/lib/utils'
+import { safeParse, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import LeagueTabs from './LeagueTabs'
 
@@ -47,11 +47,8 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
     .limit(12)
 
   const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
-  const schedule = safeParse<any[]>(league.sportSchedule, [])
   const federationScoring = safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sportsEnabled })
   const rosterSettings = safeParse<Record<string, Record<string, number>>>(league.rosterSettings, {})
-  const isCommissioner = league.commissionerId === session?.user?.id
-  const activeNow = inSeasonNow(sportsEnabled)
 
   // All-time aggregates for the Teams tab: combined record + titles per franchise.
   const allRecords = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, id))
@@ -73,47 +70,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
   }))
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          {league.logoUrl
-            ? <img src={league.logoUrl} alt="" className="w-16 h-16 object-contain bg-slate-100 flex-shrink-0" />
-            : <div className="w-16 h-16 rounded-2xl text-white flex items-center justify-center text-3xl flex-shrink-0" style={{ background: `linear-gradient(135deg, ${league.primaryColor ?? '#0f172a'}, ${league.secondaryColor ?? '#3b82f6'})` }}>🏆</div>}
-          <div>
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h1 className="text-2xl font-bold text-slate-900">{league.name}</h1>
-              <span className="badge bg-slate-100 text-slate-600">{league.status}</span>
-            </div>
-            <p className="text-slate-500 text-sm">
-              {sportsEnabled.map(s => sportLabel(s, safeParse<Record<string, string>>(league.sportNames, {}))).join(' · ')} · {league.season} · {teamsLite.length} franchises
-            </p>
-            {activeNow.length > 0 && (
-              <p className="text-xs text-green-600 font-medium mt-1">● In season now: {activeNow.join(', ')}</p>
-            )}
-            {isCommissioner && league.inviteCode && (
-              <p className="text-xs text-slate-400 mt-1">Invite code: <span className="font-mono font-bold text-slate-600 tracking-wider">{league.inviteCode}</span></p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link href={`/leagues/${id}/scores`} className="btn-secondary text-sm">Scores</Link>
-          <Link href={`/leagues/${id}/transactions`} className="btn-secondary text-sm">Transactions</Link>
-          <Link href={`/leagues/${id}/chat`} className="btn-secondary text-sm">Chat</Link>
-          <Link href={`/leagues/${id}/waivers`} className="btn-secondary text-sm">Players</Link>
-          <Link href={`/leagues/${id}/trade`} className="btn-secondary text-sm">Trades</Link>
-          <Link href={`/leagues/${id}/marketplace`} className="btn-secondary text-sm">Trade Block</Link>
-          <Link href={`/leagues/${id}/playoffs`} className="btn-secondary text-sm">Playoffs</Link>
-          <Link href={`/leagues/${id}/odds`} className="btn-secondary text-sm">Odds</Link>
-          <Link href={`/leagues/${id}/draft`} className="btn-secondary text-sm">Draft</Link>
-          <Link href={`/leagues/${id}/mock`} className="btn-secondary text-sm">Mock Draft</Link>
-          <Link href={`/leagues/${id}/history`} className="btn-secondary text-sm">History</Link>
-          <Link href={`/leagues/${id}/records`} className="btn-secondary text-sm">Records</Link>
-          <Link href={`/leagues/${id}/sidegames`} className="btn-secondary text-sm">Side Games</Link>
-          {isCommissioner && <Link href={`/leagues/${id}/settings`} className="btn-primary text-sm">⚙️ Settings</Link>}
-        </div>
-      </div>
-
+    <>
       <LeagueTabs
         leagueId={id}
         sportsEnabled={sportsEnabled}
@@ -154,6 +111,6 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
           </ul>
         )}
       </div>
-    </div>
+    </>
   )
 }

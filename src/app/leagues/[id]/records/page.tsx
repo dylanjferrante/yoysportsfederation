@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
 type Side = { team: string; opp: string; score: number; oppScore: number; sport: string; season: string | null; week: number; playoff: boolean }
@@ -72,13 +71,10 @@ export default function RecordsPage() {
   )
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-4">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← League</Link>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Record Book</h1>
-          <p className="text-sm text-slate-500">All-time league superlatives{d ? ` · ${d.gamesPlayed} games on record` : ''}</p>
-        </div>
+    <div>
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-slate-900">Record Book</h1>
+        <p className="text-sm text-slate-500">All-time league superlatives{d ? ` · ${d.gamesPlayed} games on record` : ''}</p>
       </div>
 
       {/* Sport filter */}
