@@ -49,7 +49,7 @@ export default function OddsPage() {
       ) : (
         <>
           <div className="flex gap-1.5 flex-wrap mb-4">
-            <button onClick={() => setSport('FED')} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${sport === 'FED' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}>🏆 Federation</button>
+            <button onClick={() => setSport('FED')} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${sport === 'FED' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}>Federation</button>
             {d.sports.map(s => (
               <button key={s} onClick={() => setSport(s)} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${sport === s ? `${sportMeta(s).bg} text-white` : 'bg-slate-100 text-slate-600'}`}>{sportMeta(s).emoji} {s}</button>
             ))}
@@ -64,7 +64,7 @@ export default function OddsPage() {
               <div className="table-scroll">
               <table className="w-full text-sm">
                 <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
-                  <th className="text-left px-4 py-2 font-semibold">Franchise</th>
+                  <th className="text-left px-4 py-2 font-semibold">Club</th>
                   <th className="text-right px-4 py-2 font-semibold">Fed Title</th>
                   <th className="text-right px-4 py-2 font-semibold">Exp. Pts</th>
                 </tr></thead>
@@ -98,7 +98,7 @@ export default function OddsPage() {
               <div className="table-scroll">
               <table className="w-full text-sm">
                 <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
-                  <th className="text-left px-4 py-2 font-semibold">Franchise</th>
+                  <th className="text-left px-4 py-2 font-semibold">Club</th>
                   <th className="text-right px-4 py-2 font-semibold">Make Playoffs</th>
                   <th className="text-right px-4 py-2 font-semibold">Win {sport}</th>
                 </tr></thead>

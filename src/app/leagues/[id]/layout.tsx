@@ -38,15 +38,15 @@ export default async function LeagueLayout({ children, params }: { children: Rea
       <div className="flex items-center gap-4 mb-5">
         {league.logoUrl
           ? <img src={league.logoUrl} alt="" className="w-14 h-14 object-contain bg-slate-100 flex-shrink-0" />
-          : <div className="w-14 h-14 rounded-2xl text-white flex items-center justify-center text-2xl flex-shrink-0" style={{ background: league.primaryColor ?? '#0f172a' }}>🏆</div>}
+          : <div className="w-14 h-14 rounded-2xl text-white flex items-center justify-center text-2xl flex-shrink-0" style={{ background: league.primaryColor ?? '#0f172a' }}></div>}
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-slate-900">{league.name}</h1>
             <span className="badge bg-slate-100 text-slate-600">{league.status}</span>
-            {activeNow.length > 0 && <span className="text-xs text-green-600 font-medium">● {activeNow.join(', ')} in season</span>}
+            {activeNow.length > 0 && <span className="text-xs text-green-600 font-medium">{activeNow.join(', ')} in season</span>}
           </div>
           <p className="text-slate-500 text-sm">
-            {league.season} · {franchises.length} franchises
+            {league.season} · {franchises.length} clubs
             {isCommissioner && league.inviteCode && <> · invite <span className="font-mono font-semibold text-slate-600 tracking-wider">{league.inviteCode}</span></>}
           </p>
         </div>

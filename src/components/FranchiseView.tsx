@@ -121,7 +121,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
       <div className="card divide-y divide-slate-50">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-9 bg-slate-50 m-2 rounded" />)}</div>
     </div>
   )
-  if (!data?.team) return <div className="text-center py-20 text-slate-400">Franchise not found.</div>
+  if (!data?.team) return <div className="text-center py-20 text-slate-400">Club not found.</div>
 
   const team: Team = data.team
   const players: P[] = data.players ?? []
@@ -222,7 +222,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
           <button onClick={() => slotEditable && setOpenSlot(open ? null : p.rosterId)} disabled={!slotEditable}
             title={locked ? 'Locked — game has started' : undefined}
             className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'} ${slotEditable ? 'hover:ring-2 hover:ring-blue-200 cursor-pointer' : ''} ${locked ? 'opacity-70' : ''}`}>
-            {locked && '🔒'}{p.slot}{slotEditable && ' ▾'}
+            {p.slot}{slotEditable && ' ▾'}
           </button>
           {open && (
             <div className="absolute z-20 left-2 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 w-28">
@@ -277,13 +277,13 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="rounded-2xl p-5 mb-6 flex items-center gap-4 flex-wrap" style={{ background: team.primaryColor ?? '#0f172a', color: team.secondaryColor ?? '#ffffff' }}>
         {team.logo
-          ? <img src={team.logo} alt="" className="w-16 h-16 object-contain bg-white/10" style={(team as any).logoBg ? { background: team.primaryColor } : undefined} />
+          ? <img src={team.logo} alt="" className="w-16 h-16 object-contain bg-white/10 p-1.5" style={(team as any).logoBg ? { background: team.primaryColor } : undefined} />
           : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black" style={{ backgroundColor: team.secondaryColor, color: team.primaryColor }}>{team.abbreviation}</div>}
         <div className="flex-1 min-w-0">
           {team.wordmark && team.wordmark.startsWith('http')
             ? <img src={team.wordmark} alt={team.name} className="h-8 mb-1" />
             : <h1 className="text-2xl font-black">{team.wordmark || team.name}</h1>}
-          <p className="text-sm opacity-80">{team.ownerName} · {players.length} players{data.isOwner ? ' · your franchise' : data.isCommish ? ' · 🛠 commissioner control' : data.isCoManager ? ' · co-manager' : ''}</p>
+          <p className="text-sm opacity-80">{team.ownerName} · {players.length} players{data.isOwner ? ' · your club' : data.isCommish ? ' · commissioner control' : data.isCoManager ? ' · co-manager' : ''}</p>
           {(data.managers ?? []).length > 0 && (
             <p className="text-xs mt-0.5 opacity-60">co-managers: {(data.managers ?? []).map((m: any) => m.name ?? m.email).join(', ')}</p>
           )}
@@ -299,9 +299,9 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
       {/* Branding editor */}
       {editing && (
         <div className="card p-5 mb-6 space-y-3">
-          <h3 className="font-semibold text-slate-900">Team Branding</h3>
+          <h3 className="font-semibold text-slate-900">Club Branding</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div><label className="label">Team Name</label><input className="input" value={brand.name} onChange={e => setBrand({ ...brand, name: e.target.value })} /></div>
+            <div><label className="label">Club Name</label><input className="input" value={brand.name} onChange={e => setBrand({ ...brand, name: e.target.value })} /></div>
             <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={brand.abbreviation} onChange={e => setBrand({ ...brand, abbreviation: e.target.value })} /></div>
             <div><label className="label">Logo URL</label><input className="input" placeholder="https://…" value={brand.logo} onChange={e => setBrand({ ...brand, logo: e.target.value })} /></div>
             <div><label className="label">Alternate Logo URL</label><input className="input" placeholder="https://…" value={brand.altLogo} onChange={e => setBrand({ ...brand, altLogo: e.target.value })} /></div>
@@ -321,7 +321,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
         <div className="card p-5 mb-6 space-y-3">
           <div>
             <h3 className="font-semibold text-slate-900">Co-managers</h3>
-            <p className="text-xs text-slate-500">Co-managers can set lineups and make roster moves for this franchise. The owner keeps full control.</p>
+            <p className="text-xs text-slate-500">Co-managers can set lineups and make roster moves for this club. The owner keeps full control.</p>
           </div>
           {(data.managers ?? []).length === 0
             ? <p className="text-sm text-slate-400">No co-managers yet.</p>
@@ -381,7 +381,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
           {isDaily && weekDays.length > 0 && (
             <div className="card p-3 mb-4">
               <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-xs font-semibold text-slate-700">📅 Daily lineup</span>
+                <span className="text-xs font-semibold text-slate-700">Daily lineup</span>
                 <span className="text-[11px] text-slate-400">{lineupDate ? `start whoever plays ${dayLabel(lineupDate)} — a bench player can cover a slot on a day its starter is off` : 'the default lineup applied to any day you don’t customize'}</span>
               </div>
               <div className="flex gap-1.5 overflow-x-auto">
@@ -401,7 +401,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
               {advisor && !dayMap && (
                 <div className="card p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="font-semibold text-slate-900 flex items-center gap-2">📋 Lineup Advisor</h2>
+                    <h2 className="font-semibold text-slate-900 flex items-center gap-2">Lineup Advisor</h2>
                     <span className="text-xs text-slate-400">projected points</span>
                   </div>
                   <div className="flex items-center gap-6 text-sm">
@@ -412,7 +412,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
                       : <div className="ml-auto text-emerald-600 text-sm font-semibold">✓ Optimal lineup set</div>}
                   </div>
                   {advisor.alerts.length > 0 && (
-                    <p className="mt-3 text-xs text-red-600">⚠ Starting {advisor.alerts.map(p => `${p.name} (${p.status !== 'ACTIVE' ? p.status : 'BYE'})`).join(', ')} — projecting 0.</p>
+                    <p className="mt-3 text-xs text-red-600">Starting {advisor.alerts.map(p => `${p.name} (${p.status !== 'ACTIVE' ? p.status : 'BYE'})`).join(', ')} — projecting 0.</p>
                   )}
                   {canManage && advisor.gain > 0.05 && advisor.toStart.length > 0 && (
                     <div className="mt-3 space-y-1.5">
@@ -524,10 +524,10 @@ function FranchiseHistory({ history }: { history: any }) {
                 <td className="px-4 py-2 text-slate-600">{season}</td>
                 {sportsPresent.map(s => {
                   const r = records.find(x => x.season === season && x.sport === s)
-                  return <td key={s} className="text-center px-3 py-2">{r ? <span>{r.wins}-{r.losses}{r.isChampion ? ' 🏆' : ''} <span className="text-xs text-slate-400">#{r.finishPosition}</span></span> : '—'}</td>
+                  return <td key={s} className="text-center px-3 py-2">{r ? <span>{r.wins}-{r.losses} <span className="text-xs text-slate-400">#{r.finishPosition}</span></span> : '—'}</td>
                 })}
                 <td className="text-center px-3 py-2 font-bold text-slate-900 tabular-nums border-l border-slate-200">{fed ? fed.points : '—'}</td>
-                <td className="text-center px-3 py-2 tabular-nums">{fed ? <span className={fed.finish === 1 ? 'font-bold text-amber-600' : 'text-slate-600'}>{fed.finish === 1 ? '🏆 ' : ''}#{fed.finish}<span className="text-xs text-slate-400">/{fed.of}</span></span> : '—'}</td>
+                <td className="text-center px-3 py-2 tabular-nums">{fed ? <span className={fed.finish === 1 ? 'font-bold text-amber-600' : 'text-slate-600'}>#{fed.finish}<span className="text-xs text-slate-400">/{fed.of}</span></span> : '—'}</td>
               </tr>
               )
             })}

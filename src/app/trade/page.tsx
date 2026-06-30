@@ -95,7 +95,7 @@ function TradeCard({ trade, onAction, readonly }: { trade: Trade; onAction: (id:
       <div className="card-header flex items-center justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <span className="font-medium text-slate-900 truncate">{header}</span>
-          {multi && <span className="badge bg-purple-100 text-purple-700">{partAbbr.size}-team</span>}
+          {multi && <span className="badge bg-purple-100 text-purple-700">{partAbbr.size}-club</span>}
           <span className={`badge border ${tradeStatusClass(trade.status)} flex-shrink-0`}>{trade.status}</span>
         </div>
         <span className="text-xs text-slate-400 flex-shrink-0">{new Date(trade.createdAt ?? '').toLocaleDateString()}</span>

@@ -27,7 +27,7 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
 
   const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation }).from(teams).where(eq(teams.leagueId, leagueId))
   const teamsById = new Map(teamRows.map(t => [t.id, t]))
-  const nm = (id: string | null | undefined) => (id && teamsById.get(id)?.name) || 'A team'
+  const nm = (id: string | null | undefined) => (id && teamsById.get(id)?.name) || 'A club'
 
   const recs = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, leagueId), eq(teamRecords.season, season)))
   const ms = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season)))
@@ -206,7 +206,7 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
           res.push({
             id: `perf-${sp}-${wk}-${p.playerId}`, category: 'PERFORMANCE', sport: sp, priority: live ? 56 : 52, ts,
             text: live
-              ? vary(`perf${p.playerId}${wk}`, `🔥 ${p.name} (${nm(p.teamId)}) is going off in ${sp} Week ${wk} — ${pts} so far`, `🔥 ${p.name} already has ${pts} for ${nm(p.teamId)} mid-week in ${sp}`)
+              ? vary(`perf${p.playerId}${wk}`, `${p.name} (${nm(p.teamId)}) is going off in ${sp} Week ${wk} — ${pts} so far`, `${p.name} already has ${pts} for ${nm(p.teamId)} mid-week in ${sp}`)
               : vary(`perf${p.playerId}${wk}`, `${p.name} (${nm(p.teamId)}) dropped ${pts} in ${sp} Week ${wk}`, `${p.name} led the way with ${pts} for ${nm(p.teamId)} in Week ${wk}`),
             href: `${base}/scores`,
           })
@@ -291,10 +291,10 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
     })
   })
   run(() => history.filter(h => h.season === season && h.scope !== 'OVERALL' && h.championTeamId).map(h => ({
-    id: `champ-${h.id}`, category: 'CHAMPION', sport: h.scope, priority: 95, ts: Date.now(), text: `🏆 ${nm(h.championTeamId)} wins the ${h.scope} championship!`, href: `${base}/history` })))
+    id: `champ-${h.id}`, category: 'CHAMPION', sport: h.scope, priority: 95, ts: Date.now(), text: `${nm(h.championTeamId)} wins the ${h.scope} championship!`, href: `${base}/history` })))
 
   run(() => history.filter(h => h.season === season && h.scope === 'OVERALL' && h.championTeamId).map(h => ({
-    id: `fedchamp-${h.id}`, category: 'FEDERATION', priority: 100, ts: Date.now(), text: `👑 ${nm(h.championTeamId)} wins the Federation championship!`, href: `${base}/history` })))
+    id: `fedchamp-${h.id}`, category: 'FEDERATION', priority: 100, ts: Date.now(), text: `${nm(h.championTeamId)} wins the Federation championship!`, href: `${base}/history` })))
   run(() => {
     const weeks = sportsEnabled.map(sp => bySport[sp].lastWeek).filter(Boolean)
     if (!weeks.length) return []
@@ -316,7 +316,7 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
     for (const p of props) {
       if (p.status === 'OPEN' && p.closesAt) {
         const ms = Date.parse(p.closesAt) - Date.now()
-        if (ms > 0) { const d = Math.ceil(ms / 86_400_000); res.push({ id: `vote-${p.id}`, category: 'GOVERNANCE', priority: 48, ts: Date.now(), text: `🗳️ Vote open: “${p.title}” — ${d} day${d === 1 ? '' : 's'} left`, href: `${base}/proposals` }) }
+        if (ms > 0) { const d = Math.ceil(ms / 86_400_000); res.push({ id: `vote-${p.id}`, category: 'GOVERNANCE', priority: 48, ts: Date.now(), text: `Vote open: “${p.title}” — ${d} day${d === 1 ? '' : 's'} left`, href: `${base}/proposals` }) }
       } else if ((p.status === 'PASSED' || p.status === 'FAILED') && p.resolvedAt) {
         res.push({ id: `prop-${p.id}`, category: 'GOVERNANCE', priority: 36, ts: Date.parse(p.resolvedAt) || 0, text: `Proposal ${p.status === 'PASSED' ? 'passed' : 'failed'}: “${p.title}”`, href: `${base}/proposals` })
       }
@@ -398,7 +398,7 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
       if (!bySport[sp].lastWeek) continue
       const ts = tsOfWeek(bySport[sp].lastWeek)
       const byPF = recsBySport(sp).slice().sort((a, b) => (b.pointsFor ?? 0) - (a.pointsFor ?? 0))
-      if (byPF[0]) res.push({ id: `pf-${sp}`, category: 'POWER', sport: sp, priority: 44, ts, text: vary(`pf${sp}`, `${nm(byPF[0].teamId)} is the highest-scoring team in ${sp}`, `Nobody's scored more in ${sp} than ${nm(byPF[0].teamId)}`), href: base })
+      if (byPF[0]) res.push({ id: `pf-${sp}`, category: 'POWER', sport: sp, priority: 44, ts, text: vary(`pf${sp}`, `${nm(byPF[0].teamId)} is the highest-scoring club in ${sp}`, `Nobody's scored more in ${sp} than ${nm(byPF[0].teamId)}`), href: base })
       const winless = recsBySport(sp).find(r => (r.wins ?? 0) === 0 && ((r.wins ?? 0) + (r.losses ?? 0) + (r.ties ?? 0)) >= 3)
       if (winless) res.push({ id: `winless-${sp}-${winless.teamId}`, category: 'POWER', sport: sp, priority: 36, ts, text: `${nm(winless.teamId)} is still searching for its first ${sp} win`, href: base })
     }

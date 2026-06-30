@@ -62,7 +62,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Welcome back, {session.user?.name?.split(' ')[0]}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Your franchises across the federation{activeNow.length ? ` · in season now: ${activeNow.join(', ')}` : ''}
+            Your clubs across the federation{activeNow.length ? ` · in season now: ${activeNow.join(', ')}` : ''}
           </p>
         </div>
         <Link href="/leagues/new" className="btn-primary">+ Create League</Link>
@@ -71,7 +71,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900">My Franchises</h2>
+            <h2 className="font-semibold text-slate-900">My Clubs</h2>
             <Link href="/leagues" className="text-sm text-blue-600 hover:underline">Browse all</Link>
           </div>
           {cards.length === 0 ? (
@@ -84,7 +84,7 @@ export default async function DashboardPage() {
               <div className="flex items-center gap-3 mb-3">
                 {league.logoUrl
                   ? <img src={league.logoUrl} alt="" className="w-11 h-11 object-contain bg-slate-100" />
-                  : <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xl">🏆</div>}
+                  : <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xl" />}
                 <div className="flex-1 min-w-0">
                   <Link href={`/leagues/${league.id}`} className="font-semibold text-slate-900 hover:text-blue-600">{league.name}</Link>
                   <p className="text-xs text-slate-400">{myTeam?.name} · {sports.join(' · ')}</p>
@@ -107,7 +107,7 @@ export default async function DashboardPage() {
                 {myTeam && <Link href={`/teams/${myTeam.id}`} className="text-blue-600 hover:underline">My Team</Link>}
                 <Link href={`/leagues/${league.id}/scores`} className="text-blue-600 hover:underline">Scores</Link>
                 <Link href={`/leagues/${league.id}/draft`} className="text-blue-600 hover:underline">Draft</Link>
-                {league.commissionerId === uid && <Link href={`/leagues/${league.id}/settings`} className="ml-auto text-slate-600 hover:text-slate-900 font-medium">⚙️ Settings</Link>}
+                {league.commissionerId === uid && <Link href={`/leagues/${league.id}/settings`} className="ml-auto text-slate-600 hover:text-slate-900 font-medium">Settings</Link>}
               </div>
             </div>
           ))}

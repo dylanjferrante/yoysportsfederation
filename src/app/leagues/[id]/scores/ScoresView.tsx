@@ -100,7 +100,7 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
                   const href = m.playoff ? `/leagues/${leagueId}/playoffs` : `/leagues/${leagueId}/matchup/${m.id}`
                   return (
                     <Link key={m.id} href={href} className={`block sm:m-1.5 rounded-xl overflow-hidden border hover:ring-2 hover:ring-slate-200 transition ${m.playoff ? 'border-amber-300' : 'border-slate-100'}`}>
-                      {m.playoff && <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 px-3 py-1">🏆 {m.playoffLabel ?? 'Playoff'}</p>}
+                      {m.playoff && <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 px-3 py-1">{m.playoffLabel ?? 'Playoff'}</p>}
                       <TeamBar team={home} score={m.homeScore} win={m.isComplete && homeWin} rec={home ? recBy[`${home.id}:${sport}`] : null} />
                       <TeamBar team={away} score={m.awayScore} win={m.isComplete && !homeWin} rec={away ? recBy[`${away.id}:${sport}`] : null} bye={!away} />
                       <p className="text-[10px] text-slate-400 px-3 py-1 bg-white">{m.isComplete ? 'Final' : 'Live'} · {m.playoff ? 'bracket →' : 'box score →'}</p>
@@ -126,10 +126,10 @@ function TeamBar({ team, score, win, rec, bye }: { team: Team | null; score: num
   return (
     <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ background: primary }}>
       {team.logo
-        ? <img src={team.logo} alt="" className="w-8 h-8 object-contain flex-shrink-0" style={team.logoBg ? { background: primary } : undefined} />
+        ? <img src={team.logo} alt="" className="w-8 h-8 object-contain flex-shrink-0 p-1" style={team.logoBg ? { background: primary } : undefined} />
         : <span className="w-8 h-8 flex items-center justify-center text-[10px] font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(team.abbreviation || '?').slice(0, 3)}</span>}
       <div className="flex-1 min-w-0">
-        <div className="font-bold truncate leading-tight" style={ink}>{team.name}{win ? ' ▸' : ''}</div>
+        <div className="font-bold truncate leading-tight" style={ink}>{team.name}</div>
         {rec && <div className="text-[11px] leading-tight opacity-80" style={ink}>{rec}</div>}
       </div>
       <span className="tabular-nums font-black text-lg flex-shrink-0" style={ink}>{(score ?? 0).toFixed(1)}</span>

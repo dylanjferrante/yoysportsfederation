@@ -50,7 +50,7 @@ export default function CreateLeaguePage() {
 
       <div className="card p-6 space-y-5">
         <div><label className="label">League Name</label><input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Nexus Federation" /></div>
-        <div><label className="label">Your Franchise Name</label><input className="input" value={form.teamName} onChange={e => set('teamName', e.target.value)} placeholder="Apex Dynasty" /></div>
+        <div><label className="label">Your Club Name</label><input className="input" value={form.teamName} onChange={e => set('teamName', e.target.value)} placeholder="Apex Dynasty" /></div>
 
         <div>
           <label className="label">Sports</label>
@@ -94,9 +94,9 @@ export default function CreateLeaguePage() {
             </select>
           </div>
           <div>
-            <label className="label">Max Teams</label>
+            <label className="label">Max Clubs</label>
             <select className="select" value={form.maxTeams} onChange={e => set('maxTeams', +e.target.value)}>
-              {[4, 6, 8, 10, 12, 14, 16].map(n => <option key={n} value={n}>{n} teams</option>)}
+              {[4, 6, 8, 10, 12, 14, 16].map(n => <option key={n} value={n}>{n} clubs</option>)}
             </select>
           </div>
         </div>

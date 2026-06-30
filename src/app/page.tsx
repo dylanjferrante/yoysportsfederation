@@ -1,19 +1,19 @@
 import Link from 'next/link'
 
 const sports = [
-  { name: 'NFL',  emoji: '🏈', bg: 'bg-blue-900',  text: 'Football',   desc: 'Weekly head-to-head matchups, PPR or standard scoring' },
-  { name: 'NBA',  emoji: '🏀', bg: 'bg-red-700',   text: 'Basketball', desc: 'Rotisserie or H2H categories, daily or weekly lineups' },
-  { name: 'NHL',  emoji: '🏒', bg: 'bg-gray-800',  text: 'Hockey',     desc: 'Goalie & skater scoring, custom position slots' },
-  { name: 'MLB',  emoji: '⚾', bg: 'bg-blue-700',  text: 'Baseball',   desc: 'Pitching & hitting categories, full stat customization' },
+  { name: 'NFL',  emoji: '', bg: 'bg-blue-900',  text: 'Football',   desc: 'Weekly head-to-head matchups, PPR or standard scoring' },
+  { name: 'NBA',  emoji: '', bg: 'bg-red-700',   text: 'Basketball', desc: 'Rotisserie or H2H categories, daily or weekly lineups' },
+  { name: 'NHL',  emoji: '', bg: 'bg-gray-800',  text: 'Hockey',     desc: 'Goalie & skater scoring, custom position slots' },
+  { name: 'MLB',  emoji: '', bg: 'bg-blue-700',  text: 'Baseball',   desc: 'Pitching & hitting categories, full stat customization' },
 ]
 
 const features = [
-  { icon: '🔄', title: 'Cross-Sport Trading',       desc: 'Package an NFL 1st round pick with an MLB slugger for an NBA star. No barriers between sports.' },
-  { icon: '⚙️', title: 'Commissioner Controls',     desc: 'Full control: custom scoring, roster slots, trade review, FAAB waivers, draft settings, and more.' },
-  { icon: '📊', title: 'Unified Dashboard',          desc: 'Manage all your leagues in one place. See live scores, pending trades, and waiver claims across all sports.' },
-  { icon: '🎯', title: 'Draft Pick Trading',         desc: 'Future picks from any sport are tradeable. Build a cross-sport dynasty through the draft.' },
-  { icon: '⚖️', title: 'Flexible Trade Review',     desc: 'Commissioners can approve trades, set up league-wide veto voting, or allow free processing.' },
-  { icon: '🏆', title: 'Custom Playoff Formats',    desc: 'Configure playoff bracket size, start week, and seeding rules per league.' },
+  { icon: '', title: 'Cross-Sport Trading',       desc: 'Package an NFL 1st round pick with an MLB slugger for an NBA star. No barriers between sports.' },
+  { icon: '', title: 'Commissioner Controls',     desc: 'Full control: custom scoring, roster slots, trade review, FAAB waivers, draft settings, and more.' },
+  { icon: '', title: 'Unified Dashboard',          desc: 'Manage all your leagues in one place. See live scores, pending trades, and waiver claims across all sports.' },
+  { icon: '', title: 'Draft Pick Trading',         desc: 'Future picks from any sport are tradeable. Build a cross-sport dynasty through the draft.' },
+  { icon: '', title: 'Flexible Trade Review',     desc: 'Commissioners can approve trades, set up league-wide veto voting, or allow free processing.' },
+  { icon: '', title: 'Custom Playoff Formats',    desc: 'Configure playoff bracket size, start week, and seeding rules per league.' },
 ]
 
 export default function Landing() {
@@ -89,13 +89,13 @@ export default function Landing() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-6">How Cross-Sport Trading Works</h2>
           <p className="text-slate-300 text-lg mb-10 leading-relaxed">
-            Propose a trade to any team in any of your leagues. Mix and match assets from different sports
+            Propose a trade to any club in any of your leagues. Mix and match assets from different sports
             in a single trade proposal. Your NFL first-round pick plus your NHL star for someone's NBA MVP candidate.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
             {[
               { step: '1', title: 'Pick your assets', desc: 'Select players and/or draft picks from any of your sports leagues.' },
-              { step: '2', title: 'Choose the other team', desc: 'Propose the trade to any team — even in a different sport league.' },
+              { step: '2', title: 'Choose the other club', desc: 'Propose the trade to any club — even in a different sport league.' },
               { step: '3', title: 'Wait for review', desc: 'The recipient accepts or rejects. Commissioners can veto based on league rules.' },
             ].map(s => (
               <div key={s.step} className="bg-white/5 border border-white/10 rounded-2xl p-6">

@@ -62,7 +62,7 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
         <span className="text-[10px] font-bold text-slate-400 w-4">{seed ?? ''}</span>
         <span className="flex-1 min-w-0">{t ? <TeamChip team={t} size="sm" useAbbr link={false} /> : <span className="text-slate-400 text-xs">{teamId === null && done ? 'BYE' : 'TBD'}</span>}</span>
         {score != null && done && <span className="tabular-nums text-xs">{score.toFixed(0)}</span>}
-        {winner && done && <span className="text-amber-500">▸</span>}
+        {winner && done && <span className="text-amber-500"></span>}
       </div>
     )
   }
@@ -81,7 +81,7 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
         <div className="p-5 mb-6 text-white text-center" style={{ background: champGrad('FED', 'linear-gradient(135deg,#b45309,#f59e0b)') }}>
           {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-16 h-16 object-contain mx-auto mb-2" />}
           <p className="text-xs uppercase tracking-widest text-white/80">{viewSeason} {champNames['FED'] || `${league.name} Champion`}</p>
-          <p className="text-2xl font-black mt-1 flex items-center justify-center gap-2">🏆 {teamById[fedChamp.championTeamId ?? '']?.name ?? '—'}</p>
+          <p className="text-2xl font-black mt-1 flex items-center justify-center gap-2">{teamById[fedChamp.championTeamId ?? '']?.name ?? '—'}</p>
         </div>
       )}
 
@@ -108,7 +108,7 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
                 <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)} — {champNames[sport] || 'Playoffs'}</h2>
                 {champ && <span className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-amber-600">
                   {champLogos[sport] && <img src={champLogos[sport]} alt="" className="w-6 h-6 object-contain" />}
-                  🏆 {teamById[champ.championTeamId ?? '']?.abbreviation} champion
+                  {teamById[champ.championTeamId ?? '']?.abbreviation} champion
                 </span>}
               </div>
 
@@ -140,13 +140,13 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
                         <div className="flex flex-col items-center gap-1.5">
                           {champLogos[sport]
                             ? <img src={champLogos[sport]} alt="" className="w-20 h-20 object-contain" />
-                            : <span className="text-5xl">🏆</span>}
+                            : <span className="text-5xl"></span>}
                           <p className="text-lg font-black uppercase tracking-widest" style={{ color: champInk(sport, '#f59e0b') }}>Champion</p>
                           {champNames[sport] && <p className="text-xs text-slate-400">{champNames[sport]}</p>}
                         </div>
                         <div className="border-2 rounded-2xl px-10 py-7 flex flex-col items-center gap-3 min-w-[13rem]" style={{ borderColor: champInk(sport, '#fcd34d') + '88', background: champInk(sport, '#f59e0b') + '14' }}>
                           {champTeam?.logo
-                            ? <img src={champTeam.logo} alt="" className="w-32 h-32 object-contain" style={champTeam.logoBg ? { background: champTeam.primaryColor ?? undefined } : undefined} />
+                            ? <img src={champTeam.logo} alt="" className="w-32 h-32 object-contain p-2" style={champTeam.logoBg ? { background: champTeam.primaryColor ?? undefined } : undefined} />
                             : <span className="w-32 h-32 flex items-center justify-center text-4xl font-black" style={{ background: champTeam?.secondaryColor ?? '#fde68a', color: champTeam?.primaryColor ?? '#92400e' }}>{champTeam?.abbreviation ?? 'TBD'}</span>}
                           <span className="text-xl font-bold text-center" style={{ color: champInk(sport, '#92400e') }}>{champTeam?.name ?? 'TBD'}</span>
                         </div>
@@ -183,7 +183,7 @@ function SideBracket({ title, games, teamById }: { title: string; games: any[]; 
         <span className="text-[10px] font-bold text-slate-400 w-4">{seed ?? ''}</span>
         <span className="flex-1 min-w-0">{t ? <TeamChip team={t} size="sm" useAbbr link={false} /> : <span className="text-slate-400 text-xs">{teamId === null && g.isComplete ? 'BYE' : 'TBD'}</span>}</span>
         {score != null && g.isComplete && <span className="tabular-nums text-xs">{(score as number).toFixed(0)}</span>}
-        {winner && g.isComplete && <span className="text-slate-400">▸</span>}
+        {winner && g.isComplete && <span className="text-slate-400"></span>}
       </div>
     )
   }
