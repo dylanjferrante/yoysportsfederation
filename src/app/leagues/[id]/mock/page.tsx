@@ -23,6 +23,7 @@ export default function MockDraft() {
   const [order, setOrder] = useState<Team[]>([])      // draft order (editable in setup)
   const [mySlot, setMySlot] = useState(0)
   const [started, setStarted] = useState(false)
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
 
   // Draft state
   const [picks, setPicks] = useState<Pick[]>([])
@@ -52,16 +53,16 @@ export default function MockDraft() {
   const curSlot = onClock ? (snake && curRound % 2 === 0 ? T - 1 - idxInRound : idxInRound) : -1
   const myTurn = onClock && curSlot === mySlot
 
-  function moveTeam(i: number, dir: -1 | 1) {
-    setOrder(prev => {
-      const next = [...prev]; const j = i + dir
-      if (j < 0 || j >= next.length) return prev
-      ;[next[i], next[j]] = [next[j], next[i]]
-      return next
-    })
-  }
   function randomize() {
     setOrder(prev => [...prev].map(t => ({ t, r: Math.random() })).sort((a, b) => a.r - b.r).map(x => x.t))
+  }
+  // Move a team to an arbitrary slot (drag-drop or position dropdown).
+  function moveOrder(from: number, to: number) {
+    setOrder(prev => {
+      if (from === to || to < 0 || to >= prev.length) return prev
+      const a = [...prev]; const [m] = a.splice(from, 1); a.splice(to, 0, m); return a
+    })
+    setMySlot(s => (s === from ? to : s === to ? from : s))
   }
 
   function start() { setPicks([]); setSportFilter('ALL'); setSearch(''); setStarted(true) }
@@ -130,15 +131,23 @@ export default function MockDraft() {
               <label className="label mb-0">Draft order — pick your slot</label>
               <button onClick={randomize} className="btn-secondary text-xs">🎲 Randomize</button>
             </div>
+            <p className="text-[11px] text-slate-400 mb-1">Drag to reorder, or pick a team&apos;s position from its dropdown.</p>
             <ol className="space-y-1">
               {order.map((t, i) => (
-                <li key={t.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${mySlot === i ? 'border-blue-400 bg-blue-50' : 'border-slate-100'}`}>
-                  <span className="text-xs text-slate-400 tabular-nums w-5">{i + 1}.</span>
+                <li key={t.id}
+                  draggable
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => { if (dragIdx !== null) moveOrder(dragIdx, i); setDragIdx(null) }}
+                  onDragEnd={() => setDragIdx(null)}
+                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-grab active:cursor-grabbing ${dragIdx === i ? 'border-blue-400 bg-blue-50' : mySlot === i ? 'border-blue-400 bg-blue-50' : 'border-slate-100'}`}>
+                  <span className="text-slate-300 select-none">⠿</span>
+                  <select value={i} onChange={e => moveOrder(i, +e.target.value)} onClick={e => e.stopPropagation()} className="text-xs tabular-nums border border-slate-200 rounded px-1 py-0.5 bg-white">
+                    {order.map((_, n) => <option key={n} value={n}>{n + 1}</option>)}
+                  </select>
                   <span className="w-5 h-5 rounded text-white text-[9px] font-bold flex items-center justify-center" style={{ background: t.primaryColor }}>{t.abbreviation?.slice(0, 2)}</span>
                   <span className="text-sm text-slate-800 flex-1 truncate">{t.name}</span>
                   <button onClick={() => setMySlot(i)} className={`text-[11px] px-2 py-0.5 rounded ${mySlot === i ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>{mySlot === i ? 'You' : 'Take slot'}</button>
-                  <button onClick={() => moveTeam(i, -1)} disabled={i === 0} className="text-slate-400 disabled:opacity-30 px-1">▲</button>
-                  <button onClick={() => moveTeam(i, 1)} disabled={i === order.length - 1} className="text-slate-400 disabled:opacity-30 px-1">▼</button>
                 </li>
               ))}
             </ol>

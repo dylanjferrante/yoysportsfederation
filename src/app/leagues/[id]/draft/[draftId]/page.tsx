@@ -14,6 +14,12 @@ export default function DraftRoom() {
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState<'players' | 'board'>('players')
   const [orderEdit, setOrderEdit] = useState<any[] | null>(null)
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  // Move a team from one slot to another (drag-drop or position dropdown).
+  const moveOrder = (from: number, to: number) => setOrderEdit(prev => {
+    if (!prev || from === to || to < 0 || to >= prev.length) return prev
+    const a = [...prev]; const [m] = a.splice(from, 1); a.splice(to, 0, m); return a
+  })
 
   const [now, setNow] = useState(() => Date.now())
 
@@ -135,16 +141,23 @@ export default function DraftRoom() {
           </div>
           <ol className="space-y-1">
             {orderEdit.map((o: any, i: number) => (
-              <li key={o.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-100">
-                <span className="text-xs text-slate-400 tabular-nums w-6">{i + 1}.</span>
+              <li key={o.id}
+                draggable
+                onDragStart={() => setDragIdx(i)}
+                onDragOver={e => e.preventDefault()}
+                onDrop={() => { if (dragIdx !== null) moveOrder(dragIdx, i); setDragIdx(null) }}
+                onDragEnd={() => setDragIdx(null)}
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-grab active:cursor-grabbing ${dragIdx === i ? 'border-blue-400 bg-blue-50' : 'border-slate-100'}`}>
+                <span className="text-slate-300 select-none">⠿</span>
+                <select value={i} onChange={e => moveOrder(i, +e.target.value)} className="text-xs tabular-nums border border-slate-200 rounded px-1 py-0.5 bg-white" onClick={e => e.stopPropagation()}>
+                  {orderEdit.map((_: any, n: number) => <option key={n} value={n}>{n + 1}</option>)}
+                </select>
                 <span className="w-5 h-5 rounded text-white text-[9px] font-bold flex items-center justify-center" style={{ background: o.primaryColor || '#0f172a' }}>{(o.abbreviation || '?').slice(0, 2)}</span>
                 <span className="text-sm text-slate-800 flex-1 truncate">{o.name}</span>
-                <button disabled={i === 0} onClick={() => setOrderEdit(prev => { const a = [...prev!]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; return a })} className="text-slate-400 disabled:opacity-30 px-1">▲</button>
-                <button disabled={i === orderEdit.length - 1} onClick={() => setOrderEdit(prev => { const a = [...prev!]; [a[i + 1], a[i]] = [a[i], a[i + 1]]; return a })} className="text-slate-400 disabled:opacity-30 px-1">▼</button>
               </li>
             ))}
           </ol>
-          <p className="text-xs text-slate-400 mt-2">This order applies to round 1 (snake reverses each round). Saved per draft — set it for the dynasty draft or any rookie draft.</p>
+          <p className="text-xs text-slate-400 mt-2">Drag to reorder, or pick a team&apos;s position from its dropdown. This order applies to round 1 (snake reverses each round). Saved per draft — set it for the dynasty draft or any rookie draft.</p>
         </div>
       )}
 
