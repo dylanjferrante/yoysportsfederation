@@ -150,7 +150,7 @@ function SettingsInner() {
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
         playoffFormat: form.playoffFormat, weeksPerRound: form.weeksPerRound,
         playoffReseed: form.playoffReseed, consolationBracket: form.consolationBracket, losersBracket: form.losersBracket,
-        playoffTiebreaker: form.playoffTiebreaker, consolationTeams: form.consolationTeams, losersTeams: form.losersTeams,
+        playoffTiebreaker: form.playoffTiebreaker, losersTeams: form.losersTeams, losersAdvance: form.losersAdvance,
         keeperEnabled: form.keeperEnabled, keeperCount: form.keeperCount,
         salaryCapEnabled: form.salaryCapEnabled, salaryCap: form.salaryCap, capMode: form.capMode,
         sportSchedule: buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj, startWeeksObj),
@@ -1099,28 +1099,29 @@ function SettingsInner() {
               <div>
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={!!form.consolationBracket} onChange={e => set('consolationBracket', e.target.checked)} />
-                  <span><span className="text-sm font-medium text-slate-800">Consolation bracket</span><span className="block text-xs text-slate-500">Franchises that just missed the playoffs play their own bracket for a consolation title.</span></span>
+                  <span><span className="text-sm font-medium text-slate-800">Consolation bracket</span><span className="block text-xs text-slate-500">Teams knocked out in the first playoff round drop into a consolation bracket, seeded by their playoff seed. Size is set automatically by the playoff field.</span></span>
                 </label>
-                {form.consolationBracket && (
-                  <div className="mt-2 ml-7 flex items-center gap-2">
-                    <label className="text-xs text-slate-500">Teams</label>
-                    <select className="select w-auto text-sm" value={form.consolationTeams ?? (form.playoffTeams ?? 6)} onChange={e => set('consolationTeams', +e.target.value)}>
-                      {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                  </div>
-                )}
               </div>
               <div>
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={!!form.losersBracket} onChange={e => set('losersBracket', e.target.checked)} />
-                  <span><span className="text-sm font-medium text-slate-800">Losers bracket (toilet bowl)</span><span className="block text-xs text-slate-500">The bottom franchises play a bracket to settle last place.</span></span>
+                  <span><span className="text-sm font-medium text-slate-800">Losers bracket</span><span className="block text-xs text-slate-500">The bottom franchises by record play their own bracket.</span></span>
                 </label>
                 {form.losersBracket && (
-                  <div className="mt-2 ml-7 flex items-center gap-2">
-                    <label className="text-xs text-slate-500">Teams</label>
-                    <select className="select w-auto text-sm" value={form.losersTeams ?? (form.playoffTeams ?? 6)} onChange={e => set('losersTeams', +e.target.value)}>
-                      {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
+                  <div className="mt-2 ml-7 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-slate-500 w-28">Bottom teams</label>
+                      <select className="select w-auto text-sm" value={form.losersTeams ?? (form.playoffTeams ?? 6)} onChange={e => set('losersTeams', +e.target.value)}>
+                        {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-slate-500 w-28">Advances</label>
+                      <select className="select w-auto text-sm" value={form.losersAdvance ?? 'WINNER'} onChange={e => set('losersAdvance', e.target.value)}>
+                        <option value="WINNER">Winner advances (bracket champ)</option>
+                        <option value="LOSER">Loser advances (last-place race)</option>
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>

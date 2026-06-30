@@ -155,6 +155,7 @@ CREATE TABLE leagues (
   consolation_teams INTEGER,
   losers_bracket INTEGER DEFAULT 0,
   losers_teams INTEGER,
+  losers_advance TEXT DEFAULT 'WINNER',
   dues_amount INTEGER DEFAULT 0,
   rules TEXT,
   proposal_settings TEXT DEFAULT '{}',

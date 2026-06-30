@@ -159,7 +159,7 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
               )}
 
               <SideBracket title="Consolation Bracket" games={bracketGames('CONSOLATION')} teamById={teamById} />
-              <SideBracket title="Toilet Bowl · Losers Bracket" games={bracketGames('LOSERS')} teamById={teamById} />
+              <SideBracket title="Losers Bracket" games={bracketGames('LOSERS')} teamById={teamById} />
             </div>
           )
         })}

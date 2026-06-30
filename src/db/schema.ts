@@ -131,8 +131,9 @@ export const leagues = sqliteTable('leagues', {
   playoffTiebreaker: text('playoff_tiebreaker').default('POINTS_FOR'), // POINTS_FOR | HEAD_TO_HEAD | RECORD | COIN_FLIP
   consolationBracket: integer('consolation_bracket', { mode: 'boolean' }).default(false), // teams below the cut play their own bracket
   consolationTeams: integer('consolation_teams'), // null → same as playoffTeams
-  losersBracket: integer('losers_bracket', { mode: 'boolean' }).default(false), // bottom teams play a toilet bowl
+  losersBracket: integer('losers_bracket', { mode: 'boolean' }).default(false), // bottom teams play a losers bracket
   losersTeams: integer('losers_teams'), // null → same as playoffTeams
+  losersAdvance: text('losers_advance').default('WINNER'), // WINNER | LOSER — which team moves on in the losers bracket
 
   // Dues
   duesAmount: integer('dues_amount').default(0), // per-franchise buy-in
