@@ -14,7 +14,7 @@ type Data = {
 }
 type PlayerHit = { id: string; name: string; sport: string; position: string; realTeamAbbr: string | null }
 
-const TABS = ['Announce', 'Members', 'Trades', 'Scores', 'Stat Fix', 'Audit'] as const
+const TABS = ['Announce', 'Members', 'Trades', 'Scores', 'Stat Fix', 'Season', 'Audit'] as const
 type Tab = typeof TABS[number]
 
 export default function CommishView({ leagueId, leagueName }: { leagueId: string; leagueName: string }) {
@@ -69,6 +69,7 @@ export default function CommishView({ leagueId, leagueName }: { leagueId: string
       {tab === 'Trades' && <Trades data={data} post={post} />}
       {tab === 'Scores' && <Scores data={data} teamName={teamName} post={post} />}
       {tab === 'Stat Fix' && <StatFix leagueId={leagueId} base={base} season={data.season} sportsEnabled={data.sportsEnabled} post={post} />}
+      {tab === 'Season' && <Season season={data.season} post={post} />}
       {tab === 'Audit' && <Audit actions={data.actions} />}
     </div>
   )
@@ -266,6 +267,22 @@ function StatFix({ leagueId, base, season, sportsEnabled, post }: { leagueId: st
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Season archive / renew ───────────────────────────────────────────────────
+function Season({ season, post }: { season: string; post: any }) {
+  return (
+    <div className={`${card} space-y-3`}>
+      <div>
+        <h2 className="font-semibold text-slate-800">📅 Current Season — {season}</h2>
+        <p className="text-xs text-slate-500 mt-1">Archiving snapshots every franchise's current logo, name, and colors so past-season pages always show the branding used <b>that</b> season. Starting the next season carries over rosters (dynasty), resets records, and builds a fresh schedule.</p>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={() => post({ action: 'ARCHIVE_SEASON' }, `Archived ${season} branding`)} className={`${btn} bg-slate-100 text-slate-700 hover:bg-slate-200`}>Archive {season} branding</button>
+        <button onClick={() => { if (confirm(`Finish ${season} and start the next season? Rosters carry over; records reset for the new season.`)) post({ action: 'RENEW_SEASON' }, 'New season started') }} className={`${btn} bg-slate-900 text-white`}>Finish {season} &amp; start next season →</button>
+      </div>
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { scorePlayer, generateStatLine } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
 import { runWaivers } from '@/lib/waivers'
+import { snapshotSeasonBranding } from '@/lib/seasons'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
@@ -371,6 +372,22 @@ async function createSeason(league: any, season: string): Promise<void> {
   if (rows.length) await db.insert(matchups).values(rows)
 }
 
+// Commissioner-triggered manual rollover: snapshot the current season's branding,
+// then spin up the next season immediately (independent of the calendar). Rosters
+// carry over (dynasty); the new season gets fresh records + a full schedule.
+export async function renewSeason(leagueOrId: string | any): Promise<{ season: string } | { error: string }> {
+  const league = typeof leagueOrId === 'string'
+    ? (await db.select().from(leagues).where(eq(leagues.id, leagueOrId)).limit(1))[0]
+    : leagueOrId
+  if (!league) return { error: 'League not found' }
+  const nxt = nextSeason(league.season)
+  if (await seasonExists(league.id, nxt)) return { error: `The ${nxt} season already exists` }
+  await snapshotSeasonBranding(league.id, league.season)
+  await createSeason(league, nxt)
+  await db.update(leagues).set({ season: nxt }).where(eq(leagues.id, league.id))
+  return { season: nxt }
+}
+
 export async function advanceLeague(leagueOrId: string | any, force = false): Promise<void> {
   try {
     const league = typeof leagueOrId === 'string'
@@ -385,6 +402,7 @@ export async function advanceLeague(leagueOrId: string | any, force = false): Pr
     let current = league.season
     const nxt = nextSeason(current)
     if (targetWeek(nxt) >= 1 && !(await seasonExists(league.id, nxt))) {
+      await snapshotSeasonBranding(league.id, current) // freeze the outgoing season's logos
       await createSeason(league, nxt)
       await db.update(leagues).set({ season: nxt }).where(eq(leagues.id, league.id))
       league.season = nxt

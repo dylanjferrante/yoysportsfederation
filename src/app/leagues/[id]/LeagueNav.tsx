@@ -24,6 +24,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
     { label: 'Playoffs', href: `${base}/playoffs`, emoji: '🥇' },
     { label: 'Odds', href: `${base}/odds`, emoji: '📈' },
     { label: 'History', href: `${base}/history`, emoji: '📜' },
+    { label: 'Seasons', href: `${base}/seasons`, emoji: '📅' },
     { label: 'Records', href: `${base}/records`, emoji: '🏅' },
     ...(sideGamesEnabled || isCommissioner ? [{ label: 'Side Games', href: `${base}/sidegames`, emoji: '🎲' }] : []),
     { label: 'Votes', href: `${base}/proposals`, emoji: '🗳️' },

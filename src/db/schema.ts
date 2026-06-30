@@ -156,6 +156,26 @@ export const proposals = sqliteTable('proposals', {
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 
+// Per-season snapshot of each franchise's branding (name, logos, colors), taken
+// when a season is archived / rolled over — so viewing a past season shows the
+// logos that were actually in use then, not the current ones.
+export const teamSeasonBranding = sqliteTable('team_season_branding', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  season: text('season').notNull(),
+  name: text('name'),
+  abbreviation: text('abbreviation'),
+  logo: text('logo'),
+  altLogo: text('alt_logo'),
+  wordmark: text('wordmark'),
+  primaryColor: text('primary_color'),
+  secondaryColor: text('secondary_color'),
+  logoBg: integer('logo_bg').default(0),
+}, (t) => ({
+  uniq: uniqueIndex('team_season_branding_uniq').on(t.teamId, t.season),
+}))
+
 export const proposalVotes = sqliteTable('proposal_votes', {
   id: text('id').primaryKey(),
   proposalId: text('proposal_id').notNull().references(() => proposals.id, { onDelete: 'cascade' }),
