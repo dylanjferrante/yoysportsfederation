@@ -270,6 +270,8 @@ CREATE TABLE teams (
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
   archived INTEGER DEFAULT 0,
   archived_at TEXT,
+  archived_sports TEXT DEFAULT '[]',
+  replaced_by TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE(league_id, user_id)
 );
