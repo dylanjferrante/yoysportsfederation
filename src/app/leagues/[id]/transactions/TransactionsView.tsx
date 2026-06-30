@@ -64,7 +64,7 @@ export default function TransactionsView({ leagueId, leagueName, rows, sportAbbr
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100 bg-slate-50/60">
                 <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 font-medium">Team</th>
+                <th className="px-3 py-2 font-medium">Club</th>
                 <th className="px-3 py-2 font-medium">Sport</th>
                 <th className="px-3 py-2 font-medium">Type</th>
                 <th className="px-3 py-2 font-medium">Player</th>

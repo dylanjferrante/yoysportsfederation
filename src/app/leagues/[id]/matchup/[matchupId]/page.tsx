@@ -110,7 +110,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
           </td>
           {cols.map(c => <td key={c.label} className="px-2 py-1.5 text-center tabular-nums text-slate-600">{p.points == null ? '—' : (+c.get(stats).toFixed(1) || 0)}</td>)}
           <td className="px-2 py-1.5 text-center whitespace-nowrap">
-            {p.game ? <span className={`text-[10px] font-semibold ${p.game.bucket === 'live' ? 'text-red-500' : p.game.bucket === 'final' ? 'text-slate-400' : 'text-blue-600'}`}>{p.game.bucket === 'live' ? '🔴 ' : ''}{p.game.label}</span> : '—'}
+            {p.game ? <span className={`text-[10px] font-semibold ${p.game.bucket === 'live' ? 'text-red-500' : p.game.bucket === 'final' ? 'text-slate-400' : 'text-blue-600'}`}>{p.game.label}</span> : '—'}
           </td>
           <td className="px-3 py-1.5 text-right font-bold tabular-nums" style={{ color: dim ? undefined : meta.hex }}>{p.points == null ? '—' : p.points.toFixed(1)}</td>
         </tr>
@@ -198,7 +198,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="card p-5 mb-6">
-        <h2 className="font-semibold text-slate-900 mb-3">📡 Game Tracker</h2>
+        <h2 className="font-semibold text-slate-900 mb-3">Game Tracker</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           {[home, away].map((side, i) => side.team && (
             <div key={i}>
@@ -208,8 +208,8 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
               </div>
               <div className="flex gap-2 text-xs font-semibold">
                 <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-500">✓ {side.final} played</span>
-                <span className={`px-2 py-1 rounded-lg ${side.live ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'}`}>🔴 {side.live} playing</span>
-                <span className={`px-2 py-1 rounded-lg ${side.pending ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>⏳ {side.pending} yet to play</span>
+                <span className={`px-2 py-1 rounded-lg ${side.live ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'}`}>{side.live} playing</span>
+                <span className={`px-2 py-1 rounded-lg ${side.pending ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>{side.pending} yet to play</span>
               </div>
             </div>
           ))}

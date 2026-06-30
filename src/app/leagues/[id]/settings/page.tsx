@@ -11,8 +11,8 @@ import DuesPanel from '../DuesPanel'
 import ScheduleEditor from './ScheduleEditor'
 
 const ALL_SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
-const TABS = ['General', 'Franchises', 'Sports & Schedule', 'Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Live Stats']
-const SETUP_STEPS = ['General', 'Sports & Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Franchises']
+const TABS = ['General', 'Clubs', 'Sports & Schedule', 'Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Live Stats']
+const SETUP_STEPS = ['General', 'Sports & Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Clubs']
 
 function SettingsInner() {
   const params = useParams<{ id: string }>()
@@ -129,7 +129,7 @@ function SettingsInner() {
     if (dc > 0) {
       const counts = Array.from({ length: dc }, (_, i) => franchises.filter(f => f.division === i + 1).length)
       const balanced = counts.every(c => c === counts[0]) && franchises.length % dc === 0 && !franchises.some(f => !f.division)
-      if (!balanced) { setTab('Franchises'); setTeamError('Divisions must have an equal number of teams (and every franchise assigned) before saving.'); return }
+      if (!balanced) { setTab('Clubs'); setTeamError('Divisions must have an equal number of clubs (and every club assigned) before saving.'); return }
     }
     setTeamError('')
     setSaving(true)
@@ -176,7 +176,7 @@ function SettingsInner() {
     setTeamSaving(null)
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
-      setTeamError(typeof d.error === 'string' ? d.error : 'Could not save franchise')
+      setTeamError(typeof d.error === 'string' ? d.error : 'Could not save club')
       return
     }
     setTeamSavedId(f.id); setTimeout(() => setTeamSavedId(null), 2000)
@@ -198,16 +198,16 @@ function SettingsInner() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newFr),
     })
     setAddingFr(false)
-    if (!res.ok) { const d = await res.json().catch(() => ({})); setTeamError(typeof d.error === 'string' ? d.error : 'Could not add franchise'); return }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setTeamError(typeof d.error === 'string' ? d.error : 'Could not add club'); return }
     setNewFr({ name: '', abbreviation: '', ownerName: '', ownerEmail: '' })
     await reloadFranchises()
   }
 
   async function removeFranchise(f: any) {
-    if (!confirm(`Remove ${f.name}? This deletes the franchise and all its roster, records, and matchups. This cannot be undone.`)) return
+    if (!confirm(`Remove ${f.name}? This deletes the club and all its roster, records, and matchups. This cannot be undone.`)) return
     setTeamError('')
     const res = await fetch(`/api/teams/${f.id}`, { method: 'DELETE' })
-    if (!res.ok) { const d = await res.json().catch(() => ({})); setTeamError(typeof d.error === 'string' ? d.error : 'Could not remove franchise'); return }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setTeamError(typeof d.error === 'string' ? d.error : 'Could not remove club'); return }
     setFranchises(prev => prev.filter(x => x.id !== f.id))
   }
 
@@ -282,8 +282,8 @@ function SettingsInner() {
                   {['2023-24', '2024-25', '2025-26', '2026-27', '2027-28', '2028-29'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <div><label className="label">Max Teams</label><select className="select" value={form.maxTeams ?? 12} onChange={e => set('maxTeams', +e.target.value)}>{LEAGUE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n} teams</option>)}</select></div>
-              <div><label className="label">Dues per franchise ($)</label><input type="number" min={0} className="input" value={form.duesAmount ?? 0} onChange={e => set('duesAmount', +e.target.value)} /></div>
+              <div><label className="label">Max Clubs</label><select className="select" value={form.maxTeams ?? 12} onChange={e => set('maxTeams', +e.target.value)}>{LEAGUE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n} clubs</option>)}</select></div>
+              <div><label className="label">Dues per club ($)</label><input type="number" min={0} className="input" value={form.duesAmount ?? 0} onChange={e => set('duesAmount', +e.target.value)} /></div>
               <div>
                 <label className="label">Visibility</label>
                 <select className="select" value={form.isPublic ? 'public' : 'private'} onChange={e => set('isPublic', e.target.value === 'public')}>
@@ -297,7 +297,7 @@ function SettingsInner() {
                   <input className="input flex-1" placeholder="https://…/logo.png" value={form.logoUrl ?? ''} onChange={e => set('logoUrl', e.target.value)} />
                   {form.logoUrl
                     ? <img src={form.logoUrl} alt="" className="w-12 h-12 object-contain bg-slate-100 flex-shrink-0" />
-                    : <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">🏆</div>}
+                    : <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0"></div>}
                 </div>
               </div>
               <div>
@@ -334,10 +334,10 @@ function SettingsInner() {
         {tab === 'Schedule' && <ScheduleEditor leagueId={params.id as string} />}
 
         {/* Franchises */}
-        {tab === 'Franchises' && (
+        {tab === 'Clubs' && (
           <>
-            <h3 className="font-semibold text-slate-900">Franchises</h3>
-            <p className="text-sm text-slate-500">Edit any franchise&apos;s identity, branding, and owner. Changes save per franchise.</p>
+            <h3 className="font-semibold text-slate-900">Clubs</h3>
+            <p className="text-sm text-slate-500">Edit any club&apos;s identity, branding, and owner. Changes save per club.</p>
             {teamError && <p className="text-sm text-red-600">{teamError}</p>}
 
             {/* Divisions */}
@@ -358,7 +358,7 @@ function SettingsInner() {
                   </span>
                 })()}
               </div>
-              <p className="text-xs text-slate-500 mt-1">Assign each franchise to a division below. Divisions must have an equal number of teams before settings can be saved.</p>
+              <p className="text-xs text-slate-500 mt-1">Assign each club to a division below. Divisions must have an equal number of clubs before settings can be saved.</p>
               {(form.divisions ?? 0) > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
                   {Array.from({ length: form.divisions }, (_, i) => i + 1).map(d => (
@@ -379,12 +379,12 @@ function SettingsInner() {
                       {f.logo ? <img src={f.logo} alt="" className="w-full h-full object-contain" /> : (f.abbreviation || f.name || '?').slice(0, 4).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-slate-900 truncate">{f.name || 'Unnamed franchise'}</p>
+                      <p className="font-semibold text-slate-900 truncate">{f.name || 'Unnamed club'}</p>
                       <p className="text-xs text-slate-400 truncate">{f.ownerName} · {f.ownerEmail}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div><label className="label">Franchise Name</label><input className="input" value={f.name} onChange={e => setFranchise(f.id, { name: e.target.value })} /></div>
+                    <div><label className="label">Club Name</label><input className="input" value={f.name} onChange={e => setFranchise(f.id, { name: e.target.value })} /></div>
                     <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={f.abbreviation} onChange={e => setFranchise(f.id, { abbreviation: e.target.value })} /></div>
                     <div className="sm:col-span-2">
                       <label className="label">Logo URL</label>
@@ -415,32 +415,32 @@ function SettingsInner() {
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-3 mt-3">
-                    <button onClick={() => removeFranchise(f)} className="text-sm text-red-500 hover:text-red-700 font-medium">Remove franchise</button>
+                    <button onClick={() => removeFranchise(f)} className="text-sm text-red-500 hover:text-red-700 font-medium">Remove club</button>
                     <div className="flex items-center gap-3">
                       {teamSavedId === f.id && <span className="text-sm text-green-600">Saved ✓</span>}
                       <button onClick={() => saveFranchise(f)} disabled={teamSaving === f.id} className="btn-secondary text-sm disabled:opacity-50">
-                        {teamSaving === f.id ? 'Saving…' : 'Save franchise'}
+                        {teamSaving === f.id ? 'Saving…' : 'Save club'}
                       </button>
                     </div>
                   </div>
                 </div>
               ))}
-              {franchises.length === 0 && <p className="text-slate-400 text-sm py-6 text-center">No franchises yet.</p>}
+              {franchises.length === 0 && <p className="text-slate-400 text-sm py-6 text-center">No clubs yet.</p>}
             </div>
 
             {/* Add franchise */}
             <div className="rounded-xl border border-dashed border-slate-300 p-4">
-              <p className="font-semibold text-slate-900 text-sm mb-1">Add a franchise</p>
-              <p className="text-xs text-slate-500 mb-3">Creates the franchise and its owner. {franchises.length}/{form.maxTeams ?? 12} teams used.</p>
+              <p className="font-semibold text-slate-900 text-sm mb-1">Add a club</p>
+              <p className="text-xs text-slate-500 mb-3">Creates the club and its owner. {franchises.length}/{form.maxTeams ?? 12} clubs used.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div><label className="label">Franchise Name</label><input className="input" value={newFr.name} onChange={e => setNewFr(v => ({ ...v, name: e.target.value }))} placeholder="New Dynasty" /></div>
+                <div><label className="label">Club Name</label><input className="input" value={newFr.name} onChange={e => setNewFr(v => ({ ...v, name: e.target.value }))} placeholder="New Dynasty" /></div>
                 <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={newFr.abbreviation} onChange={e => setNewFr(v => ({ ...v, abbreviation: e.target.value }))} placeholder="ND" /></div>
                 <div><label className="label">Owner Name</label><input className="input" value={newFr.ownerName} onChange={e => setNewFr(v => ({ ...v, ownerName: e.target.value }))} /></div>
                 <div><label className="label">Owner Email</label><input className="input" type="email" value={newFr.ownerEmail} onChange={e => setNewFr(v => ({ ...v, ownerEmail: e.target.value }))} /></div>
               </div>
               <div className="flex justify-end mt-3">
                 <button onClick={addFranchise} disabled={addingFr || !newFr.name || !newFr.abbreviation || !newFr.ownerName || !newFr.ownerEmail || franchises.length >= (form.maxTeams ?? 12)}
-                  className="btn-primary text-sm disabled:opacity-50">{addingFr ? 'Adding…' : 'Add franchise'}</button>
+                  className="btn-primary text-sm disabled:opacity-50">{addingFr ? 'Adding…' : 'Add club'}</button>
               </div>
             </div>
           </>
@@ -605,7 +605,7 @@ function SettingsInner() {
                 ))}
                 {/* Federation (overall) championship */}
                 <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
-                  <div className="flex items-center gap-2 mb-2"><span className="text-xs font-bold text-amber-600">🏆 Federation Championship</span></div>
+                  <div className="flex items-center gap-2 mb-2"><span className="text-xs font-bold text-amber-600">Federation Championship</span></div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input className="input text-sm" placeholder={`Championship name (e.g. ${form.name ?? 'Nexus'} Cup)`} value={champNames['FED'] ?? ''} onChange={e => setChampNames(d => ({ ...d, FED: e.target.value }))} />
                     <div className="flex items-center gap-2">
@@ -697,7 +697,7 @@ function SettingsInner() {
             {subSport === 'MLB' && (
               <div className="border-t border-slate-100 pt-4">
                 <h4 className="font-semibold text-slate-900 text-sm">Weekly Starting-Pitcher Cap</h4>
-                <p className="text-xs text-slate-500 mb-2">Limit how many starting pitchers count per team each week. Once the cap is hit, additional SP stats don&apos;t score. Set 0 for no limit.</p>
+                <p className="text-xs text-slate-500 mb-2">Limit how many starting pitchers count per club each week. Once the cap is hit, additional SP stats don&apos;t score. Set 0 for no limit.</p>
                 <input type="number" min={0} max={20} className="input w-28" value={form.mlbSpCap ?? 0} onChange={e => set('mlbSpCap', +e.target.value)} />
               </div>
             )}
@@ -729,7 +729,7 @@ function SettingsInner() {
                 <input type="checkbox" checked={!!form.salaryCapEnabled} onChange={e => set('salaryCapEnabled', e.target.checked)} />
                 <span className="font-semibold text-slate-900">Enable salary cap</span>
               </label>
-              <p className="text-xs text-slate-500 mb-2">Track player salaries and contract years for a dynasty cap. Each franchise&apos;s total salary may not exceed the cap.</p>
+              <p className="text-xs text-slate-500 mb-2">Track player salaries and contract years for a dynasty cap. Each club&apos;s total salary may not exceed the cap.</p>
               {form.salaryCapEnabled && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -791,7 +791,7 @@ function SettingsInner() {
                     <span className="text-sm font-semibold text-slate-800">Initial Dynasty Draft</span>
                     {dynasty && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${locked ? 'bg-slate-200 text-slate-600' : dynasty.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{dynasty.status}</span>}
                     {locked && <button onClick={async () => {
-                      if (!confirm('⚠️ Reset the dynasty draft?\n\nThis clears EVERY dynasty pick AND wipes every franchise\'s entire roster. This cannot be undone.')) return
+                      if (!confirm('Reset the dynasty draft?\n\nThis clears EVERY dynasty pick AND wipes every club\'s entire roster. This cannot be undone.')) return
                       if (!confirm('Are you absolutely sure? Type-of-no-return: all drafted rosters will be wiped and the draft reopened to PENDING.')) return
                       if (prompt('Final confirmation — type RESET to proceed.') !== 'RESET') return
                       await fetch(`/api/leagues/${params.id}/dynasty`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESET' }) })
@@ -874,7 +874,7 @@ function SettingsInner() {
               <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 mb-4">
                 <p className="text-sm font-semibold text-slate-700">Initial dynasty draft</p>
                 <p className="text-xs text-slate-500 mt-1">
-                  One combined cross-sport draft. Its length is automatically the total roster spots a franchise fills
+                  One combined cross-sport draft. Its length is automatically the total roster spots a club fills
                   (starters + bench + taxi, every sport): <span className="font-bold text-slate-800">{dynastyDraftRounds(rosterObj)} rounds</span>.
                 </p>
               </div>
@@ -949,7 +949,7 @@ function SettingsInner() {
             {/* Per-sport transaction limits */}
             <div className="border-t border-slate-100 pt-4">
               <label className="label">Transaction Limits (per sport)</label>
-              <p className="text-xs text-slate-500 mb-2">Cap how many adds/claims a franchise can make in each sport. Leave at 0 for unlimited.</p>
+              <p className="text-xs text-slate-500 mb-2">Cap how many adds/claims a club can make in each sport. Leave at 0 for unlimited.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const lim = txLimits[s] ?? { max: 0, period: 'WEEKLY' }
@@ -1026,7 +1026,7 @@ function SettingsInner() {
             </div>
 
             <div className="p-4 bg-blue-50 rounded-xl text-sm text-blue-800 border border-blue-100">
-              <strong>Cross-sport trades</strong> are always enabled — franchises can package players and draft picks from any sport in one deal. A deal is blocked only if <em>any</em> sport in it is past its deadline.
+              <strong>Cross-sport trades</strong> are always enabled — clubs can package players and draft picks from any sport in one deal. A deal is blocked only if <em>any</em> sport in it is past its deadline.
             </div>
           </>
         )}
@@ -1045,9 +1045,9 @@ function SettingsInner() {
               return (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label className="label">Playoff Teams (per sport)</label>
+                    <div><label className="label">Playoff Clubs (per sport)</label>
                       <select className="select" value={teams} onChange={e => { const t = +e.target.value; set('playoffTeams', t); set('playoffRounds', maxPlayoffRounds(t)) }}>
-                        {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n} teams</option>)}
+                        {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n} clubs</option>)}
                       </select>
                     </div>
                     <div><label className="label">Playoff Format</label>
@@ -1102,7 +1102,7 @@ function SettingsInner() {
                   <option value="RECORD">Win % (record)</option>
                   <option value="COIN_FLIP">Coin flip (random)</option>
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1">Breaks ties between franchises with the same number of wins when seeding the bracket.</p>
+                <p className="text-[11px] text-slate-400 mt-1">Breaks ties between clubs with the same number of wins when seeding the bracket.</p>
               </div>
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input type="checkbox" className="mt-0.5" checked={!!form.playoffReseed} onChange={e => set('playoffReseed', e.target.checked)} />
@@ -1111,18 +1111,18 @@ function SettingsInner() {
               <div>
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={!!form.consolationBracket} onChange={e => set('consolationBracket', e.target.checked)} />
-                  <span><span className="text-sm font-medium text-slate-800">Consolation bracket</span><span className="block text-xs text-slate-500">Teams knocked out in the first playoff round drop into a consolation bracket, seeded by their playoff seed. Size is set automatically by the playoff field.</span></span>
+                  <span><span className="text-sm font-medium text-slate-800">Consolation bracket</span><span className="block text-xs text-slate-500">Clubs knocked out in the first playoff round drop into a consolation bracket, seeded by their playoff seed. Size is set automatically by the playoff field.</span></span>
                 </label>
               </div>
               <div>
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={!!form.losersBracket} onChange={e => set('losersBracket', e.target.checked)} />
-                  <span><span className="text-sm font-medium text-slate-800">Losers bracket</span><span className="block text-xs text-slate-500">The bottom franchises by record play their own bracket.</span></span>
+                  <span><span className="text-sm font-medium text-slate-800">Losers bracket</span><span className="block text-xs text-slate-500">The bottom clubs by record play their own bracket.</span></span>
                 </label>
                 {form.losersBracket && (
                   <div className="mt-2 ml-7 space-y-2">
                     <div className="flex items-center gap-2">
-                      <label className="text-xs text-slate-500 w-28">Bottom teams</label>
+                      <label className="text-xs text-slate-500 w-28">Bottom clubs</label>
                       <select className="select w-auto text-sm" value={form.losersTeams ?? (form.playoffTeams ?? 6)} onChange={e => set('losersTeams', +e.target.value)}>
                         {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
@@ -1145,7 +1145,7 @@ function SettingsInner() {
         {tab === 'Federation' && (
           <>
             <h3 className="font-semibold text-slate-900">Federation Scoring</h3>
-            <p className="text-sm text-slate-500">Each franchise earns federation points based on where it finishes in every sport. Edit the points awarded per finishing position.</p>
+            <p className="text-sm text-slate-500">Each club earns federation points based on where it finishes in every sport. Edit the points awarded per finishing position.</p>
             <div>
               <label className="label">Placement Points (1st → last)</label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -1220,7 +1220,7 @@ function DangerZone({ leagueId, leagueName }: { leagueId: string; leagueName: st
   return (
     <div className="mt-8 border border-red-200 rounded-xl p-4 bg-red-50/40">
       <h4 className="font-semibold text-red-700 text-sm">Danger Zone</h4>
-      <p className="text-xs text-slate-500 mt-1">Permanently delete this league and every team, roster, draft, trade, matchup and record in it. This cannot be undone.</p>
+      <p className="text-xs text-slate-500 mt-1">Permanently delete this league and every club, roster, draft, trade, matchup and record in it. This cannot be undone.</p>
       {!open
         ? <button onClick={() => setOpen(true)} className="btn-secondary text-red-600 border-red-200 mt-3">Delete this league…</button>
         : (
