@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { safeParse, sportAbbrLabel } from '@/lib/utils'
+import { computeFederationStandings } from '@/lib/federation'
 import SportChip from '@/components/SportChip'
 import HeadToHead from './HeadToHead'
 
@@ -33,6 +34,19 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
 
   const seasons = [...new Set(history.map(h => h.season))].sort().reverse()
 
+  // All-time federation points: federation standings recomputed for every season and summed.
+  const fedScoring = safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sports })
+  const fedPointsByTeam: Record<string, number> = {}
+  const recordSeasons = [...new Set(records.map(r => r.season))]
+  for (const season of recordSeasons) {
+    const standings = computeFederationStandings(
+      franchises.map(f => ({ id: f.id })),
+      records.filter(r => r.season === season).map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: r.isChampion })),
+      fedScoring, fedScoring.includedSports ?? sports,
+    )
+    for (const row of standings) fedPointsByTeam[row.team.id] = (fedPointsByTeam[row.team.id] ?? 0) + (row.total ?? 0)
+  }
+
   // All-time franchise aggregates.
   const allTime = franchises.map(f => {
     const recs = records.filter(r => r.teamId === f.id)
@@ -40,8 +54,8 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
     const losses = recs.reduce((s, r) => s + (r.losses ?? 0), 0)
     const sportTitles = history.filter(h => h.championTeamId === f.id && h.scope !== 'OVERALL').length
     const fedTitles = history.filter(h => h.championTeamId === f.id && h.scope === 'OVERALL').length
-    return { team: f, wins, losses, sportTitles, fedTitles }
-  }).sort((a, b) => b.fedTitles - a.fedTitles || b.sportTitles - a.sportTitles || b.wins - a.wins)
+    return { team: f, wins, losses, sportTitles, fedTitles, fedPoints: fedPointsByTeam[f.id] ?? 0 }
+  }).sort((a, b) => b.fedPoints - a.fedPoints || b.fedTitles - a.fedTitles || b.wins - a.wins)
 
   const championOf = (season: string, scope: string) =>
     history.find(h => h.season === season && h.scope === scope)?.championTeamId ?? null
@@ -100,10 +114,11 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
               <th className="text-center px-3 py-2 font-medium">All-Time W-L</th>
               <th className="text-center px-3 py-2 font-medium">Sport Titles</th>
               <th className="text-center px-3 py-2 font-medium">Fed Titles</th>
+              <th className="text-center px-3 py-2 font-medium">All-Time Fed Pts</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {allTime.map(({ team, wins, losses, sportTitles, fedTitles }) => (
+            {allTime.map(({ team, wins, losses, sportTitles, fedTitles, fedPoints }) => (
               <tr key={team.id} className="hover:bg-slate-50">
                 <td className="px-4 py-2">
                   <Link href={`/teams/${team.id}`} className="font-medium text-slate-900 hover:text-blue-600">{team.name}</Link>
@@ -111,6 +126,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
                 <td className="text-center px-3 py-2 text-slate-700">{wins}-{losses}</td>
                 <td className="text-center px-3 py-2 text-slate-700">{sportTitles}</td>
                 <td className="text-center px-3 py-2 font-semibold text-amber-600">{fedTitles || '—'}</td>
+                <td className="text-center px-3 py-2 font-bold text-slate-900 tabular-nums">{fedPoints}</td>
               </tr>
             ))}
           </tbody>
