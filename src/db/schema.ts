@@ -94,6 +94,7 @@ export const leagues = sqliteTable('leagues', {
   transactionLimits: text('transaction_limits').default('{}'),
   irEligibleDesignations: text('ir_eligible_designations').default('{}'),
   taxiEligibility: text('taxi_eligibility').default('ALL'), // ALL | ROOKIES — who can occupy a taxi-squad slot
+  liveScoring: integer('live_scoring', { mode: 'boolean' }).default(false), // pull in-progress games (vs daily finalize)
   defenseMode: text('defense_mode').default('TEAM'), // NFL: TEAM (DST) | IDP
   playoffFormat: text('playoff_format').default('H2H'), // H2H | MULTI_WEEK | CHAMP_MULTI
   weeksPerRound: integer('weeks_per_round').default(1),

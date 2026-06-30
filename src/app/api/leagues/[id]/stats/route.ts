@@ -11,8 +11,9 @@ import { advanceLeague, rescoreWeeks } from '@/lib/advance'
 
 // Live-stats status (GET) and a commissioner-triggered pull (POST).
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  await params
-  return NextResponse.json({ configured: tank01Configured(), used: await usageThisMonth(), cap: MONTHLY_CAP })
+  const { id } = await params
+  const [league] = await db.select({ live: leagues.liveScoring }).from(leagues).where(eq(leagues.id, id)).limit(1)
+  return NextResponse.json({ configured: tank01Configured(), used: await usageThisMonth(), cap: MONTHLY_CAP, live: !!league?.live })
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,13 +27,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   // Pull finished games for the league's enabled sports across the last `days` days.
   const { days = 2 } = await req.json().catch(() => ({})) as { days?: number }
+  const mode = league.liveScoring ? 'LIVE' : 'FINAL'
   const sports = safeParse<string[]>(league.sportsEnabled, []) as any[]
   const results: Record<string, { ingested: number; calls: number; week?: number; skipped?: string }> = {}
   const affected: { sport: string; week: number }[] = []
   for (let d = 0; d < Math.min(days, 7); d++) {
     const date = new Date(Date.now() - d * 86_400_000)
     for (const sport of sports) {
-      const r = await ingestDate(sport, date, league.season)
+      const r = await ingestDate(sport, date, league.season, mode)
       results[`${sport}:${date.toISOString().slice(0, 10)}`] = r
       if (r.ingested > 0 && r.week) affected.push({ sport, week: r.week })
     }

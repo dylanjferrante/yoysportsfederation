@@ -1112,12 +1112,17 @@ export default function CommissionerSettings() {
 // Commissioner live-stats control: shows the monthly API budget and lets the
 // commissioner pull finished games now (re-scoring affected weeks from real stats).
 function LiveStatsPanel({ leagueId }: { leagueId: string }) {
-  const [status, setStatus] = useState<{ configured: boolean; used: number; cap: number } | null>(null)
+  const [status, setStatus] = useState<{ configured: boolean; used: number; cap: number; live: boolean } | null>(null)
   const [days, setDays] = useState(2)
   const [pulling, setPulling] = useState(false)
   const [result, setResult] = useState<string | null>(null)
 
   useEffect(() => { fetch(`/api/leagues/${leagueId}/stats`).then(r => r.json()).then(setStatus).catch(() => {}) }, [leagueId])
+
+  async function toggleLive(next: boolean) {
+    setStatus(s => s ? { ...s, live: next } : s)
+    await fetch(`/api/leagues/${leagueId}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ liveScoring: next }) }).catch(() => {})
+  }
 
   async function pull() {
     setPulling(true); setResult(null)
@@ -1154,6 +1159,16 @@ function LiveStatsPanel({ leagueId }: { leagueId: string }) {
           </div>
           <p className="text-xs text-slate-400">The pull job is hard-capped at this budget so a free-tier key is never exceeded.</p>
         </div>
+      )}
+
+      {status && (
+        <label className="card p-4 flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" checked={status.live} disabled={!status.configured} onChange={e => toggleLive(e.target.checked)} className="w-4 h-4 mt-0.5" />
+          <span>
+            <span className="block text-sm font-medium text-slate-800">Live in-game scoring</span>
+            <span className="block text-xs text-slate-500">Pull in-progress games (not just finished) so scores update during the day. Uses many more API calls — recommended only on a paid tier or with budget headroom. Off = daily finalize.</span>
+          </span>
+        </label>
       )}
 
       <div className="card p-4 space-y-3">
