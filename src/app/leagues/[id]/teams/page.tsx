@@ -4,20 +4,23 @@ import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { safeParse, sportAbbrLabel, orderedSports } from '@/lib/utils'
+import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import SportChip from '@/components/SportChip'
 
 export const metadata = { title: 'Teams' }
 
 type Rec = { teamId: string; sport: string; wins: number; losses: number; ties: number; pointsFor: number; finishPosition: number | null }
 
-export default async function TeamsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TeamsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ season?: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
+  const { season: viewSeason, isPast } = viewSeasonOf(league, await searchParams)
+  const branding = isPast ? await seasonBranding(id, viewSeason) : null
 
   const franchises = await db.select({ team: teams, userName: users.name }).from(teams)
     .leftJoin(users, eq(teams.userId, users.id)).where(eq(teams.leagueId, id))
-  const recs = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
+  const recs = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, viewSeason)))
   const allRecords = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, id))
   const history = await db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, id))
 
@@ -35,13 +38,15 @@ export default async function TeamsPage({ params }: { params: Promise<{ id: stri
     <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Teams</h1>
       <div className="grid sm:grid-cols-2 gap-3">
-        {franchises.map(({ team: t, userName }) => {
+        {franchises.map(({ team: tRaw, userName }) => {
+          const b = branding?.[tRaw.id]
+          const t = b ? { ...tRaw, name: b.name, abbreviation: b.abbreviation, logo: b.logo, primaryColor: b.primaryColor, secondaryColor: b.secondaryColor } : tRaw
           const stat = stats[t.id]
           const primary = t.primaryColor || '#0f172a'
           const secondary = t.secondaryColor || '#ffffff'
           const recBySport = Object.fromEntries(recs.filter(r => r.teamId === t.id).map(r => [r.sport, r]))
           return (
-            <Link key={t.id} href={`/teams/${t.id}`} className="card overflow-hidden hover:shadow-md transition">
+            <Link key={t.id} href={`/teams/${t.id}${isPast ? `?season=${viewSeason}` : ''}`} className="card overflow-hidden hover:shadow-md transition">
               <div className="p-3 flex items-center gap-3" style={{ background: primary, color: secondary }}>
                 {t.logo
                   ? <img src={t.logo} alt="" className="w-12 h-12 object-contain flex-shrink-0 bg-white/10" />

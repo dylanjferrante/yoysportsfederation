@@ -176,6 +176,21 @@ export const teamSeasonBranding = sqliteTable('team_season_branding', {
   uniq: uniqueIndex('team_season_branding_uniq').on(t.teamId, t.season),
 }))
 
+// Per-season snapshot of each franchise's roster (who was on the team), taken at
+// archive/rollover so a past season shows the squad as it stood then — dynasty
+// rosters change continuously, so this is the only way to view historical lineups.
+export const rosterSnapshots = sqliteTable('roster_snapshots', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  season: text('season').notNull(),
+  playerId: text('player_id'),
+  playerName: text('player_name'),
+  sport: text('sport'),
+  position: text('position'),
+  slot: text('slot'),
+})
+
 export const proposalVotes = sqliteTable('proposal_votes', {
   id: text('id').primaryKey(),
   proposalId: text('proposal_id').notNull().references(() => proposals.id, { onDelete: 'cascade' }),

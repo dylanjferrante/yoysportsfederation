@@ -24,6 +24,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
     const q = `?season=${viewSeason}`
     const items: NavItem[] = [
       { label: 'Standings', href: base, exact: true, emoji: '🏆' },
+      { label: 'Teams', href: `${base}/teams`, emoji: '👥' },
       { label: 'Scores', href: `${base}/scores`, emoji: '📊' },
       { label: 'Playoffs', href: `${base}/playoffs`, emoji: '🥇' },
       { label: 'All Seasons', href: `${base}/seasons`, emoji: '📅' },

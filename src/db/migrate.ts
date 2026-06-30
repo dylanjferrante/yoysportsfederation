@@ -180,6 +180,18 @@ CREATE TABLE proposal_votes (
   UNIQUE(proposal_id, user_id)
 );
 
+CREATE TABLE roster_snapshots (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  season TEXT NOT NULL,
+  player_id TEXT,
+  player_name TEXT,
+  sport TEXT,
+  position TEXT,
+  slot TEXT
+);
+
 CREATE TABLE team_season_branding (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
@@ -592,6 +604,7 @@ CREATE INDEX IF NOT EXISTS idx_team_records_team ON team_records(team_id, season
 CREATE INDEX IF NOT EXISTS idx_real_stats_lookup ON real_stat_lines(sport, season, week);
 CREATE INDEX IF NOT EXISTS idx_real_stats_player ON real_stat_lines(player_id, sport, season, week);
 CREATE INDEX IF NOT EXISTS idx_game_schedule_sport_date ON game_schedule(sport, game_date);
+CREATE INDEX IF NOT EXISTS idx_roster_snapshots ON roster_snapshots(league_id, season, team_id);
 CREATE INDEX IF NOT EXISTS idx_proposals_league ON proposals(league_id, status);
 CREATE INDEX IF NOT EXISTS idx_proposal_votes_proposal ON proposal_votes(proposal_id);
 CREATE INDEX IF NOT EXISTS idx_players_sport ON players(sport);
