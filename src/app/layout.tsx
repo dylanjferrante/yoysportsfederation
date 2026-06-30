@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Rajdhani } from 'next/font/google'
+import { Inter, DotGothic16 } from 'next/font/google'
 import './globals.css'
 import Providers from './providers'
 import Navbar from '@/components/Navbar'
 import ServiceWorker from '@/components/ServiceWorker'
 
 const inter = Inter({ subsets: ['latin'] })
-const scoreFont = Rajdhani({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-score' })
+const scoreFont = DotGothic16({ subsets: ['latin'], weight: '400', variable: '--font-score' })
 
 export const metadata: Metadata = {
   title: { default: 'Nexus Fantasy', template: '%s | Nexus Fantasy' },
