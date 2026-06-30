@@ -131,10 +131,40 @@ export const leagues = sqliteTable('leagues', {
 
   // Dues
   duesAmount: integer('dues_amount').default(0), // per-franchise buy-in
+  rules: text('rules'), // league constitution / rules (markdown)
+  proposalSettings: text('proposal_settings').default('{}'), // {policy, threshold, quorum, durationDays}
 
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 })
+
+// League governance: member proposals voted on within the platform. Voting
+// parameters (who can propose, pass threshold %, quorum, duration) are set by the
+// commissioner in leagues.proposalSettings; threshold/quorum are snapshotted onto
+// each proposal at creation so changing the policy can't flip an open vote.
+export const proposals = sqliteTable('proposals', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  authorId: text('author_id').notNull().references(() => users.id),
+  title: text('title').notNull(),
+  body: text('body'),
+  status: text('status').default('OPEN'), // OPEN | PASSED | FAILED | CLOSED
+  threshold: integer('threshold').default(50), // % of YES out of YES+NO needed to pass
+  quorum: integer('quorum').default(0),        // min ballots cast for a valid result
+  closesAt: text('closes_at'),                 // ISO; auto-resolves after this
+  resolvedAt: text('resolved_at'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
+export const proposalVotes = sqliteTable('proposal_votes', {
+  id: text('id').primaryKey(),
+  proposalId: text('proposal_id').notNull().references(() => proposals.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id),
+  vote: text('vote').notNull(), // YES | NO | ABSTAIN
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+}, (t) => ({
+  uniq: uniqueIndex('proposal_vote_uniq').on(t.proposalId, t.userId),
+}))
 
 // ── League Members ─────────────────────────────────────────────────────────
 

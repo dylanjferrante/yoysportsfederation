@@ -151,8 +151,33 @@ CREATE TABLE leagues (
   losers_bracket INTEGER DEFAULT 0,
   losers_teams INTEGER,
   dues_amount INTEGER DEFAULT 0,
+  rules TEXT,
+  proposal_settings TEXT DEFAULT '{}',
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE proposals (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  author_id TEXT NOT NULL REFERENCES users(id),
+  title TEXT NOT NULL,
+  body TEXT,
+  status TEXT DEFAULT 'OPEN',
+  threshold INTEGER DEFAULT 50,
+  quorum INTEGER DEFAULT 0,
+  closes_at TEXT,
+  resolved_at TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE proposal_votes (
+  id TEXT PRIMARY KEY,
+  proposal_id TEXT NOT NULL REFERENCES proposals(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  vote TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(proposal_id, user_id)
 );
 
 CREATE TABLE league_members (
@@ -551,6 +576,8 @@ CREATE INDEX IF NOT EXISTS idx_team_records_team ON team_records(team_id, season
 CREATE INDEX IF NOT EXISTS idx_real_stats_lookup ON real_stat_lines(sport, season, week);
 CREATE INDEX IF NOT EXISTS idx_real_stats_player ON real_stat_lines(player_id, sport, season, week);
 CREATE INDEX IF NOT EXISTS idx_game_schedule_sport_date ON game_schedule(sport, game_date);
+CREATE INDEX IF NOT EXISTS idx_proposals_league ON proposals(league_id, status);
+CREATE INDEX IF NOT EXISTS idx_proposal_votes_proposal ON proposal_votes(proposal_id);
 CREATE INDEX IF NOT EXISTS idx_players_sport ON players(sport);
 CREATE INDEX IF NOT EXISTS idx_players_external ON players(external_id);
 CREATE INDEX IF NOT EXISTS idx_player_game_stats_week ON player_game_stats(league_id, season, week, sport);

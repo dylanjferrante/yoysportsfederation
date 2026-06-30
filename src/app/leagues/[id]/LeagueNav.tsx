@@ -26,6 +26,8 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
     { label: 'History', href: `${base}/history`, emoji: '📜' },
     { label: 'Records', href: `${base}/records`, emoji: '🏅' },
     ...(sideGamesEnabled || isCommissioner ? [{ label: 'Side Games', href: `${base}/sidegames`, emoji: '🎲' }] : []),
+    { label: 'Votes', href: `${base}/proposals`, emoji: '🗳️' },
+    { label: 'Rules', href: `${base}/rules`, emoji: '📖' },
     { label: 'Transactions', href: `${base}/transactions`, emoji: '🧾' },
     { label: 'Chat', href: `${base}/chat`, emoji: '💬' },
   ]
