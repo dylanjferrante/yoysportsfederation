@@ -425,6 +425,17 @@ CREATE TABLE real_stat_lines (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE game_schedule (
+  id TEXT PRIMARY KEY,
+  sport TEXT NOT NULL,
+  game_date TEXT NOT NULL,
+  home_abbr TEXT NOT NULL,
+  away_abbr TEXT NOT NULL,
+  game_time_epoch TEXT,
+  status TEXT,
+  season_type TEXT
+);
+
 CREATE TABLE waiver_wire (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
@@ -539,6 +550,7 @@ CREATE INDEX IF NOT EXISTS idx_team_records_league_season ON team_records(league
 CREATE INDEX IF NOT EXISTS idx_team_records_team ON team_records(team_id, season, sport);
 CREATE INDEX IF NOT EXISTS idx_real_stats_lookup ON real_stat_lines(sport, season, week);
 CREATE INDEX IF NOT EXISTS idx_real_stats_player ON real_stat_lines(player_id, sport, season, week);
+CREATE INDEX IF NOT EXISTS idx_game_schedule_sport_date ON game_schedule(sport, game_date);
 CREATE INDEX IF NOT EXISTS idx_players_sport ON players(sport);
 CREATE INDEX IF NOT EXISTS idx_players_external ON players(external_id);
 CREATE INDEX IF NOT EXISTS idx_player_game_stats_week ON player_game_stats(league_id, season, week, sport);

@@ -307,6 +307,25 @@ addPlayers(MLB_ALL)
 // Synthetic ADP: rank within each sport by projected points (1 = first off the board).
 db.exec(`UPDATE players SET adp = (SELECT COUNT(*) + 1 FROM players p2 WHERE p2.sport = players.sport AND p2.projected_points > players.projected_points)`)
 
+// Real game schedules (from `npm run tank01:schedule` → src/fixtures/schedule-*.json).
+// Loaded into game_schedule so the app shows real opponents/dates instead of a
+// synthetic round-robin. Falls back to the round-robin when no fixture exists.
+const insertSchedule = db.prepare(`INSERT OR IGNORE INTO game_schedule (id,sport,game_date,home_abbr,away_abbr,game_time_epoch,status,season_type) VALUES (?,?,?,?,?,?,?,?)`)
+let scheduleTotal = 0
+for (const sport of ['NFL', 'NBA', 'NHL', 'MLB']) {
+  const file = path.resolve(process.cwd(), 'src/fixtures', `schedule-${sport}.json`)
+  if (!fs.existsSync(file)) continue
+  let games: any[]
+  try { games = JSON.parse(fs.readFileSync(file, 'utf8')) } catch { continue }
+  if (!Array.isArray(games) || !games.length) continue
+  const tx = db.transaction(() => {
+    for (const g of games) insertSchedule.run(g.gameId, sport, g.gameDate, g.homeAbbr, g.awayAbbr, g.gameTimeEpoch ?? null, g.status ?? null, g.seasonType ?? null)
+  })
+  tx()
+  scheduleTotal += games.length
+}
+if (scheduleTotal) console.log(`  Loaded ${scheduleTotal} real scheduled games into game_schedule`)
+
 // ── One unified federation league ──────────────────────────────────────────
 
 const SPORT_LIST = ['NFL', 'NHL', 'NBA', 'MLB']

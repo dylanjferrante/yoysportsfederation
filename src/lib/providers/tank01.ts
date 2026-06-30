@@ -63,6 +63,7 @@ const EP = (sport: Sport) => ({
   players: `get${sport}PlayerList`,
   projections: `get${sport}Projections`,
   boxScore: `get${sport}BoxScore`,
+  teamSchedule: `get${sport}TeamSchedule`,
   // Per-date schedule. NOTE: get<Sport>GamesForDate does NOT carry a gameStatus
   // field for MLB or NBA (only NFL/NHL include it), so it can't be used to tell
   // finished games from scheduled ones. get<Sport>ScoresOnly returns gameStatus
@@ -85,6 +86,28 @@ export async function tank01BoxScore(sport: Sport, gameId: string): Promise<{ ex
   const body = await call<any>(sport, EP(sport).boxScore, { gameID: gameId }, 0)
   const ps = body?.playerStats ?? body?.PlayerStats ?? body?.playerStatsMap ?? {}
   return Object.entries<any>(ps).map(([playerID, raw]) => ({ externalId: String((raw?.playerID ?? playerID)), raw }))
+}
+
+// One team's full-season schedule, normalized. Each real game appears on two
+// teams' schedules, so callers should dedup by gameId. Budget: 1 call per team.
+export type ScheduleGame = { gameId: string; sport: Sport; gameDate: string; homeAbbr: string; awayAbbr: string; gameTimeEpoch: string | null; status: string | null; seasonType: string | null }
+export async function tank01TeamSchedule(sport: Sport, teamAbv: string, season?: string): Promise<ScheduleGame[]> {
+  const q: Record<string, string> = { teamAbv }
+  if (season) q.season = season
+  const body = await call<any>(sport, EP(sport).teamSchedule, q, 0)
+  const rows: any[] = Array.isArray(body?.schedule) ? body.schedule : Array.isArray(body) ? body : Object.values(body?.schedule ?? body ?? {})
+  return rows
+    .map(g => ({
+      gameId: String(g.gameID ?? g.gameId ?? ''),
+      sport,
+      gameDate: String(g.gameDate ?? ''),
+      homeAbbr: String(g.home ?? g.teamAbvHome ?? ''),
+      awayAbbr: String(g.away ?? g.teamAbvAway ?? ''),
+      gameTimeEpoch: g.gameTime_epoch != null ? String(g.gameTime_epoch) : null,
+      status: g.gameStatus != null ? String(g.gameStatus) : null,
+      seasonType: g.seasonType != null ? String(g.seasonType) : null,
+    }))
+    .filter(g => g.gameId && g.gameDate && g.homeAbbr && g.awayAbbr)
 }
 
 export class Tank01Provider implements SportsDataProvider {

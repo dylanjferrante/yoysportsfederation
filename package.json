@@ -18,6 +18,7 @@
     "push:keys": "tsx scripts/push-keys.ts",
     "tank01:probe": "tsx scripts/tank01-probe.ts",
     "tank01:pull": "tsx scripts/tank01-pull.ts",
+    "tank01:schedule": "tsx scripts/tank01-schedule.ts",
     "tank01:sync": "tsx scripts/tank01-sync.ts"
   },
   "dependencies": {
