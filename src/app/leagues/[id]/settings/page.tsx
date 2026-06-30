@@ -33,6 +33,7 @@ export default function CommissionerSettings() {
   const [seasonWeeksObj, setSeasonWeeksObj] = useState<Record<string, number>>({})
   const [startWeeksObj, setStartWeeksObj] = useState<Record<string, number>>({})
   const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
+  const [reopenObj, setReopenObj] = useState<Record<string, string>>({})
   const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
   const [txLimits, setTxLimits] = useState<Record<string, { max: number; period: string }>>({})
   const [irDesigObj, setIrDesigObj] = useState<Record<string, string[]>>({})
@@ -90,6 +91,7 @@ export default function CommissionerSettings() {
         setSeasonWeeksObj(lens)
       }
       setDeadlinesObj(parse(l.tradeDeadlines, defaultTradeDeadlines(se)))
+      setReopenObj(parse(l.tradeReopen, {}))
       setWaiverSchedObj(parse(l.waiverSchedule, defaultWaiverSchedule(se)))
       setTxLimits(parse(l.transactionLimits, {}))
       setIrDesigObj(parse(l.irEligibleDesignations, defaultIrDesignations(se)))
@@ -135,7 +137,7 @@ export default function CommissionerSettings() {
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
         tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate, rookieDraftDates: rookieDates,
-        tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
+        tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj, tradeReopen: reopenObj,
         waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, waiverPeriodDays: form.waiverPeriodDays, transactionLimits: txLimits, irEligibleDesignations: irDesigObj, taxiEligibility: form.taxiEligibility, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
         playoffFormat: form.playoffFormat, weeksPerRound: form.weeksPerRound,
@@ -930,6 +932,16 @@ export default function CommissionerSettings() {
                       </select>
                       {d.mode === 'WEEK' && (
                         <input type="number" min={1} className="input w-20 text-sm py-1.5" placeholder="Week" value={d.week ?? ''} onChange={e => setD({ week: +e.target.value })} />
+                      )}
+                      {/* Every sport but the last in the season order can reopen trading after its deadline. */}
+                      {d.mode !== 'NONE' && s !== orderedEnabled[orderedEnabled.length - 1] && (
+                        <label className="flex items-center gap-1 text-[11px] text-slate-500">
+                          reopen
+                          <select className="select w-auto text-xs py-1" value={reopenObj[s] ?? 'FED_SEASON'} onChange={e => setReopenObj(prev => ({ ...prev, [s]: e.target.value }))}>
+                            <option value="CHAMPIONSHIP">after {s} championship</option>
+                            <option value="FED_SEASON">end of fed season</option>
+                          </select>
+                        </label>
                       )}
                       <span className="text-[11px] text-slate-400 w-full sm:w-auto sm:ml-auto">
                         {d.mode === 'NONE' ? 'No deadline' : `Locks after week ${resolved}`} · {mode?.help}
