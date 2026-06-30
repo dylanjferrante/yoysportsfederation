@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { safeParse } from '@/lib/utils'
 import { seasonBranding } from '@/lib/seasons'
+import { computeFederationStandings, defaultFederationScoring, type FederationScoring } from '@/lib/federation'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -34,7 +35,6 @@ export default async function SeasonsPage({ params, searchParams }: { params: Pr
   const seasonTitles = history.filter(h => h.season === season)
   const fedChampId = seasonTitles.find(h => h.scope === 'OVERALL')?.championTeamId ?? null
 
-  // Aggregate each franchise's W/L across sports + the titles they won this season.
   const byTeam: Record<string, { w: number; l: number; titles: string[] }> = {}
   for (const r of seasonRecords) {
     const e = (byTeam[r.teamId] ??= { w: 0, l: 0, titles: [] })
@@ -44,8 +44,19 @@ export default async function SeasonsPage({ params, searchParams }: { params: Pr
     if (!t.championTeamId || t.scope === 'OVERALL') continue
     ;(byTeam[t.championTeamId] ??= { w: 0, l: 0, titles: [] }).titles.push(t.scope)
   }
+
+  const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
+  const fs = safeParse<FederationScoring | null>(league.federationScoring, null) ?? defaultFederationScoring(league.maxTeams ?? 12, sportsEnabled)
+  const fedIncluded = fs.includedSports?.length ? fs.includedSports : sportsEnabled
+  const fedStandings = computeFederationStandings(
+    Object.keys(branding).map(tid => ({ id: tid })),
+    seasonRecords.map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: !!r.isChampion })),
+    fs, fedIncluded,
+  )
+  const fedPts: Record<string, number> = Object.fromEntries(fedStandings.map(s => [s.team.id, s.total]))
+
   const teamIds = Object.keys(byTeam).length ? Object.keys(byTeam) : Object.keys(branding)
-  teamIds.sort((a, b) => (a === fedChampId ? -1 : b === fedChampId ? 1 : 0) || (byTeam[b]?.w ?? 0) - (byTeam[a]?.w ?? 0))
+  teamIds.sort((a, b) => (a === fedChampId ? -1 : b === fedChampId ? 1 : 0) || (fedPts[b] ?? 0) - (fedPts[a] ?? 0) || (byTeam[b]?.w ?? 0) - (byTeam[a]?.w ?? 0))
 
   return (
     <div className="max-w-4xl mx-auto pb-16">
@@ -93,8 +104,14 @@ export default async function SeasonsPage({ params, searchParams }: { params: Pr
                 <div className="font-medium text-slate-800 flex items-center gap-2">{b.name}{tid === fedChampId && <span className="text-amber-500">🏆</span>}</div>
                 {rec && (rec.w + rec.l > 0) ? <div className="text-xs text-slate-400">{rec.w}-{rec.l}</div> : <div className="text-xs text-slate-300">—</div>}
               </div>
-              <div className="flex gap-1 flex-wrap justify-end">
-                {rec?.titles.map(s => <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">🏆 {s}</span>)}
+              <div className="flex items-center gap-3 justify-end">
+                <div className="flex gap-1 flex-wrap justify-end">
+                  {rec?.titles.map(s => <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">🏆 {s}</span>)}
+                </div>
+                <div className="text-right w-14 flex-shrink-0">
+                  <div className="font-bold text-slate-900 tabular-nums leading-none">{(fedPts[tid] ?? 0).toFixed(0)}</div>
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5">Fed pts</div>
+                </div>
               </div>
             </div>
           )
