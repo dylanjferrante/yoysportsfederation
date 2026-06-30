@@ -10,9 +10,19 @@ import { computeFederationStandings } from '@/lib/federation'
 
 const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
 
-async function draftOrder(leagueId: string, season: string) {
+async function draftOrder(leagueId: string, season: string, manualOrderJson?: string | null) {
   const franchises = await db.select().from(teams).where(eq(teams.leagueId, leagueId))
   const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId)).limit(1)
+
+  // A commissioner-set manual order takes precedence when present.
+  const manual = safeParse<string[]>(manualOrderJson, [])
+  if (Array.isArray(manual) && manual.length) {
+    const byId = new Map(franchises.map(f => [f.id, f]))
+    const ordered = manual.map(tid => byId.get(tid)).filter(Boolean) as typeof franchises
+    // Append any franchises missing from the saved order (e.g. newly added).
+    for (const f of franchises) if (!manual.includes(f.id)) ordered.push(f)
+    if (ordered.length) return ordered
+  }
   const fed = safeParse<any>(league?.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: [] })
   const records = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, leagueId), eq(teamRecords.season, season)))
   const standings = computeFederationStandings(
@@ -83,7 +93,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const [draft] = await db.select().from(drafts).where(eq(drafts.id, id)).limit(1)
   if (!draft) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const order = await draftOrder(draft.leagueId, draft.season)
+  const order = await draftOrder(draft.leagueId, draft.season, draft.manualOrder)
   const total = (draft.rounds ?? 4) * order.length
   const myTeam = session ? order.find(o => o.userId === session.user.id) : null
   const [gleague] = await db.select({ commissionerId: leagues.commissionerId }).from(leagues).where(eq(leagues.id, draft.leagueId)).limit(1)
@@ -309,14 +319,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!draft) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const [league] = await db.select().from(leagues).where(eq(leagues.id, draft.leagueId)).limit(1)
   const isCommish = league?.commissionerId === session.user.id
-  const order = await draftOrder(draft.leagueId, draft.season)
+  const order = await draftOrder(draft.leagueId, draft.season, draft.manualOrder)
   const total = (draft.rounds ?? 4) * order.length
   const myTeam = order.find(o => o.userId === session.user.id)
   const sportsFilter = draft.scope === 'OVERALL' ? SPORTS : [draft.scope]
 
-  const body = await req.json() as { action: string; playerId?: string; direction?: string; bid?: number }
+  const body = await req.json() as { action: string; playerId?: string; direction?: string; bid?: number; order?: string[] }
 
   const newDeadline = (secs = draft.pickSeconds ?? 90) => new Date(Date.now() + secs * 1000).toISOString()
+
+  // Commissioner sets a manual draft order (only before the draft starts).
+  if (body.action === 'SET_ORDER') {
+    if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
+    if (draft.status !== 'PENDING') return NextResponse.json({ error: 'Order can only be set before the draft starts' }, { status: 400 })
+    const ids = Array.isArray(body.order) ? body.order : []
+    await db.update(drafts).set({ manualOrder: JSON.stringify(ids) }).where(eq(drafts.id, id))
+    return NextResponse.json({ ok: true })
+  }
 
   // ── Auction drafts: nomination + open bidding ──────────────────────────────
   if (draft.type === 'AUCTION') {

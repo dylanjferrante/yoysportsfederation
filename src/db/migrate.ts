@@ -250,6 +250,7 @@ CREATE TABLE drafts (
   type TEXT DEFAULT 'SNAKE',
   rounds INTEGER DEFAULT 4,
   status TEXT DEFAULT 'PENDING',
+  manual_order TEXT,
   starts_at TEXT,
   current_pick INTEGER DEFAULT 0,
   pick_seconds INTEGER DEFAULT 90,

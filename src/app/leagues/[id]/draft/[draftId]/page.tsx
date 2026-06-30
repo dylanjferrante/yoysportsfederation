@@ -13,6 +13,7 @@ export default function DraftRoom() {
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState<'players' | 'board'>('players')
+  const [orderEdit, setOrderEdit] = useState<any[] | null>(null)
 
   const [now, setNow] = useState(() => Date.now())
 
@@ -89,6 +90,7 @@ export default function DraftRoom() {
           {d.status === 'PAUSED' && <p className="text-amber-600 font-semibold">⏸ Draft paused by commissioner</p>}
         </div>
         <div className="flex items-center gap-2">
+          {d.status === 'PENDING' && s.isCommish && <button onClick={() => setOrderEdit(orderEdit ? null : [...(s.order ?? [])])} className="btn-secondary text-sm">{orderEdit ? 'Close order' : 'Set draft order'}</button>}
           {d.status === 'PENDING' && s.isCommish && <button onClick={() => action({ action: 'START' })} disabled={busy} className="btn-primary">Start Draft</button>}
           {d.status === 'IN_PROGRESS' && myTeamId && (
             <button onClick={() => action({ action: 'TOGGLE_AUTOPICK' })} disabled={busy}
@@ -120,6 +122,31 @@ export default function DraftRoom() {
           )}
         </div>
       </div>
+
+      {/* Commissioner manual draft-order editor (before the draft starts) */}
+      {orderEdit && s.isCommish && d.status === 'PENDING' && (
+        <div className="card p-4 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-slate-900">Set Draft Order</h3>
+            <div className="flex gap-2">
+              <button onClick={() => setOrderEdit([...orderEdit].sort(() => Math.random() - 0.5))} className="btn-secondary text-xs">🎲 Shuffle</button>
+              <button disabled={busy} onClick={async () => { await action({ action: 'SET_ORDER', order: orderEdit.map((o: any) => o.id) }); setOrderEdit(null) }} className="btn-primary text-xs">Save order</button>
+            </div>
+          </div>
+          <ol className="space-y-1">
+            {orderEdit.map((o: any, i: number) => (
+              <li key={o.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                <span className="text-xs text-slate-400 tabular-nums w-6">{i + 1}.</span>
+                <span className="w-5 h-5 rounded text-white text-[9px] font-bold flex items-center justify-center" style={{ background: o.primaryColor || '#0f172a' }}>{(o.abbreviation || '?').slice(0, 2)}</span>
+                <span className="text-sm text-slate-800 flex-1 truncate">{o.name}</span>
+                <button disabled={i === 0} onClick={() => setOrderEdit(prev => { const a = [...prev!]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; return a })} className="text-slate-400 disabled:opacity-30 px-1">▲</button>
+                <button disabled={i === orderEdit.length - 1} onClick={() => setOrderEdit(prev => { const a = [...prev!]; [a[i + 1], a[i]] = [a[i], a[i + 1]]; return a })} className="text-slate-400 disabled:opacity-30 px-1">▼</button>
+              </li>
+            ))}
+          </ol>
+          <p className="text-xs text-slate-400 mt-2">This order applies to round 1 (snake reverses each round). Saved per draft — set it for the dynasty draft or any rookie draft.</p>
+        </div>
+      )}
 
       {/* Auction: live nomination + budgets */}
       {isAuction && d.status === 'IN_PROGRESS' && (
