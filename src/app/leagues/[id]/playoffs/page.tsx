@@ -33,7 +33,12 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
   const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
   const champNames = safeParse<Record<string, string>>(league.championshipNames, {})
   const champLogos = safeParse<Record<string, string>>(league.championshipLogos, {})
-  const champColors = safeParse<Record<string, string>>(league.championshipColors, {})
+  const champColors = safeParse<Record<string, { p?: string; s?: string }>>(league.championshipColors, {})
+  const champGrad = (scope: string, fallback: string) => {
+    const c = champColors[scope]
+    return c?.p || c?.s ? `linear-gradient(135deg, ${c.p ?? c.s}, ${c.s ?? c.p})` : fallback
+  }
+  const champInk = (scope: string, fallback: string) => champColors[scope]?.p ?? champColors[scope]?.s ?? fallback
   const n = league.playoffTeams ?? 4
   const franchises = await db.select().from(teams).where(eq(teams.leagueId, id))
   const records = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
@@ -68,7 +73,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
 
       {/* Federation champion banner */}
       {fedChamp && (
-        <div className="p-5 mb-6 text-white text-center" style={{ background: champColors['FED'] ? `linear-gradient(135deg, ${champColors['FED']}, ${champColors['FED']}cc)` : 'linear-gradient(135deg,#b45309,#f59e0b)' }}>
+        <div className="p-5 mb-6 text-white text-center" style={{ background: champGrad('FED', 'linear-gradient(135deg,#b45309,#f59e0b)') }}>
           {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-16 h-16 object-contain mx-auto mb-2" />}
           <p className="text-xs uppercase tracking-widest text-white/80">{league.season} {champNames['FED'] || `${league.name} Champion`}</p>
           <p className="text-2xl font-black mt-1 flex items-center justify-center gap-2">🏆 {teamById[fedChamp.championTeamId ?? '']?.name ?? '—'}</p>
@@ -116,12 +121,12 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
                     return (
                       <div className="flex-shrink-0 w-40 flex flex-col items-center justify-center">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold uppercase tracking-wide" style={{ color: champColors[sport] ?? '#f59e0b' }}>Champion</p>
+                          <p className="text-sm font-bold uppercase tracking-wide" style={{ color: champInk(sport, '#f59e0b') }}>Champion</p>
                           {champLogos[sport]
                             ? <img src={champLogos[sport]} alt="" className="w-12 h-12 object-contain" />
                             : <span className="text-2xl">🏆</span>}
                         </div>
-                        <div className="mt-3 border-2 rounded-xl px-4 py-3 flex flex-col items-center gap-1.5 min-w-[8rem]" style={{ borderColor: (champColors[sport] ?? '#fcd34d') + '88', background: (champColors[sport] ?? '#f59e0b') + '14' }}>
+                        <div className="mt-3 border-2 rounded-xl px-4 py-3 flex flex-col items-center gap-1.5 min-w-[8rem]" style={{ borderColor: champInk(sport, '#fcd34d') + '88', background: champInk(sport, '#f59e0b') + '14' }}>
                           {champTeam?.logo
                             ? <img src={champTeam.logo} alt="" className="w-12 h-12 object-contain" style={champTeam.logoBg ? { background: champTeam.primaryColor ?? undefined } : undefined} />
                             : <span className="w-12 h-12 flex items-center justify-center text-sm font-black" style={{ background: champTeam?.secondaryColor ?? '#fde68a', color: champTeam?.primaryColor ?? '#92400e' }}>{champTeam?.abbreviation ?? 'TBD'}</span>}

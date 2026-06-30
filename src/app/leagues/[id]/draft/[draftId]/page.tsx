@@ -292,7 +292,7 @@ export default function DraftRoom() {
                       {p ? (
                         <>
                           <div className="text-[9px] font-medium text-slate-500 leading-tight">{p.sport}-{p.realTeamAbbr ?? '—'}, {p.position}</div>
-                          <div className="text-[11px] text-slate-600 leading-tight mt-auto">{first}</div>
+                          <div className="text-[11px] text-slate-600 leading-tight mt-0.5">{first}</div>
                           <div className="text-xs font-bold text-slate-900 leading-tight">{rest.join(' ')}</div>
                         </>
                       ) : (

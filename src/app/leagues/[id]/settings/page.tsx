@@ -41,7 +41,7 @@ export default function CommissionerSettings() {
   const [divisionNames, setDivisionNames] = useState<Record<string, string>>({})
   const [champNames, setChampNames] = useState<Record<string, string>>({})
   const [champLogos, setChampLogos] = useState<Record<string, string>>({})
-  const [champColors, setChampColors] = useState<Record<string, string>>({})
+  const [champColors, setChampColors] = useState<Record<string, { p?: string; s?: string }>>({})
   const [breakWeeks, setBreakWeeks] = useState<Record<string, number[]>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
   const [franchises, setFranchises] = useState<any[]>([])
@@ -519,7 +519,8 @@ export default function CommissionerSettings() {
                       <div className="flex items-center gap-2">
                         <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos[s] ?? ''} onChange={e => setChampLogos(d => ({ ...d, [s]: e.target.value }))} />
                         {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 object-cover bg-slate-100" />}
-                        <input type="color" title="Championship color" className="h-9 w-10 rounded border border-slate-200" value={champColors[s] ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, [s]: e.target.value }))} />
+                        <input type="color" title="Championship primary color" className="h-9 w-9 rounded border border-slate-200" value={champColors[s]?.p ?? '#b45309'} onChange={e => setChampColors(d => ({ ...d, [s]: { ...d[s], p: e.target.value } }))} />
+                        <input type="color" title="Championship secondary color" className="h-9 w-9 rounded border border-slate-200" value={champColors[s]?.s ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, [s]: { ...d[s], s: e.target.value } }))} />
                       </div>
                     </div>
                   </div>
@@ -532,7 +533,8 @@ export default function CommissionerSettings() {
                     <div className="flex items-center gap-2">
                       <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos['FED'] ?? ''} onChange={e => setChampLogos(d => ({ ...d, FED: e.target.value }))} />
                       {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-7 h-7 object-cover bg-slate-100" />}
-                      <input type="color" title="Federation championship color" className="h-9 w-10 rounded border border-slate-200" value={champColors['FED'] ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, FED: e.target.value }))} />
+                      <input type="color" title="Federation championship primary color" className="h-9 w-9 rounded border border-slate-200" value={champColors['FED']?.p ?? '#b45309'} onChange={e => setChampColors(d => ({ ...d, FED: { ...d.FED, p: e.target.value } }))} />
+                      <input type="color" title="Federation championship secondary color" className="h-9 w-9 rounded border border-slate-200" value={champColors['FED']?.s ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, FED: { ...d.FED, s: e.target.value } }))} />
                     </div>
                   </div>
                 </div>
