@@ -29,7 +29,7 @@ const createSchema = z.object({
   faabMode:    z.enum(['TOTAL', 'PER_SPORT']).default('TOTAL'),
   playoffTeams: z.number().default(6),
   playoffStartWeek: z.number().default(15),
-  playoffRounds: z.number().default(2),
+  playoffRounds: z.number().default(3),
   playoffFormat: z.enum(['H2H', 'MULTI_WEEK', 'CHAMP_MULTI']).default('H2H'),
   weeksPerRound: z.number().default(1),
 })

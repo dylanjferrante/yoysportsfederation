@@ -128,7 +128,7 @@ CREATE TABLE leagues (
   playoff_teams INTEGER DEFAULT 6,
   playoff_start_week INTEGER DEFAULT 15,
   regular_season_weeks TEXT DEFAULT '{}',
-  playoff_rounds INTEGER DEFAULT 2,
+  playoff_rounds INTEGER DEFAULT 3,
   dues_amount INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))

@@ -26,23 +26,8 @@ export default function CommishSchedule() {
   })
   useEffect(() => { load() }, [params.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams])
   const sportsEnabled: string[] = useMemo(() => { try { return JSON.parse(league?.sportsEnabled ?? '[]') } catch { return [] } }, [league])
   const weeks = useMemo(() => [...new Set(matchups.map(m => m.week))].sort((a, b) => a - b), [matchups])
-  const activeWeek = week ?? weeks[0] ?? 1
-  const weekGames = matchups.filter(m => m.week === activeWeek)
-  const weekSports = sportsEnabled.filter(s => weekGames.some(m => m.sport === s))
-
-  if (!league) return <div className="text-center py-20 text-slate-400">Loading…</div>
-  if (session?.user?.id !== league.commissionerId)
-    return <div className="max-w-2xl mx-auto px-4 py-16 text-center text-slate-500">Only the commissioner can edit the schedule.</div>
-
-  async function patch(payload: any) {
-    setBusy(true)
-    await fetch(`/api/leagues/${params.id}/matchups`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    setBusy(false); await load()
-  }
-  const setM = (id: string, patch: Partial<Matchup>) => setMatchups(prev => prev.map(m => m.id === id ? { ...m, ...patch } : m))
 
   // Frequency matrix for the selected sport: counts[a][b] = matchups between a & b.
   const freq = useMemo(() => {
@@ -54,6 +39,21 @@ export default function CommishSchedule() {
     }
     return c
   }, [matchups, teams, freqSport])
+
+  const activeWeek = week ?? weeks[0] ?? 1
+  const weekGames = matchups.filter(m => m.week === activeWeek)
+  const weekSports = sportsEnabled.filter(s => weekGames.some(m => m.sport === s))
+
+  async function patch(payload: any) {
+    setBusy(true)
+    await fetch(`/api/leagues/${params.id}/matchups`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    setBusy(false); await load()
+  }
+  const setM = (id: string, patch: Partial<Matchup>) => setMatchups(prev => prev.map(m => m.id === id ? { ...m, ...patch } : m))
+
+  if (!league) return <div className="text-center py-20 text-slate-400">Loading…</div>
+  if (session?.user?.id !== league.commissionerId)
+    return <div className="max-w-2xl mx-auto px-4 py-16 text-center text-slate-500">Only the commissioner can edit the schedule.</div>
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
