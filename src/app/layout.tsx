@@ -25,6 +25,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.className}>
+      <head>
+        <link rel="stylesheet" href="https://use.typekit.net/gqo1xyn.css" />
+      </head>
       <body className="min-h-screen flex flex-col">
         <Providers>
           <Navbar />

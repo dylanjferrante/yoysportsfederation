@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
@@ -16,20 +16,15 @@ const CATEGORY_TITLE: Record<string, string> = {
   FORM: 'Form', PACE: 'Pace', FEDERATION: 'Federation', GOVERNANCE: 'League Office', SCHEDULE: 'Schedule',
 }
 
-type Snapshot = { scores: Card[]; news: News[]; topicIdx: number; cardIdx: number }
+type Snapshot = { scores: Card[]; news: News[]; cardIdx: number; startedAt?: number }
 const tickerCache = new Map<string, Snapshot>()
 
 export default function Ticker({ leagueId }: { leagueId: string }) {
   const [scores, setScores] = useState<Card[]>(() => tickerCache.get(leagueId)?.scores ?? [])
   const [news, setNews] = useState<News[]>(() => tickerCache.get(leagueId)?.news ?? [])
   const [cardIdx, setCardIdx] = useState(() => tickerCache.get(leagueId)?.cardIdx ?? 0)
-  const [topicIdx, setTopicIdx] = useState(() => tickerCache.get(leagueId)?.topicIdx ?? 0)
   const [hidden, setHidden] = useState(false)
   const [ready, setReady] = useState(false)
-
-  const viewportRef = useRef<HTMLDivElement>(null)
-  const scrollerRef = useRef<HTMLDivElement>(null)
-  const animRef = useRef<Animation | null>(null)
 
   useEffect(() => {
     setHidden(typeof window !== 'undefined' && localStorage.getItem('nf_wire_hidden') === '1')
@@ -43,7 +38,7 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
       const sc = d.scores ?? [], nw = d.news ?? []
       setScores(sc); setNews(nw)
       const c = tickerCache.get(leagueId)
-      tickerCache.set(leagueId, { scores: sc, news: nw, topicIdx: c?.topicIdx ?? 0, cardIdx: c?.cardIdx ?? 0 })
+      tickerCache.set(leagueId, { scores: sc, news: nw, cardIdx: c?.cardIdx ?? 0, startedAt: c?.startedAt })
     }).catch(() => {})
     load()
     const iv = setInterval(() => { if (document.visibilityState === 'visible') load() }, 45_000)
@@ -52,8 +47,14 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
 
   useEffect(() => {
     const c = tickerCache.get(leagueId)
-    if (c) tickerCache.set(leagueId, { ...c, topicIdx, cardIdx })
-  }, [leagueId, topicIdx, cardIdx])
+    if (c) tickerCache.set(leagueId, { ...c, cardIdx })
+  }, [leagueId, cardIdx])
+
+  useEffect(() => {
+    if (scores.length <= 1) return
+    const iv = setInterval(() => setCardIdx(i => (i + 1) % scores.length), 4500)
+    return () => clearInterval(iv)
+  }, [scores.length])
 
   const topics = useMemo<Topic[]>(() => {
     const order: string[] = []
@@ -69,29 +70,6 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
     })
   }, [news])
 
-  useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
-
-  useEffect(() => {
-    if (scores.length <= 1) return
-    const iv = setInterval(() => setCardIdx(i => (i + 1) % scores.length), 4500)
-    return () => clearInterval(iv)
-  }, [scores.length])
-
-  useEffect(() => {
-    if (hidden || !topics.length) return
-    const el = scrollerRef.current, vp = viewportRef.current
-    if (!el || !vp) return
-    const W = el.scrollWidth, V = vp.clientWidth
-    const speed = 95
-    const anim = el.animate(
-      [{ transform: `translateX(${V}px)` }, { transform: `translateX(${-W}px)` }],
-      { duration: Math.max(6000, ((V + W) / speed) * 1000), easing: 'linear' },
-    )
-    animRef.current = anim
-    anim.onfinish = () => setTopicIdx(i => (topics.length ? (i + 1) % topics.length : 0))
-    return () => { anim.cancel(); animRef.current = null }
-  }, [topicIdx, topics, hidden])
-
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
 
   if (!ready) return null
@@ -101,7 +79,7 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
       <div className="wirebar">
         <button onClick={() => setHiddenPersist(false)} className="show">📡 Show Wire</button>
         <style jsx>{`
-          .wirebar { width: 100%; display: flex; justify-content: center; background: #0f172a; }
+          .wirebar { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; justify-content: center; background: #0f172a; }
           .show { color: #cbd5e1; font-size: .68rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: .3rem .8rem; }
           .show:hover { color: #fff; }
         `}</style>
@@ -112,8 +90,36 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
   if (!scores.length && !topics.length) return null
 
   const card = scores.length ? scores[cardIdx % scores.length] : null
-  const topic = topics.length ? topics[topicIdx % topics.length] : null
-  const queue = topics.length ? [1, 2, 3].map(o => topics[(topicIdx + o) % topics.length]).filter((t, i, a) => topics.length > i + 1 && a.indexOf(t) === i) : []
+
+  const totalChars = topics.reduce((n, t) => n + t.title.length + 6 + t.items.reduce((m, h) => m + h.text.length + 4, 0), 0)
+  const duration = Math.max(28, Math.round(totalChars * 0.16))
+  const startedAt = (() => {
+    const c = tickerCache.get(leagueId)
+    if (c?.startedAt) return c.startedAt
+    const now = Date.now()
+    tickerCache.set(leagueId, { scores, news, cardIdx, startedAt: now })
+    return now
+  })()
+  const delay = -(((Date.now() - startedAt) / 1000) % duration)
+
+  const Strip = ({ k }: { k: string }) => (
+    <div className="strip" aria-hidden={k === 'b'}>
+      {topics.map(t => (
+        <span className="seg" key={`${k}-${t.key}`}>
+          <span className="ttile" style={{ background: t.sport ? sportMeta(t.sport).hex : '#1e293b' }}>
+            {t.sport && <span className="tdot">{sportMeta(t.sport).emoji}</span>}
+            {t.title}
+          </span>
+          {t.items.map(h => (
+            <Link key={`${k}-${h.id}`} href={h.href} className="item">
+              <span className="text">{h.text}</span>
+              <span className="dot">•</span>
+            </Link>
+          ))}
+        </span>
+      ))}
+    </div>
+  )
 
   const Team = ({ s }: { s: Side }) => (
     <div className={`team ${s.win ? 'win' : ''}`}>
@@ -138,75 +144,49 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
         </Link>
       )}
 
-      {topic && (
-        <div className="news">
-          <div className="pin" key={topic.key}>
-            {topic.sport && <span className="pdot" style={{ background: sportMeta(topic.sport).hex }}>{sportMeta(topic.sport).emoji}</span>}
-            {topic.title}
+      {topics.length > 0 && (
+        <div className="viewport">
+          <div className="track" style={{ animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>
+            <Strip k="a" />
+            <Strip k="b" />
           </div>
-          <div className="viewport" ref={viewportRef}
-            onMouseEnter={() => animRef.current?.pause()} onMouseLeave={() => animRef.current?.play()}>
-            <div className="scroller" ref={scrollerRef} key={topicIdx}>
-              {topic.items.map((h, i) => (
-                <Link key={h.id} href={h.href} className="item">
-                  <span className="text">{h.text}</span>
-                  {i < topic.items.length - 1 && <span className="sep">•</span>}
-                </Link>
-              ))}
-            </div>
-          </div>
-          {queue.length > 0 && (
-            <div className="queue">
-              <span className="next">Up next ▸</span>
-              {queue.map(t => (
-                <span key={t.key} className="qt">
-                  {t.sport && <span className="qdot" style={{ background: sportMeta(t.sport).hex }} />}
-                  {t.title}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
       <button onClick={() => setHiddenPersist(true)} className="hide" aria-label="Hide wire">✕</button>
 
       <style jsx>{`
-        .wrap { width: 100%; display: flex; align-items: stretch; height: 64px; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 64px; background: #0f172a; color: #e2e8f0; overflow: hidden; }
         .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 .85rem; font-size: .7rem; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; background: #1e293b; color: #fff; }
-        .scorecard { flex-shrink: 0; width: 240px; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: .3rem .75rem; border-right: 1px solid #1e293b; text-decoration: none; color: #cbd5e1; animation: fade .45s ease; }
+        .scorecard { flex-shrink: 0; width: 224px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: .3rem .85rem; border-right: 1px solid #1e293b; text-decoration: none; color: #cbd5e1; animation: fade .45s ease; }
         .schead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
         .spchip { font-size: .58rem; font-weight: 800; padding: .03rem .35rem; border-radius: .3rem; color: #fff; }
         .status { font-size: .58rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
         .status.live { color: #f87171; }
-        .team { display: flex; align-items: center; gap: .4rem; font-size: .82rem; line-height: 1.3; }
+        .team { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; column-gap: .45rem; font-size: .82rem; line-height: 1.35; }
         .team.win { font-weight: 800; color: #fff; }
-        .lg { width: 17px; height: 17px; object-fit: contain; border-radius: 3px; flex-shrink: 0; background: rgba(255,255,255,.08); }
+        .lg { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; background: rgba(255,255,255,.08); }
         .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; }
-        .ab { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sc { font-variant-numeric: tabular-nums; font-weight: 700; }
-        .news { flex: 1; min-width: 0; display: flex; align-items: stretch; }
-        .pin { flex-shrink: 0; display: flex; align-items: center; gap: .35rem; padding: 0 .9rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: #fff; background: #172033; border-right: 1px solid #1e293b; animation: slidein .4s ease; white-space: nowrap; }
-        .pdot { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; font-size: .6rem; }
-        .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; }
-        .scroller { position: absolute; display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; }
-        .item { display: inline-flex; align-items: center; gap: .5rem; font-size: .82rem; color: #e2e8f0; text-decoration: none; }
+        .ab { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sc { font-family: "punto", ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: .95rem; letter-spacing: .03em; text-align: right; min-width: 3.2ch; margin-left: .65rem; color: #f1f5f9; }
+        .viewport { position: relative; display: flex; align-items: center; overflow: hidden; flex: 1; }
+        .viewport:hover .track { animation-play-state: paused; }
+        .track { display: inline-flex; white-space: nowrap; will-change: transform; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .strip { display: inline-flex; align-items: center; }
+        .seg { display: inline-flex; align-items: center; }
+        .ttile { display: inline-flex; align-items: center; gap: .3rem; height: 26px; margin: 0 .55rem 0 .9rem; padding: 0 .7rem; border-radius: 4px; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #fff; }
+        .tdot { font-size: .72rem; }
+        .item { display: inline-flex; align-items: center; gap: .55rem; font-size: .82rem; color: #e2e8f0; text-decoration: none; }
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
-        .sep { color: #475569; margin: 0 .7rem; }
-        .queue { flex-shrink: 0; max-width: 38%; display: flex; align-items: center; gap: .6rem; padding: 0 .9rem; background: linear-gradient(90deg, transparent, #0b1322 18%); color: #64748b; overflow: hidden; }
-        .next { font-size: .58rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #475569; white-space: nowrap; }
-        .qt { display: inline-flex; align-items: center; gap: .3rem; font-size: .72rem; font-weight: 700; color: #94a3b8; white-space: nowrap; }
-        .qdot { width: 8px; height: 8px; border-radius: 2px; }
+        .dot { color: #475569; margin: 0 .35rem; }
         .hide { flex-shrink: 0; padding: 0 .7rem; color: #475569; font-size: .8rem; }
         .hide:hover { color: #e2e8f0; }
+        @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slidein { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
         @media (max-width: 640px) {
           .label { padding: 0 .55rem; font-size: .6rem; }
-          .scorecard { width: 150px; padding: .3rem .5rem; }
-          .pin { font-size: .64rem; padding: 0 .6rem; }
-          .queue { display: none; }
+          .scorecard { width: 168px; padding: .3rem .6rem; }
           .item { font-size: .78rem; }
         }
       `}</style>
