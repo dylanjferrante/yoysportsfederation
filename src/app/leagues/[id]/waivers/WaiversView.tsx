@@ -45,7 +45,7 @@ export default function WaiversView({
   const [sport, setSport] = useState('')
   const [position, setPosition] = useState('')
   const [search, setSearch] = useState('')
-  const [faOnly, setFaOnly] = useState(false)
+  const [faOnly, setFaOnly] = useState(true)
   const [sortKey, setSortKey] = useState('value')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
@@ -66,11 +66,12 @@ export default function WaiversView({
   const loadPlayers = useCallback(() => {
     setLoading(true)
     const params = new URLSearchParams({ rich: 'true', leagueId })
+    if (faOnly) params.set('free', 'true')
     if (sport) params.set('sport', sport)
     if (position) params.set('position', position)
     if (search) params.set('q', search)
     fetch(`/api/players?${params}`).then(r => r.json()).then(d => { setPlayers(Array.isArray(d) ? d : []); setLoading(false) })
-  }, [leagueId, sport, position, search])
+  }, [leagueId, sport, position, search, faOnly])
 
   const loadClaims = useCallback(() => {
     fetch(`/api/leagues/${leagueId}/waivers`).then(r => r.json()).then(d => {
