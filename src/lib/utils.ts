@@ -52,6 +52,12 @@ export function sportLabel(sport: string, names?: Record<string, string> | null)
   return n && n.trim() ? n : sport
 }
 
+// Short code for menus / logs / draft tiles — custom abbreviation or the sport key.
+export function sportAbbrLabel(sport: string, abbr?: Record<string, string> | null): string {
+  const a = abbr?.[sport]
+  return a && a.trim() ? a : sport
+}
+
 export function waiverTypeLabel(t: string) {
   if (t === 'FAAB') return 'FAAB Bidding'
   if (t === 'PRIORITY') return 'Waiver Priority'
