@@ -342,6 +342,7 @@ function SettingsInner() {
               <h4 className="font-semibold text-slate-900 mb-2 text-sm">Dues Tracker</h4>
               <DuesPanel leagueId={params.id as string} isCommissioner />
             </div>
+            <ImportHistoryPanel leagueId={params.id as string} onImported={reloadFranchises} />
             <DangerZone leagueId={params.id as string} leagueName={league.name} />
           </>
         )}
@@ -1257,6 +1258,95 @@ function SettingsInner() {
 
 export default function CommissionerSettings() {
   return <Suspense fallback={<div className="max-w-5xl mx-auto px-4 py-8 text-slate-400">Loading settings…</div>}><SettingsInner /></Suspense>
+}
+
+const IMPORT_TEMPLATE = {
+  clubs: [
+    { name: 'River City Rats', abbreviation: 'RCR', ownerName: 'Old Owner', ownerEmail: 'owner@example.com' },
+  ],
+  seasons: [
+    {
+      season: '2022-23',
+      records: [
+        { club: 'River City Rats', sport: 'NFL', wins: 11, losses: 3, ties: 0, pointsFor: 1840.5, pointsAgainst: 1502.1, finishPosition: 1, isChampion: true },
+        { club: 'River City Rats', sport: 'NBA', wins: 9, losses: 8, ties: 0, pointsFor: 1320, pointsAgainst: 1290, finishPosition: 4 },
+      ],
+      champions: [
+        { scope: 'NFL', champion: 'River City Rats', runnerUp: 'Some Other Club', note: 'Won in OT' },
+        { scope: 'OVERALL', champion: 'River City Rats' },
+      ],
+    },
+  ],
+}
+
+function ImportHistoryPanel({ leagueId, onImported }: { leagueId: string; onImported: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [doc, setDoc] = useState<any>(null)
+  const [fileName, setFileName] = useState('')
+  const [parseErr, setParseErr] = useState('')
+  const [preview, setPreview] = useState<any>(null)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<string>('')
+
+  function loadFile(file: File) {
+    setParseErr(''); setPreview(null); setResult(''); setFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = () => {
+      try { setDoc(JSON.parse(String(reader.result))) }
+      catch { setDoc(null); setParseErr('That file is not valid JSON.') }
+    }
+    reader.readAsText(file)
+  }
+
+  async function run(dryRun: boolean) {
+    if (!doc) return
+    setBusy(true); setParseErr(''); if (!dryRun) setResult('')
+    const res = await fetch(`/api/leagues/${leagueId}/import-history`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...doc, dryRun }),
+    })
+    setBusy(false)
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) { setParseErr(typeof d.error === 'string' ? d.error : 'The file did not match the expected format.'); return }
+    const s = d.summary
+    const msg = `${s.seasons} season${s.seasons === 1 ? '' : 's'} · ${s.clubsMatched} club${s.clubsMatched === 1 ? '' : 's'} matched, ${s.clubsCreated} created · ${s.recordsUpserted} record${s.recordsUpserted === 1 ? '' : 's'} · ${s.championsRecorded} champion${s.championsRecorded === 1 ? '' : 's'}${s.skipped ? ` · ${s.skipped} skipped` : ''}`
+    if (dryRun) setPreview(msg)
+    else { setResult(`Imported: ${msg}`); setPreview(null); onImported() }
+  }
+
+  function downloadTemplate() {
+    const blob = new Blob([JSON.stringify(IMPORT_TEMPLATE, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'nexus-history-template.json'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="mt-8 border border-slate-200 rounded-xl p-4 bg-slate-50/60">
+      <h4 className="font-semibold text-slate-800 text-sm">Import legacy league history</h4>
+      <p className="text-xs text-slate-500 mt-1">Bring a former league&apos;s past seasons in from a JSON file — champions and per-club, per-sport records feed the History page and all-time standings. Clubs are matched by name; any not already here are created as archived historical clubs.</p>
+      {!open
+        ? <button onClick={() => setOpen(true)} className="btn-secondary text-sm mt-3">Import history…</button>
+        : (
+          <div className="mt-3 space-y-3">
+            <button onClick={downloadTemplate} className="text-xs text-blue-600 underline">Download the JSON template</button>
+            <div>
+              <label className="label">History file (.json)</label>
+              <input type="file" accept="application/json,.json" onChange={e => { const f = e.target.files?.[0]; if (f) loadFile(f) }} className="block text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-200 file:text-slate-700 file:text-sm" />
+              {fileName && <p className="text-xs text-slate-400 mt-1">{fileName}</p>}
+            </div>
+            {parseErr && <p className="text-sm text-red-600">{parseErr}</p>}
+            {preview && <p className="text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2">Preview — {preview}</p>}
+            {result && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{result}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setOpen(false); setDoc(null); setFileName(''); setPreview(null); setParseErr(''); setResult('') }} className="btn-secondary text-sm">Close</button>
+              <button onClick={() => run(true)} disabled={!doc || busy} className="btn-secondary text-sm disabled:opacity-40">{busy ? 'Checking…' : 'Preview'}</button>
+              <button onClick={() => run(false)} disabled={!doc || busy} className="btn-primary text-sm disabled:opacity-40">{busy ? 'Importing…' : 'Import history'}</button>
+            </div>
+          </div>
+        )}
+    </div>
+  )
 }
 
 function DangerZone({ leagueId, leagueName }: { leagueId: string; leagueName: string }) {
