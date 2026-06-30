@@ -136,7 +136,7 @@ export default function CommissionerSettings() {
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
         tradeablePickYears: form.tradeablePickYears, draftDate: form.draftDate, rookieDraftDates: rookieDates,
         tradeReview: form.tradeReview, tradeReviewHours: form.tradeReviewHours, vetoVotesRequired: form.vetoVotesRequired, tradeDeadlines: deadlinesObj,
-        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, waiverPeriodDays: form.waiverPeriodDays, transactionLimits: txLimits, irEligibleDesignations: irDesigObj, lockDay: form.lockDay,
+        waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, waiverPeriodDays: form.waiverPeriodDays, transactionLimits: txLimits, irEligibleDesignations: irDesigObj, taxiEligibility: form.taxiEligibility, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
         playoffFormat: form.playoffFormat, weeksPerRound: form.weeksPerRound,
         playoffReseed: form.playoffReseed, consolationBracket: form.consolationBracket, losersBracket: form.losersBracket,
@@ -560,6 +560,15 @@ export default function CommissionerSettings() {
         {/* Roster */}
         {tab === 'Roster' && (
           <>
+            <div className="rounded-xl border border-slate-200 p-3 max-w-md">
+              <p className="text-sm font-semibold text-slate-800">Taxi Squad Eligibility</p>
+              <p className="text-xs text-slate-500 mb-2">Who may occupy a taxi-squad slot (applies to every sport).</p>
+              <select className="select" value={form.taxiEligibility ?? 'ALL'} onChange={e => set('taxiEligibility', e.target.value)}>
+                <option value="ALL">Any player</option>
+                <option value="ROOKIES">Rookies only</option>
+              </select>
+            </div>
+
             <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
 
             {/* NFL defense mode: team defense (DST) vs individual defenders (IDP) */}

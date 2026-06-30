@@ -21,6 +21,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   // Update one matchup's pairing and/or score/result.
   if (body.action === 'UPDATE' && body.matchupId) {
+    const [m] = await db.select().from(matchups).where(and(eq(matchups.id, body.matchupId), eq(matchups.leagueId, id))).limit(1)
+    if (!m) return NextResponse.json({ error: 'Matchup not found' }, { status: 404 })
     const patch: Record<string, unknown> = {}
     if ('homeTeamId' in body) patch.homeTeamId = body.homeTeamId
     if ('awayTeamId' in body) patch.awayTeamId = body.awayTeamId || null
@@ -28,6 +30,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if ('awayScore' in body) patch.awayScore = body.awayScore
     if ('isComplete' in body) patch.isComplete = !!body.isComplete
     if (!Object.keys(patch).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+
+    // A franchise can never appear in more than one matchup in the same sport + week.
+    if ('homeTeamId' in body || 'awayTeamId' in body) {
+      const newHome = ('homeTeamId' in body ? body.homeTeamId : m.homeTeamId) || null
+      const newAway = ('awayTeamId' in body ? (body.awayTeamId || null) : m.awayTeamId) || null
+      if (newHome && newAway && newHome === newAway) return NextResponse.json({ error: 'A franchise cannot play itself' }, { status: 400 })
+      const week = await db.select({ id: matchups.id, h: matchups.homeTeamId, a: matchups.awayTeamId }).from(matchups)
+        .where(and(eq(matchups.leagueId, id), eq(matchups.season, league.season), eq(matchups.sport, m.sport), eq(matchups.week, m.week)))
+      const conflict = week.some(o => o.id !== m.id && [o.h, o.a].some(t => t && (t === newHome || t === newAway)))
+      if (conflict) return NextResponse.json({ error: 'That franchise already has a matchup this week in this sport' }, { status: 400 })
+    }
     await db.update(matchups).set(patch).where(and(eq(matchups.id, body.matchupId), eq(matchups.leagueId, id)))
     return NextResponse.json({ ok: true })
   }

@@ -125,7 +125,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
     // Validate the player is eligible for the requested slot.
     const [row] = await db
-      .select({ sport: rosters.sport, slot: rosters.slot, position: players.position, status: players.status, realTeamAbbr: players.realTeamAbbr })
+      .select({ sport: rosters.sport, slot: rosters.slot, position: players.position, status: players.status, realTeamAbbr: players.realTeamAbbr, isRookie: players.isRookie })
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
       .where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
     if (!row) return NextResponse.json({ error: 'Not on roster' }, { status: 400 })
@@ -148,6 +148,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const config = safeParse<Record<string, string[]>>(league?.irEligibleDesignations, defaultIrDesignations([row.sport]))
       if (!irEligible(row.sport, row.status, config))
         return NextResponse.json({ error: `Player's status (${row.status || 'ACTIVE'}) is not IR-eligible in this league` }, { status: 400 })
+    }
+    // Taxi-squad eligibility (e.g. rookies only).
+    if (body.slot === 'TAXI' && (league?.taxiEligibility ?? 'ALL') === 'ROOKIES' && !row.isRookie) {
+      return NextResponse.json({ error: 'Only rookies may be placed on the taxi squad in this league' }, { status: 400 })
     }
     await db.update(rosters).set({ slot: body.slot }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     return NextResponse.json({ ok: true })
