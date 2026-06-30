@@ -9,6 +9,7 @@ import { safeParse, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import LeagueTabs from './LeagueTabs'
+import Ticker from './Ticker'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -80,6 +81,7 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
 
   return (
     <>
+      {!isPast && <Ticker leagueId={id} />}
       <LeagueTabs
         leagueId={id}
         sportsEnabled={sportsEnabled}
