@@ -218,23 +218,7 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
     const losersN = league.losersBracket ? (league.losersTeams ?? nTeams) : 0
     const losersPool = losersN ? ranked.slice(Math.max(nTeams, ranked.length - losersN)) : []
 
-    let consolationPool: { teamId: string }[] = []
-    const hasConsolationGames = games.some(g => (g.bracket ?? '') === 'CONSOLATION')
-    if (league.consolationBracket && !hasConsolationGames) {
-      const winR1 = games.filter(g => (g.bracket ?? 'WINNERS') === 'WINNERS' && g.round === 1 && g.isComplete && g.homeTeamId && g.awayTeamId)
-      consolationPool = winR1
-        .map(g => {
-          const loserId = g.winnerTeamId === g.homeTeamId ? g.awayTeamId : g.homeTeamId
-          const loserSeed = g.winnerTeamId === g.homeTeamId ? g.awaySeed : g.homeSeed
-          return loserId ? { teamId: loserId, seed: loserSeed ?? 99 } : null
-        })
-        .filter((x): x is { teamId: string; seed: number } => !!x)
-        .sort((a, b) => a.seed - b.seed)
-        .map(x => ({ teamId: x.teamId }))
-    }
-
     const pools: { kind: string; pool: { teamId: string }[] }[] = [{ kind: 'WINNERS', pool: ranked.slice(0, nTeams) as { teamId: string }[] }]
-    if (consolationPool.length >= 2 || hasConsolationGames) pools.push({ kind: 'CONSOLATION', pool: consolationPool })
     if (losersPool.length >= 2) pools.push({ kind: 'LOSERS', pool: losersPool as { teamId: string }[] })
     if (pools[0].pool.length < 2) continue
 
@@ -323,6 +307,44 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
           }
           games = await reloadGames()
         }
+      }
+    }
+
+    if (league.consolationBracket) {
+      const winGames = games.filter(g => (g.bracket ?? 'WINNERS') === 'WINNERS')
+      const winRounds = [...new Set(winGames.map(g => g.round))]
+      const finalRound = winRounds.length ? Math.max(...winRounds) : 0
+      for (const r of winRounds) {
+        if (r >= finalRound) continue
+        if (games.some(g => (g.bracket ?? '') === 'CONSOLATION' && g.round === r)) continue
+        const losers = winGames.filter(g => g.round === r && g.isComplete && g.homeTeamId && g.awayTeamId)
+          .map(g => {
+            const loserId = g.winnerTeamId === g.homeTeamId ? g.awayTeamId : g.homeTeamId
+            const loserSeed = g.winnerTeamId === g.homeTeamId ? g.awaySeed : g.homeSeed
+            return loserId ? { teamId: loserId, seed: loserSeed ?? 99 } : null
+          })
+          .filter((x): x is { teamId: string; seed: number } => !!x)
+          .sort((a, b) => a.seed - b.seed)
+        if (losers.length < 2) continue
+        for (let i = 0, mi = 0; i + 1 < losers.length; i += 2, mi++) {
+          await db.insert(playoffGames).values({
+            id: nanoid(), leagueId: league.id, season, sport, round: r, matchIndex: mi, bracket: 'CONSOLATION',
+            homeSeed: losers[i].seed, awaySeed: losers[i + 1].seed, homeTeamId: losers[i].teamId, awayTeamId: losers[i + 1].teamId,
+          })
+        }
+      }
+      games = await reloadGames()
+      for (const g of games.filter(g => (g.bracket ?? '') === 'CONSOLATION' && !g.isComplete && g.homeTeamId && g.awayTeamId)) {
+        const wk = regEnd + g.round + 1
+        if (target < wk) continue
+        const [anyReal] = await db.select({ id: realStatLines.id }).from(realStatLines)
+          .where(and(eq(realStatLines.sport, sport), eq(realStatLines.season, season), eq(realStatLines.week, wk))).limit(1)
+        if (!anyReal) continue
+        const hs = await scoreTeam(league, sport, g.homeTeamId!, scoring, league.mlbSpCap ?? 0, target)
+        let as = await scoreTeam(league, sport, g.awayTeamId!, scoring, league.mlbSpCap ?? 0, target)
+        if (hs === as) as -= 0.1
+        const winner = hs > as ? g.homeTeamId : g.awayTeamId
+        await db.update(playoffGames).set({ homeScore: hs, awayScore: as, winnerTeamId: winner, isComplete: true }).where(eq(playoffGames.id, g.id))
       }
     }
   }

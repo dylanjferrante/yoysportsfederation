@@ -158,7 +158,7 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
                 <ProjectedSeeds sport={sport} records={records} teamById={teamById} n={n} />
               )}
 
-              <SideBracket title="Consolation Bracket" games={bracketGames('CONSOLATION')} teamById={teamById} />
+              <SideBracket title="Consolation — Placement Games" games={bracketGames('CONSOLATION')} teamById={teamById} placement />
               <SideBracket title="Losers Bracket" games={bracketGames('LOSERS')} teamById={teamById} />
             </div>
           )
@@ -168,10 +168,11 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
   )
 }
 
-function SideBracket({ title, games, teamById }: { title: string; games: any[]; teamById: Record<string, any> }) {
+function SideBracket({ title, games, teamById, placement }: { title: string; games: any[]; teamById: Record<string, any>; placement?: boolean }) {
   if (!games.length) return null
-  const rounds = [...new Set(games.map(g => g.round))].sort((a, b) => a - b)
+  const rounds = [...new Set(games.map(g => g.round))].sort((a, b) => placement ? b - a : a - b)
   const total = rounds.length
+  const colLabel = (ri: number) => { if (!placement) return roundName(ri, total); const place = 3 + 2 * ri; return place === 3 ? '3rd Place' : `${place}th Place` }
   const slot = (g: any, home: boolean) => {
     const teamId = home ? g.homeTeamId : g.awayTeamId
     const seed = home ? g.homeSeed : g.awaySeed
@@ -193,7 +194,7 @@ function SideBracket({ title, games, teamById }: { title: string; games: any[]; 
       <div className="flex gap-4 overflow-x-auto pb-2">
         {rounds.map((rnd, ri) => (
           <div key={rnd} className="flex-shrink-0 w-44">
-            <p className="text-[11px] font-bold text-slate-400 uppercase mb-2 text-center">{roundName(ri, total)}</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase mb-2 text-center">{colLabel(ri)}</p>
             <div className="space-y-3">
               {games.filter(g => g.round === rnd).sort((a, b) => a.matchIndex - b.matchIndex).map(g => (
                 <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
