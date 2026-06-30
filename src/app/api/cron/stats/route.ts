@@ -3,7 +3,7 @@ import { db } from '@/db'
 import { leagues } from '@/db/schema'
 import { safeParse } from '@/lib/utils'
 import { tank01Configured } from '@/lib/providers/tank01'
-import { ingestDateForSeasons, fantasyWeekOf, usageThisMonth, MONTHLY_CAP, type IngestMode } from '@/lib/livestats'
+import { ingestDateForSeasons, fantasyWeekOf, usageThisMonth, MONTHLY_CAP, deriveProjections, type IngestMode } from '@/lib/livestats'
 import { advanceLeague, rescoreWeeks } from '@/lib/advance'
 
 // ── Scheduled live-stats pull ────────────────────────────────────────────────
@@ -69,7 +69,11 @@ async function run(req: Request) {
     summary[league.id] = { rescored: new Set(affected.map(a => `${a.sport}:${a.week}`)).size }
   }
 
-  return NextResponse.json({ ok: true, mode, calls, used: await usageThisMonth(), cap: MONTHLY_CAP, leagues: all.length, summary })
+  // Refresh projections from the freshly-ingested real stats (no API calls).
+  let projected = 0
+  for (const season of new Set(all.map(l => l.season))) projected += (await deriveProjections(season)).updated
+
+  return NextResponse.json({ ok: true, mode, calls, used: await usageThisMonth(), cap: MONTHLY_CAP, leagues: all.length, projected, summary })
 }
 
 export async function GET(req: Request) { return run(req) }
