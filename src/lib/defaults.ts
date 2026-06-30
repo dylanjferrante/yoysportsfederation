@@ -367,32 +367,31 @@ export function sportsActiveInWeek(schedule: ScheduleEntry[], week: number): str
   return schedule.filter(s => week >= s.startWeek && week <= s.endWeek).map(s => s.sport)
 }
 
-// Shared week axis is anchored to Sep 1 of the season's first year; each league
-// week spans 7 days. Mirrors the anchor used by the auto-advance engine.
-export function seasonAnchor(season: string): number {
+const PHASE_ANCHOR_DATE: Record<string, [number, number]> = { FOOTBALL: [8, 1], WINTER: [9, 15], BASEBALL: [2, 26] }
+
+export function seasonAnchor(season: string, seasonStart: string = 'FOOTBALL'): number {
   const yr = parseInt(season?.slice(0, 4)) || new Date().getFullYear()
-  return new Date(yr, 8, 1).getTime()
+  const first = (PHASE_ORDER_FROM[seasonStart] ?? PHASE_ORDER_FROM.FOOTBALL)[0]
+  const [mo, day] = PHASE_ANCHOR_DATE[first] ?? PHASE_ANCHOR_DATE.FOOTBALL
+  return new Date(yr, mo, day).getTime()
 }
 
-export function weekDateRange(season: string, week: number): { start: Date; end: Date } {
-  const anchor = seasonAnchor(season)
+export function weekDateRange(season: string, week: number, seasonStart: string = 'FOOTBALL'): { start: Date; end: Date } {
+  const anchor = seasonAnchor(season, seasonStart)
   const start = new Date(anchor + (week - 1) * 7 * 86_400_000)
   const end = new Date(start.getTime() + 6 * 86_400_000)
   return { start, end }
 }
 
-export function formatWeekRange(season: string, week: number, opts?: { year?: boolean }): string {
-  const { start, end } = weekDateRange(season, week)
+export function formatWeekRange(season: string, week: number, opts?: { year?: boolean; seasonStart?: string }): string {
+  const { start, end } = weekDateRange(season, week, opts?.seasonStart)
   const m = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const yr = opts?.year ? `, ${end.getFullYear()}` : ''
   return `${m(start)} – ${m(end)}${yr}`
 }
 
-// Break-aware date range: break weeks (all-star / Olympics) aren't empty byes —
-// the matchup that week spans the break, covering extra calendar weeks, and every
-// later week shifts out. `breaks` is the per-sport list of break weeks.
-export function weekDateRangeWithBreaks(season: string, week: number, breaks: number[] = []): { start: Date; end: Date; spanWeeks: number } {
-  const anchor = seasonAnchor(season)
+export function weekDateRangeWithBreaks(season: string, week: number, breaks: number[] = [], seasonStart: string = 'FOOTBALL'): { start: Date; end: Date; spanWeeks: number } {
+  const anchor = seasonAnchor(season, seasonStart)
   const before = breaks.filter(b => b < week).length
   const spanWeeks = 1 + (breaks.includes(week) ? 1 : 0)
   const start = new Date(anchor + (week - 1 + before) * 7 * 86_400_000)
@@ -400,8 +399,8 @@ export function weekDateRangeWithBreaks(season: string, week: number, breaks: nu
   return { start, end, spanWeeks }
 }
 
-export function formatWeekRangeWithBreaks(season: string, week: number, breaks: number[] = []): string {
-  const { start, end } = weekDateRangeWithBreaks(season, week, breaks)
+export function formatWeekRangeWithBreaks(season: string, week: number, breaks: number[] = [], seasonStart: string = 'FOOTBALL'): string {
+  const { start, end } = weekDateRangeWithBreaks(season, week, breaks, seasonStart)
   const m = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   return `${m(start)} – ${m(end)}`
 }

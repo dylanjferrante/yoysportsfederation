@@ -4,7 +4,7 @@ import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStat
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
-import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, lineupCadenceFor, type ScheduleEntry } from '@/lib/defaults'
+import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, lineupCadenceFor, seasonAnchor, type ScheduleEntry } from '@/lib/defaults'
 import { weekDates, gameDateOf, leagueDayLineups } from '@/lib/dailylineup'
 import { scorePlayer } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
@@ -73,9 +73,8 @@ function sumWithSpCap(sport: string, starters: { position: string; pts: number }
   return total
 }
 
-function targetWeek(season: string, now = Date.now()): number {
-  const yr = parseInt(season.slice(0, 4)) || new Date().getFullYear()
-  const anchor = new Date(yr, 8, 1).getTime()
+function targetWeek(season: string, seasonStart: string = 'FOOTBALL', now = Date.now()): number {
+  const anchor = seasonAnchor(season, seasonStart)
   return Math.floor((now - anchor) / (7 * 86_400_000)) + 1
 }
 
@@ -333,7 +332,7 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
 
 async function advanceSeason(league: any): Promise<void> {
   const sports = safeParse<string[]>(league.sportsEnabled, [])
-  const target = targetWeek(league.season)
+  const target = targetWeek(league.season, league.seasonStart)
   if (target < 1) return
 
   const due = await db.select({ sport: matchups.sport, week: matchups.week }).from(matchups)
@@ -425,7 +424,7 @@ export async function advanceLeague(leagueOrId: string | any, force = false): Pr
 
     let current = league.season
     const nxt = nextSeason(current)
-    if (targetWeek(nxt) >= 1 && !(await seasonExists(league.id, nxt))) {
+    if (targetWeek(nxt, league.seasonStart) >= 1 && !(await seasonExists(league.id, nxt))) {
       await finalizeSeason({ ...league, season: current })
       await snapshotSeasonBranding(league.id, current)
       await createSeason(league, nxt)

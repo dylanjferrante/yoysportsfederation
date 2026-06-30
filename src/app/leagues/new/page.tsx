@@ -79,7 +79,7 @@ export default function CreateLeaguePage() {
                 <div key={e.sport} className="flex flex-wrap items-center gap-2 text-[11px]">
                   <span className={`inline-flex items-center gap-1 font-semibold w-14 ${sportMeta(e.sport).color}`}><span>{sportMeta(e.sport).emoji}</span>{e.sport}</span>
                   <span className="text-slate-600">Weeks {e.startWeek}–{e.endWeek}</span>
-                  <span className="text-slate-400">{formatWeekRange(form.season, e.startWeek)} → {formatWeekRange(form.season, e.endWeek)}</span>
+                  <span className="text-slate-400">{formatWeekRange(form.season, e.startWeek, { year: true, seasonStart: form.seasonStart })} → {formatWeekRange(form.season, e.endWeek, { year: true, seasonStart: form.seasonStart })}</span>
                 </div>
               ))}
             </div>
