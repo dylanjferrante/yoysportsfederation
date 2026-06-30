@@ -116,6 +116,7 @@ CREATE TABLE leagues (
   waiver_period_days INTEGER DEFAULT 2,
   transaction_limits TEXT DEFAULT '{}',
   ir_eligible_designations TEXT DEFAULT '{}',
+  taxi_eligibility TEXT DEFAULT 'ALL',
   defense_mode TEXT DEFAULT 'TEAM',
   playoff_format TEXT DEFAULT 'H2H',
   weeks_per_round INTEGER DEFAULT 1,
