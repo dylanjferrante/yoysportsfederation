@@ -11,7 +11,7 @@ import DuesPanel from '../DuesPanel'
 import ScheduleEditor from './ScheduleEditor'
 
 const ALL_SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
-const TABS = ['General', 'Franchises', 'Sports & Schedule', 'Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation']
+const TABS = ['General', 'Franchises', 'Sports & Schedule', 'Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Live Stats']
 
 export default function CommissionerSettings() {
   const params = useParams<{ id: string }>()
@@ -1102,8 +1102,76 @@ export default function CommissionerSettings() {
             </div>
           </>
         )}
+
+        {tab === 'Live Stats' && <LiveStatsPanel leagueId={params.id as string} />}
       </div>
     </div>
+  )
+}
+
+// Commissioner live-stats control: shows the monthly API budget and lets the
+// commissioner pull finished games now (re-scoring affected weeks from real stats).
+function LiveStatsPanel({ leagueId }: { leagueId: string }) {
+  const [status, setStatus] = useState<{ configured: boolean; used: number; cap: number } | null>(null)
+  const [days, setDays] = useState(2)
+  const [pulling, setPulling] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+
+  useEffect(() => { fetch(`/api/leagues/${leagueId}/stats`).then(r => r.json()).then(setStatus).catch(() => {}) }, [leagueId])
+
+  async function pull() {
+    setPulling(true); setResult(null)
+    try {
+      const r = await fetch(`/api/leagues/${leagueId}/stats`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days }) })
+      const j = await r.json()
+      if (!r.ok) { setResult(j.error ?? 'Pull failed'); return }
+      const ingested = Object.values(j.results ?? {}).reduce((a: number, x: any) => a + (x.ingested ?? 0), 0)
+      setStatus(s => s ? { ...s, used: j.used ?? s.used } : s)
+      setResult(`Pulled ${ingested} player stat line${ingested === 1 ? '' : 's'} and re-scored affected weeks.`)
+    } catch { setResult('Pull failed') } finally { setPulling(false) }
+  }
+
+  const pct = status && status.cap ? Math.min(100, Math.round((status.used / status.cap) * 100)) : 0
+  return (
+    <>
+      <h3 className="font-semibold text-slate-900">Live Stats</h3>
+      <p className="text-sm text-slate-500">Real game stats are pulled from the sports data provider (Tank01) and used to score matchups. The simulator only fills players with no real stat line yet.</p>
+
+      {status && !status.configured && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          No provider key is configured. Set <code className="font-mono">TANK01_RAPIDAPI_KEY</code> in the environment to enable real stats. Until then, scoring uses the simulator.
+        </div>
+      )}
+
+      {status && (
+        <div className="card p-4 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-slate-700">Monthly API usage</span>
+            <span className="tabular-nums text-slate-600">{status.used} / {status.cap} calls</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full bg-slate-800" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-xs text-slate-400">The pull job is hard-capped at this budget so a free-tier key is never exceeded.</p>
+        </div>
+      )}
+
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-slate-600">Lookback</label>
+          <select className="input w-auto py-1 text-sm" value={days} onChange={e => setDays(+e.target.value)}>
+            {[1, 2, 3, 5, 7].map(d => <option key={d} value={d}>{d} day{d === 1 ? '' : 's'}</option>)}
+          </select>
+          <button onClick={pull} disabled={pulling || !status?.configured} className="btn-primary text-sm disabled:opacity-50">
+            {pulling ? 'Pulling…' : 'Pull finished games now'}
+          </button>
+        </div>
+        {result && <p className="text-sm text-slate-600">{result}</p>}
+        <p className="text-xs text-slate-400">
+          For automatic daily updates, schedule <code className="font-mono">/api/cron/stats</code> (protected by <code className="font-mono">CRON_SECRET</code>) to run nightly after games finish — e.g. a cron job curling it at 1am, or <code className="font-mono">npm run stats:pull</code>.
+        </p>
+      </div>
+    </>
   )
 }
 

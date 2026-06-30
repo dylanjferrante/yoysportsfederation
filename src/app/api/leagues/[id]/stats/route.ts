@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm'
 import { safeParse } from '@/lib/utils'
 import { tank01Configured } from '@/lib/providers/tank01'
 import { ingestDate, usageThisMonth, MONTHLY_CAP } from '@/lib/livestats'
-import { advanceLeague } from '@/lib/advance'
+import { advanceLeague, rescoreWeeks } from '@/lib/advance'
 
 // Live-stats status (GET) and a commissioner-triggered pull (POST).
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -27,16 +27,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // Pull finished games for the league's enabled sports across the last `days` days.
   const { days = 2 } = await req.json().catch(() => ({})) as { days?: number }
   const sports = safeParse<string[]>(league.sportsEnabled, []) as any[]
-  const results: Record<string, { ingested: number; calls: number; skipped?: string }> = {}
+  const results: Record<string, { ingested: number; calls: number; week?: number; skipped?: string }> = {}
+  const affected: { sport: string; week: number }[] = []
   for (let d = 0; d < Math.min(days, 7); d++) {
     const date = new Date(Date.now() - d * 86_400_000)
     for (const sport of sports) {
       const r = await ingestDate(sport, date, league.season)
-      const key = `${sport}:${date.toISOString().slice(0, 10)}`
-      results[key] = r
+      results[`${sport}:${date.toISOString().slice(0, 10)}`] = r
+      if (r.ingested > 0 && r.week) affected.push({ sport, week: r.week })
     }
   }
-  // Re-score with the freshly ingested real stats.
+  // Re-score the weeks that received real stats (overwrites simulated scores),
+  // then bring the rest of the league up to date.
+  await rescoreWeeks(league, affected)
   await advanceLeague(league, true)
   return NextResponse.json({ ok: true, used: await usageThisMonth(), cap: MONTHLY_CAP, results })
 }

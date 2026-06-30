@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "db:reset": "tsx src/db/migrate.ts && tsx src/db/seed.ts",
     "setup": "npm install && npm run db:reset",
+    "stats:pull": "tsx scripts/stats-pull.ts",
     "tank01:probe": "tsx scripts/tank01-probe.ts",
     "tank01:pull": "tsx scripts/tank01-pull.ts",
     "tank01:sync": "tsx scripts/tank01-sync.ts"
