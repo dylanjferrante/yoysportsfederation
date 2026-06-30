@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Rajdhani } from 'next/font/google'
 import './globals.css'
 import Providers from './providers'
 import Navbar from '@/components/Navbar'
 import ServiceWorker from '@/components/ServiceWorker'
 
 const inter = Inter({ subsets: ['latin'] })
+const scoreFont = Rajdhani({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-score' })
 
 export const metadata: Metadata = {
   title: { default: 'Nexus Fantasy', template: '%s | Nexus Fantasy' },
@@ -24,7 +25,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en" className={`${inter.className} ${scoreFont.variable}`}>
       <head>
         <link rel="stylesheet" href="https://use.typekit.net/gqo1xyn.css" />
       </head>
