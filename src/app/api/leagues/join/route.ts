@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const members = await db.select({ id: leagueMembers.id }).from(leagueMembers).where(eq(leagueMembers.leagueId, league.id))
     if (members.length >= (league.maxTeams ?? 12)) return NextResponse.json({ error: 'This league is full' }, { status: 400 })
 
-    const sportsEnabled = safeParse<string[]>(league.sportsEnabled, ['NFL', 'NBA', 'NHL', 'MLB'])
+    const sportsEnabled = safeParse<string[]>(league.sportsEnabled, ['NFL', 'NHL', 'NBA', 'MLB'])
 
     await db.insert(leagueMembers).values({ id: nanoid(), leagueId: league.id, userId: session.user.id, role: 'MEMBER' })
 

@@ -22,7 +22,7 @@ type Claim = {
   mine: boolean
 }
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 const POS: Record<string, string[]> = {
   NFL: ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'],
   NBA: ['PG', 'SG', 'SF', 'PF', 'C'],

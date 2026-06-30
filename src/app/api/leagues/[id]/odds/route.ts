@@ -13,7 +13,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!league) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const season = league.season
-  const sportsEnabled = safeParse<string[]>(league.sportsEnabled, ['NFL', 'NBA', 'NHL', 'MLB'])
+  const sportsEnabled = safeParse<string[]>(league.sportsEnabled, ['NFL', 'NHL', 'NBA', 'MLB'])
   const fs = safeParse<FederationScoring>(league.federationScoring, defaultFederationScoring(league.maxTeams ?? 12, sportsEnabled))
   const includedSports = fs.includedSports ?? sportsEnabled
 

@@ -14,7 +14,7 @@ export default function Marketplace() {
   const { id } = useParams<{ id: string }>()
   const [rows, setRows] = useState<Row[]>([])
   const [sport, setSport] = useState('ALL')
-  const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+  const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
   useEffect(() => { fetch(`/api/leagues/${id}/marketplace`).then(r => r.json()).then(d => setRows(Array.isArray(d) ? d : [])) }, [id])
 

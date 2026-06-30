@@ -6,7 +6,7 @@ import TransactionsView from './TransactionsView'
 
 export const metadata = { title: 'Transactions' }
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
 export default async function TransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

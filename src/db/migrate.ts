@@ -80,7 +80,7 @@ CREATE TABLE leagues (
   description TEXT,
   logo_url TEXT,
   division_logos TEXT DEFAULT '{}',
-  sports_enabled TEXT DEFAULT '["NFL","NBA","NHL","MLB"]',
+  sports_enabled TEXT DEFAULT '["NFL","NHL","NBA","MLB"]',
   season_start TEXT DEFAULT 'FOOTBALL',
   sport_schedule TEXT DEFAULT '[]',
   roster_settings TEXT DEFAULT '{}',

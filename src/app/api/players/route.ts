@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 
   // When no single sport is requested, fetch a balanced top-N PER sport so
   // low-scoring sports (NHL) aren't buried under a global points sort.
-  const wantSports = sport ? [sport] : ['NFL', 'NBA', 'NHL', 'MLB']
+  const wantSports = sport ? [sport] : ['NFL', 'NHL', 'NBA', 'MLB']
   const perSport = sport ? (rich ? 350 : 250) : (rich ? 90 : 70)
   const result = (await Promise.all(wantSports.map(sp =>
     db.select().from(players)

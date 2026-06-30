@@ -309,7 +309,7 @@ db.exec(`UPDATE players SET adp = (SELECT COUNT(*) + 1 FROM players p2 WHERE p2.
 
 // ── One unified federation league ──────────────────────────────────────────
 
-const SPORT_LIST = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORT_LIST = ['NFL', 'NHL', 'NBA', 'MLB']
 const POOLS: Record<string, PlayerSeed[]> = { NFL: NFL_ALL, NBA: NBA_ALL, NHL: NHL_ALL, MLB: MLB_ALL }
 const CURRENT_SEASON = '2025-26'
 const PRIOR_SEASONS = ['2024-25', '2023-24']

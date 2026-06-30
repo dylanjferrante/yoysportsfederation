@@ -8,7 +8,7 @@ import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { computeFederationStandings } from '@/lib/federation'
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
 async function draftOrder(leagueId: string, season: string, manualOrderJson?: string | null) {
   const franchises = await db.select().from(teams).where(eq(teams.leagueId, leagueId))

@@ -19,7 +19,7 @@ type Pick = { id: string; sport: string | null; round: number; year: number }
 type Team = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; wordmark: string | null; primaryColor: string; secondaryColor: string; leagueId: string; userId: string; ownerName: string | null }
 type FA = { id: string; name: string; position: string; realTeam: string; seasonPoints: number; status: string }
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 const STARTER = (slot: string) => !['BN', 'IR', 'IL', 'DL', 'TAXI'].includes(slot)
 
 export default function TeamPage() {
