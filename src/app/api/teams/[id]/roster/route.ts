@@ -9,8 +9,8 @@ import { safeParse } from '@/lib/utils'
 import { slotEligible, irEligible, defaultIrDesignations } from '@/lib/defaults'
 import { logActivity } from '@/lib/activity'
 import { realOpponents } from '@/lib/realschedule'
-import { scheduleOpponents } from '@/lib/schedule'
-import { isPlayerLocked, playerKickoff } from '@/lib/locks'
+import { scheduleOpponents, scheduleKickoffs } from '@/lib/schedule'
+import { playerKickoff } from '@/lib/locks'
 import { placeOnWaivers, onWaivers } from '@/lib/waivers'
 import { isTeamManager } from '@/lib/permissions'
 import { teamManagers } from '@/db/schema'
@@ -69,17 +69,21 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const sportsOnRoster = [...new Set(roster.map(r => r.sport))]
   const leagueSeason = league?.season ?? ''
   const oppMaps: Record<string, Record<string, { opp: string; home: boolean }>> = {}
+  const koMaps: Record<string, Record<string, number> | null> = {} // real kickoff (epoch ms) per team
   for (const sp of sportsOnRoster) {
     const week = curWeek[sp] ?? 1
     const abbrs = (await db.select({ a: players.realTeamAbbr }).from(players).where(eq(players.sport, sp))).map(r => r.a).filter(Boolean) as string[]
     oppMaps[sp] = (await scheduleOpponents(sp, leagueSeason, abbrs, week)) ?? realOpponents(abbrs, week)
+    koMaps[sp] = await scheduleKickoffs(sp, leagueSeason, week)
   }
 
   const season = league?.season ?? ''
   const enriched = roster.map(r => {
     const a = agg[r.id]
     const wk = curWeek[r.sport] ?? 1
-    const kickoff = playerKickoff(r.sport, r.realTeamAbbr, season, wk)
+    // Prefer the real kickoff from the schedule; fall back to the synthetic one.
+    const realKo = r.realTeamAbbr ? koMaps[r.sport]?.[r.realTeamAbbr] : null
+    const kickoff = realKo ?? playerKickoff(r.sport, r.realTeamAbbr, season, wk)
     return {
       ...r,
       gp: a?.gp ?? 0,
@@ -87,7 +91,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       seasonStats: a?.season ?? {},
       opp: r.realTeamAbbr ? (oppMaps[r.sport]?.[r.realTeamAbbr] ?? null) : null,
       kickoff,
-      locked: isPlayerLocked(r.sport, r.realTeamAbbr, season, wk),
+      locked: kickoff != null && Date.now() >= kickoff,
     }
   }).sort((x, y) => (y.seasonPoints ?? 0) - (x.seasonPoints ?? 0))
 
@@ -142,7 +146,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .where(and(eq(matchups.leagueId, team.leagueId), eq(matchups.sport, row.sport), eq(matchups.isComplete, false)))
         .orderBy(matchups.week).limit(1)
       const wk = cur?.week ?? 1
-      if (isPlayerLocked(row.sport, row.realTeamAbbr, league?.season ?? '', wk))
+      // Prefer the real game time; fall back to the synthetic kickoff.
+      const realKo = (await scheduleKickoffs(row.sport, league?.season ?? '', wk))?.[row.realTeamAbbr ?? '']
+      const ko = realKo ?? playerKickoff(row.sport, row.realTeamAbbr, league?.season ?? '', wk)
+      if (ko != null && Date.now() >= ko)
         return NextResponse.json({ error: `${row.position} is locked — their game has already started` }, { status: 400 })
     }
     if (!slotEligible(row.position, body.slot)) return NextResponse.json({ error: `Not eligible for ${body.slot}` }, { status: 400 })
@@ -188,6 +195,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: 'Only the owner or commissioner can set contracts' }, { status: 403 })
     const salary = Math.max(0, Math.round(body.salary ?? 0))
     const years = body.contractYears == null ? null : Math.max(0, Math.round(body.contractYears))
+    // Hard cap: block a contract that would put the team over the salary cap.
+    if ((league.capMode ?? 'SOFT') === 'HARD') {
+      const rows = await db.select({ rid: rosters.id, salary: rosters.salary }).from(rosters).where(eq(rosters.teamId, id))
+      const total = rows.reduce((sum, r) => sum + (r.rid === body.rosterId ? salary : (r.salary ?? 0)), 0)
+      if (total > (league.salaryCap ?? 0))
+        return NextResponse.json({ error: `Over the hard salary cap: ${total} > ${league.salaryCap ?? 0}` }, { status: 400 })
+    }
     await db.update(rosters).set({ salary, contractYears: years }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     return NextResponse.json({ ok: true })
   }

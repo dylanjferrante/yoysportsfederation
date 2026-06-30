@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 import { nanoid } from 'nanoid'
 import path from 'path'
 import fs from 'fs'
-import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, dynastyDraftRounds, defaultWaiverSchedule, defaultIrDesignations, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, RESERVE_SLOTS } from '../lib/defaults'
+import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, dynastyDraftRounds, defaultWaiverSchedule, defaultIrDesignations, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, RESERVE_SLOTS, weekDateRange } from '../lib/defaults'
 import { defaultFederationScoring } from '../lib/federation'
 import { scorePlayer, generateStatLine } from '../lib/scoring'
 
@@ -325,6 +325,40 @@ for (const sport of ['NFL', 'NBA', 'NHL', 'MLB']) {
   scheduleTotal += games.length
 }
 if (scheduleTotal) console.log(`  Loaded ${scheduleTotal} real scheduled games into game_schedule`)
+
+// Derive NFL bye weeks from the real schedule: the in-season fantasy week a team
+// has no game (each NFL team has exactly one). Maps each regular-season game date
+// to its fantasy week, then finds the single gap in the team's run of weeks.
+{
+  const SEASON = '2025-26'
+  const fantasyWeekOfYmd = (ymd: string): number | null => {
+    const d = new Date(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8))
+    for (let w = 1; w <= 25; w++) {
+      const { start, end } = weekDateRange(SEASON, w)
+      if (d >= start && d <= new Date(end.getTime() + 86_400_000)) return w
+    }
+    return null
+  }
+  const nflGames = db.prepare(`SELECT home_abbr, away_abbr, game_date FROM game_schedule WHERE sport='NFL' AND season_type LIKE '%egular%'`).all() as { home_abbr: string; away_abbr: string; game_date: string }[]
+  const weeksByTeam: Record<string, Set<number>> = {}
+  for (const g of nflGames) {
+    const w = fantasyWeekOfYmd(g.game_date)
+    if (w == null) continue // a different season's game (we store 2025 + 2026)
+    for (const ab of [g.home_abbr, g.away_abbr]) (weeksByTeam[ab] ??= new Set()).add(w)
+  }
+  const setBye = db.prepare(`UPDATE players SET bye_week=? WHERE sport='NFL' AND real_team_abbr=?`)
+  let byes = 0
+  const tx = db.transaction(() => {
+    for (const [ab, weeks] of Object.entries(weeksByTeam)) {
+      const arr = [...weeks].sort((a, b) => a - b)
+      for (let w = arr[0] + 1; w < arr[arr.length - 1]; w++) {
+        if (!weeks.has(w)) { setBye.run(w, ab); byes++; break }
+      }
+    }
+  })
+  tx()
+  if (byes) console.log(`  Derived NFL bye weeks for ${byes} teams from the schedule`)
+}
 
 // ── One unified federation league ──────────────────────────────────────────
 
