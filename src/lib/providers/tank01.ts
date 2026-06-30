@@ -63,12 +63,18 @@ const EP = (sport: Sport) => ({
   players: `get${sport}PlayerList`,
   projections: `get${sport}Projections`,
   boxScore: `get${sport}BoxScore`,
-  gamesForDate: `get${sport}GamesForDate`,
+  // Per-date schedule. NOTE: get<Sport>GamesForDate does NOT carry a gameStatus
+  // field for MLB or NBA (only NFL/NHL include it), so it can't be used to tell
+  // finished games from scheduled ones. get<Sport>ScoresOnly returns gameStatus
+  // ("Completed", live status, etc.) for ALL four sports, so we filter on that.
+  scoresForDate: `get${sport}ScoresOnly`,
 })
 
 // One provider call each (budget-tracked by the caller). Used by the ingestion job.
+// Returns every game on the date with a real status, so the caller can keep only
+// finished (or, in LIVE mode, in-progress) games before spending a box-score call.
 export async function tank01GamesForDate(sport: Sport, yyyymmdd: string): Promise<{ gameId: string; status: string }[]> {
-  const body = await call<any>(sport, EP(sport).gamesForDate, { gameDate: yyyymmdd }, 0)
+  const body = await call<any>(sport, EP(sport).scoresForDate, { gameDate: yyyymmdd }, 0)
   const rows: any[] = Array.isArray(body) ? body : Object.values(body ?? {})
   return rows.map(g => ({ gameId: String(g.gameID ?? g.gameId ?? g.id ?? ''), status: String(g.gameStatus ?? g.status ?? '') }))
 }
