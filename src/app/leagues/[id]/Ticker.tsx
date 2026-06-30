@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
@@ -16,15 +16,20 @@ const CATEGORY_TITLE: Record<string, string> = {
   FORM: 'Form', PACE: 'Pace', FEDERATION: 'Federation', GOVERNANCE: 'League Office', SCHEDULE: 'Schedule',
 }
 
-type Snapshot = { scores: Card[]; news: News[]; cardIdx: number; startedAt?: number }
+type Snapshot = { scores: Card[]; news: News[]; cardIdx: number; topicIdx: number }
 const tickerCache = new Map<string, Snapshot>()
 
 export default function Ticker({ leagueId }: { leagueId: string }) {
   const [scores, setScores] = useState<Card[]>(() => tickerCache.get(leagueId)?.scores ?? [])
   const [news, setNews] = useState<News[]>(() => tickerCache.get(leagueId)?.news ?? [])
   const [cardIdx, setCardIdx] = useState(() => tickerCache.get(leagueId)?.cardIdx ?? 0)
+  const [topicIdx, setTopicIdx] = useState(() => tickerCache.get(leagueId)?.topicIdx ?? 0)
   const [hidden, setHidden] = useState(false)
   const [ready, setReady] = useState(false)
+
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const animRef = useRef<Animation | null>(null)
 
   useEffect(() => {
     setHidden(typeof window !== 'undefined' && localStorage.getItem('nf_wire_hidden') === '1')
@@ -38,7 +43,7 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
       const sc = d.scores ?? [], nw = d.news ?? []
       setScores(sc); setNews(nw)
       const c = tickerCache.get(leagueId)
-      tickerCache.set(leagueId, { scores: sc, news: nw, cardIdx: c?.cardIdx ?? 0, startedAt: c?.startedAt })
+      tickerCache.set(leagueId, { scores: sc, news: nw, cardIdx: c?.cardIdx ?? 0, topicIdx: c?.topicIdx ?? 0 })
     }).catch(() => {})
     load()
     const iv = setInterval(() => { if (document.visibilityState === 'visible') load() }, 45_000)
@@ -47,12 +52,12 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
 
   useEffect(() => {
     const c = tickerCache.get(leagueId)
-    if (c) tickerCache.set(leagueId, { ...c, cardIdx })
-  }, [leagueId, cardIdx])
+    if (c) tickerCache.set(leagueId, { ...c, cardIdx, topicIdx })
+  }, [leagueId, cardIdx, topicIdx])
 
   useEffect(() => {
     if (scores.length <= 1) return
-    const iv = setInterval(() => setCardIdx(i => (i + 1) % scores.length), 4500)
+    const iv = setInterval(() => setCardIdx(i => (i + 1) % scores.length), 5000)
     return () => clearInterval(iv)
   }, [scores.length])
 
@@ -70,6 +75,23 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
     })
   }, [news])
 
+  useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
+
+  useEffect(() => {
+    if (hidden || !topics.length) return
+    const el = scrollerRef.current, vp = viewportRef.current
+    if (!el || !vp) return
+    const W = el.scrollWidth, V = vp.clientWidth
+    const speed = 90
+    const anim = el.animate(
+      [{ transform: `translateX(${V}px)` }, { transform: `translateX(${-W}px)` }],
+      { duration: Math.max(7000, ((V + W) / speed) * 1000), easing: 'linear' },
+    )
+    animRef.current = anim
+    anim.onfinish = () => setTopicIdx(i => (topics.length ? (i + 1) % topics.length : 0))
+    return () => { anim.cancel(); animRef.current = null }
+  }, [topicIdx, topics, hidden])
+
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
 
   if (!ready) return null
@@ -80,7 +102,7 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
         <button onClick={() => setHiddenPersist(false)} className="show">📡 Show Wire</button>
         <style jsx>{`
           .wirebar { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; justify-content: center; background: #0f172a; }
-          .show { color: #cbd5e1; font-size: .68rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: .3rem .8rem; }
+          .show { color: #cbd5e1; font-size: .68rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: .35rem .8rem; }
           .show:hover { color: #fff; }
         `}</style>
       </div>
@@ -90,35 +112,16 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
   if (!scores.length && !topics.length) return null
 
   const card = scores.length ? scores[cardIdx % scores.length] : null
+  const topic = topics.length ? topics[topicIdx % topics.length] : null
+  const queue = topics.length > 1
+    ? Array.from({ length: Math.min(5, topics.length - 1) }, (_, k) => topics[(topicIdx + 1 + k) % topics.length])
+    : []
 
-  const totalChars = topics.reduce((n, t) => n + t.title.length + 6 + t.items.reduce((m, h) => m + h.text.length + 4, 0), 0)
-  const duration = Math.max(28, Math.round(totalChars * 0.16))
-  const startedAt = (() => {
-    const c = tickerCache.get(leagueId)
-    if (c?.startedAt) return c.startedAt
-    const now = Date.now()
-    tickerCache.set(leagueId, { scores, news, cardIdx, startedAt: now })
-    return now
-  })()
-  const delay = -(((Date.now() - startedAt) / 1000) % duration)
-
-  const Strip = ({ k }: { k: string }) => (
-    <div className="strip" aria-hidden={k === 'b'}>
-      {topics.map(t => (
-        <span className="seg" key={`${k}-${t.key}`}>
-          <span className="ttile" style={{ background: t.sport ? sportMeta(t.sport).hex : '#1e293b' }}>
-            {t.sport && <span className="tdot">{sportMeta(t.sport).emoji}</span>}
-            {t.title}
-          </span>
-          {t.items.map(h => (
-            <Link key={`${k}-${h.id}`} href={h.href} className="item">
-              <span className="text">{h.text}</span>
-              <span className="dot">•</span>
-            </Link>
-          ))}
-        </span>
-      ))}
-    </div>
+  const TopicTile = ({ t, main }: { t: Topic; main?: boolean }) => (
+    <span className={`tile ${main ? 'tmain' : ''}`} style={{ background: t.sport ? sportMeta(t.sport).hex : (main ? '#334155' : '#1e293b') }}>
+      {t.sport && <span className="tdot">{sportMeta(t.sport).emoji}</span>}
+      {t.title}
+    </span>
   )
 
   const Team = ({ s, pre }: { s: Side; pre?: boolean }) => (
@@ -144,50 +147,71 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
         </Link>
       )}
 
-      {topics.length > 0 && (
-        <div className="viewport">
-          <div className="track" style={{ animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>
-            <Strip k="a" />
-            <Strip k="b" />
+      {topic && (
+        <div className="main">
+          <span className="mainpin" key={`pin-${topicIdx}`}><TopicTile t={topic} main /></span>
+          <div className="viewport" ref={viewportRef}
+            onMouseEnter={() => animRef.current?.pause()} onMouseLeave={() => animRef.current?.play()}>
+            <div className="scroller" ref={scrollerRef} key={topicIdx}>
+              {topic.items.map(h => (
+                <Link key={h.id} href={h.href} className="item">
+                  <span className="text">{h.text}</span>
+                  <span className="dot">•</span>
+                </Link>
+              ))}
+            </div>
           </div>
+        </div>
+      )}
+
+      {queue.length > 0 && (
+        <div className="queue" key={`q-${topicIdx}`}>
+          <span className="upnext">Up next</span>
+          {queue.map((t, i) => <TopicTile key={`${t.key}-${i}`} t={t} />)}
         </div>
       )}
 
       <button onClick={() => setHiddenPersist(true)} className="hide" aria-label="Hide wire">✕</button>
 
       <style jsx>{`
-        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 64px; background: #0f172a; color: #e2e8f0; overflow: hidden; }
-        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 .85rem; font-size: .7rem; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; background: #1e293b; color: #fff; }
-        .scorecard { flex-shrink: 0; width: 224px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: .3rem .85rem; border-right: 1px solid #1e293b; text-decoration: none; color: #cbd5e1; animation: fade .45s ease; }
+        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 66px; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1rem; font-size: .7rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; background: #1e293b; color: #fff; }
+        .scorecard { flex-shrink: 0; width: 190px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: .3rem 1rem; border-right: 1px solid #1e293b; text-decoration: none; color: #cbd5e1; animation: fade .45s ease; }
         .schead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
         .spchip { font-size: .58rem; font-weight: 800; padding: .03rem .35rem; border-radius: .3rem; color: #fff; }
         .status { font-size: .58rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
         .status.live { color: #f87171; }
-        .team { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; column-gap: .45rem; font-size: .82rem; line-height: 1.35; }
+        .team { display: flex; align-items: center; font-size: .82rem; line-height: 1.4; }
         .team.win { font-weight: 800; color: #fff; }
-        .lg { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; background: rgba(255,255,255,.08); }
+        .lg { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; background: rgba(255,255,255,.08); margin-right: .55rem; }
         .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; }
-        .ab { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sc { font-family: "punto", ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: .95rem; letter-spacing: .03em; text-align: right; min-width: 3.2ch; margin-left: .65rem; color: #f1f5f9; }
-        .viewport { position: relative; display: flex; align-items: center; overflow: hidden; flex: 1; }
-        .viewport:hover .track { animation-play-state: paused; }
-        .track { display: inline-flex; white-space: nowrap; will-change: transform; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .strip { display: inline-flex; align-items: center; }
-        .seg { display: inline-flex; align-items: center; }
-        .ttile { display: inline-flex; align-items: center; gap: .3rem; height: 26px; margin: 0 .55rem 0 .9rem; padding: 0 .7rem; border-radius: 4px; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #fff; }
-        .tdot { font-size: .72rem; }
-        .item { display: inline-flex; align-items: center; gap: .55rem; font-size: .82rem; color: #e2e8f0; text-decoration: none; }
+        .ab { width: 3.4rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sc { width: 3.6ch; flex-shrink: 0; margin-left: 1.15rem; text-align: right; font-family: "punto", ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: .98rem; letter-spacing: .05em; color: #f1f5f9; }
+        .main { flex: 1; min-width: 0; display: flex; align-items: center; border-right: 1px solid #1e293b; }
+        .mainpin { flex-shrink: 0; display: inline-flex; align-items: center; padding: 0 1.4rem 0 1.5rem; animation: slidein .45s ease; }
+        .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; }
+        .scroller { position: absolute; display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; }
+        .item { display: inline-flex; align-items: center; gap: 1.6rem; font-size: .84rem; color: #e2e8f0; text-decoration: none; }
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
-        .dot { color: #475569; margin: 0 .35rem; }
-        .hide { flex-shrink: 0; padding: 0 .7rem; color: #475569; font-size: .8rem; }
+        .dot { color: #475569; margin: 0 1.6rem; font-size: .7rem; }
+        .tile { display: inline-flex; align-items: center; gap: .4rem; height: 28px; padding: 0 .85rem; border-radius: 5px; font-size: .69rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #fff; white-space: nowrap; }
+        .tile.tmain { height: 30px; font-size: .74rem; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+        .tdot { font-size: .8rem; }
+        .queue { flex-shrink: 0; display: flex; align-items: center; gap: .8rem; padding: 0 1.2rem; background: linear-gradient(90deg, transparent, #0b1322 22%); animation: slideleft .5s ease; }
+        .upnext { font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #475569; white-space: nowrap; margin-right: .2rem; }
+        .hide { flex-shrink: 0; padding: 0 .85rem; color: #475569; font-size: .8rem; }
         .hide:hover { color: #e2e8f0; }
-        @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slidein { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideleft { from { opacity: .25; transform: translateX(34px); } to { opacity: 1; transform: translateX(0); } }
+        @media (max-width: 900px) { .queue { display: none; } }
         @media (max-width: 640px) {
-          .label { padding: 0 .55rem; font-size: .6rem; }
-          .scorecard { width: 168px; padding: .3rem .6rem; }
-          .item { font-size: .78rem; }
+          .label { padding: 0 .6rem; font-size: .6rem; }
+          .scorecard { width: 170px; padding: .3rem .65rem; }
+          .mainpin { padding: 0 1rem; }
+          .item { gap: 1.1rem; }
+          .dot { margin: 0 1.1rem; }
         }
       `}</style>
     </div>
