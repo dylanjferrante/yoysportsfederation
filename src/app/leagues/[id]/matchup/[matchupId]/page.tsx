@@ -210,7 +210,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       {/* Game tracker: played / playing / yet to play, with points in & to come */}
       <div className="card p-5 mb-6">
         <h2 className="font-semibold text-slate-900 mb-3">📡 Game Tracker</h2>
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           {[home, away].map((side, i) => side.team && (
             <div key={i}>
               <div className="flex items-baseline justify-between mb-2">

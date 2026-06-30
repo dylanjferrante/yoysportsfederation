@@ -101,6 +101,11 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
         .sep { color: #475569; margin: 0 .6rem; }
         @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+        @media (max-width: 640px) {
+          .label { padding: 0 .55rem; font-size: .6rem; }
+          .scorecard { width: 168px; padding: .3rem .5rem; }
+          .item { font-size: .78rem; }
+        }
       `}</style>
     </div>
   )
