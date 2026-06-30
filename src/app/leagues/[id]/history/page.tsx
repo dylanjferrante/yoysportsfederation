@@ -3,7 +3,8 @@ import { leagues, teams, teamRecords, leagueHistory, matchups } from '@/db/schem
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { sportMeta, safeParse } from '@/lib/utils'
+import { safeParse, sportAbbrLabel } from '@/lib/utils'
+import SportChip from '@/components/SportChip'
 import HeadToHead from './HeadToHead'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +21,9 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
   const sports = safeParse<string[]>(league.sportsEnabled, [])
   const champLogos = safeParse<Record<string, string>>(league.championshipLogos, {})
   const champNames = safeParse<Record<string, string>>(league.championshipNames, {})
+  const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
+  const divisionLogos = safeParse<Record<string, string>>(league.divisionLogos, {})
+  const champColors = safeParse<Record<string, { p?: string; s?: string }>>(league.championshipColors, {})
   const franchises = await db.select().from(teams).where(eq(teams.leagueId, id))
   const nameOf = (tid: string | null) => franchises.find(f => f.id === tid)?.name ?? '—'
 
@@ -57,7 +61,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
           {seasons.map(season => (
             <div key={season} className="px-6 py-3 flex items-center justify-between">
               <span className="text-sm text-slate-500">{season}</span>
-              <span className="font-semibold text-slate-900">👑 {nameOf(championOf(season, 'OVERALL'))}</span>
+              <span className="font-semibold text-slate-900">{nameOf(championOf(season, 'OVERALL'))}</span>
             </div>
           ))}
         </div>
@@ -71,7 +75,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
             <thead>
               <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
                 <th className="text-left px-4 py-2 font-medium">Season</th>
-                {sports.map(s => <th key={s} className="text-left px-3 py-2 font-medium">{sportMeta(s).emoji} {s}</th>)}
+                {sports.map(s => <th key={s} className="text-left px-3 py-2 font-medium"><span className="inline-flex items-center gap-1.5"><SportChip sport={s} logos={divisionLogos} colors={champColors} chip={18} size={12} />{sportAbbrLabel(s, sportAbbr)}</span></th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">

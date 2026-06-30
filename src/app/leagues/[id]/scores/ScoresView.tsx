@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta, sportLabel } from '@/lib/utils'
-import { formatWeekRange, sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
+import { formatWeekRange, weekDateRange, sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
 import SportIcon from '@/components/SportIcon'
 
 type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean; playoff?: boolean; playoffLabel?: string }
@@ -52,8 +52,12 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
           </span>
           <button onClick={() => setWeek(weeks[Math.min(weeks.length - 1, idx + 1)])} disabled={idx >= weeks.length - 1} className="btn-secondary text-sm disabled:opacity-40">Next →</button>
         </div>
-        <select className="select text-sm" value={activeWeek} onChange={e => setWeek(+e.target.value)}>
-          {weeks.map(w => <option key={w} value={w}>Week {w}</option>)}
+        <select className="select text-sm w-auto" value={activeWeek} onChange={e => setWeek(+e.target.value)}>
+          {weeks.map(w => {
+            const { start, end } = weekDateRange(season, w)
+            const d = (x: Date) => x.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })
+            return <option key={w} value={w}>Week {w} ({d(start)}-{d(end)})</option>
+          })}
         </select>
         <button onClick={() => setWeek(defaultWeek)} className="btn-ghost text-sm">Current week</button>
         <div className="ml-auto flex items-center gap-2">

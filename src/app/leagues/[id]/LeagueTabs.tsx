@@ -4,15 +4,16 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta, sportLabel, sportAbbrLabel } from '@/lib/utils'
 import { computeFederationStandings, type FederationScoring } from '@/lib/federation'
-import SportIcon from '@/components/SportIcon'
+import SportChip from '@/components/SportChip'
 
 type TeamLite = { id: string; name: string; abbreviation: string; logo: string | null; owner: string | null; primaryColor?: string | null; secondaryColor?: string | null }
 type TeamStat = { allTime: { w: number; l: number; t: number }; fedTitles: number; sportTitles: number }
 type TeamRec = { teamId: string; sport: string; wins: number; losses: number; ties: number; pointsFor: number; pointsAgainst: number; finishPosition: number | null; isChampion: boolean }
 type Matchup = { id: string; sport: string; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
+type ColorMap = Record<string, { p?: string; s?: string }>
 
 export default function LeagueTabs({
-  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId, teamStats = {}, sportNames = {}, sportAbbr = {}, divisionLogos = {},
+  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId, teamStats = {}, sportNames = {}, sportAbbr = {}, divisionLogos = {}, divisionLogoBg = {}, championshipColors = {},
 }: {
   leagueId: string
   sportsEnabled: string[]
@@ -27,6 +28,8 @@ export default function LeagueTabs({
   sportNames?: Record<string, string>
   sportAbbr?: Record<string, string>
   divisionLogos?: Record<string, string>
+  divisionLogoBg?: Record<string, boolean>
+  championshipColors?: Record<string, { p?: string; s?: string }>
 }) {
   const [tab, setTab] = useState<string>('OVERALL')
   const [included, setIncluded] = useState<Set<string>>(
@@ -78,25 +81,20 @@ export default function LeagueTabs({
           🏆 Overall
         </button>
         {sportsEnabled.map(s => (
-          <button key={s} onClick={() => setTab(s)} className={tab === s ? 'tab-active' : 'tab-inactive'}>
-            <SportIcon sport={s} logo={divisionLogos[s]} size={15} className="mr-1" />{sportAbbrLabel(s, sportAbbr)}
+          <button key={s} onClick={() => setTab(s)} className={`inline-flex items-center gap-1.5 ${tab === s ? 'tab-active' : 'tab-inactive'}`}>
+            <SportChip sport={s} logos={divisionLogos} colors={championshipColors} chip={20} size={14} />{sportAbbrLabel(s, sportAbbr)}
           </button>
         ))}
-        <button onClick={() => setTab('TEAMS')} className={tab === 'TEAMS' ? 'tab-active' : 'tab-inactive'}>
-          👥 Teams
-        </button>
       </div>
 
       {tab === 'OVERALL'
-        ? <Overall standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
-        : tab === 'TEAMS'
-        ? <TeamsList teams={teams} records={records} sportsEnabled={sportsEnabled} teamStats={teamStats} />
-        : <SportView sport={tab} sportNames={sportNames} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
+        ? <Overall standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
+        : <SportView sport={tab} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} championshipColors={championshipColors} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
     </div>
   )
 }
 
-function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, included, toggle, teamById, currentUserId, fed }: any) {
+function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, championshipColors = {}, included, toggle, teamById, currentUserId, fed }: any) {
   return (
     <div className="space-y-4">
       <div className="card p-4 flex flex-wrap items-center gap-3">
@@ -104,7 +102,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
         {sportsEnabled.map((s: string) => (
           <label key={s} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
             <input type="checkbox" checked={included.has(s)} onChange={() => toggle(s)} className="w-4 h-4" />
-            <span>{sportMeta(s).emoji} {sportAbbrLabel(s, sportAbbr)}</span>
+            <span className="inline-flex items-center gap-1.5"><SportChip sport={s} logos={divisionLogos} colors={championshipColors} chip={20} size={14} />{sportAbbrLabel(s, sportAbbr)}</span>
           </label>
         ))}
         <span className="text-xs text-slate-400 ml-auto">
@@ -119,7 +117,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
               <th className="text-left px-4 py-3 font-medium">#</th>
               <th className="text-left px-2 py-3 font-medium">Franchise</th>
               {sportsEnabled.filter((s: string) => included.has(s)).map((s: string) => (
-                <th key={s} className="text-center px-2 py-3 font-medium"><SportIcon sport={s} logo={divisionLogos[s]} size={16} /></th>
+                <th key={s} className="text-center px-2 py-3 font-medium"><SportChip sport={s} logos={divisionLogos} colors={championshipColors} chip={22} size={16} /></th>
               ))}
               <th className="text-center px-4 py-3 font-medium">Fed Pts</th>
             </tr>
@@ -131,7 +129,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
               return (
                 <tr key={row.team.id} className={`hover:bg-slate-50 ${i === 0 ? 'bg-amber-50/40' : ''}`}>
                   <td className="px-4 py-3 text-slate-400 font-medium">
-                    {i === 0 ? '👑' : i + 1}
+                    {i + 1}
                   </td>
                   <td className="px-2 py-3">
                     <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
@@ -168,7 +166,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
               <th className="text-left px-4 py-2.5 font-medium">#</th>
               <th className="text-left px-2 py-2.5 font-medium">Franchise</th>
               {sportsEnabled.filter((s: string) => included.has(s)).map((s: string) => (
-                <th key={s} className="text-center px-2 py-2.5 font-medium hidden sm:table-cell"><SportIcon sport={s} logo={divisionLogos[s]} size={16} /></th>
+                <th key={s} className="text-center px-2 py-2.5 font-medium hidden sm:table-cell"><SportChip sport={s} logos={divisionLogos} colors={championshipColors} chip={22} size={16} /></th>
               ))}
               <th className="text-right px-4 py-2.5 font-medium">Power</th>
             </tr>
@@ -206,7 +204,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
   )
 }
 
-function SportView({ sport, sportNames = {}, teamById, records, matchups, rosterSettings, playoffTeams = 6, currentUserId }: any) {
+function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {}, championshipColors = {}, teamById, records, matchups, rosterSettings, playoffTeams = 6, currentUserId }: any) {
   const meta = sportMeta(sport)
   const ranked = [...records].sort((a: TeamRec, b: TeamRec) =>
     (a.finishPosition ?? 99) - (b.finishPosition ?? 99) || b.wins - a.wins || b.pointsFor - a.pointsFor)
@@ -266,7 +264,7 @@ function SportView({ sport, sportNames = {}, teamById, records, matchups, roster
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
         <div className="card overflow-x-auto">
-          <div className="card-header"><h2 className="font-semibold text-slate-900">{meta.emoji} {sportLabel(sport, sportNames)} Standings</h2></div>
+          <div className="card-header"><h2 className="font-semibold text-slate-900 flex items-center gap-2"><SportChip sport={sport} logos={divisionLogos} colors={championshipColors} chip={24} size={16} /> {sportLabel(sport, sportNames)} Standings</h2></div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
@@ -395,55 +393,3 @@ function SportView({ sport, sportNames = {}, teamById, records, matchups, roster
   )
 }
 
-function TeamsList({ teams, records, sportsEnabled, teamStats }: { teams: TeamLite[]; records: TeamRec[]; sportsEnabled: string[]; teamStats: Record<string, TeamStat> }) {
-  return (
-    <div className="grid sm:grid-cols-2 gap-3">
-      {teams.map(t => {
-        const stat = teamStats[t.id] ?? { allTime: { w: 0, l: 0, t: 0 }, fedTitles: 0, sportTitles: 0 }
-        const primary = t.primaryColor || '#0f172a'
-        const secondary = t.secondaryColor || '#ffffff'
-        const recBySport = Object.fromEntries(records.filter(r => r.teamId === t.id).map(r => [r.sport, r]))
-        const at = stat.allTime
-        return (
-          <Link key={t.id} href={`/teams/${t.id}`} className="card overflow-hidden hover:shadow-md transition">
-            {/* Header band in franchise colors */}
-            <div className="p-3 flex items-center gap-3" style={{ background: primary, color: secondary }}>
-              {t.logo
-                ? <img src={t.logo} alt="" className="w-12 h-12 object-contain flex-shrink-0 bg-white/10" />
-                : <span className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 4).toUpperCase()}</span>}
-              <div className="min-w-0">
-                <p className="font-bold leading-tight truncate">{t.name}</p>
-                <p className="text-xs opacity-80 truncate">{t.owner ?? '—'} · {t.abbreviation}</p>
-              </div>
-            </div>
-            {/* Titles + all-time line */}
-            <div className="px-3 py-2 flex items-center gap-3 text-xs border-b border-slate-100 bg-slate-50/60">
-              <span title="Federation championships">🏆 {stat.fedTitles} Fed</span>
-              <span title="Sport championships">🥇 {stat.sportTitles} Sport</span>
-              <span className="ml-auto text-slate-500">All-time {at.w}-{at.l}{at.t ? `-${at.t}` : ''}</span>
-            </div>
-            {/* Per-sport current record */}
-            <div className="px-3 py-2 space-y-1">
-              {sportsEnabled.map(s => {
-                const r = recBySport[s] as TeamRec | undefined
-                const meta = sportMeta(s)
-                return (
-                  <div key={s} className="flex items-center gap-2 text-xs">
-                    <span className={`inline-flex items-center gap-1 font-semibold w-14 ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
-                    {r ? (
-                      <>
-                        <span className="text-slate-700 w-16">{r.wins}-{r.losses}{r.ties ? `-${r.ties}` : ''}</span>
-                        <span className="text-slate-400 w-20">{(r.pointsFor ?? 0).toFixed(0)} pts</span>
-                        <span className="text-slate-500 ml-auto">{r.finishPosition ? `#${r.finishPosition}` : '—'}</span>
-                      </>
-                    ) : <span className="text-slate-300">—</span>}
-                  </div>
-                )
-              })}
-            </div>
-          </Link>
-        )
-      })}
-    </div>
-  )
-}

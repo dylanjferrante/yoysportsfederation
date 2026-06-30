@@ -5,7 +5,7 @@ import { sportMeta, sportAbbrLabel } from '@/lib/utils'
 
 type Row = {
   id: string; type: string; message: string; createdAt: string | null
-  teamName: string | null; teamAbbr: string | null
+  teamName: string | null; teamAbbr: string | null; teamLogo: string | null; teamPrimary: string | null
   player: string | null; position: string | null; proTeam: string | null; sport: string | null
 }
 
@@ -76,7 +76,14 @@ export default function TransactionsView({ leagueId, leagueName, rows, sportAbbr
               {filtered.map(r => (
                 <tr key={r.id} className="hover:bg-slate-50/60">
                   <td className="px-3 py-2.5 text-xs text-slate-400">{r.createdAt ? new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</td>
-                  <td className="px-3 py-2.5 font-medium text-slate-700">{r.teamAbbr ?? r.teamName ?? '—'}</td>
+                  <td className="px-3 py-2.5 font-medium text-slate-700">
+                    <span className="inline-flex items-center gap-1.5">
+                      {r.teamLogo
+                        ? <img src={r.teamLogo} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                        : r.teamAbbr ? <span className="w-5 h-5 flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0" style={{ background: r.teamPrimary ?? '#0f172a' }}>{r.teamAbbr.slice(0, 2)}</span> : null}
+                      {r.teamAbbr ?? r.teamName ?? '—'}
+                    </span>
+                  </td>
                   <td className="px-3 py-2.5">{r.sport ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(r.sport).light}`}>{sportAbbrLabel(r.sport, sportAbbr)}</span> : <span className="text-slate-300">—</span>}</td>
                   <td className="px-3 py-2.5"><span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">{ICON[r.type] ?? '•'} {r.type}</span></td>
                   <td className="px-3 py-2.5 text-slate-800">{r.player ?? <span className="text-slate-400 whitespace-normal">{r.message}</span>}</td>

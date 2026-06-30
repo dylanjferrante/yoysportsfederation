@@ -85,6 +85,8 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         sportNames={safeParse<Record<string, string>>(league.sportNames, {})}
         sportAbbr={safeParse<Record<string, string>>(league.sportAbbr, {})}
         divisionLogos={safeParse<Record<string, string>>(league.divisionLogos, {})}
+        divisionLogoBg={safeParse<Record<string, boolean>>(league.divisionLogoBg, {})}
+        championshipColors={safeParse<Record<string, { p?: string; s?: string }>>(league.championshipColors, {})}
       />
 
       {/* League activity feed */}
