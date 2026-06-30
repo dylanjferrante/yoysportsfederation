@@ -53,9 +53,9 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
                   : <span className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 4).toUpperCase()}</span>}
                 <div className="min-w-0">
                   {t.wordmark
-                    ? <img src={t.wordmark} alt={t.name} className="h-5 max-w-[160px] object-contain" />
+                    ? <img src={t.wordmark} alt={t.name} className="h-9 w-auto max-w-[220px] object-contain object-left" />
                     : <p className="font-bold leading-tight truncate">{t.name}</p>}
-                  <p className="text-xs opacity-80 truncate">{userName ?? '—'} · {t.abbreviation}</p>
+                  <p className="text-xs font-bold opacity-95 truncate">{userName ?? '—'} · {t.abbreviation}</p>
                 </div>
               </div>
               <div className="px-3 py-2 flex items-center gap-3 text-xs border-b border-slate-100 bg-slate-50/60">
