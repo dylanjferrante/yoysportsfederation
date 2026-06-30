@@ -41,6 +41,7 @@ export default function CommissionerSettings() {
   const [divisionNames, setDivisionNames] = useState<Record<string, string>>({})
   const [champNames, setChampNames] = useState<Record<string, string>>({})
   const [champLogos, setChampLogos] = useState<Record<string, string>>({})
+  const [champColors, setChampColors] = useState<Record<string, string>>({})
   const [breakWeeks, setBreakWeeks] = useState<Record<string, number[]>>({})
   const [fed, setFed] = useState<any>({ placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: [] })
   const [franchises, setFranchises] = useState<any[]>([])
@@ -95,6 +96,7 @@ export default function CommissionerSettings() {
       setDivisionNames(parse(l.divisionNames, {}))
       setChampNames(parse(l.championshipNames, {}))
       setChampLogos(parse(l.championshipLogos, {}))
+      setChampColors(parse(l.championshipColors, {}))
       setBreakWeeks(parse(l.breakWeeks, {}))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
@@ -122,6 +124,7 @@ export default function CommissionerSettings() {
       body: JSON.stringify({
         name: form.name, abbreviation: form.abbreviation, timezone: form.timezone, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
         duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
+        primaryColor: form.primaryColor, secondaryColor: form.secondaryColor, championshipColors: champColors,
         divisions: form.divisions, divisionNames, sportNames, sportAbbr, championshipNames: champNames, championshipLogos: champLogos, breakWeeks,
         sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
         draftRounds: draftRoundsObj, federationScoring: fed,
@@ -264,6 +267,11 @@ export default function CommissionerSettings() {
                     ? <img src={form.logoUrl} alt="" className="w-12 h-12 object-cover bg-slate-100 flex-shrink-0" />
                     : <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">🏆</div>}
                 </div>
+              </div>
+              <div className="flex gap-4 items-end sm:col-span-2">
+                <div><label className="label">League Primary</label><input type="color" className="h-10 w-16 rounded border border-slate-200" value={form.primaryColor ?? '#0f172a'} onChange={e => set('primaryColor', e.target.value)} /></div>
+                <div><label className="label">League Secondary</label><input type="color" className="h-10 w-16 rounded border border-slate-200" value={form.secondaryColor ?? '#3b82f6'} onChange={e => set('secondaryColor', e.target.value)} /></div>
+                <div className="flex-1 h-10 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${form.primaryColor ?? '#0f172a'}, ${form.secondaryColor ?? '#3b82f6'})` }}>Brand preview</div>
               </div>
               <div className="sm:col-span-2"><label className="label">Description</label><textarea className="input h-20 resize-none" value={form.description ?? ''} onChange={e => set('description', e.target.value)} /></div>
             </div>
@@ -507,6 +515,7 @@ export default function CommissionerSettings() {
                       <div className="flex items-center gap-2">
                         <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos[s] ?? ''} onChange={e => setChampLogos(d => ({ ...d, [s]: e.target.value }))} />
                         {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 object-cover bg-slate-100" />}
+                        <input type="color" title="Championship color" className="h-9 w-10 rounded border border-slate-200" value={champColors[s] ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, [s]: e.target.value }))} />
                       </div>
                     </div>
                   </div>
@@ -519,6 +528,7 @@ export default function CommissionerSettings() {
                     <div className="flex items-center gap-2">
                       <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos['FED'] ?? ''} onChange={e => setChampLogos(d => ({ ...d, FED: e.target.value }))} />
                       {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-7 h-7 object-cover bg-slate-100" />}
+                      <input type="color" title="Federation championship color" className="h-9 w-10 rounded border border-slate-200" value={champColors['FED'] ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, FED: e.target.value }))} />
                     </div>
                   </div>
                 </div>
