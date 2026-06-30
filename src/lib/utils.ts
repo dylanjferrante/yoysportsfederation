@@ -58,6 +58,20 @@ export function sportAbbrLabel(sport: string, abbr?: Record<string, string> | nu
   return a && a.trim() ? a : sport
 }
 
+// Sports follow a fixed seasonal cycle (football → hockey → basketball → baseball).
+// A league's display order rotates that cycle to start at its season-start anchor.
+const SPORT_CYCLE = ['NFL', 'NHL', 'NBA', 'MLB']
+const SEASON_START_LEAD: Record<string, string> = { FOOTBALL: 'NFL', WINTER: 'NHL', BASEBALL: 'MLB' }
+export function orderedSports(enabled: string[], seasonStart?: string | null): string[] {
+  const lead = SEASON_START_LEAD[seasonStart ?? 'FOOTBALL'] ?? 'NFL'
+  const start = Math.max(0, SPORT_CYCLE.indexOf(lead))
+  const rotated = [...SPORT_CYCLE.slice(start), ...SPORT_CYCLE.slice(0, start)]
+  const inCycle = rotated.filter(s => enabled.includes(s))
+  // Preserve any non-standard sports at the end, just in case.
+  const extras = enabled.filter(s => !SPORT_CYCLE.includes(s))
+  return [...inCycle, ...extras]
+}
+
 export function waiverTypeLabel(t: string) {
   if (t === 'FAAB') return 'FAAB Bidding'
   if (t === 'PRIORITY') return 'Waiver Priority'

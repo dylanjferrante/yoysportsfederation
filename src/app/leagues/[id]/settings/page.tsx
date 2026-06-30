@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, LEAGUE_SIZE_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
-import { sportMeta } from '@/lib/utils'
+import { sportMeta, orderedSports } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
 import ScheduleEditor from './ScheduleEditor'
 
@@ -205,7 +205,9 @@ export default function CommissionerSettings() {
     })
   }
 
-  const subTabs = sportsEnabled.length ? sportsEnabled : ALL_SPORTS
+  // Display order follows the league's season-start anchor.
+  const orderedEnabled = orderedSports(sportsEnabled.length ? sportsEnabled : ALL_SPORTS, form.seasonStart)
+  const subTabs = orderedEnabled
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -424,7 +426,7 @@ export default function CommissionerSettings() {
               <label className="label">Weekly Schedule</label>
               <p className="text-xs text-slate-500 mb-2">Set when each sport&apos;s regular season starts and how many weeks it runs. Dates are based on the season&apos;s calendar. Playoffs begin the week after each sport&apos;s regular season ends.</p>
               <div className="space-y-2">
-                {sportsEnabled.map(s => {
+                {orderedEnabled.map(s => {
                   const startWk = startWeeksObj[s] || (buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj).find(e => e.sport === s)?.startWeek ?? 1)
                   const len = seasonWeeksObj[s] ?? DEFAULT_SEASON_WEEKS[s] ?? 18
                   const endWk = startWk + len - 1
@@ -461,7 +463,7 @@ export default function CommissionerSettings() {
               <label className="label">Break Weeks (per sport, optional)</label>
               <p className="text-xs text-slate-500 mb-2">Weeks with no games — e.g. all-star break or Winter Olympics. Enter week numbers separated by commas.</p>
               <div className="space-y-2">
-                {sportsEnabled.map(s => (
+                {orderedEnabled.map(s => (
                   <div key={s} className="flex items-center gap-3">
                     <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
                     <input className="input flex-1 text-sm" placeholder="e.g. 18, 19"
@@ -475,7 +477,7 @@ export default function CommissionerSettings() {
             <div>
               <label className="label">Division Logos (per sport, optional)</label>
               <div className="space-y-2">
-                {sportsEnabled.map(s => (
+                {orderedEnabled.map(s => (
                   <div key={s} className="flex items-center gap-2">
                     <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
                     <input className="input flex-1 text-sm" placeholder="https://…" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
@@ -493,7 +495,7 @@ export default function CommissionerSettings() {
               </div>
               <p className="text-xs text-slate-500 mb-2">Rename each sport and its championship, and add a trophy/championship image.</p>
               <div className="space-y-3">
-                {sportsEnabled.map(s => (
+                {orderedEnabled.map(s => (
                   <div key={s} className="rounded-lg border border-slate-200 p-2.5">
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-xs font-bold ${sportMeta(s).color}`}>{sportMeta(s).emoji} {s}</span>
@@ -757,7 +759,7 @@ export default function CommissionerSettings() {
               <p className="text-sm font-semibold text-slate-700 mb-1">Rookie Draft {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? 'Dates (per sport)' : 'Date'}</p>
               {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? (
                 <div className="space-y-2">
-                  {sportsEnabled.map(s => (
+                  {orderedEnabled.map(s => (
                     <div key={s} className="flex items-center gap-3">
                       <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
                       <input type="datetime-local" className="input flex-1" value={rookieDates[s] ?? ''} onChange={e => setRookieDates(d => ({ ...d, [s]: e.target.value }))} />
@@ -816,7 +818,7 @@ export default function CommissionerSettings() {
               <label className="label">Waiver Processing Time (per sport)</label>
               <p className="text-xs text-slate-500 mb-2">Set the day and time each sport&apos;s waiver claims are processed.</p>
               <div className="space-y-2">
-                {sportsEnabled.map(s => {
+                {orderedEnabled.map(s => {
                   const wr = waiverSchedObj[s] ?? { day: 3, hour: 3 }
                   const meta = sportMeta(s)
                   return (
@@ -857,7 +859,7 @@ export default function CommissionerSettings() {
               <label className="label">Trade Deadlines (per sport)</label>
               <p className="text-xs text-slate-400 mb-2">Set when trades lock for each sport — a specific week, or relative to that sport's or the federation's championship.</p>
               <div className="space-y-2">
-                {sportsEnabled.map(s => {
+                {orderedEnabled.map(s => {
                   const d = deadlinesObj[s] ?? { mode: 'SPORT_PLAYOFFS' }
                   const schedule = parse(form.sportSchedule, [])
                   const resolved = resolveTradeDeadlineWeek(d as any, s, schedule, form.playoffRounds ?? 2)
@@ -933,7 +935,7 @@ export default function CommissionerSettings() {
               <p className="text-sm font-semibold text-slate-700">Per-sport playoff start</p>
               <p className="text-xs text-slate-500 mb-3">Each sport runs on its own calendar, so <strong>playoffs begin the week after that sport's regular season ends</strong> — they don't all start the same week. Adjust each sport's start week and length in the <strong>Sports &amp; Schedule</strong> tab.</p>
               <div className="space-y-2">
-                {sportsEnabled.map(s => {
+                {orderedEnabled.map(s => {
                   const startWk = startWeeksObj[s] || (buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj).find(e => e.sport === s)?.startWeek ?? 1)
                   const len = seasonWeeksObj[s] ?? DEFAULT_SEASON_WEEKS[s] ?? 18
                   const playoffStart = startWk + len
@@ -974,7 +976,7 @@ export default function CommissionerSettings() {
             <div>
               <label className="label">Sports counted toward overall standings</label>
               <div className="flex flex-wrap gap-3">
-                {sportsEnabled.map(s => (
+                {orderedEnabled.map(s => (
                   <label key={s} className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <input type="checkbox" checked={(fed.includedSports ?? []).includes(s)}
                       onChange={() => setFed((f: any) => { const inc = new Set(f.includedSports ?? []); inc.has(s) ? inc.delete(s) : inc.add(s); return { ...f, includedSports: [...inc] } })} className="w-4 h-4" />

@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { safeParse } from '@/lib/utils'
+import { safeParse, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import ScoresView from './ScoresView'
 
@@ -24,7 +24,7 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
   const session = await getServerSession(authOptions)
   const franchises = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, logoBg: teams.logoBg }).from(teams).where(eq(teams.leagueId, id))
   const all = await db.select().from(matchups).where(eq(matchups.leagueId, id)).limit(3000)
-  const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
+  const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const isCommish = league.commissionerId === session?.user?.id
 
   return (

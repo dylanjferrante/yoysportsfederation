@@ -3,7 +3,7 @@ import { leagues, teams, teamRecords, playoffGames, leagueHistory } from '@/db/s
 import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { sportMeta, safeParse, sportLabel } from '@/lib/utils'
+import { sportMeta, safeParse, sportLabel, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import TeamChip from '@/components/TeamChip'
 
@@ -29,7 +29,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
   if (!league) notFound()
   await advanceLeague(league)
 
-  const sports = safeParse<string[]>(league.sportsEnabled, [])
+  const sports = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
   const champNames = safeParse<Record<string, string>>(league.championshipNames, {})
   const champLogos = safeParse<Record<string, string>>(league.championshipLogos, {})

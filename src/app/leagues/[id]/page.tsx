@@ -5,7 +5,7 @@ import { leagues, teams, teamRecords, matchups, users, activity, leagueHistory }
 import { eq, and, desc } from 'drizzle-orm'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { safeParse, inSeasonNow, sportLabel } from '@/lib/utils'
+import { safeParse, inSeasonNow, sportLabel, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import LeagueTabs from './LeagueTabs'
 
@@ -46,7 +46,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
     .orderBy(desc(activity.createdAt))
     .limit(12)
 
-  const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
+  const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const schedule = safeParse<any[]>(league.sportSchedule, [])
   const federationScoring = safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sportsEnabled })
   const rosterSettings = safeParse<Record<string, Record<string, number>>>(league.rosterSettings, {})
