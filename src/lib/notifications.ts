@@ -85,12 +85,14 @@ export async function dispatch(
     await sendEmail(r.email, `Nexus Federation: ${EVENTS[event]}`, message, link)
   }
 
-  // Web push.
+  // Web push — prune endpoints the browser has expired (so dead subs don't pile up).
   const pushTargets = recipients.filter(r => wants(r.prefs, 'push', event)).map(r => r.id)
   if (pushTargets.length) {
     try {
       const subs = await db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, pushTargets))
-      for (const s of subs) await sendPush(s, message, link)
+      const dead: string[] = []
+      for (const s of subs) { if (await sendPush(s, message, link) === 'gone') dead.push(s.id) }
+      if (dead.length) await db.delete(pushSubscriptions).where(inArray(pushSubscriptions.id, dead))
     } catch { /* non-fatal */ }
   }
 }

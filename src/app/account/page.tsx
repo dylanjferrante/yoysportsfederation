@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
+import { enablePush, disablePush, pushSupported } from '@/lib/push-client'
 
 export default function AccountPage() {
   const { data: session, status } = useSession()
@@ -17,6 +18,21 @@ export default function AccountPage() {
   const [np, setNp] = useState<any>(null)
   const [npMeta, setNpMeta] = useState<{ events: Record<string, string>; channels: string[]; emailConfigured: boolean; pushConfigured: boolean } | null>(null)
   const [npSaved, setNpSaved] = useState(false)
+  const [pushDevice, setPushDevice] = useState<'on' | 'off' | 'busy'>('off')
+  const [pushMsg, setPushMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!pushSupported()) return
+    navigator.serviceWorker.getRegistration().then(r => r?.pushManager.getSubscription()).then(s => setPushDevice(s ? 'on' : 'off')).catch(() => {})
+  }, [])
+
+  async function togglePushDevice() {
+    setPushMsg(null); setPushDevice('busy')
+    try {
+      if (pushDevice === 'on') { await disablePush(); setPushDevice('off') }
+      else { await enablePush(); setPushDevice('on'); setPushMsg('Push enabled on this device.') }
+    } catch (e) { setPushDevice('off'); setPushMsg((e as Error).message) }
+  }
 
   useEffect(() => {
     fetch('/api/account').then(r => r.json()).then(u => { setName(u.name ?? ''); setEmail(u.email ?? '') })
@@ -99,6 +115,16 @@ export default function AccountPage() {
                           {label}
                         </label>
                       ))}
+                    </div>
+                  )}
+                  {ch === 'push' && np[ch]?.enabled && (
+                    <div className="ml-6 mt-2">
+                      <button type="button" onClick={togglePushDevice} disabled={pushDevice === 'busy' || !pushSupported()}
+                        className="btn-secondary text-xs disabled:opacity-50">
+                        {pushDevice === 'busy' ? 'Working…' : pushDevice === 'on' ? 'Disable push on this device' : 'Enable push on this device'}
+                      </button>
+                      {!pushSupported() && <span className="ml-2 text-[10px] text-slate-400">This browser doesn’t support push.</span>}
+                      {pushMsg && <p className="text-[11px] text-slate-500 mt-1">{pushMsg}</p>}
                     </div>
                   )}
                 </div>

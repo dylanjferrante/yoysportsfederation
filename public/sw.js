@@ -12,6 +12,30 @@ self.addEventListener('activate', (e) => {
   self.clients.claim()
 })
 
+// Web push: show the notification the server sent.
+self.addEventListener('push', (e) => {
+  let data = {}
+  try { data = e.data ? e.data.json() : {} } catch { data = {} }
+  const title = data.title || 'Nexus Federation'
+  e.waitUntil(self.registration.showNotification(title, {
+    body: data.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: { link: data.link || '/' },
+    tag: data.tag,
+  }))
+})
+
+// Focus an existing tab (or open one) at the notification's link on click.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const link = (e.notification.data && e.notification.data.link) || '/'
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
+    for (const c of cls) { if ('focus' in c) { c.navigate(link); return c.focus() } }
+    return self.clients.openWindow(link)
+  }))
+})
+
 self.addEventListener('fetch', (e) => {
   const req = e.request
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return
