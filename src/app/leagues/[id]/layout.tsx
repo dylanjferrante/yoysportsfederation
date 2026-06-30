@@ -33,7 +33,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
 
   return (
     <>
-      <Ticker leagueId={id} />
+      <Ticker leagueId={id} primary={league.primaryColor ?? '#0f172a'} secondary={league.secondaryColor ?? '#fbbf24'} />
       <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-5">
         {league.logoUrl
