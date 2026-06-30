@@ -33,3 +33,27 @@ export async function scheduleOpponents(sport: string, season: string, abbrs: st
   }
   return map
 }
+
+// Real kickoff time (epoch ms) per team for a sport's fantasy week, from the
+// schedule's gameTimeEpoch. A team with multiple games that week locks at its
+// EARLIEST game. Returns null if no schedule data exists (caller falls back to
+// the synthetic playerKickoff in locks.ts).
+export async function scheduleKickoffs(sport: string, season: string, week: number): Promise<Record<string, number> | null> {
+  const [has] = await db.select({ id: gameSchedule.id }).from(gameSchedule).where(eq(gameSchedule.sport, sport)).limit(1)
+  if (!has) return null
+
+  const { start, end } = weekDateRange(season, week)
+  const from = ymd(start)
+  const to = ymd(new Date(end.getTime() + 86_400_000))
+  const rows = await db.select({ home: gameSchedule.homeAbbr, away: gameSchedule.awayAbbr, epoch: gameSchedule.gameTimeEpoch }).from(gameSchedule)
+    .where(and(eq(gameSchedule.sport, sport), gte(gameSchedule.gameDate, from), lte(gameSchedule.gameDate, to)))
+
+  const out: Record<string, number> = {}
+  for (const g of rows) {
+    const sec = Number(g.epoch)
+    if (!Number.isFinite(sec) || sec <= 0) continue
+    const ms = Math.round(sec * 1000)
+    for (const ab of [g.home, g.away]) if (ab && (out[ab] == null || ms < out[ab])) out[ab] = ms
+  }
+  return out
+}
