@@ -20,7 +20,7 @@ type Data = {
   signedIn: boolean
 }
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
 export default function SideGames() {
   const { id } = useParams<{ id: string }>()

@@ -10,7 +10,7 @@ import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
 import ScheduleEditor from './ScheduleEditor'
 
-const ALL_SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const ALL_SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 const TABS = ['General', 'Franchises', 'Sports & Schedule', 'Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation']
 
 export default function CommissionerSettings() {

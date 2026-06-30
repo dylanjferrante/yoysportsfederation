@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 import { boxScoreColumns } from '@/lib/scoring-categories'
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 const POS: Record<string, string[]> = {
   NFL: ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'],
   NBA: ['PG', 'SG', 'SF', 'PF', 'C'],

@@ -12,7 +12,7 @@ type Roster = { team: any; players: RosterPlayer[]; picks: Pick[] }
 type Franchise = { id: string; name: string; abbreviation: string; ownerName: string | null; userId: string }
 type Selection = { fromTeamId: string; toTeamId: string; type: 'player' | 'pick'; id: string; label: string }
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
 // Approx average per-game projection per sport, so values normalize cross-sport
 // (an average starter ≈ 50 "trade value", comparable across NFL/NBA/NHL/MLB).

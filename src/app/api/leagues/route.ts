@@ -12,7 +12,7 @@ import { defaultFederationScoring } from '@/lib/federation'
 const createSchema = z.object({
   name:        z.string().min(3).max(60),
   season:      z.string().default('2025-26'),
-  sportsEnabled: z.array(z.enum(['NFL', 'NBA', 'NHL', 'MLB'])).min(1).default(['NFL', 'NBA', 'NHL', 'MLB']),
+  sportsEnabled: z.array(z.enum(['NFL', 'NHL', 'NBA', 'MLB'])).min(1).default(['NFL', 'NHL', 'NBA', 'MLB']),
   seasonStart: z.enum(['FOOTBALL', 'WINTER', 'BASEBALL']).default('FOOTBALL'),
   logoUrl:     z.string().max(2000).optional(),
   teamName:    z.string().max(60).optional(),

@@ -18,7 +18,7 @@ const FILTERS: { key: string; label: string; types: string[] }[] = [
   { key: 'DRAFT', label: 'Draft', types: ['DRAFT'] },
 ]
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 const ICON: Record<string, string> = { TRADE: '🔁', WAIVER: '📝', ROSTER: '🔀', DRAFT: '🏈' }
 
 export default function TransactionsView({ leagueId, leagueName, rows }: { leagueId: string; leagueName: string; rows: Row[] }) {

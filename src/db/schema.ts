@@ -42,7 +42,7 @@ export const leagues = sqliteTable('leagues', {
   divisionLogos: text('division_logos').default('{}'), // JSON: { NFL: url, ... }
 
   // Which sports the federation plays + the season calendar
-  sportsEnabled: text('sports_enabled').default('["NFL","NBA","NHL","MLB"]'), // JSON array
+  sportsEnabled: text('sports_enabled').default('["NFL","NHL","NBA","MLB"]'), // JSON array
   seasonStart: text('season_start').default('FOOTBALL'), // FOOTBALL | WINTER | BASEBALL
   sportSchedule: text('sport_schedule').default('[]'),   // JSON: [{sport,label,startWeek,endWeek}]
 

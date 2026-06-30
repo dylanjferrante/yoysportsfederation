@@ -25,7 +25,7 @@ describe('scoring', () => {
 })
 
 describe('federation scoring', () => {
-  const fs = defaultFederationScoring(12, ['NFL', 'NBA', 'NHL', 'MLB'])
+  const fs = defaultFederationScoring(12, ['NFL', 'NHL', 'NBA', 'MLB'])
   it('default placement gives maxTeams down to 1', () => {
     expect(fs.placement[0]).toBe(12)
     expect(fs.placement[11]).toBe(1)

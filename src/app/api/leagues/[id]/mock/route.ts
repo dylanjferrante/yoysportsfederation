@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const sportsEnabled = safeParse<string[]>(league.sportsEnabled, ['NFL', 'NBA', 'NHL', 'MLB'])
+  const sportsEnabled = safeParse<string[]>(league.sportsEnabled, ['NFL', 'NHL', 'NBA', 'MLB'])
 
   const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, logo: teams.logo })
     .from(teams).where(eq(teams.leagueId, id))

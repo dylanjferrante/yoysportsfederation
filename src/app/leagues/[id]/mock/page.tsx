@@ -9,7 +9,7 @@ type Team = { id: string; name: string; abbreviation: string; primaryColor: stri
 type Player = { id: string; name: string; position: string; sport: string; realTeamAbbr: string | null; adp: number | null; projectedPoints: number | null }
 type Pick = { overall: number; round: number; slot: number; player: Player }
 
-const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
 export default function MockDraft() {
   const { id } = useParams<{ id: string }>()

@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { SEASON_STARTS, buildSchedule, formatWeekRange, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
 import { sportMeta } from '@/lib/utils'
 
-const ALL_SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
+const ALL_SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
 export default function CreateLeaguePage() {
   const router = useRouter()
@@ -18,7 +18,7 @@ export default function CreateLeaguePage() {
 
   const [form, setForm] = useState<any>({
     name: '', teamName: '', season: '2025-26', logoUrl: '',
-    sportsEnabled: ['NFL', 'NBA', 'NHL', 'MLB'], seasonStart: 'FOOTBALL',
+    sportsEnabled: ['NFL', 'NHL', 'NBA', 'MLB'], seasonStart: 'FOOTBALL',
     maxTeams: 12, isPublic: false, description: '',
     draftType: 'SNAKE', rookieDraftMode: 'PER_SPORT', rookieDraftRounds: 4, tradeablePickYears: 3,
     waiverType: 'FAAB', faabBudget: 100, tradeReview: 'COMMISSIONER',

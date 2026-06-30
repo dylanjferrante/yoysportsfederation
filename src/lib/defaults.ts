@@ -1,7 +1,7 @@
 export type RosterSettings = Record<string, number>
 export type ScoringSettings = Record<string, number>
 
-export const SPORTS = ['NFL', 'NBA', 'NHL', 'MLB'] as const
+export const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB'] as const
 export type Sport = (typeof SPORTS)[number]
 
 export const DEFAULT_ROSTER: Record<string, RosterSettings> = {
