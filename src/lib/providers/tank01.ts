@@ -31,6 +31,13 @@ type CacheEntry = { at: number; data: unknown }
 const cache = new Map<string, CacheEntry>()
 const DEFAULT_TTL_MS = 1000 * 60 * 15 // 15 min; raise for tight quotas
 
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
+// Minimum spacing between provider requests, to stay under the plan's per-minute
+// rate limit during bulk pulls. Tunable; 0 disables.
+const MIN_GAP_MS = Number(process.env.TANK01_MIN_GAP_MS ?? 150)
+const MAX_RETRIES = Number(process.env.TANK01_MAX_RETRIES ?? 4)
+let lastCallAt = 0
+
 async function call<T>(sport: Sport, path: string, query: Record<string, string | number | boolean> = {}, ttlMs = DEFAULT_TTL_MS): Promise<T> {
   const key = process.env.TANK01_RAPIDAPI_KEY
   if (!key) throw new Error('TANK01_RAPIDAPI_KEY is not set')
@@ -41,15 +48,28 @@ async function call<T>(sport: Sport, path: string, query: Record<string, string 
   const cached = cache.get(url)
   if (cached && Date.now() - cached.at < ttlMs) return cached.data as T
 
-  const res = await fetch(url, {
-    headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, 'Content-Type': 'application/json' },
-  })
-  if (!res.ok) throw new Error(`Tank01 ${sport} ${path} → ${res.status} ${res.statusText}`)
-  const json = await res.json()
-  // Tank01 wraps payloads as { statusCode, body }.
-  const data = (json && typeof json === 'object' && 'body' in json) ? (json as { body: T }).body : (json as T)
-  cache.set(url, { at: Date.now(), data })
-  return data
+  // Throttle, then retry on 429 (rate limit) with backoff so bulk pulls and the
+  // nightly cron ride out the plan's per-minute cap instead of crashing.
+  for (let attempt = 0; ; attempt++) {
+    const gap = MIN_GAP_MS - (Date.now() - lastCallAt)
+    if (gap > 0) await sleep(gap)
+    lastCallAt = Date.now()
+
+    const res = await fetch(url, {
+      headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, 'Content-Type': 'application/json' },
+    })
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const ra = Number(res.headers.get('retry-after'))
+      await sleep(Number.isFinite(ra) && ra > 0 ? ra * 1000 : Math.min(30_000, 1000 * 2 ** attempt))
+      continue
+    }
+    if (!res.ok) throw new Error(`Tank01 ${sport} ${path} → ${res.status} ${res.statusText}`)
+    const json = await res.json()
+    // Tank01 wraps payloads as { statusCode, body }.
+    const data = (json && typeof json === 'object' && 'body' in json) ? (json as { body: T }).body : (json as T)
+    cache.set(url, { at: Date.now(), data })
+    return data
+  }
 }
 
 const num = (v: unknown): number => {
