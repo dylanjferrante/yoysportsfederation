@@ -148,79 +148,104 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
       .where(and(eq(matchups.leagueId, league.id), eq(matchups.season, season), eq(matchups.sport, sport), eq(matchups.isComplete, false))).limit(1)
     if (incompleteReg.length) continue
 
-    let games = await db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, league.id), eq(playoffGames.season, season), eq(playoffGames.sport, sport)))
+    const reloadGames = () => db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, league.id), eq(playoffGames.season, season), eq(playoffGames.sport, sport)))
+    let games = await reloadGames()
 
-    // Seed round 1 from final standings.
-    if (!games.length) {
-      const ranked = records.filter(r => r.sport === sport)
-        .sort((a, b) => (a.finishPosition ?? 99) - (b.finishPosition ?? 99) || (b.wins ?? 0) - (a.wins ?? 0))
-        .slice(0, nTeams)
-      if (ranked.length < 2) continue
-      let p = 1; while (p < ranked.length) p <<= 1
+    // Build the bracket pools from final standings: the championship bracket (top seeds),
+    // an optional consolation bracket (the next tier), and an optional losers/toilet bowl
+    // bracket (the bottom seeds). Consolation and losers never overlap.
+    const ranked = records.filter(r => r.sport === sport)
+      .sort((a, b) => (a.finishPosition ?? 99) - (b.finishPosition ?? 99) || (b.wins ?? 0) - (a.wins ?? 0))
+    const losersPool = league.losersBracket ? ranked.slice(Math.max(nTeams, ranked.length - nTeams)) : []
+    const consolationPool = league.consolationBracket ? ranked.slice(nTeams, ranked.length - losersPool.length) : []
+    const pools: { kind: string; pool: typeof ranked }[] = [{ kind: 'WINNERS', pool: ranked.slice(0, nTeams) }]
+    if (consolationPool.length >= 2) pools.push({ kind: 'CONSOLATION', pool: consolationPool })
+    if (losersPool.length >= 2) pools.push({ kind: 'LOSERS', pool: losersPool })
+    if (pools[0].pool.length < 2) continue
+
+    // Seed round 1 for any bracket that hasn't started yet (seeds are within the bracket).
+    for (const { kind, pool } of pools) {
+      if (pool.length < 2 || games.some(g => (g.bracket ?? 'WINNERS') === kind)) continue
+      let p = 1; while (p < pool.length) p <<= 1
       const order = seedOrder(p)
       for (let i = 0, mi = 0; i < p; i += 2, mi++) {
         const hSeed = order[i], aSeed = order[i + 1]
-        const home = ranked[hSeed - 1], away = ranked[aSeed - 1]
+        const home = pool[hSeed - 1], away = pool[aSeed - 1]
         await db.insert(playoffGames).values({
-          id: nanoid(), leagueId: league.id, season, sport, round: 1, matchIndex: mi,
+          id: nanoid(), leagueId: league.id, season, sport, round: 1, matchIndex: mi, bracket: kind,
           homeSeed: home ? hSeed : null, awaySeed: away ? aSeed : null,
           homeTeamId: home?.teamId ?? null, awayTeamId: away?.teamId ?? null,
         })
       }
-      games = await db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, league.id), eq(playoffGames.season, season), eq(playoffGames.sport, sport)))
     }
+    games = await reloadGames()
 
-    // Resolve each round whose playoff week has arrived (regEnd + round).
+    // Resolve each bracket independently, one round per playoff week (regEnd + round).
     const scoring = scoringAll[sport] ?? {}
-    let safety = 0
-    while (safety++ < 12) {
-      const rounds = [...new Set(games.map(g => g.round))].sort((a, b) => a - b)
-      const curRound = rounds.find(r => games.some(g => g.round === r && !g.isComplete))
-      if (curRound == null) break
-      if (target < regEnd + curRound) break // this playoff round's week hasn't arrived
+    for (const { kind } of pools) {
+      let safety = 0
+      while (safety++ < 12) {
+        const bg = games.filter(g => (g.bracket ?? 'WINNERS') === kind)
+        const rounds = [...new Set(bg.map(g => g.round))].sort((a, b) => a - b)
+        const curRound = rounds.find(r => bg.some(g => g.round === r && !g.isComplete))
+        if (curRound == null) break
+        if (target < regEnd + curRound) break // this playoff round's week hasn't arrived
 
-      const roundGames = games.filter(g => g.round === curRound).sort((a, b) => a.matchIndex - b.matchIndex)
-      // Resolve each game and capture the actual winner (don't re-read stale scores).
-      const completed: { teamId: string | null; seed: number | null }[] = []
-      for (const g of roundGames) {
-        let winner = g.winnerTeamId ?? null
-        if (!g.isComplete) {
-          let hs = 0, as = 0
-          if (g.homeTeamId && !g.awayTeamId) winner = g.homeTeamId
-          else if (!g.homeTeamId && g.awayTeamId) winner = g.awayTeamId
-          else if (g.homeTeamId && g.awayTeamId) {
-            hs = await scoreTeam(sport, g.homeTeamId, scoring, league.mlbSpCap ?? 0, target)
-            as = await scoreTeam(sport, g.awayTeamId, scoring, league.mlbSpCap ?? 0, target)
-            if (hs === as) hs += 0.1
-            winner = hs > as ? g.homeTeamId : g.awayTeamId
+        const roundGames = bg.filter(g => g.round === curRound).sort((a, b) => a.matchIndex - b.matchIndex)
+        const completed: { teamId: string | null; seed: number | null }[] = []
+        for (const g of roundGames) {
+          let winner = g.winnerTeamId ?? null
+          if (!g.isComplete) {
+            let hs = 0, as = 0
+            if (g.homeTeamId && !g.awayTeamId) winner = g.homeTeamId
+            else if (!g.homeTeamId && g.awayTeamId) winner = g.awayTeamId
+            else if (g.homeTeamId && g.awayTeamId) {
+              hs = await scoreTeam(sport, g.homeTeamId, scoring, league.mlbSpCap ?? 0, target)
+              as = await scoreTeam(sport, g.awayTeamId, scoring, league.mlbSpCap ?? 0, target)
+              if (hs === as) hs += 0.1
+              winner = hs > as ? g.homeTeamId : g.awayTeamId
+            }
+            await db.update(playoffGames).set({ homeScore: hs, awayScore: as, winnerTeamId: winner, isComplete: true }).where(eq(playoffGames.id, g.id))
           }
-          await db.update(playoffGames).set({ homeScore: hs, awayScore: as, winnerTeamId: winner, isComplete: true }).where(eq(playoffGames.id, g.id))
+          completed.push({ teamId: winner, seed: winner === g.homeTeamId ? g.homeSeed : g.awaySeed })
         }
-        completed.push({ teamId: winner, seed: winner === g.homeTeamId ? g.homeSeed : g.awaySeed })
-      }
-      if (completed.length === 1) {
-        const champ = completed[0].teamId
-        if (champ) {
-          await db.update(teamRecords).set({ isChampion: true }).where(and(eq(teamRecords.leagueId, league.id), eq(teamRecords.season, season), eq(teamRecords.sport, sport), eq(teamRecords.teamId, champ)))
-          const runner = roundGames[0].homeTeamId === champ ? roundGames[0].awayTeamId : roundGames[0].homeTeamId
-          const existing = await db.select({ id: leagueHistory.id }).from(leagueHistory).where(and(eq(leagueHistory.leagueId, league.id), eq(leagueHistory.season, season), eq(leagueHistory.scope, sport))).limit(1)
-          if (!existing.length) {
-            await db.insert(leagueHistory).values({ id: nanoid(), leagueId: league.id, season, scope: sport, championTeamId: champ, runnerUpTeamId: runner ?? null })
-            const [t] = await db.select({ name: teams.name }).from(teams).where(eq(teams.id, champ)).limit(1)
-            await logActivity(league.id, 'LEAGUE', `🏆 ${t?.name ?? 'A franchise'} won the ${sport} championship!`, champ)
+        if (completed.length === 1) {
+          // Only the championship bracket crowns the sport (and feeds federation) champion.
+          if (kind === 'WINNERS') {
+            const champ = completed[0].teamId
+            if (champ) {
+              await db.update(teamRecords).set({ isChampion: true }).where(and(eq(teamRecords.leagueId, league.id), eq(teamRecords.season, season), eq(teamRecords.sport, sport), eq(teamRecords.teamId, champ)))
+              const runner = roundGames[0].homeTeamId === champ ? roundGames[0].awayTeamId : roundGames[0].homeTeamId
+              const existing = await db.select({ id: leagueHistory.id }).from(leagueHistory).where(and(eq(leagueHistory.leagueId, league.id), eq(leagueHistory.season, season), eq(leagueHistory.scope, sport))).limit(1)
+              if (!existing.length) {
+                await db.insert(leagueHistory).values({ id: nanoid(), leagueId: league.id, season, scope: sport, championTeamId: champ, runnerUpTeamId: runner ?? null })
+                const [t] = await db.select({ name: teams.name }).from(teams).where(eq(teams.id, champ)).limit(1)
+                await logActivity(league.id, 'LEAGUE', `🏆 ${t?.name ?? 'A franchise'} won the ${sport} championship!`, champ)
+              }
+            }
           }
+          break
+        } else {
+          // Pair the advancing teams for the next round. With re-seeding, sort survivors by
+          // seed and match best-vs-worst (1 v 6, 2 v 5, …); otherwise keep bracket order.
+          let pairs = completed
+          if (league.playoffReseed) {
+            const withTeam = completed.filter(c => c.teamId).sort((a, b) => (a.seed ?? 99) - (b.seed ?? 99))
+            pairs = []
+            let lo = 0, hi = withTeam.length - 1
+            while (lo < hi) { pairs.push(withTeam[lo]); pairs.push(withTeam[hi]); lo++; hi-- }
+            if (lo === hi) { pairs.push(withTeam[lo]); pairs.push({ teamId: null, seed: null }) }
+          }
+          for (let j = 0; j < pairs.length; j += 2) {
+            const a = pairs[j], b = pairs[j + 1]
+            await db.insert(playoffGames).values({
+              id: nanoid(), leagueId: league.id, season, sport, round: curRound + 1, matchIndex: j / 2, bracket: kind,
+              homeSeed: a?.seed ?? null, awaySeed: b?.seed ?? null,
+              homeTeamId: a?.teamId ?? null, awayTeamId: b?.teamId ?? null,
+            })
+          }
+          games = await reloadGames()
         }
-        break
-      } else {
-        for (let j = 0; j < completed.length; j += 2) {
-          const a = completed[j], b = completed[j + 1]
-          await db.insert(playoffGames).values({
-            id: nanoid(), leagueId: league.id, season, sport, round: curRound + 1, matchIndex: j / 2,
-            homeSeed: a?.seed ?? null, awaySeed: b?.seed ?? null,
-            homeTeamId: a?.teamId ?? null, awayTeamId: b?.teamId ?? null,
-          })
-        }
-        games = await db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, league.id), eq(playoffGames.season, season), eq(playoffGames.sport, sport)))
       }
     }
   }

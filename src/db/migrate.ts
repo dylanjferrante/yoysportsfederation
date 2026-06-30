@@ -139,6 +139,9 @@ CREATE TABLE leagues (
   playoff_start_week INTEGER DEFAULT 15,
   regular_season_weeks TEXT DEFAULT '{}',
   playoff_rounds INTEGER DEFAULT 3,
+  playoff_reseed INTEGER DEFAULT 0,
+  consolation_bracket INTEGER DEFAULT 0,
+  losers_bracket INTEGER DEFAULT 0,
   dues_amount INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
@@ -431,6 +434,7 @@ CREATE TABLE playoff_games (
   sport TEXT NOT NULL,
   round INTEGER NOT NULL,
   match_index INTEGER NOT NULL,
+  bracket TEXT DEFAULT 'WINNERS',
   home_seed INTEGER,
   away_seed INTEGER,
   home_team_id TEXT REFERENCES teams(id),

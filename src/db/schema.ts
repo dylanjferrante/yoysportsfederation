@@ -115,6 +115,9 @@ export const leagues = sqliteTable('leagues', {
   playoffStartWeek: integer('playoff_start_week').default(15),
   regularSeasonWeeks: text('regular_season_weeks').default('{}'), // per-sport JSON map { NFL: 14, ... }
   playoffRounds: integer('playoff_rounds').default(3), // 6 playoff teams → 3 H2H rounds
+  playoffReseed: integer('playoff_reseed', { mode: 'boolean' }).default(false), // re-seed bracket after round 1
+  consolationBracket: integer('consolation_bracket', { mode: 'boolean' }).default(false), // teams below the cut play their own bracket
+  losersBracket: integer('losers_bracket', { mode: 'boolean' }).default(false), // bottom teams play a toilet bowl
 
   // Dues
   duesAmount: integer('dues_amount').default(0), // per-franchise buy-in
@@ -491,6 +494,7 @@ export const playoffGames = sqliteTable('playoff_games', {
   sport: text('sport').notNull(),
   round: integer('round').notNull(),       // 1 = first round
   matchIndex: integer('match_index').notNull(),
+  bracket: text('bracket').default('WINNERS'), // WINNERS | CONSOLATION | LOSERS
   homeSeed: integer('home_seed'),
   awaySeed: integer('away_seed'),
   homeTeamId: text('home_team_id').references(() => teams.id),

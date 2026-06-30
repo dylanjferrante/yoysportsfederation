@@ -37,12 +37,14 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
     const fromEnd = (maxRoundBySport[sport] ?? round) - round
     return fromEnd === 0 ? 'Final' : fromEnd === 1 ? 'Semifinal' : fromEnd === 2 ? 'Quarterfinal' : `Round ${round}`
   }
+  const bracketPrefix: Record<string, string> = { CONSOLATION: 'Consolation · ', LOSERS: 'Toilet Bowl · ' }
   const playoffMatchups = poGames.map(g => {
     const regEnd = schedule.find((s: any) => s.sport === g.sport)?.endWeek ?? 0
     return {
       id: g.id, sport: g.sport, season: g.season, week: regEnd + g.round,
       homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, homeScore: g.homeScore ?? 0, awayScore: g.awayScore ?? 0,
-      isComplete: g.isComplete ?? false, playoff: true, playoffLabel: roundLabel(g.sport, g.round),
+      isComplete: g.isComplete ?? false, playoff: true,
+      playoffLabel: `${bracketPrefix[g.bracket ?? 'WINNERS'] ?? ''}${roundLabel(g.sport, g.round)}`,
     }
   })
   const isCommish = league.commissionerId === session?.user?.id
