@@ -93,12 +93,12 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
               </div>
 
               {sportGames.length > 0 ? (
-                <div className="flex gap-4 overflow-x-auto pb-2">
+                <div className="flex gap-4 overflow-x-auto pb-2 items-center">
                   {rounds.map((rnd, ri) => {
                     const rg = sportGames.filter(g => g.round === rnd).sort((a, b) => a.matchIndex - b.matchIndex)
                     return (
                       <div key={rnd} className="flex-shrink-0 w-44">
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-2">{roundName(ri, rounds.length)}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-2 text-center">{roundName(ri, rounds.length)}</p>
                         <div className="space-y-3">
                           {rg.map(g => (
                             <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
@@ -110,12 +110,25 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
                       </div>
                     )
                   })}
-                  <div className="flex-shrink-0 w-32 flex flex-col justify-center">
-                    <p className="text-xs font-bold text-amber-500 uppercase mb-2">Champion</p>
-                    <div className="border-2 border-amber-200 bg-amber-50 rounded-lg px-3 py-4 text-center text-sm text-amber-700">
-                      🏆 {champ ? teamById[champ.championTeamId ?? '']?.abbreviation : 'TBD'}
-                    </div>
-                  </div>
+                  {(() => {
+                    const champTeam = champ ? teamById[champ.championTeamId ?? ''] : null
+                    return (
+                      <div className="flex-shrink-0 w-40 flex flex-col items-center justify-center">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-amber-500 uppercase tracking-wide">Champion</p>
+                          {champLogos[sport]
+                            ? <img src={champLogos[sport]} alt="" className="w-12 h-12 object-contain" />
+                            : <span className="text-2xl">🏆</span>}
+                        </div>
+                        <div className="mt-3 border-2 border-amber-200 bg-amber-50 rounded-xl px-4 py-3 flex flex-col items-center gap-1.5 min-w-[8rem]">
+                          {champTeam?.logo
+                            ? <img src={champTeam.logo} alt="" className="w-12 h-12 object-contain" style={champTeam.logoBg ? { background: champTeam.primaryColor } : undefined} />
+                            : <span className="w-12 h-12 flex items-center justify-center text-sm font-black" style={{ background: champTeam?.secondaryColor ?? '#fde68a', color: champTeam?.primaryColor ?? '#92400e' }}>{champTeam?.abbreviation ?? 'TBD'}</span>}
+                          <span className="text-sm font-bold text-amber-800 text-center">{champTeam?.name ?? 'TBD'}</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               ) : (
                 // Pre-playoffs: show the projected seeds from current standings.
