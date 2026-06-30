@@ -277,6 +277,7 @@ export const drafts = sqliteTable('drafts', {
   type: text('type').default('SNAKE'), // SNAKE | AUCTION | LINEAR
   rounds: integer('rounds').default(4),
   status: text('status').default('PENDING'), // PENDING | IN_PROGRESS | COMPLETED
+  manualOrder: text('manual_order'), // JSON array of teamIds — commissioner-set draft order
   startsAt: text('starts_at'),
   currentPick: integer('current_pick').default(0), // overall pick number on the clock (snake) / nomination turn (auction)
   pickSeconds: integer('pick_seconds').default(90), // per-pick / per-nomination time limit

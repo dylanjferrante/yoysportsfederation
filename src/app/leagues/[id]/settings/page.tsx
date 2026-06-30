@@ -232,7 +232,7 @@ export default function CommissionerSettings() {
             <h3 className="font-semibold text-slate-900">General</h3>
             <div className="grid sm:grid-cols-2 gap-4">
               <div><label className="label">League Name</label><input className="input" value={form.name ?? ''} onChange={e => set('name', e.target.value)} /></div>
-              <div><label className="label">League Abbreviation</label><input className="input" maxLength={4} placeholder="NXS" value={form.abbreviation ?? ''} onChange={e => set('abbreviation', e.target.value.toUpperCase())} /></div>
+              <div><label className="label">League Abbreviation</label><input className="input" maxLength={5} placeholder="NXS" value={form.abbreviation ?? ''} onChange={e => set('abbreviation', e.target.value)} /></div>
               <div>
                 <label className="label">Timezone</label>
                 <select className="select" value={form.timezone ?? 'America/New_York'} onChange={e => set('timezone', e.target.value)}>
@@ -327,7 +327,7 @@ export default function CommissionerSettings() {
                   </div>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div><label className="label">Franchise Name</label><input className="input" value={f.name} onChange={e => setFranchise(f.id, { name: e.target.value })} /></div>
-                    <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={f.abbreviation} onChange={e => setFranchise(f.id, { abbreviation: e.target.value.toUpperCase() })} /></div>
+                    <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={f.abbreviation} onChange={e => setFranchise(f.id, { abbreviation: e.target.value })} /></div>
                     <div className="sm:col-span-2">
                       <label className="label">Logo URL</label>
                       <input className="input" placeholder="https://…/logo.png" value={f.logo} onChange={e => setFranchise(f.id, { logo: e.target.value })} />
@@ -375,7 +375,7 @@ export default function CommissionerSettings() {
               <p className="text-xs text-slate-500 mb-3">Creates the franchise and its owner. {franchises.length}/{form.maxTeams ?? 12} teams used.</p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div><label className="label">Franchise Name</label><input className="input" value={newFr.name} onChange={e => setNewFr(v => ({ ...v, name: e.target.value }))} placeholder="New Dynasty" /></div>
-                <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={newFr.abbreviation} onChange={e => setNewFr(v => ({ ...v, abbreviation: e.target.value.toUpperCase() }))} placeholder="ND" /></div>
+                <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={newFr.abbreviation} onChange={e => setNewFr(v => ({ ...v, abbreviation: e.target.value }))} placeholder="ND" /></div>
                 <div><label className="label">Owner Name</label><input className="input" value={newFr.ownerName} onChange={e => setNewFr(v => ({ ...v, ownerName: e.target.value }))} /></div>
                 <div><label className="label">Owner Email</label><input className="input" type="email" value={newFr.ownerEmail} onChange={e => setNewFr(v => ({ ...v, ownerEmail: e.target.value }))} /></div>
               </div>
@@ -500,7 +500,7 @@ export default function CommissionerSettings() {
                     </div>
                     <div className="grid sm:grid-cols-4 gap-2">
                       <input className="input text-sm" placeholder={`Sport name (${s})`} value={sportNames[s] ?? ''} onChange={e => setSportNames(d => ({ ...d, [s]: e.target.value }))} />
-                      <input className="input text-sm" maxLength={4} placeholder={`Abbr (${s})`} value={sportAbbr[s] ?? ''} onChange={e => setSportAbbr(d => ({ ...d, [s]: e.target.value.toUpperCase() }))} />
+                      <input className="input text-sm" maxLength={5} placeholder={`Abbr (${s})`} value={sportAbbr[s] ?? ''} onChange={e => setSportAbbr(d => ({ ...d, [s]: e.target.value }))} />
                       <input className="input text-sm" placeholder="Championship name" value={champNames[s] ?? ''} onChange={e => setChampNames(d => ({ ...d, [s]: e.target.value }))} />
                       <div className="flex items-center gap-2">
                         <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos[s] ?? ''} onChange={e => setChampLogos(d => ({ ...d, [s]: e.target.value }))} />
@@ -701,7 +701,7 @@ export default function CommissionerSettings() {
                     <span className="text-sm font-semibold text-slate-800">Initial Dynasty Draft</span>
                     {dynasty && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${locked ? 'bg-slate-200 text-slate-600' : dynasty.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{dynasty.status}</span>}
                     {locked && <button onClick={async () => {
-                      if (!confirm('⚠️ Reset the dynasty draft?\n\nThis clears EVERY dynasty pick and removes all players drafted in it from every roster. This cannot be undone.')) return
+                      if (!confirm('⚠️ Reset the dynasty draft?\n\nThis clears EVERY dynasty pick AND wipes every franchise\'s entire roster. This cannot be undone.')) return
                       if (!confirm('Are you absolutely sure? Type-of-no-return: all drafted rosters will be wiped and the draft reopened to PENDING.')) return
                       if (prompt('Final confirmation — type RESET to proceed.') !== 'RESET') return
                       await fetch(`/api/leagues/${params.id}/dynasty`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESET' }) })

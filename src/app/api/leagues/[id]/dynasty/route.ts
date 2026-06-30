@@ -44,11 +44,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     await db.update(drafts).set({ status: 'PENDING', currentPick: 0 }).where(eq(drafts.id, d.id))
     await db.update(draftPicks).set({ isUsed: false, pickedPlayerId: null }).where(eq(draftPicks.draftId, d.id))
-    if (playerIds.length && teamIds.length) {
+    if (d.kind === 'DYNASTY' && teamIds.length) {
+      // The initial draft seeds every roster — a reset clears all rosters fully.
+      await db.delete(rosters).where(inArray(rosters.teamId, teamIds))
+    } else if (playerIds.length && teamIds.length) {
+      // Rookie draft → remove only the players taken in that draft.
       await db.delete(rosters).where(and(inArray(rosters.teamId, teamIds), inArray(rosters.playerId, playerIds)))
-    } else if (d.kind === 'DYNASTY' && teamIds.length) {
-      // Dynasty draft predates per-pick tracking → clear all drafted spots.
-      await db.delete(rosters).where(and(inArray(rosters.teamId, teamIds), eq(rosters.acquisitionType, 'DRAFT')))
     }
     await logActivity(id, 'DRAFT', `Commissioner reset the ${d.kind === 'DYNASTY' ? 'dynasty' : 'rookie'} draft${d.scope && d.scope !== 'OVERALL' ? ` (${d.scope})` : ''}`)
     return NextResponse.json({ ok: true })
