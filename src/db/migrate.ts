@@ -169,6 +169,7 @@ CREATE TABLE teams (
   division INTEGER,
   primary_color TEXT DEFAULT '#0f172a',
   secondary_color TEXT DEFAULT '#3b82f6',
+  logo_bg INTEGER DEFAULT 0,
   user_id TEXT NOT NULL REFERENCES users(id),
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
   created_at TEXT DEFAULT (datetime('now')),

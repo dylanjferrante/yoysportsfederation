@@ -4,9 +4,10 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 import { formatWeekRange } from '@/lib/defaults'
+import TeamChip from '@/components/TeamChip'
 
 type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
-type Team = { id: string; name: string; abbreviation: string }
+type Team = { id: string; name: string; abbreviation: string; logo?: string | null; primaryColor?: string | null; secondaryColor?: string | null; logoBg?: boolean | null }
 
 export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason }: {
   leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; isCommish?: boolean
@@ -72,13 +73,13 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
                   const homeWin = m.homeScore >= m.awayScore
                   return (
                     <Link key={m.id} href={`/leagues/${leagueId}/matchup/${m.id}`} className="block p-4 border-slate-50 sm:border sm:m-1.5 sm:rounded-xl hover:bg-slate-50 transition-colors">
-                      <div className={`flex items-center justify-between text-sm ${m.isComplete && homeWin ? 'font-bold text-slate-900' : 'text-slate-700'}`}>
-                        <span className="truncate">{home?.name ?? '—'}</span>
-                        <span>{m.homeScore?.toFixed(1)}</span>
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        {home ? <TeamChip team={home} size="sm" link={false} /> : <span className="text-slate-400">—</span>}
+                        <span className={`tabular-nums ${m.isComplete && homeWin ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{m.homeScore?.toFixed(1)}</span>
                       </div>
-                      <div className={`flex items-center justify-between text-sm mt-1 ${m.isComplete && !homeWin ? 'font-bold text-slate-900' : 'text-slate-700'}`}>
-                        <span className="truncate">{away?.name ?? 'BYE'}</span>
-                        <span>{m.awayScore?.toFixed(1)}</span>
+                      <div className="flex items-center justify-between gap-2 text-sm mt-1.5">
+                        {away ? <TeamChip team={away} size="sm" link={false} /> : <span className="text-slate-400 text-xs px-2">BYE</span>}
+                        <span className={`tabular-nums ${m.isComplete && !homeWin ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{m.awayScore?.toFixed(1)}</span>
                       </div>
                       <p className="text-[10px] text-slate-400 mt-1.5">{m.isComplete ? 'Final' : 'Live'} · box score →</p>
                     </Link>

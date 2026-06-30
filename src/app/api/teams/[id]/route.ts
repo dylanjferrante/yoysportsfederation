@@ -18,6 +18,7 @@ const schema = z.object({
   wordmark: z.string().max(2000).optional(),
   primaryColor: z.string().max(20).optional(),
   secondaryColor: z.string().max(20).optional(),
+  logoBg: z.boolean().optional(),
   division: z.number().int().min(0).max(8).nullable().optional(),
   // Commissioner-only owner edits.
   ownerName: z.string().min(1).max(80).optional(),
