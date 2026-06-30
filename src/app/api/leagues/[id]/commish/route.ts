@@ -173,8 +173,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // Archive the current season's branding (freeze its logos for history).
     case 'ARCHIVE_SEASON': {
+      // Commissioner override: explicitly freeze every sport's rosters as they
+      // stand now (force past any per-sport championship freeze).
       const n = await snapshotSeasonBranding(id, league.season)
-      const r = await snapshotSeasonRosters(id, league.season)
+      const r = await snapshotSeasonRosters(id, league.season, true)
       await log({ season: league.season, teams: n, rosterSpots: r })
       await logActivity(id, 'SEASON', `Commissioner archived the ${league.season} season (branding + rosters)`)
       return NextResponse.json({ ok: true, season: league.season, teams: n, rosterSpots: r })
