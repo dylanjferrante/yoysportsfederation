@@ -697,7 +697,13 @@ export default function CommissionerSettings() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-slate-800">Initial Dynasty Draft</span>
                     {dynasty && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${locked ? 'bg-slate-200 text-slate-600' : dynasty.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{dynasty.status}</span>}
-                    {locked && <button onClick={async () => { if (confirm('Reset the dynasty draft? This clears all dynasty picks and drafted rosters so settings can be edited and the draft re-run.')) { await fetch(`/api/leagues/${params.id}/dynasty`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESET' }) }); const d = await (await fetch(`/api/leagues/${params.id}/dynasty`)).json(); setDynasty(d.draft ?? null) } }} className="ml-auto btn-secondary text-xs text-red-600 border-red-200">Reset draft</button>}
+                    {locked && <button onClick={async () => {
+                      if (!confirm('⚠️ Reset the dynasty draft?\n\nThis clears EVERY dynasty pick and removes all players drafted in it from every roster. This cannot be undone.')) return
+                      if (!confirm('Are you absolutely sure? Type-of-no-return: all drafted rosters will be wiped and the draft reopened to PENDING.')) return
+                      if (prompt('Final confirmation — type RESET to proceed.') !== 'RESET') return
+                      await fetch(`/api/leagues/${params.id}/dynasty`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESET' }) })
+                      const d = await (await fetch(`/api/leagues/${params.id}/dynasty`)).json(); setDynasty(d.draft ?? null)
+                    }} className="ml-auto btn-secondary text-xs text-red-600 border-red-200">Reset draft</button>}
                   </div>
                   <p className="text-xs text-slate-500 mt-1">{locked ? 'These settings are locked because the dynasty draft is complete. Reset the draft to make changes.' : 'Configure the one-time initial draft. Settings lock automatically once it finishes.'}</p>
                 </div>
