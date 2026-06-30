@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, formatWeekRangeWithBreaks, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, LEAGUE_SIZE_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, LEAGUE_SIZE_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta, orderedSports } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
@@ -495,21 +495,35 @@ function SettingsInner() {
               </div>
             </div>
 
-            {/* Break weeks (all-star / Olympic pauses) */}
             <div>
               <label className="label">Break Weeks (per sport, optional)</label>
-              <p className="text-xs text-slate-500 mb-2">All-star break / Winter Olympics. These are <strong>not empty byes</strong> — that week&apos;s matchup simply spans the break (a longer 2-week calendar window), and later weeks shift out. Enter week numbers separated by commas.</p>
+              <p className="text-xs text-slate-500 mb-2">All-star break / Winter Olympics. These are <strong>not empty byes</strong> — that week&apos;s matchup spans the break (a longer 2-week window) and later weeks shift out. Pick the weeks below.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const wks = (breakWeeks[s] ?? [])
+                  const startWk = startWeeksObj[s] || (buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj).find(e => e.sport === s)?.startWeek ?? 1)
+                  const len = seasonWeeksObj[s] ?? DEFAULT_SEASON_WEEKS[s] ?? 18
+                  const weekNums = Array.from({ length: len }, (_, i) => startWk + i)
+                  const toggleWk = (w: number) => setBreakWeeks(d => {
+                    const cur = d[s] ?? []
+                    return { ...d, [s]: cur.includes(w) ? cur.filter(x => x !== w) : [...cur, w].sort((a, b) => a - b) }
+                  })
                   return (
-                    <div key={s} className="flex items-center gap-3">
-                      <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
-                      <input className="input flex-1 text-sm" placeholder="e.g. 18, 19"
-                        value={wks.join(', ')}
-                        onChange={e => setBreakWeeks(d => ({ ...d, [s]: e.target.value.split(',').map(x => parseInt(x.trim())).filter(n => Number.isFinite(n)) }))} />
-                      {wks.length > 0 && <span className="text-[11px] text-slate-400 whitespace-nowrap">{wks.map(w => `Wk ${w}: ${formatWeekRangeWithBreaks(form.season, w, wks)}`).join(' · ')}</span>}
-                    </div>
+                    <details key={s} className="rounded-lg border border-slate-200">
+                      <summary className="flex items-center gap-3 px-3 py-2 cursor-pointer select-none">
+                        <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
+                        <span className="text-sm text-slate-500">{wks.length ? `${wks.length} break week${wks.length > 1 ? 's' : ''}: ${wks.map(w => `Wk ${w}`).join(', ')}` : 'No breaks — choose weeks'}</span>
+                      </summary>
+                      <div className="max-h-56 overflow-y-auto border-t border-slate-100 divide-y divide-slate-50">
+                        {weekNums.map(w => (
+                          <label key={w} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-slate-50">
+                            <input type="checkbox" checked={wks.includes(w)} onChange={() => toggleWk(w)} className="w-4 h-4" />
+                            <span className="w-16 font-medium text-slate-700">Week {w}</span>
+                            <span className="text-slate-400">{formatWeekRange(form.season, w, { seasonStart: form.seasonStart })}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
                   )
                 })}
               </div>
