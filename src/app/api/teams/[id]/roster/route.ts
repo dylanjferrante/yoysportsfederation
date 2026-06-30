@@ -10,6 +10,7 @@ import { slotEligible, irEligible, defaultIrDesignations } from '@/lib/defaults'
 import { logActivity } from '@/lib/activity'
 import { realOpponents } from '@/lib/realschedule'
 import { isPlayerLocked, playerKickoff } from '@/lib/locks'
+import { placeOnWaivers, onWaivers } from '@/lib/waivers'
 import { isTeamManager } from '@/lib/permissions'
 import { teamManagers } from '@/db/schema'
 
@@ -184,11 +185,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   if (body.action === 'DROP' && body.rosterId) {
-    const [dropped] = await db.select({ name: players.name, sport: players.sport })
+    const [dropped] = await db.select({ playerId: rosters.playerId, name: players.name, sport: players.sport })
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
       .where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
     await db.delete(rosters).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
-    if (dropped) await logActivity(team.leagueId, 'ROSTER', `${team.name} dropped ${dropped.name} (${dropped.sport})`, id)
+    if (dropped) {
+      // Hold the player on the waiver wire (claim-only) unless waivers are off.
+      if (league?.waiverType !== 'FREE_AGENT') await placeOnWaivers(team.leagueId, dropped.playerId, dropped.sport, id, league?.waiverPeriodDays ?? 0)
+      await logActivity(team.leagueId, 'ROSTER', `${team.name} dropped ${dropped.name} (${dropped.sport})`, id)
+    }
     return NextResponse.json({ ok: true })
   }
 
@@ -201,6 +206,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .innerJoin(teams, eq(rosters.teamId, teams.id))
       .where(and(eq(rosters.playerId, body.playerId), eq(teams.leagueId, team.leagueId))).limit(1)
     if (existing.length) return NextResponse.json({ error: 'Player is already rostered' }, { status: 400 })
+    // Players still on the waiver wire can only be claimed, not added directly.
+    if (await onWaivers(team.leagueId, body.playerId)) return NextResponse.json({ error: 'Player is on waivers — submit a waiver claim instead' }, { status: 400 })
     // Enforce the optional per-sport transaction limit (adds + waiver claims in the period).
     const txLimits = safeParse<Record<string, { max: number; period: string }>>(league?.transactionLimits, {})
     const tl = txLimits[pl.sport]

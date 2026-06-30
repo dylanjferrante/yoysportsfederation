@@ -8,6 +8,7 @@ import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, s
 import { scorePlayer, generateStatLine } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
+import { runWaivers } from '@/lib/waivers'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
@@ -388,6 +389,9 @@ export async function advanceLeague(leagueOrId: string | any, force = false): Pr
     const prev = prevSeason(current)
     if (await seasonExists(league.id, prev) && !(await seasonCrowned(league.id, prev))) toAdvance.push(prev)
     for (const s of toAdvance) await advanceSeason({ ...league, season: s })
+
+    // Clear expired waiver holds and process any claims whose scheduled run has passed.
+    await runWaivers(league)
   } catch (e) {
     console.error('advanceLeague failed', e)
   }

@@ -460,6 +460,19 @@ export const waiverClaims = sqliteTable('waiver_claims', {
   processedAt: text('processed_at'),
 })
 
+// ── Waiver Wire ────────────────────────────────────────────────────────────
+// A player dropped in a league sits on the wire (claim-only) until `clearsAt`,
+// then becomes an ordinary free agent. One row per (league, player) on waivers.
+export const waiverWire = sqliteTable('waiver_wire', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  playerId: text('player_id').notNull().references(() => players.id),
+  sport: text('sport'),
+  droppedByTeamId: text('dropped_by_team_id').references(() => teams.id),
+  clearsAt: text('clears_at').notNull(), // ISO timestamp
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
 // ── Activity feed + notifications ──────────────────────────────────────────
 
 export const activity = sqliteTable('activity', {
