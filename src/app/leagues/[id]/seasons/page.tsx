@@ -61,6 +61,15 @@ export default async function SeasonsPage({ params, searchParams }: { params: Pr
         ))}
       </div>
 
+      {!isCurrent && (
+        <div className="mb-4">
+          <Link href={`/leagues/${id}?season=${season}`} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-900 text-white">
+            Open the full {season} league view →
+          </Link>
+          <span className="text-xs text-slate-400 ml-2">browse that season's standings, scores & playoffs</span>
+        </div>
+      )}
+
       {fedChampId && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 flex items-center gap-3">
           <span className="text-2xl">🏆</span>

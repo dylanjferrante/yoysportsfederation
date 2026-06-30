@@ -3,6 +3,14 @@ import { teams, teamSeasonBranding } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 
+// Resolve which season a league page should render from its ?season= param,
+// and whether that's a past (read-only) season.
+export function viewSeasonOf(league: { season: string }, sp: { season?: string } | undefined): { season: string; isPast: boolean } {
+  const s = sp?.season
+  const isPast = !!s && s !== league.season
+  return { season: isPast ? s! : league.season, isPast }
+}
+
 export type Branding = {
   teamId: string; name: string; abbreviation: string
   logo: string | null; altLogo: string | null; wordmark: string | null

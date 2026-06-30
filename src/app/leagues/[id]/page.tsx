@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { safeParse, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
+import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import LeagueTabs from './LeagueTabs'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -15,29 +16,33 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: league?.name ?? 'League' }
 }
 
-export default async function LeaguePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LeaguePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ season?: string }> }) {
   const session = await getServerSession(authOptions)
   const { id } = await params
 
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
 
-  // Bring the season up to date automatically (no commissioner action needed).
-  await advanceLeague(league)
+  // Which season to render — current, or a past one being browsed (read-only).
+  const { season: viewSeason, isPast } = viewSeasonOf(league, await searchParams)
+
+  // Bring the season up to date automatically (skip when viewing a past season).
+  if (!isPast) await advanceLeague(league)
 
   const franchises = await db
     .select({ team: teams, userName: users.name })
     .from(teams)
     .leftJoin(users, eq(teams.userId, users.id))
     .where(eq(teams.leagueId, id))
+  const branding = isPast ? await seasonBranding(id, viewSeason) : null
 
   const records = await db
     .select().from(teamRecords)
-    .where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
+    .where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, viewSeason)))
 
   const allMatchups = await db
     .select().from(matchups)
-    .where(and(eq(matchups.leagueId, id), eq(matchups.season, league.season)))
+    .where(and(eq(matchups.leagueId, id), eq(matchups.season, viewSeason)))
     .limit(1000)
 
   const feed = await db
@@ -64,10 +69,14 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
     if (h.scope === 'OVERALL') s.fedTitles++; else s.sportTitles++
   }
 
-  const teamsLite = franchises.map(f => ({
-    id: f.team.id, name: f.team.name, abbreviation: f.team.abbreviation, logo: f.team.logo, owner: f.userName,
-    primaryColor: f.team.primaryColor, secondaryColor: f.team.secondaryColor, division: f.team.division ?? null,
-  }))
+  const teamsLite = franchises.map(f => {
+    const b = branding?.[f.team.id]
+    return {
+      id: f.team.id, name: b?.name ?? f.team.name, abbreviation: b?.abbreviation ?? f.team.abbreviation,
+      logo: b ? b.logo : f.team.logo, owner: f.userName,
+      primaryColor: b?.primaryColor ?? f.team.primaryColor, secondaryColor: b?.secondaryColor ?? f.team.secondaryColor, division: f.team.division ?? null,
+    }
+  })
 
   return (
     <>
