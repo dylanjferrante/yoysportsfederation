@@ -140,12 +140,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const uid = session?.user?.id ?? bearerUserId(req) // web session OR native Bearer token
+  if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1)
   if (!team) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const [league] = await db.select().from(leagues).where(eq(leagues.id, team.leagueId)).limit(1)
-  if (team.userId !== session.user.id && league?.commissionerId !== session.user.id && !(await isTeamManager(id, session.user.id)))
+  if (team.userId !== uid && league?.commissionerId !== uid && !(await isTeamManager(id, uid)))
     return NextResponse.json({ error: 'Not your franchise' }, { status: 403 })
 
   const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean; isKeeper?: boolean; salary?: number; contractYears?: number; date?: string }
@@ -159,7 +160,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!row) return NextResponse.json({ error: 'Not on roster' }, { status: 400 })
     // Per-player game-time lock: once a player's game has kicked off, their slot
     // is frozen for the week. Commissioners may still override.
-    const isCommish = league?.commissionerId === session.user.id
+    const isCommish = league?.commissionerId === uid
     if (!isCommish && row.slot !== body.slot) {
       const [cur] = await db.select({ week: matchups.week })
         .from(matchups)
@@ -221,7 +222,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.action === 'SET_CONTRACT' && body.rosterId) {
     if (!league?.salaryCapEnabled) return NextResponse.json({ error: 'Salary cap is not enabled in this league' }, { status: 400 })
     // Only the owner or commissioner may set contracts (not co-managers).
-    if (team.userId !== session.user.id && league.commissionerId !== session.user.id)
+    if (team.userId !== uid && league.commissionerId !== uid)
       return NextResponse.json({ error: 'Only the owner or commissioner can set contracts' }, { status: 403 })
     const salary = Math.max(0, Math.round(body.salary ?? 0))
     const years = body.contractYears == null ? null : Math.max(0, Math.round(body.contractYears))

@@ -205,6 +205,15 @@ CREATE TABLE daily_lineups (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS daily_lineup_uniq ON daily_lineups(team_id, season, sport, date, player_id);
 
+CREATE TABLE device_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL,
+  platform TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS device_token_uniq ON device_tokens(token);
+
 CREATE TABLE team_season_branding (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,

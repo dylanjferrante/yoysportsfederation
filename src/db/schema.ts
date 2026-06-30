@@ -209,6 +209,18 @@ export const dailyLineups = sqliteTable('daily_lineups', {
   uniq: uniqueIndex('daily_lineup_uniq').on(t.teamId, t.season, t.sport, t.date, t.playerId),
 }))
 
+// Expo push tokens for the native app (one row per device). Used to send push
+// notifications (score finals, trades, waiver results) via the Expo Push API.
+export const deviceTokens = sqliteTable('device_tokens', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull(),
+  platform: text('platform'), // ios | android
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+}, (t) => ({
+  uniq: uniqueIndex('device_token_uniq').on(t.token),
+}))
+
 export const proposalVotes = sqliteTable('proposal_votes', {
   id: text('id').primaryKey(),
   proposalId: text('proposal_id').notNull().references(() => proposals.id, { onDelete: 'cascade' }),

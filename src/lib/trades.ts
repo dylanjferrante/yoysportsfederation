@@ -3,6 +3,7 @@ import { trades, teams, rosters, tradeItems, draftPicks, players } from '@/db/sc
 import { eq, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { logActivity, notify } from '@/lib/activity'
+import { sendPush } from '@/lib/push'
 
 // Execute a trade: route every asset from its source franchise to its destination,
 // log a transaction entry per asset, mark the trade ACCEPTED, and notify parties.
@@ -42,6 +43,8 @@ export async function executeTrade(tradeId: string): Promise<boolean> {
 
   await db.update(trades).set({ status: 'ACCEPTED', processedAt: new Date().toISOString() }).where(eq(trades.id, tradeId))
   const partyNames = teamRows.map(t => t.name).join(' / ')
-  await notify(teamRows.map(t => t.userId).filter(Boolean) as string[], `Your trade is complete: ${partyNames}`, `/trade`, 'TRADE')
+  const partyUsers = teamRows.map(t => t.userId).filter(Boolean) as string[]
+  await notify(partyUsers, `Your trade is complete: ${partyNames}`, `/trade`, 'TRADE')
+  await sendPush(partyUsers, '🔁 Trade complete', `${partyNames} — assets have moved.`, { type: 'TRADE', leagueId: trade.leagueId })
   return true
 }

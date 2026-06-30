@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
+import { registerForPush } from '../../lib/push';
 
 // Native bottom tab bar — the standard mobile fantasy-app navigation.
 function Icon({ emoji, color }: { emoji: string; color: string }) {
@@ -7,6 +9,8 @@ function Icon({ emoji, color }: { emoji: string; color: string }) {
 }
 
 export default function TabsLayout() {
+  // Register for push once the user is in the authenticated area.
+  useEffect(() => { registerForPush(); }, []);
   return (
     <Tabs
       screenOptions={{
@@ -17,8 +21,10 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: '#fff', borderTopColor: '#e2e8f0' },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Wire', tabBarIcon: ({ color }) => <Icon emoji="📡" color={color} /> }} />
+      <Tabs.Screen name="team" options={{ title: 'My Team', tabBarIcon: ({ color }) => <Icon emoji="⭐" color={color} /> }} />
+      <Tabs.Screen name="scores" options={{ title: 'Scores', tabBarIcon: ({ color }) => <Icon emoji="📊" color={color} /> }} />
       <Tabs.Screen name="standings" options={{ title: 'Standings', tabBarIcon: ({ color }) => <Icon emoji="🏆" color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'Wire', tabBarIcon: ({ color }) => <Icon emoji="📡" color={color} /> }} />
       <Tabs.Screen name="account" options={{ title: 'Account', tabBarIcon: ({ color }) => <Icon emoji="👤" color={color} /> }} />
     </Tabs>
   );
