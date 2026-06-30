@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, LEAGUE_SIZE_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
+import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, formatWeekRangeWithBreaks, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, LEAGUE_SIZE_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta, orderedSports } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
@@ -469,16 +469,20 @@ export default function CommissionerSettings() {
             {/* Break weeks (all-star / Olympic pauses) */}
             <div>
               <label className="label">Break Weeks (per sport, optional)</label>
-              <p className="text-xs text-slate-500 mb-2">Weeks with no games — e.g. all-star break or Winter Olympics. Enter week numbers separated by commas.</p>
+              <p className="text-xs text-slate-500 mb-2">All-star break / Winter Olympics. These are <strong>not empty byes</strong> — that week&apos;s matchup simply spans the break (a longer 2-week calendar window), and later weeks shift out. Enter week numbers separated by commas.</p>
               <div className="space-y-2">
-                {orderedEnabled.map(s => (
-                  <div key={s} className="flex items-center gap-3">
-                    <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
-                    <input className="input flex-1 text-sm" placeholder="e.g. 18, 19"
-                      value={(breakWeeks[s] ?? []).join(', ')}
-                      onChange={e => setBreakWeeks(d => ({ ...d, [s]: e.target.value.split(',').map(x => parseInt(x.trim())).filter(n => Number.isFinite(n)) }))} />
-                  </div>
-                ))}
+                {orderedEnabled.map(s => {
+                  const wks = (breakWeeks[s] ?? [])
+                  return (
+                    <div key={s} className="flex items-center gap-3">
+                      <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
+                      <input className="input flex-1 text-sm" placeholder="e.g. 18, 19"
+                        value={wks.join(', ')}
+                        onChange={e => setBreakWeeks(d => ({ ...d, [s]: e.target.value.split(',').map(x => parseInt(x.trim())).filter(n => Number.isFinite(n)) }))} />
+                      {wks.length > 0 && <span className="text-[11px] text-slate-400 whitespace-nowrap">{wks.map(w => `Wk ${w}: ${formatWeekRangeWithBreaks(form.season, w, wks)}`).join(' · ')}</span>}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
