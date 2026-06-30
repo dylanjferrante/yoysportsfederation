@@ -36,6 +36,8 @@ export default function CommissionerSettings() {
   const [posLimits, setPosLimits] = useState<Record<string, Record<string, { maxStarters?: number; maxRostered?: number }>>>({})
   const [rookieDates, setRookieDates] = useState<Record<string, string>>({})
   const [sportNames, setSportNames] = useState<Record<string, string>>({})
+  const [sportAbbr, setSportAbbr] = useState<Record<string, string>>({})
+  const [divisionNames, setDivisionNames] = useState<Record<string, string>>({})
   const [champNames, setChampNames] = useState<Record<string, string>>({})
   const [champLogos, setChampLogos] = useState<Record<string, string>>({})
   const [breakWeeks, setBreakWeeks] = useState<Record<string, number[]>>({})
@@ -87,6 +89,8 @@ export default function CommissionerSettings() {
       setPosLimits(parse(l.positionLimits, {}))
       setRookieDates(parse(l.rookieDraftDates, {}))
       setSportNames(parse(l.sportNames, {}))
+      setSportAbbr(parse(l.sportAbbr, {}))
+      setDivisionNames(parse(l.divisionNames, {}))
       setChampNames(parse(l.championshipNames, {}))
       setChampLogos(parse(l.championshipLogos, {}))
       setBreakWeeks(parse(l.breakWeeks, {}))
@@ -113,9 +117,9 @@ export default function CommissionerSettings() {
     await fetch(`/api/leagues/${params.id}/settings`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: form.name, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
+        name: form.name, abbreviation: form.abbreviation, timezone: form.timezone, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
         duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
-        divisions: form.divisions, sportNames, championshipNames: champNames, championshipLogos: champLogos, breakWeeks,
+        divisions: form.divisions, divisionNames, sportNames, sportAbbr, championshipNames: champNames, championshipLogos: champLogos, breakWeeks,
         sportsEnabled, divisionLogos, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
@@ -210,6 +214,7 @@ export default function CommissionerSettings() {
         </div>
         <div className="ml-auto flex items-center gap-3">
           {saved && <span className="text-green-600 text-sm font-medium">✓ Saved</span>}
+          <Link href={`/leagues/${params.id}/schedule`} className="btn-secondary text-sm">🗓 Edit Schedule</Link>
           <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
         </div>
       </div>
@@ -225,6 +230,13 @@ export default function CommissionerSettings() {
             <h3 className="font-semibold text-slate-900">General</h3>
             <div className="grid sm:grid-cols-2 gap-4">
               <div><label className="label">League Name</label><input className="input" value={form.name ?? ''} onChange={e => set('name', e.target.value)} /></div>
+              <div><label className="label">League Abbreviation</label><input className="input" maxLength={4} placeholder="NXS" value={form.abbreviation ?? ''} onChange={e => set('abbreviation', e.target.value.toUpperCase())} /></div>
+              <div>
+                <label className="label">Timezone</label>
+                <select className="select" value={form.timezone ?? 'America/New_York'} onChange={e => set('timezone', e.target.value)}>
+                  {['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu', 'Europe/London', 'UTC'].map(tz => <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="label">Season</label>
                 <select className="select" value={form.season ?? '2025-26'} onChange={e => set('season', e.target.value)}>
@@ -284,6 +296,16 @@ export default function CommissionerSettings() {
                 })()}
               </div>
               <p className="text-xs text-slate-500 mt-1">Assign each franchise to a division below. Divisions must have an equal number of teams before settings can be saved.</p>
+              {(form.divisions ?? 0) > 0 && (
+                <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                  {Array.from({ length: form.divisions }, (_, i) => i + 1).map(d => (
+                    <div key={d} className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500 w-12">Div {d}</span>
+                      <input className="input text-sm" placeholder={`Division ${d} name`} value={divisionNames[d] ?? ''} onChange={e => setDivisionNames(prev => ({ ...prev, [d]: e.target.value }))} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-4">
               {franchises.map(f => (
@@ -291,7 +313,7 @@ export default function CommissionerSettings() {
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-11 h-11 rounded-lg flex items-center justify-center text-lg font-bold flex-shrink-0 overflow-hidden"
                       style={{ background: f.primaryColor, color: f.secondaryColor }}>
-                      {f.logo ? <img src={f.logo} alt="" className="w-full h-full object-cover" /> : (f.abbreviation || f.name || '?').slice(0, 3).toUpperCase()}
+                      {f.logo ? <img src={f.logo} alt="" className="w-full h-full object-cover" /> : (f.abbreviation || f.name || '?').slice(0, 4).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <p className="font-semibold text-slate-900 truncate">{f.name || 'Unnamed franchise'}</p>
@@ -300,7 +322,7 @@ export default function CommissionerSettings() {
                   </div>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div><label className="label">Franchise Name</label><input className="input" value={f.name} onChange={e => setFranchise(f.id, { name: e.target.value })} /></div>
-                    <div><label className="label">Abbreviation</label><input className="input" maxLength={5} value={f.abbreviation} onChange={e => setFranchise(f.id, { abbreviation: e.target.value.toUpperCase() })} /></div>
+                    <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={f.abbreviation} onChange={e => setFranchise(f.id, { abbreviation: e.target.value.toUpperCase() })} /></div>
                     <div className="sm:col-span-2">
                       <label className="label">Logo URL</label>
                       <input className="input" placeholder="https://…/logo.png" value={f.logo} onChange={e => setFranchise(f.id, { logo: e.target.value })} />
@@ -347,7 +369,7 @@ export default function CommissionerSettings() {
               <p className="text-xs text-slate-500 mb-3">Creates the franchise and its owner. {franchises.length}/{form.maxTeams ?? 12} teams used.</p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div><label className="label">Franchise Name</label><input className="input" value={newFr.name} onChange={e => setNewFr(v => ({ ...v, name: e.target.value }))} placeholder="New Dynasty" /></div>
-                <div><label className="label">Abbreviation</label><input className="input" maxLength={5} value={newFr.abbreviation} onChange={e => setNewFr(v => ({ ...v, abbreviation: e.target.value.toUpperCase() }))} placeholder="ND" /></div>
+                <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={newFr.abbreviation} onChange={e => setNewFr(v => ({ ...v, abbreviation: e.target.value.toUpperCase() }))} placeholder="ND" /></div>
                 <div><label className="label">Owner Name</label><input className="input" value={newFr.ownerName} onChange={e => setNewFr(v => ({ ...v, ownerName: e.target.value }))} /></div>
                 <div><label className="label">Owner Email</label><input className="input" type="email" value={newFr.ownerEmail} onChange={e => setNewFr(v => ({ ...v, ownerEmail: e.target.value }))} /></div>
               </div>
@@ -375,13 +397,21 @@ export default function CommissionerSettings() {
                 ))}
               </div>
             </div>
-            <div>
-              <label className="label">Season Start (calendar anchor)</label>
-              <select className="select" value={form.seasonStart ?? 'FOOTBALL'} onChange={e => set('seasonStart', e.target.value)}>
-                {SEASON_STARTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-              </select>
-              <p className="text-xs text-slate-400 mt-1">Sets the default order sports run; you can fine-tune each sport&apos;s start week below.</p>
-            </div>
+            {(() => {
+              // Season-start anchors only make sense for the sports actually enabled.
+              const anchorSport: Record<string, string[]> = { FOOTBALL: ['NFL'], WINTER: ['NBA', 'NHL'], BASEBALL: ['MLB'] }
+              const options = SEASON_STARTS.filter(s => anchorSport[s.key].some(sp => sportsEnabled.includes(sp)))
+              const opts = options.length ? options : SEASON_STARTS
+              return (
+                <div>
+                  <label className="label">Season Start (calendar anchor)</label>
+                  <select className="select" value={opts.some(o => o.key === form.seasonStart) ? form.seasonStart : opts[0].key} onChange={e => set('seasonStart', e.target.value)}>
+                    {opts.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1">Sets the default order sports run; only anchors for your enabled sports are shown. Fine-tune each sport&apos;s start week below.</p>
+                </div>
+              )
+            })()}
 
             {/* Editable weekly schedule */}
             <div>
@@ -462,8 +492,9 @@ export default function CommissionerSettings() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-xs font-bold ${sportMeta(s).color}`}>{sportMeta(s).emoji} {s}</span>
                     </div>
-                    <div className="grid sm:grid-cols-3 gap-2">
+                    <div className="grid sm:grid-cols-4 gap-2">
                       <input className="input text-sm" placeholder={`Sport name (${s})`} value={sportNames[s] ?? ''} onChange={e => setSportNames(d => ({ ...d, [s]: e.target.value }))} />
+                      <input className="input text-sm" maxLength={4} placeholder={`Abbr (${s})`} value={sportAbbr[s] ?? ''} onChange={e => setSportAbbr(d => ({ ...d, [s]: e.target.value.toUpperCase() }))} />
                       <input className="input text-sm" placeholder="Championship name" value={champNames[s] ?? ''} onChange={e => setChampNames(d => ({ ...d, [s]: e.target.value }))} />
                       <div className="flex items-center gap-2">
                         <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos[s] ?? ''} onChange={e => setChampLogos(d => ({ ...d, [s]: e.target.value }))} />

@@ -136,7 +136,7 @@ export default function TeamPage() {
           <h3 className="font-semibold text-slate-900">Team Branding</h3>
           <div className="grid sm:grid-cols-2 gap-3">
             <div><label className="label">Team Name</label><input className="input" value={brand.name} onChange={e => setBrand({ ...brand, name: e.target.value })} /></div>
-            <div><label className="label">Abbreviation</label><input className="input" maxLength={5} value={brand.abbreviation} onChange={e => setBrand({ ...brand, abbreviation: e.target.value.toUpperCase() })} /></div>
+            <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={brand.abbreviation} onChange={e => setBrand({ ...brand, abbreviation: e.target.value.toUpperCase() })} /></div>
             <div><label className="label">Logo URL</label><input className="input" placeholder="https://…" value={brand.logo} onChange={e => setBrand({ ...brand, logo: e.target.value })} /></div>
             <div><label className="label">Alternate Logo URL</label><input className="input" placeholder="https://…" value={brand.altLogo} onChange={e => setBrand({ ...brand, altLogo: e.target.value })} /></div>
             <div><label className="label">Wordmark (text or image URL)</label><input className="input" value={brand.wordmark} onChange={e => setBrand({ ...brand, wordmark: e.target.value })} /></div>

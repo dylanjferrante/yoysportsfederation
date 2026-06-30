@@ -69,6 +69,8 @@ CREATE TABLE push_subscriptions (
 CREATE TABLE leagues (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  abbreviation TEXT,
+  timezone TEXT DEFAULT 'America/New_York',
   season TEXT NOT NULL,
   commissioner_id TEXT NOT NULL REFERENCES users(id),
   is_public INTEGER DEFAULT 0,
@@ -114,7 +116,9 @@ CREATE TABLE leagues (
   mlb_sp_cap INTEGER DEFAULT 0,
   rookie_draft_dates TEXT DEFAULT '{}',
   divisions INTEGER DEFAULT 0,
+  division_names TEXT DEFAULT '{}',
   sport_names TEXT DEFAULT '{}',
+  sport_abbr TEXT DEFAULT '{}',
   championship_names TEXT DEFAULT '{}',
   championship_logos TEXT DEFAULT '{}',
   break_weeks TEXT DEFAULT '{}',

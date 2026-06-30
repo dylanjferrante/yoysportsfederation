@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     await db.insert(teams).values({
       id: teamId,
       name: teamName,
-      abbreviation: teamName.slice(0, 3).toUpperCase(),
+      abbreviation: teamName.slice(0, 4).toUpperCase(),
       userId: session.user.id,
       leagueId,
     })
