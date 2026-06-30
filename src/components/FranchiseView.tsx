@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 import { eligibleSlots, SPORT_POSITIONS } from '@/lib/defaults'
+import { lineupAdvice } from '@/lib/lineup'
 import { boxScoreColumns } from '@/lib/scoring-categories'
 import { oppLabel } from '@/lib/realschedule'
 
@@ -141,29 +142,23 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   const effProj = (p: P) => isOut(p) ? 0 : (p.projectedPoints ?? 0)
   const advisor = (() => {
     const startable = rosterForSport.filter(p => !RESERVE.includes(p.slot) || p.slot === 'BN')
-    // Expand configured starter slots into individual instances.
     const slotInstances: string[] = []
     for (const slot of starterSlots) for (let i = 0; i < (cfg[slot] || 0); i++) slotInstances.push(slot)
     if (!slotInstances.length) return null
-    // Restrictiveness: how many of the sport's positions can fill a slot (fill flex last).
     const positions = SPORT_POSITIONS[sport] ?? []
     const slotWidth = (slot: string) => positions.filter(pos => eligibleSlots(pos, cfg).includes(slot)).length || 99
-    const open = slotInstances.map((slot, idx) => ({ slot, idx, width: slotWidth(slot), taken: null as P | null }))
-    // Greedy: best projected players first, into the most restrictive eligible open slot.
-    for (const p of [...startable].sort((a, b) => effProj(b) - effProj(a))) {
-      const cand = open.filter(o => !o.taken && eligibleSlots(p.position, cfg).includes(o.slot)).sort((a, b) => a.width - b.width)
-      if (cand.length) cand[0].taken = p
+    const byId = new Map(startable.map(p => [p.rosterId, p]))
+    const currentIds = new Set(lineup.filter(e => e.player).map(e => e.player!.rosterId))
+    const adv = lineupAdvice(
+      startable.map(p => ({ id: p.rosterId, position: p.position, proj: p.projectedPoints ?? 0, out: isOut(p) })),
+      currentIds, slotInstances, pos => eligibleSlots(pos, cfg), slotWidth,
+    )
+    const toP = (o: { id: string }) => byId.get(o.id)!
+    return {
+      currentTotal: adv.currentTotal, optimalTotal: adv.optimalTotal, gain: adv.gain,
+      toStart: adv.toStart.map(a => ({ player: toP(a.player), slot: a.slot })),
+      toSit: adv.toSit.map(toP), alerts: adv.alerts.map(toP),
     }
-    const optimalIds = new Set(open.filter(o => o.taken).map(o => o.taken!.rosterId))
-    const currentStarters = lineup.filter(e => e.player).map(e => e.player!)
-    const currentIds = new Set(currentStarters.map(p => p.rosterId))
-    const currentTotal = currentStarters.reduce((s, p) => s + effProj(p), 0)
-    const optimalTotal = open.reduce((s, o) => s + (o.taken ? effProj(o.taken) : 0), 0)
-    // Promotions (start, with the optimizer's target slot) and benchings (sit).
-    const toStart = open.filter(o => o.taken && !currentIds.has(o.taken.rosterId)).map(o => ({ player: o.taken!, slot: o.slot }))
-    const toSit = currentStarters.filter(p => !optimalIds.has(p.rosterId))
-    const alerts = currentStarters.filter(p => isOut(p))
-    return { currentTotal, optimalTotal, toStart, toSit, alerts, gain: +(optimalTotal - currentTotal).toFixed(1) }
   })()
 
   const renderHead = () => (
