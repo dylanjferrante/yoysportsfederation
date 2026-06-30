@@ -15,6 +15,8 @@ type Data = {
     pickem: { userId: string; name: string | null; correct: number; decided: number; made: number }[]
     survivor: { userId: string; name: string | null; alive: boolean; survived: number; outWeek: number | null; picks: { week: number; team: string; outcome: string }[] }[]
   }
+  config: { highScore: boolean; survivor: boolean; pickem: boolean }
+  isCommissioner: boolean
   signedIn: boolean
 }
 
@@ -28,6 +30,24 @@ export default function SideGames() {
 
   const load = useCallback(() => { fetch(`/api/leagues/${id}/sidegames?sport=${sport}`).then(r => r.json()).then(setD) }, [id, sport])
   useEffect(() => { load() }, [load])
+
+  async function toggleGame(key: 'highScore' | 'survivor' | 'pickem', on: boolean) {
+    if (!d) return
+    const next = { ...d.config, [key]: on }
+    await fetch(`/api/leagues/${id}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sideGames: next }) })
+    load()
+  }
+  const cfg = d?.config ?? { highScore: true, survivor: true, pickem: true }
+  const gameOn: Record<'HIGH' | 'SURVIVOR' | 'PICKEM', boolean> = { HIGH: cfg.highScore, SURVIVOR: cfg.survivor, PICKEM: cfg.pickem }
+
+  // If the selected game gets disabled, jump to the first enabled one.
+  useEffect(() => {
+    if (!d) return
+    if (!gameOn[game]) {
+      const first = (['HIGH', 'SURVIVOR', 'PICKEM'] as const).find(g => gameOn[g])
+      if (first) setGame(first)
+    }
+  }, [d, game]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit(g: 'SURVIVOR' | 'PICKEM', week: number, matchupId: string, pickedTeamId: string) {
     const r = await fetch(`/api/leagues/${id}/sidegames`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game: g, sport, week, matchupId, pickedTeamId }) })
@@ -51,15 +71,26 @@ export default function SideGames() {
       <div className="flex gap-1.5 flex-wrap mb-3">
         {SPORTS.map(s => <button key={s} onClick={() => setSport(s)} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${sport === s ? `${sportMeta(s).bg} text-white` : 'bg-slate-100 text-slate-600'}`}>{sportMeta(s).emoji} {s}</button>)}
       </div>
+      {d?.isCommissioner && (
+        <div className="flex flex-wrap items-center gap-2 mb-3 text-xs">
+          <span className="text-slate-400 font-medium">Commissioner — enabled games:</span>
+          {([['highScore', 'High-Score Pool'], ['survivor', 'Survivor'], ['pickem', "Pick'em"]] as const).map(([k, lbl]) => (
+            <button key={k} onClick={() => toggleGame(k, !cfg[k])} className={`px-2 py-1 rounded-full font-medium ${cfg[k] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400 line-through'}`}>
+              {cfg[k] ? '✓ ' : ''}{lbl}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex gap-1 border-b border-slate-200 mb-5">
-        <button onClick={() => setGame('HIGH')} className={game === 'HIGH' ? 'tab-active' : 'tab-inactive'}>High-Score Pool</button>
-        <button onClick={() => setGame('SURVIVOR')} className={game === 'SURVIVOR' ? 'tab-active' : 'tab-inactive'}>Survivor</button>
-        <button onClick={() => setGame('PICKEM')} className={game === 'PICKEM' ? 'tab-active' : 'tab-inactive'}>Pick&apos;em</button>
+        {gameOn.HIGH && <button onClick={() => setGame('HIGH')} className={game === 'HIGH' ? 'tab-active' : 'tab-inactive'}>High-Score Pool</button>}
+        {gameOn.SURVIVOR && <button onClick={() => setGame('SURVIVOR')} className={game === 'SURVIVOR' ? 'tab-active' : 'tab-inactive'}>Survivor</button>}
+        {gameOn.PICKEM && <button onClick={() => setGame('PICKEM')} className={game === 'PICKEM' ? 'tab-active' : 'tab-inactive'}>Pick&apos;em</button>}
+        {!gameOn.HIGH && !gameOn.SURVIVOR && !gameOn.PICKEM && <span className="py-2 text-sm text-slate-400">No side games are enabled.</span>}
       </div>
 
       {!d ? <div className="card p-10 text-center text-slate-400 text-sm">Loading…</div> : (
         <>
-          {game === 'HIGH' && (
+          {gameOn.HIGH && game === 'HIGH' && (
             <div className="card overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100">
                 <h2 className="font-semibold text-slate-900">High-Score Pool</h2>
@@ -79,7 +110,7 @@ export default function SideGames() {
             </div>
           )}
 
-          {game === 'SURVIVOR' && (
+          {gameOn.SURVIVOR && game === 'SURVIVOR' && (
             <div className="space-y-5">
               <div className="card overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
@@ -102,7 +133,7 @@ export default function SideGames() {
             </div>
           )}
 
-          {game === 'PICKEM' && (
+          {gameOn.PICKEM && game === 'PICKEM' && (
             <div className="space-y-5">
               <div className="card overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
