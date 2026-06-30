@@ -650,21 +650,6 @@ export default function CommissionerSettings() {
               </div>
             </div>
 
-            {/* Keepers */}
-            <div className="border-t border-slate-100 pt-4">
-              <label className="flex items-center gap-2 mb-2">
-                <input type="checkbox" checked={!!form.keeperEnabled} onChange={e => set('keeperEnabled', e.target.checked)} />
-                <span className="font-semibold text-slate-900">Enable keepers</span>
-              </label>
-              <p className="text-xs text-slate-500 mb-2">Let each franchise protect a set number of players per sport heading into the next season&apos;s draft. Owners flag keepers from their team page.</p>
-              {form.keeperEnabled && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-600">Keepers allowed per franchise, per sport</span>
-                  <input type="number" min={0} max={30} value={form.keeperCount ?? 0} onChange={e => set('keeperCount', Math.max(0, +e.target.value))} className="input w-20 text-right text-sm" />
-                </div>
-              )}
-            </div>
-
             {/* Salary cap */}
             <div className="border-t border-slate-100 pt-4">
               <label className="flex items-center gap-2 mb-2">

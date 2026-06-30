@@ -195,7 +195,6 @@ export default function TeamPage() {
         })}
         {canManage && <td className="px-3 py-1.5 text-right whitespace-nowrap sticky right-0 bg-white shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)]">
           {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} title="Set salary / contract" className="text-[11px] mr-2 text-slate-400 hover:text-emerald-600">$</button>}
-          {data.keeperEnabled && <button onClick={() => act({ action: 'SET_KEEPER', rosterId: p.rosterId, isKeeper: !p.isKeeper })} className={`text-[11px] mr-2 ${p.isKeeper ? 'text-emerald-600 font-semibold' : 'text-slate-400 hover:text-emerald-600'}`}>{p.isKeeper ? '🔑 Keeper' : 'Keep'}</button>}
           <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} title="Trade block — flag this player as available to trade" className={`text-[11px] mr-2 ${p.onBlock ? 'text-amber-600 font-semibold' : 'text-slate-400 hover:text-amber-600'}`}>{p.onBlock ? '◉ On block' : 'Trade block'}</button>
           <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] font-semibold text-red-600 hover:text-white hover:bg-red-600 px-1.5 py-0.5 rounded border border-red-200">Drop</button>
         </td>}
