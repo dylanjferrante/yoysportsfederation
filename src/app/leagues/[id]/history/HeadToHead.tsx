@@ -76,33 +76,32 @@ export default function HeadToHead({ matchups, teams, sportsEnabled }: { matchup
         </tbody>
       </table>
 
-      {/* Matchup list for the selected pair */}
+      {/* Matchup list for the selected pair — inline, below the table */}
       {pair && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setPair(null)}>
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900">{pair.a.name} vs {pair.b.name}{sport !== 'ALL' ? ` · ${sport}` : ''}</h3>
-              <button onClick={() => setPair(null)} className="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
-            </div>
-            <div className="overflow-y-auto divide-y divide-slate-50">
-              {pairGames.length === 0 && <p className="px-5 py-8 text-center text-slate-400 text-sm">No completed matchups.</p>}
-              {pairGames.map((m, i) => {
-                const aHome = m.homeTeamId === pair.a.id
-                const aScore = aHome ? m.homeScore : m.awayScore
-                const bScore = aHome ? m.awayScore : m.homeScore
-                const aWon = aScore >= bScore
-                const meta = sportMeta(m.sport)
-                return (
-                  <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-sm">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{meta.emoji} {m.sport}</span>
-                    <span className="text-xs text-slate-400 w-24">{m.season ?? ''}{m.week ? ` · Wk ${m.week}` : ''}</span>
-                    <span className={`ml-auto tabular-nums ${aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(aScore ?? 0).toFixed(1)}</span>
-                    <span className="text-slate-300">–</span>
-                    <span className={`tabular-nums ${!aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(bScore ?? 0).toFixed(1)}</span>
-                  </div>
-                )
-              })}
-            </div>
+        <div className="border-t border-slate-100">
+          <div className="px-5 py-3 flex items-center justify-between bg-slate-50">
+            <h3 className="font-semibold text-slate-900 text-sm">{pair.a.name} vs {pair.b.name}{sport !== 'ALL' ? ` · ${sport}` : ''}</h3>
+            <button onClick={() => setPair(null)} className="text-slate-400 hover:text-slate-700 text-sm">Close ×</button>
+          </div>
+          <div className="divide-y divide-slate-50 max-h-96 overflow-y-auto">
+            {pairGames.length === 0 && <p className="px-5 py-8 text-center text-slate-400 text-sm">No completed matchups.</p>}
+            {pairGames.map((m, i) => {
+              const aHome = m.homeTeamId === pair.a.id
+              const aScore = aHome ? m.homeScore : m.awayScore
+              const bScore = aHome ? m.awayScore : m.homeScore
+              const aWon = aScore >= bScore
+              const meta = sportMeta(m.sport)
+              return (
+                <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-sm">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{meta.emoji} {m.sport}</span>
+                  <span className="text-xs text-slate-400 w-24">{m.season ?? ''}{m.week ? ` · Wk ${m.week}` : ''}</span>
+                  <span className="text-slate-600 text-xs flex-1 truncate">{pair.a.abbreviation} vs {pair.b.abbreviation}</span>
+                  <span className={`tabular-nums ${aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(aScore ?? 0).toFixed(1)}</span>
+                  <span className="text-slate-300">–</span>
+                  <span className={`tabular-nums ${!aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(bScore ?? 0).toFixed(1)}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

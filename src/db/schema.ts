@@ -101,6 +101,7 @@ export const leagues = sqliteTable('leagues', {
   salaryCapEnabled: integer('salary_cap_enabled', { mode: 'boolean' }).default(false),
   salaryCap: integer('salary_cap').default(200),
   capMode: text('cap_mode').default('TOTAL'), // TOTAL (one cross-sport cap) | PER_SPORT
+  sideGames: text('side_games').default('{"highScore":true,"survivor":true,"pickem":true}'), // which side games are enabled
   keeperEnabled: integer('keeper_enabled', { mode: 'boolean' }).default(false),
   keeperCount: integer('keeper_count').default(0),
   lockDay: integer('lock_day').default(0),

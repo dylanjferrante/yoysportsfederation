@@ -126,6 +126,7 @@ CREATE TABLE leagues (
   salary_cap_enabled INTEGER DEFAULT 0,
   salary_cap INTEGER DEFAULT 200,
   cap_mode TEXT DEFAULT 'TOTAL',
+  side_games TEXT DEFAULT '{"highScore":true,"survivor":true,"pickem":true}',
   keeper_enabled INTEGER DEFAULT 0,
   keeper_count INTEGER DEFAULT 0,
   lock_day INTEGER DEFAULT 0,

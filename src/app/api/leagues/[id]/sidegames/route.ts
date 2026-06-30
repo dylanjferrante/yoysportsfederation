@@ -86,11 +86,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     games: byWeek[wk].map(g => ({ id: g.id, home: g.homeTeamId, homeName: tname[g.homeTeamId ?? ''], away: g.awayTeamId, awayName: tname[g.awayTeamId ?? ''], homeScore: g.homeScore, awayScore: g.awayScore, complete: g.isComplete })),
   }))
 
+  let config = { highScore: true, survivor: true, pickem: true }
+  try { config = { ...config, ...JSON.parse(league.sideGames ?? '{}') } } catch { /* defaults */ }
+
   return NextResponse.json({
     sport, season,
     board,
     myPicks: myPicks.map(p => ({ game: p.game, week: p.week, matchupId: p.matchupId, pickedTeamId: p.pickedTeamId })),
     standings: { highScore, pickem, survivor },
+    config,
+    isCommissioner: league.commissionerId === session?.user?.id,
     signedIn: !!session,
   })
 }
