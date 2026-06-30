@@ -18,7 +18,7 @@ const FILTERS: { key: string; label: string; types: string[] }[] = [
 ]
 
 const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
-const ICON: Record<string, string> = { TRADE: '🔁', WAIVER: '📝', ROSTER: '🔀', DRAFT: '🏈' }
+const ICON: Record<string, string> = { TRADE: '', WAIVER: '', ROSTER: '', DRAFT: '' }
 
 export default function TransactionsView({ leagueId, leagueName, rows, sportAbbr = {} }: { leagueId: string; leagueName: string; rows: Row[]; sportAbbr?: Record<string, string> }) {
   const [filter, setFilter] = useState('ALL')

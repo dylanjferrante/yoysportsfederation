@@ -112,7 +112,7 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
         ) : (
           <ul className="divide-y divide-slate-50">
             {feed.map(a => {
-              const icon = a.type === 'TRADE' ? '🔁' : a.type === 'SCORES' ? '📊' : a.type === 'WAIVER' ? '📝' : a.type === 'DRAFT' ? '🏈' : '•'
+              const icon = a.type === 'TRADE' ? '' : a.type === 'SCORES' ? '' : a.type === 'WAIVER' ? '' : a.type === 'DRAFT' ? '' : '•'
               return (
                 <li key={a.id} className="flex items-start gap-3 px-4 py-2.5">
                   <span className="text-base leading-5">{icon}</span>
