@@ -52,6 +52,7 @@ export default function HeadToHead({ matchups, teams, sportsEnabled, schedule = 
           <tr>
             <th className="sticky left-0 bg-slate-50 px-2 py-2 text-left text-slate-400 font-medium">vs →</th>
             {teams.map(t => <th key={t.id} className="px-2 py-2 text-slate-500 font-semibold">{t.abbreviation}</th>)}
+            <th className="px-2 py-2 text-slate-600 font-bold border-l border-slate-200">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -72,6 +73,15 @@ export default function HeadToHead({ matchups, teams, sportsEnabled, schedule = 
                   </td>
                 )
               })}
+              {(() => {
+                const tot = teams.reduce((acc, col) => {
+                  if (col.id === row.id) return acc
+                  const r = record[row.id]?.[col.id] ?? { w: 0, l: 0 }
+                  return { w: acc.w + r.w, l: acc.l + r.l }
+                }, { w: 0, l: 0 })
+                const good = tot.w > tot.l
+                return <td className={`px-2 py-2 text-center font-bold border-l border-slate-200 ${good ? 'text-green-600' : tot.w < tot.l ? 'text-red-500' : 'text-slate-600'}`}>{tot.w}-{tot.l}</td>
+              })()}
             </tr>
           ))}
         </tbody>
