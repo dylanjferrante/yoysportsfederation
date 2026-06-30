@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { sportMeta, sportLabel } from '@/lib/utils'
+import { sportMeta, sportLabel, sportAbbrLabel } from '@/lib/utils'
 import { computeFederationStandings, type FederationScoring } from '@/lib/federation'
 
 type TeamLite = { id: string; name: string; abbreviation: string; logo: string | null; owner: string | null; primaryColor?: string | null; secondaryColor?: string | null }
@@ -11,7 +11,7 @@ type TeamRec = { teamId: string; sport: string; wins: number; losses: number; ti
 type Matchup = { id: string; sport: string; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 
 export default function LeagueTabs({
-  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId, teamStats = {}, sportNames = {},
+  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId, teamStats = {}, sportNames = {}, sportAbbr = {},
 }: {
   leagueId: string
   sportsEnabled: string[]
@@ -24,6 +24,7 @@ export default function LeagueTabs({
   currentUserId?: string
   teamStats?: Record<string, TeamStat>
   sportNames?: Record<string, string>
+  sportAbbr?: Record<string, string>
 }) {
   const [tab, setTab] = useState<string>('OVERALL')
   const [included, setIncluded] = useState<Set<string>>(
@@ -56,7 +57,7 @@ export default function LeagueTabs({
         </button>
         {sportsEnabled.map(s => (
           <button key={s} onClick={() => setTab(s)} className={tab === s ? 'tab-active' : 'tab-inactive'}>
-            {sportMeta(s).emoji} {sportLabel(s, sportNames)}
+            {sportMeta(s).emoji} {sportAbbrLabel(s, sportAbbr)}
           </button>
         ))}
         <button onClick={() => setTab('TEAMS')} className={tab === 'TEAMS' ? 'tab-active' : 'tab-inactive'}>

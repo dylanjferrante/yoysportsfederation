@@ -127,6 +127,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         currentUserId={session?.user?.id}
         teamStats={teamStats}
         sportNames={safeParse<Record<string, string>>(league.sportNames, {})}
+        sportAbbr={safeParse<Record<string, string>>(league.sportAbbr, {})}
       />
 
       {/* League activity feed */}
