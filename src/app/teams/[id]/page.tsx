@@ -106,6 +106,85 @@ export default function TeamPage() {
   const totalSalary = players.reduce((s, p) => s + (p.salary ?? 0), 0)
   const overCap = capEnabled && cap > 0 && totalSalary > cap
 
+  // Split the sport's roster into its sections; players still move between them via the
+  // slot dropdown on each row (SET_SLOT). Only non-empty sections render a table.
+  const cols = boxScoreColumns(sport)
+  const sections = [
+    { key: 'Starting Lineup', rows: rosterForSport.filter(p => STARTER(p.slot)) },
+    { key: 'Bench', rows: rosterForSport.filter(p => p.slot === 'BN') },
+    { key: 'Taxi Squad', rows: rosterForSport.filter(p => p.slot === 'TAXI') },
+    { key: 'Injured Reserve', rows: rosterForSport.filter(p => ['IR', 'IL', 'DL'].includes(p.slot)) },
+  ].filter(s => s.rows.length > 0)
+
+  const renderHead = () => (
+    <thead className="sticky top-0 z-10 bg-slate-50">
+      <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+        <th className="text-left px-2 py-2 font-semibold">Slot</th>
+        <th className="text-left px-2 py-2 font-semibold">Player</th>
+        <th className="text-center px-1.5 py-2 font-semibold">Opp</th>
+        <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Proj</th>
+        <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Last</th>
+        <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Avg</th>
+        <th className="text-right px-1.5 py-2 font-semibold hidden md:table-cell">GP</th>
+        <th className="text-right px-2 py-2 font-semibold">Pts</th>
+        {cols.map(c => <th key={c.label} className="text-right px-1.5 py-2 font-semibold whitespace-nowrap hidden lg:table-cell">{c.label}</th>)}
+        {canManage && <th className="text-right px-3 py-2 font-semibold"></th>}
+      </tr>
+    </thead>
+  )
+
+  const renderRow = (p: P) => {
+    const slots = eligibleSlots(p.position, (data.rosterSettings ?? {})[sport] ?? {})
+    const open = openSlot === p.rosterId
+    const locked = !!p.locked && !data.isCommish
+    const slotEditable = canManage && !locked
+    return (
+      <tr key={p.rosterId} className="hover:bg-slate-50">
+        <td className="px-2 py-1.5 relative">
+          <button onClick={() => slotEditable && setOpenSlot(open ? null : p.rosterId)} disabled={!slotEditable}
+            title={locked ? 'Locked — game has started' : undefined}
+            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'} ${slotEditable ? 'hover:ring-2 hover:ring-blue-200 cursor-pointer' : ''} ${locked ? 'opacity-70' : ''}`}>
+            {locked && '🔒'}{p.slot}{slotEditable && ' ▾'}
+          </button>
+          {open && (
+            <div className="absolute z-20 left-2 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 w-28">
+              <p className="text-[10px] text-slate-400 px-1 pb-1">Move to…</p>
+              {slots.map(slot => (
+                <button key={slot} onClick={() => { act({ action: 'SET_SLOT', rosterId: p.rosterId, slot }); setOpenSlot(null) }}
+                  className={`block w-full text-left text-xs px-2 py-1 rounded hover:bg-slate-100 ${slot === p.slot ? 'font-bold text-blue-600' : 'text-slate-700'}`}>
+                  {slot}{slot === p.slot ? ' ✓' : ''}
+                </button>
+              ))}
+            </div>
+          )}
+        </td>
+        <td className="px-2 py-1.5 bg-inherit sm:whitespace-nowrap">
+          <Link href={`/players/${p.id}`} className="font-medium text-slate-900 hover:text-blue-600">{p.name}</Link>
+          <span className="text-[11px] text-slate-400"> {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
+          {p.status !== 'ACTIVE' && <span className="ml-1 text-[9px] font-bold text-red-500 align-top">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
+          {p.byeWeek ? <span className="ml-1 text-[9px] text-slate-300">BYE {p.byeWeek}</span> : null}
+          {capEnabled && (p.salary ?? 0) > 0 && <span className="ml-1 text-[10px] text-emerald-600 font-semibold tabular-nums">${(p.salary ?? 0).toLocaleString()}{p.contractYears ? ` · ${p.contractYears}yr` : ''}</span>}
+        </td>
+        <td className="px-1.5 py-1.5 text-center text-[11px] text-slate-500 tabular-nums whitespace-nowrap">{oppLabel(p.opp ?? undefined)}</td>
+        <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden sm:table-cell">{(p.projectedPoints ?? 0).toFixed(1)}</td>
+        <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500 hidden sm:table-cell">{p.lastPts == null ? '—' : p.lastPts.toFixed(1)}</td>
+        <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500 hidden sm:table-cell">{(p.weeklyAvg ?? 0).toFixed(1)}</td>
+        <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden md:table-cell">{p.gp ?? 0}</td>
+        <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-900">{(p.seasonPoints ?? 0).toFixed(1)}</td>
+        {cols.map(c => {
+          const v = +c.get(p.seasonStats ?? {}).toFixed(0)
+          return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600 hidden lg:table-cell">{v || '—'}</td>
+        })}
+        {canManage && <td className="px-3 py-1.5 text-right whitespace-nowrap">
+          {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} className="text-[11px] mr-2 text-slate-400 hover:text-emerald-600">$</button>}
+          {data.keeperEnabled && <button onClick={() => act({ action: 'SET_KEEPER', rosterId: p.rosterId, isKeeper: !p.isKeeper })} className={`text-[11px] mr-2 ${p.isKeeper ? 'text-emerald-600 font-semibold' : 'text-slate-400 hover:text-emerald-600'}`}>{p.isKeeper ? '🔑 Keeper' : 'Keep'}</button>}
+          <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} className={`text-[11px] mr-2 ${p.onBlock ? 'text-amber-600 font-semibold' : 'text-slate-400 hover:text-amber-600'}`}>{p.onBlock ? '◉ Block' : 'Block'}</button>
+          <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] text-red-500 hover:text-red-700">Drop</button>
+        </td>}
+      </tr>
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Branded header */}
@@ -212,80 +291,22 @@ export default function TeamPage() {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 card overflow-hidden">
-              <div className="card-header"><h2 className="font-semibold text-slate-900">{sportMeta(sport).emoji} {sport} Roster</h2></div>
-              <div className="max-h-[34rem] overflow-auto">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 z-10 bg-slate-50">
-                    <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
-                      <th className="text-left px-2 py-2 font-semibold">Slot</th>
-                      <th className="text-left px-2 py-2 font-semibold">Player</th>
-                      <th className="text-center px-1.5 py-2 font-semibold">Opp</th>
-                      <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Proj</th>
-                      <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Last</th>
-                      <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Avg</th>
-                      <th className="text-right px-1.5 py-2 font-semibold hidden md:table-cell">GP</th>
-                      <th className="text-right px-2 py-2 font-semibold">Pts</th>
-                      {boxScoreColumns(sport).map(c => <th key={c.label} className="text-right px-1.5 py-2 font-semibold whitespace-nowrap hidden lg:table-cell">{c.label}</th>)}
-                      {canManage && <th className="text-right px-3 py-2 font-semibold"></th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {rosterForSport.map(p => {
-                      const slots = eligibleSlots(p.position, (data.rosterSettings ?? {})[sport] ?? {})
-                      const open = openSlot === p.rosterId
-                      const cols = boxScoreColumns(sport)
-                      const locked = !!p.locked && !data.isCommish
-                      const slotEditable = canManage && !locked
-                      return (
-                        <tr key={p.rosterId} className={`hover:bg-slate-50 ${STARTER(p.slot) ? '' : 'bg-slate-50/40'}`}>
-                          <td className="px-2 py-1.5 relative">
-                            <button onClick={() => slotEditable && setOpenSlot(open ? null : p.rosterId)} disabled={!slotEditable}
-                              title={locked ? 'Locked — game has started' : undefined}
-                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'} ${slotEditable ? 'hover:ring-2 hover:ring-blue-200 cursor-pointer' : ''} ${locked ? 'opacity-70' : ''}`}>
-                              {locked && '🔒'}{p.slot}{slotEditable && ' ▾'}
-                            </button>
-                            {open && (
-                              <div className="absolute z-20 left-2 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 w-28">
-                                <p className="text-[10px] text-slate-400 px-1 pb-1">Move to…</p>
-                                {slots.map(slot => (
-                                  <button key={slot} onClick={() => { act({ action: 'SET_SLOT', rosterId: p.rosterId, slot }); setOpenSlot(null) }}
-                                    className={`block w-full text-left text-xs px-2 py-1 rounded hover:bg-slate-100 ${slot === p.slot ? 'font-bold text-blue-600' : 'text-slate-700'}`}>
-                                    {slot}{slot === p.slot ? ' ✓' : ''}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-2 py-1.5 bg-inherit sm:whitespace-nowrap">
-                            <Link href={`/players/${p.id}`} className="font-medium text-slate-900 hover:text-blue-600">{p.name}</Link>
-                            <span className="text-[11px] text-slate-400"> {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
-                            {p.status !== 'ACTIVE' && <span className="ml-1 text-[9px] font-bold text-red-500 align-top">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
-                            {p.byeWeek ? <span className="ml-1 text-[9px] text-slate-300">BYE {p.byeWeek}</span> : null}
-                            {capEnabled && (p.salary ?? 0) > 0 && <span className="ml-1 text-[10px] text-emerald-600 font-semibold tabular-nums">${(p.salary ?? 0).toLocaleString()}{p.contractYears ? ` · ${p.contractYears}yr` : ''}</span>}
-                          </td>
-                          <td className="px-1.5 py-1.5 text-center text-[11px] text-slate-500 tabular-nums whitespace-nowrap">{oppLabel(p.opp ?? undefined)}</td>
-                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden sm:table-cell">{(p.projectedPoints ?? 0).toFixed(1)}</td>
-                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500 hidden sm:table-cell">{p.lastPts == null ? '—' : p.lastPts.toFixed(1)}</td>
-                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500 hidden sm:table-cell">{(p.weeklyAvg ?? 0).toFixed(1)}</td>
-                          <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden md:table-cell">{p.gp ?? 0}</td>
-                          <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-900">{(p.seasonPoints ?? 0).toFixed(1)}</td>
-                          {cols.map(c => {
-                            const v = +c.get(p.seasonStats ?? {}).toFixed(0)
-                            return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600 hidden lg:table-cell">{v || '—'}</td>
-                          })}
-                          {canManage && <td className="px-3 py-1.5 text-right whitespace-nowrap">
-                            {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} className="text-[11px] mr-2 text-slate-400 hover:text-emerald-600">$</button>}
-                            {data.keeperEnabled && <button onClick={() => act({ action: 'SET_KEEPER', rosterId: p.rosterId, isKeeper: !p.isKeeper })} className={`text-[11px] mr-2 ${p.isKeeper ? 'text-emerald-600 font-semibold' : 'text-slate-400 hover:text-emerald-600'}`}>{p.isKeeper ? '🔑 Keeper' : 'Keep'}</button>}
-                            <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} className={`text-[11px] mr-2 ${p.onBlock ? 'text-amber-600 font-semibold' : 'text-slate-400 hover:text-amber-600'}`}>{p.onBlock ? '◉ Block' : 'Block'}</button>
-                            <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] text-red-500 hover:text-red-700">Drop</button>
-                          </td>}
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            <div className="lg:col-span-2 space-y-4">
+              {sections.map(section => (
+                <div key={section.key} className="card overflow-hidden">
+                  <div className="card-header flex items-center justify-between">
+                    <h2 className="font-semibold text-slate-900">{section.key}</h2>
+                    <span className="text-xs text-slate-400">{section.rows.length} {section.rows.length === 1 ? 'player' : 'players'}</span>
+                  </div>
+                  <div className="overflow-auto">
+                    <table className="w-full text-sm">
+                      {renderHead()}
+                      <tbody className="divide-y divide-slate-50">{section.rows.map(renderRow)}</tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+              {sections.length === 0 && <div className="card p-8 text-center text-slate-400 text-sm">No {sport} players rostered.</div>}
             </div>
 
             <div className="space-y-4">
