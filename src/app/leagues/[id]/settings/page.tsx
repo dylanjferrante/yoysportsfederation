@@ -30,6 +30,8 @@ function SettingsInner() {
   const [sportsEnabled, setSportsEnabled] = useState<string[]>([])
   const [divisionLogos, setDivisionLogos] = useState<Record<string, string>>({})
   const [divisionLogoBg, setDivisionLogoBg] = useState<Record<string, boolean>>({})
+  const [divisionLogosAlt, setDivisionLogosAlt] = useState<Record<string, string>>({})
+  const [divisionWordmarks, setDivisionWordmarks] = useState<Record<string, string>>({})
   const [rosterObj, setRosterObj] = useState<Record<string, Record<string, number>>>({})
   const [scoringObj, setScoringObj] = useState<Record<string, Record<string, number>>>({})
   const [draftRoundsObj, setDraftRoundsObj] = useState<Record<string, number>>({})
@@ -78,6 +80,8 @@ function SettingsInner() {
       setSubSport(se[0] ?? 'NFL')
       setDivisionLogos(parse(l.divisionLogos, {}))
       setDivisionLogoBg(parse(l.divisionLogoBg, {}))
+      setDivisionLogosAlt(parse(l.divisionLogosAlt, {}))
+      setDivisionWordmarks(parse(l.divisionWordmarks, {}))
       setRosterObj(parse(l.rosterSettings, {}))
       setScoringObj(parse(l.scoringSettings, {}))
       setDraftRoundsObj(parse(l.draftRounds, {}))
@@ -133,10 +137,10 @@ function SettingsInner() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: form.name, abbreviation: form.abbreviation, timezone: form.timezone, description: form.description, isPublic: form.isPublic, maxTeams: form.maxTeams, season: form.season,
-        duesAmount: form.duesAmount, logoUrl: form.logoUrl, seasonStart: form.seasonStart,
+        duesAmount: form.duesAmount, logoUrl: form.logoUrl, logoSecondary: form.logoSecondary, wordmark: form.wordmark, seasonStart: form.seasonStart,
         primaryColor: form.primaryColor, secondaryColor: form.secondaryColor, championshipColors: champColors,
         divisions: form.divisions, divisionNames, sportNames, sportAbbr, championshipNames: champNames, championshipLogos: champLogos, breakWeeks,
-        sportsEnabled, divisionLogos, divisionLogoBg, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
+        sportsEnabled, divisionLogos, divisionLogoBg, divisionLogosAlt, divisionWordmarks, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
@@ -294,6 +298,21 @@ function SettingsInner() {
                   {form.logoUrl
                     ? <img src={form.logoUrl} alt="" className="w-12 h-12 object-contain bg-slate-100 flex-shrink-0" />
                     : <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">🏆</div>}
+                </div>
+              </div>
+              <div>
+                <label className="label">Secondary Logo (icon, optional)</label>
+                <div className="flex items-center gap-3">
+                  <input className="input flex-1" placeholder="https://…/icon.png" value={form.logoSecondary ?? ''} onChange={e => set('logoSecondary', e.target.value)} />
+                  {form.logoSecondary && <img src={form.logoSecondary} alt="" className="w-12 h-12 object-contain bg-slate-100 flex-shrink-0" />}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Compact mark used in the ticker, nav and standings; falls back to the primary logo.</p>
+              </div>
+              <div>
+                <label className="label">Wordmark (optional)</label>
+                <div className="flex items-center gap-3">
+                  <input className="input flex-1" placeholder="https://…/wordmark.png" value={form.wordmark ?? ''} onChange={e => set('wordmark', e.target.value)} />
+                  {form.wordmark && <img src={form.wordmark} alt="" className="h-10 object-contain bg-slate-100 flex-shrink-0 px-1" />}
                 </div>
               </div>
               <div className="flex gap-4 items-end sm:col-span-2">
@@ -536,14 +555,21 @@ function SettingsInner() {
                 {orderedEnabled.map(s => {
                   const primary = champColors[s]?.p ?? '#0f172a'
                   return (
-                    <div key={s} className="flex items-center gap-2">
-                      <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
-                      <input className="input flex-1 text-sm" placeholder="https://…" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
-                      <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap cursor-pointer">
-                        <input type="checkbox" checked={!!divisionLogoBg[s]} onChange={e => setDivisionLogoBg(d => ({ ...d, [s]: e.target.checked }))} />
-                        Primary bg
-                      </label>
-                      {divisionLogos[s] && <img src={divisionLogos[s]} alt="" className="w-8 h-8 object-contain" style={{ background: divisionLogoBg[s] ? primary : '#f1f5f9' }} />}
+                    <div key={s} className="space-y-1.5 border-b border-slate-50 pb-2 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
+                        <input className="input flex-1 text-sm" placeholder="Primary logo URL" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
+                        <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap cursor-pointer">
+                          <input type="checkbox" checked={!!divisionLogoBg[s]} onChange={e => setDivisionLogoBg(d => ({ ...d, [s]: e.target.checked }))} />
+                          Primary bg
+                        </label>
+                        {divisionLogos[s] && <img src={divisionLogos[s]} alt="" className="w-8 h-8 object-contain" style={{ background: divisionLogoBg[s] ? primary : '#f1f5f9' }} />}
+                      </div>
+                      <div className="flex items-center gap-2 pl-14">
+                        <input className="input flex-1 text-sm" placeholder="Secondary / icon logo URL" value={divisionLogosAlt[s] ?? ''} onChange={e => setDivisionLogosAlt(d => ({ ...d, [s]: e.target.value }))} />
+                        <input className="input flex-1 text-sm" placeholder="Wordmark URL" value={divisionWordmarks[s] ?? ''} onChange={e => setDivisionWordmarks(d => ({ ...d, [s]: e.target.value }))} />
+                        {divisionLogosAlt[s] && <img src={divisionLogosAlt[s]} alt="" className="w-8 h-8 object-contain bg-slate-100" />}
+                      </div>
                     </div>
                   )
                 })}
