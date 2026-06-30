@@ -101,6 +101,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
           <Link href={`/leagues/${id}/transactions`} className="btn-secondary text-sm">Transactions</Link>
           <Link href={`/leagues/${id}/chat`} className="btn-secondary text-sm">Chat</Link>
           <Link href={`/leagues/${id}/waivers`} className="btn-secondary text-sm">Players</Link>
+          <Link href={`/leagues/${id}/trade`} className="btn-secondary text-sm">Trades</Link>
           <Link href={`/leagues/${id}/marketplace`} className="btn-secondary text-sm">Trade Block</Link>
           <Link href={`/leagues/${id}/playoffs`} className="btn-secondary text-sm">Playoffs</Link>
           <Link href={`/leagues/${id}/odds`} className="btn-secondary text-sm">Odds</Link>
