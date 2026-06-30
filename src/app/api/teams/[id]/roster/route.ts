@@ -9,6 +9,7 @@ import { safeParse } from '@/lib/utils'
 import { slotEligible, irEligible, defaultIrDesignations, lineupCadenceFor } from '@/lib/defaults'
 import { weekDates, gameDateOf, teamDayLineups } from '@/lib/dailylineup'
 import { logActivity } from '@/lib/activity'
+import { bearerUserId } from '@/lib/mobileAuth'
 import { realOpponents } from '@/lib/realschedule'
 import { scheduleOpponents, scheduleKickoffs } from '@/lib/schedule'
 import { playerKickoff } from '@/lib/locks'
@@ -20,6 +21,7 @@ import { teamManagers } from '@/db/schema'
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await getServerSession(authOptions)
+  const uid = session?.user?.id ?? bearerUserId(_) // web session OR native Bearer token
 
   const [team] = await db
     .select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, wordmark: teams.wordmark, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, logoBg: teams.logoBg, leagueId: teams.leagueId, userId: teams.userId, ownerName: users.name })
@@ -118,9 +120,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .from(teamManagers).leftJoin(users, eq(teamManagers.userId, users.id))
     .where(eq(teamManagers.teamId, id))
 
-  const isOwner = !!session && session.user.id === team.userId
-  const isCommish = !!session && session.user.id === league?.commissionerId
-  const isCoManager = !!session && managers.some(m => m.userId === session.user.id)
+  const isOwner = !!uid && uid === team.userId
+  const isCommish = !!uid && uid === league?.commissionerId
+  const isCoManager = !!uid && managers.some(m => m.userId === uid)
   const canManage = isOwner || isCommish || isCoManager
 
   return NextResponse.json({
