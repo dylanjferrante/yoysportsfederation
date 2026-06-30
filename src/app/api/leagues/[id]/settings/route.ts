@@ -67,7 +67,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'rookieDraftMode', 'rookieDraftRounds', 'tradeablePickYears', 'rookieDraftDates',
     'tradeDeadline', 'tradeDeadlines', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
     'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'waiverSchedule', 'irEligibleDesignations', 'taxiEligibility', 'liveScoring', 'defenseMode', 'lockDay',
-    'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds', 'playoffFormat', 'weeksPerRound', 'playoffReseed', 'consolationBracket', 'losersBracket', 'playoffTiebreaker', 'consolationTeams', 'losersTeams', 'positionLimits', 'mlbSpCap',
+    'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds', 'playoffFormat', 'weeksPerRound', 'playoffReseed', 'consolationBracket', 'losersBracket', 'playoffTiebreaker', 'consolationTeams', 'losersTeams', 'losersAdvance', 'positionLimits', 'mlbSpCap',
     'waiverPeriodDays',
     'duesAmount', 'divisions', 'divisionNames', 'sportNames', 'sportAbbr', 'championshipNames', 'championshipLogos', 'breakWeeks',
     'keeperEnabled', 'keeperCount', 'salaryCapEnabled', 'salaryCap', 'capMode',

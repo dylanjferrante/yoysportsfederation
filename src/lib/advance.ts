@@ -216,12 +216,26 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
       return (b.pointsFor ?? 0) - (a.pointsFor ?? 0)
     })
     const losersN = league.losersBracket ? (league.losersTeams ?? nTeams) : 0
-    const consolationN = league.consolationBracket ? (league.consolationTeams ?? nTeams) : 0
     const losersPool = losersN ? ranked.slice(Math.max(nTeams, ranked.length - losersN)) : []
-    const consolationPool = consolationN ? ranked.slice(nTeams, Math.min(ranked.length - losersPool.length, nTeams + consolationN)) : []
-    const pools: { kind: string; pool: typeof ranked }[] = [{ kind: 'WINNERS', pool: ranked.slice(0, nTeams) }]
-    if (consolationPool.length >= 2) pools.push({ kind: 'CONSOLATION', pool: consolationPool })
-    if (losersPool.length >= 2) pools.push({ kind: 'LOSERS', pool: losersPool })
+
+    let consolationPool: { teamId: string }[] = []
+    const hasConsolationGames = games.some(g => (g.bracket ?? '') === 'CONSOLATION')
+    if (league.consolationBracket && !hasConsolationGames) {
+      const winR1 = games.filter(g => (g.bracket ?? 'WINNERS') === 'WINNERS' && g.round === 1 && g.isComplete && g.homeTeamId && g.awayTeamId)
+      consolationPool = winR1
+        .map(g => {
+          const loserId = g.winnerTeamId === g.homeTeamId ? g.awayTeamId : g.homeTeamId
+          const loserSeed = g.winnerTeamId === g.homeTeamId ? g.awaySeed : g.homeSeed
+          return loserId ? { teamId: loserId, seed: loserSeed ?? 99 } : null
+        })
+        .filter((x): x is { teamId: string; seed: number } => !!x)
+        .sort((a, b) => a.seed - b.seed)
+        .map(x => ({ teamId: x.teamId }))
+    }
+
+    const pools: { kind: string; pool: { teamId: string }[] }[] = [{ kind: 'WINNERS', pool: ranked.slice(0, nTeams) as { teamId: string }[] }]
+    if (consolationPool.length >= 2 || hasConsolationGames) pools.push({ kind: 'CONSOLATION', pool: consolationPool })
+    if (losersPool.length >= 2) pools.push({ kind: 'LOSERS', pool: losersPool as { teamId: string }[] })
     if (pools[0].pool.length < 2) continue
 
     for (const { kind, pool } of pools) {
@@ -269,7 +283,10 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
             }
             await db.update(playoffGames).set({ homeScore: hs, awayScore: as, winnerTeamId: winner, isComplete: true }).where(eq(playoffGames.id, g.id))
           }
-          completed.push({ teamId: winner, seed: winner === g.homeTeamId ? g.homeSeed : g.awaySeed })
+          const advancer = (kind === 'LOSERS' && league.losersAdvance === 'LOSER' && g.homeTeamId && g.awayTeamId)
+            ? (winner === g.homeTeamId ? g.awayTeamId : g.homeTeamId)
+            : winner
+          completed.push({ teamId: advancer, seed: advancer === g.homeTeamId ? g.homeSeed : g.awaySeed })
         }
         if (completed.length === 1) {
           if (kind === 'WINNERS') {
