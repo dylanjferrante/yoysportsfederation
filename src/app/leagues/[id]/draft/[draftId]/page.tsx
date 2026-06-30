@@ -61,7 +61,7 @@ export default function DraftRoom() {
   const available = (s.available ?? []).filter((p: any) => !search || p.name.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-[112rem] mx-auto px-3 py-8">
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <Link href={`/leagues/${id}/draft`} className="btn-ghost text-slate-500">← Drafts</Link>
         <div className="flex-1">
@@ -229,13 +229,13 @@ export default function DraftRoom() {
       )}
 
       {tab === 'board' && (
-        <div className="card p-4 overflow-x-auto">
+        <div className="card p-2 overflow-x-auto">
           <div className="inline-block min-w-full">
             {/* Team header row — franchise colors, logo + name; sticks on scroll */}
-            <div className="flex gap-1.5 mb-1.5 sticky top-0 z-10 bg-white py-1">
-              <span className="w-8 flex-shrink-0" />
+            <div className="flex gap-1 mb-1 sticky top-0 z-10 bg-white py-1">
+              <span className="w-6 flex-shrink-0" />
               {(s.order ?? []).map((t: any) => (
-                <div key={t.id} className="w-36 h-12 flex-shrink-0 rounded-lg px-2 flex items-center gap-1.5"
+                <div key={t.id} className="w-28 h-12 flex-shrink-0 rounded-lg px-2 flex items-center gap-1.5"
                   style={{ background: t.primaryColor || '#0f172a', color: t.secondaryColor || '#fff' }}>
                   {t.logo
                     ? <img src={t.logo} alt="" className="w-6 h-6 object-cover flex-shrink-0" />
@@ -248,18 +248,18 @@ export default function DraftRoom() {
             {/* One row per round; columns aligned to the team order. Tiles are a
                 fixed size with room for all five lines so nothing clips. */}
             {Array.from({ length: d.rounds }, (_, r) => (
-              <div key={r} className="flex gap-1.5 mb-1.5 items-stretch">
-                <span className="w-8 flex-shrink-0 flex items-center justify-center text-xs font-bold text-slate-400">R{r + 1}</span>
+              <div key={r} className="flex gap-1 mb-1 items-stretch">
+                <span className="w-6 flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-slate-400">R{r + 1}</span>
                 {(s.order ?? []).map((t: any) => {
                   const b = (s.board ?? []).find((x: any) => x.round === r + 1 && x.teamId === t.id)
-                  if (!b) return <div key={t.id} className="w-36 flex-shrink-0" />
+                  if (!b) return <div key={t.id} className="w-28 flex-shrink-0" />
                   const isCurrent = b.pickNumber === s.current && d.status === 'IN_PROGRESS'
                   const p = b.player
                   const meta = p ? sportMeta(p.sport) : null
                   const [first, ...rest] = (p?.name ?? '').split(' ')
                   return (
                     <div key={t.id}
-                      className={`w-36 h-[5.25rem] flex-shrink-0 rounded-lg border px-2 py-1.5 flex flex-col ${isCurrent ? 'border-blue-500 ring-1 ring-blue-400' : 'border-slate-200'} ${p ? meta!.light : 'bg-slate-50'}`}>
+                      className={`w-28 h-[5.25rem] flex-shrink-0 rounded-lg border px-2 py-1.5 flex flex-col ${isCurrent ? 'border-blue-500 ring-1 ring-blue-400' : 'border-slate-200'} ${p ? meta!.light : 'bg-slate-50'}`}>
                       {b.via && <div className="text-[8px] font-bold uppercase tracking-wide text-amber-600 leading-tight truncate" title={`${b.ownerAbbr ? b.ownerAbbr + ' — ' : ''}VIA ${b.via.join(' VIA ')}`}>{b.ownerAbbr ? `${b.ownerAbbr} ` : ''}VIA {b.via.join(' VIA ')}</div>}
                       <div className="text-[9px] font-semibold tabular-nums text-slate-500 leading-tight">({b.pickNumber}, {b.round}.{b.pickInRound})</div>
                       {p ? (

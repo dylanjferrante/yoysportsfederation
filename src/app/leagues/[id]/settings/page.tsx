@@ -8,9 +8,10 @@ import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_R
 import { groupScoring } from '@/lib/scoring-categories'
 import { sportMeta } from '@/lib/utils'
 import DuesPanel from '../DuesPanel'
+import ScheduleEditor from './ScheduleEditor'
 
 const ALL_SPORTS = ['NFL', 'NBA', 'NHL', 'MLB']
-const TABS = ['General', 'Franchises', 'Sports & Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation']
+const TABS = ['General', 'Franchises', 'Sports & Schedule', 'Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation']
 
 export default function CommissionerSettings() {
   const params = useParams<{ id: string }>()
@@ -216,7 +217,6 @@ export default function CommissionerSettings() {
         </div>
         <div className="ml-auto flex items-center gap-3">
           {saved && <span className="text-green-600 text-sm font-medium">✓ Saved</span>}
-          <Link href={`/leagues/${params.id}/schedule`} className="btn-secondary text-sm">🗓 Edit Schedule</Link>
           <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
         </div>
       </div>
@@ -271,6 +271,9 @@ export default function CommissionerSettings() {
             </div>
           </>
         )}
+
+        {/* Schedule editor */}
+        {tab === 'Schedule' && <ScheduleEditor leagueId={params.id as string} />}
 
         {/* Franchises */}
         {tab === 'Franchises' && (
