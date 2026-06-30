@@ -87,6 +87,9 @@ export const leagues = sqliteTable('leagues', {
   waiverHour: integer('waiver_hour').default(3),
   // Per-sport waiver run time: { [sport]: { day: 0-6 (Sun-Sat), hour: 0-23 } }
   waiverSchedule: text('waiver_schedule').default('{}'),
+  waiverPeriodDays: integer('waiver_period_days').default(2), // days a dropped player stays on waivers before clearing
+  // Per-sport transaction (add/claim) limits: { [sport]: { max: number, period: 'DAILY'|'WEEKLY'|'SEASON' } }
+  transactionLimits: text('transaction_limits').default('{}'),
   irEligibleDesignations: text('ir_eligible_designations').default('{}'),
   defenseMode: text('defense_mode').default('TEAM'), // NFL: TEAM (DST) | IDP
   playoffFormat: text('playoff_format').default('H2H'), // H2H | MULTI_WEEK | CHAMP_MULTI
@@ -116,8 +119,11 @@ export const leagues = sqliteTable('leagues', {
   regularSeasonWeeks: text('regular_season_weeks').default('{}'), // per-sport JSON map { NFL: 14, ... }
   playoffRounds: integer('playoff_rounds').default(3), // 6 playoff teams → 3 H2H rounds
   playoffReseed: integer('playoff_reseed', { mode: 'boolean' }).default(false), // re-seed bracket after round 1
+  playoffTiebreaker: text('playoff_tiebreaker').default('POINTS_FOR'), // POINTS_FOR | HEAD_TO_HEAD | RECORD | COIN_FLIP
   consolationBracket: integer('consolation_bracket', { mode: 'boolean' }).default(false), // teams below the cut play their own bracket
+  consolationTeams: integer('consolation_teams'), // null → same as playoffTeams
   losersBracket: integer('losers_bracket', { mode: 'boolean' }).default(false), // bottom teams play a toilet bowl
+  losersTeams: integer('losers_teams'), // null → same as playoffTeams
 
   // Dues
   duesAmount: integer('dues_amount').default(0), // per-franchise buy-in

@@ -67,7 +67,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'rookieDraftMode', 'rookieDraftRounds', 'tradeablePickYears', 'rookieDraftDates',
     'tradeDeadline', 'tradeDeadlines', 'tradeReview', 'tradeReviewHours', 'vetoVotesRequired',
     'waiverType', 'faabBudget', 'faabMode', 'waiverDay', 'waiverHour', 'waiverSchedule', 'irEligibleDesignations', 'defenseMode', 'lockDay',
-    'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds', 'playoffFormat', 'weeksPerRound', 'playoffReseed', 'consolationBracket', 'losersBracket', 'positionLimits', 'mlbSpCap',
+    'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds', 'playoffFormat', 'weeksPerRound', 'playoffReseed', 'consolationBracket', 'losersBracket', 'playoffTiebreaker', 'consolationTeams', 'losersTeams', 'positionLimits', 'mlbSpCap',
+    'waiverPeriodDays',
     'duesAmount', 'divisions', 'divisionNames', 'sportNames', 'sportAbbr', 'championshipNames', 'championshipLogos', 'breakWeeks',
     'keeperEnabled', 'keeperCount', 'salaryCapEnabled', 'salaryCap', 'capMode',
     'abbreviation', 'timezone', 'sideGames',
@@ -80,7 +81,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   // Serialize JSON object/array fields.
-  for (const k of ['divisionLogos', 'divisionLogoBg', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule', 'rookieDraftRounds', 'regularSeasonWeeks', 'tradeDeadlines', 'waiverSchedule', 'irEligibleDesignations', 'positionLimits', 'rookieDraftDates', 'divisionNames', 'sportNames', 'sportAbbr', 'championshipNames', 'championshipLogos', 'championshipColors', 'breakWeeks', 'sideGames']) {
+  for (const k of ['divisionLogos', 'divisionLogoBg', 'transactionLimits', 'sportsEnabled', 'rosterSettings', 'scoringSettings', 'draftRounds', 'federationScoring', 'sportSchedule', 'rookieDraftRounds', 'regularSeasonWeeks', 'tradeDeadlines', 'waiverSchedule', 'irEligibleDesignations', 'positionLimits', 'rookieDraftDates', 'divisionNames', 'sportNames', 'sportAbbr', 'championshipNames', 'championshipLogos', 'championshipColors', 'breakWeeks', 'sideGames']) {
     if (k in update && typeof update[k] !== 'string') update[k] = JSON.stringify(update[k])
   }
 
