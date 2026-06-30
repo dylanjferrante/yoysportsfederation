@@ -38,12 +38,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (action === 'CANCEL') {
     if (!isInitiator) return NextResponse.json({ error: 'Only the initiator can cancel' }, { status: 403 })
-    await logActivity(trade.leagueId!, 'TRADE', `${initiatorTeam?.name ?? 'A franchise'} cancelled a trade`, trade.initiatorId)
     return finish('CANCELLED')
   }
   if (action === 'REJECT') {
     if (!myTeam) return NextResponse.json({ error: 'Not a participant' }, { status: 403 })
-    await logActivity(trade.leagueId!, 'TRADE', `${myTeam.name} rejected a trade from ${initiatorTeam?.name ?? 'a franchise'}`, myTeam.id)
     if (initiatorTeam?.userId) await notify(initiatorTeam.userId, `${myTeam.name} rejected your trade proposal`, `/trade`, 'TRADE')
     return finish('REJECTED')
   }

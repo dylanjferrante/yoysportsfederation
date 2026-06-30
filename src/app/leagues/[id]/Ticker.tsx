@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
 type Side = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; score: number; win: boolean }
-type Card = { id: string; sport: string; status: 'Final' | 'LIVE'; home: Side; away: Side }
+type Card = { id: string; sport: string; status: 'Final' | 'LIVE' | 'PRE'; home: Side; away: Side }
 type News = { id: string; category: string; sport?: string; text: string; href: string }
 type Topic = { key: string; title: string; sport?: string; items: News[] }
 
@@ -121,11 +121,11 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
     </div>
   )
 
-  const Team = ({ s }: { s: Side }) => (
+  const Team = ({ s, pre }: { s: Side; pre?: boolean }) => (
     <div className={`team ${s.win ? 'win' : ''}`}>
       {s.logo ? <img src={s.logo} alt="" className="lg" /> : <span className="lg badge" style={{ background: s.primary, color: s.secondary }}>{s.abbr.slice(0, 3)}</span>}
       <span className="ab">{s.abbr}</span>
-      <span className="sc">{s.score}</span>
+      <span className="sc">{pre ? '—' : s.score}</span>
     </div>
   )
 
@@ -137,10 +137,10 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
         <Link href={`/leagues/${leagueId}/matchup/${card.id}`} className="scorecard" key={card.id}>
           <div className="schead">
             <span className="spchip" style={{ background: sportMeta(card.sport).hex }}>{card.sport}</span>
-            <span className={`status ${card.status === 'LIVE' ? 'live' : ''}`}>{card.status === 'LIVE' ? '● LIVE' : 'Final'}</span>
+            <span className={`status ${card.status === 'LIVE' ? 'live' : ''}`}>{card.status === 'LIVE' ? '● LIVE' : card.status === 'PRE' ? 'Upcoming' : 'Final'}</span>
           </div>
-          <Team s={card.away} />
-          <Team s={card.home} />
+          <Team s={card.away} pre={card.status === 'PRE'} />
+          <Team s={card.home} pre={card.status === 'PRE'} />
         </Link>
       )}
 
