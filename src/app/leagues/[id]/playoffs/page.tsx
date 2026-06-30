@@ -91,7 +91,15 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
           const bracketGames = (b: string) => games.filter(g => g.sport === sport && (g.bracket ?? 'WINNERS') === b)
           const sportGames = bracketGames('WINNERS')
           const champ = champOf(sport)
-          const rounds = [...new Set(sportGames.map(g => g.round))].sort((a, b) => a - b)
+          const size = (() => { let p = 1; while (p < n) p <<= 1; return p })()
+          const maxExisting = sportGames.length ? Math.max(...sportGames.map(g => g.round)) : 0
+          const totalRounds = Math.max(1, Math.round(Math.log2(size)), maxExisting, league.playoffRounds ?? 0)
+          const bracket = Array.from({ length: totalRounds }, (_, ri) => {
+            const rnd = ri + 1
+            const existing = sportGames.filter(g => g.round === rnd).sort((a, b) => a.matchIndex - b.matchIndex)
+            const placeholders = existing.length ? 0 : Math.max(1, size >> (ri + 1))
+            return { rnd, ri, existing, placeholders }
+          })
 
           return (
             <div key={sport} className="card p-5">
@@ -106,22 +114,25 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
 
               {sportGames.length > 0 ? (
                 <div className="flex gap-4 overflow-x-auto pb-2 items-center">
-                  {rounds.map((rnd, ri) => {
-                    const rg = sportGames.filter(g => g.round === rnd).sort((a, b) => a.matchIndex - b.matchIndex)
-                    return (
-                      <div key={rnd} className="flex-shrink-0 w-44">
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-2 text-center">{roundName(ri, rounds.length)}</p>
-                        <div className="space-y-3">
-                          {rg.map(g => (
-                            <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
-                              <Slot teamId={g.homeTeamId} seed={g.homeSeed} score={g.homeScore ?? undefined} winner={g.winnerTeamId === g.homeTeamId} done={g.isComplete ?? false} />
-                              <Slot teamId={g.awayTeamId} seed={g.awaySeed} score={g.awayScore ?? undefined} winner={g.winnerTeamId === g.awayTeamId} done={g.isComplete ?? false} />
-                            </div>
-                          ))}
-                        </div>
+                  {bracket.map(({ rnd, ri, existing, placeholders }) => (
+                    <div key={rnd} className="flex-shrink-0 w-44">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-2 text-center">{roundName(ri, totalRounds)}</p>
+                      <div className="space-y-3">
+                        {existing.map(g => (
+                          <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
+                            <Slot teamId={g.homeTeamId} seed={g.homeSeed} score={g.homeScore ?? undefined} winner={g.winnerTeamId === g.homeTeamId} done={g.isComplete ?? false} />
+                            <Slot teamId={g.awayTeamId} seed={g.awaySeed} score={g.awayScore ?? undefined} winner={g.winnerTeamId === g.awayTeamId} done={g.isComplete ?? false} />
+                          </div>
+                        ))}
+                        {Array.from({ length: placeholders }, (_, i) => (
+                          <div key={`tbd-${i}`} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
+                            <Slot teamId={null} seed={null} />
+                            <Slot teamId={null} seed={null} />
+                          </div>
+                        ))}
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                   {(() => {
                     const champTeam = champ ? teamById[champ.championTeamId ?? ''] : null
                     return (
