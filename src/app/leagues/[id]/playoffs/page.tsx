@@ -85,7 +85,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
             <div key={sport} className="card p-5">
               <div className="flex items-center gap-2 mb-4">
                 <span className={`w-8 h-8 rounded-lg ${meta.bg} text-white flex items-center justify-center`}>{meta.emoji}</span>
-                <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)} {champNames[sport] || 'Playoffs'}</h2>
+                <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)} — {champNames[sport] || 'Playoffs'}</h2>
                 {champ && <span className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-amber-600">
                   {champLogos[sport] && <img src={champLogos[sport]} alt="" className="w-6 h-6 object-contain" />}
                   🏆 {teamById[champ.championTeamId ?? '']?.abbreviation} champion
