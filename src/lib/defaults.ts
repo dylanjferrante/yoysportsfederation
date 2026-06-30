@@ -352,6 +352,24 @@ export function formatWeekRange(season: string, week: number, opts?: { year?: bo
   return `${m(start)} – ${m(end)}${yr}`
 }
 
+// Break-aware date range: break weeks (all-star / Olympics) aren't empty byes —
+// the matchup that week spans the break, covering extra calendar weeks, and every
+// later week shifts out. `breaks` is the per-sport list of break weeks.
+export function weekDateRangeWithBreaks(season: string, week: number, breaks: number[] = []): { start: Date; end: Date; spanWeeks: number } {
+  const anchor = seasonAnchor(season)
+  const before = breaks.filter(b => b < week).length
+  const spanWeeks = 1 + (breaks.includes(week) ? 1 : 0)
+  const start = new Date(anchor + (week - 1 + before) * 7 * 86_400_000)
+  const end = new Date(start.getTime() + (spanWeeks * 7 - 1) * 86_400_000)
+  return { start, end, spanWeeks }
+}
+
+export function formatWeekRangeWithBreaks(season: string, week: number, breaks: number[] = []): string {
+  const { start, end } = weekDateRangeWithBreaks(season, week, breaks)
+  const m = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${m(start)} – ${m(end)}`
+}
+
 // ── Per-sport trade deadlines ────────────────────────────────────────────────
 
 export type TradeDeadlineMode = 'WEEK' | 'SPORT_PLAYOFFS' | 'SPORT_CHAMPIONSHIP' | 'FEDERATION_CHAMPIONSHIP' | 'NONE'

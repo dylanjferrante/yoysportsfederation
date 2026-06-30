@@ -12,8 +12,9 @@ import { safeParse } from '@/lib/utils'
 // add games for any sport/week that's now active but has none, and remove
 // not-yet-played games that fall outside a sport's new window. Completed games
 // are always preserved.
-async function syncSeasonMatchups(leagueId: string, season: string, schedule: ScheduleEntry[], breaks: Record<string, number[]> = {}) {
-  const isBreak = (sport: string, week: number) => (breaks[sport] ?? []).includes(week)
+async function syncSeasonMatchups(leagueId: string, season: string, schedule: ScheduleEntry[], _breaks: Record<string, number[]> = {}) {
+  // Break weeks are no longer empty byes — the matchup that week simply spans the
+  // break (a longer calendar window), so every active sport/week still gets a game.
   const teamRows = await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, leagueId))
   const teamIds = teamRows.map(t => t.id)
   if (teamIds.length < 2) return
@@ -24,21 +25,21 @@ async function syncSeasonMatchups(leagueId: string, season: string, schedule: Sc
   const existing = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season)))
   const have = new Set(existing.map(m => `${m.sport}:${m.week}`))
 
-  // Remove stale, unplayed games outside the new windows or on break weeks.
+  // Remove stale, unplayed games outside the new windows.
   for (const m of existing) {
-    if (!m.isComplete && (!sportsActiveInWeek(schedule, m.week).includes(m.sport) || isBreak(m.sport, m.week))) {
+    if (!m.isComplete && !sportsActiveInWeek(schedule, m.week).includes(m.sport)) {
       await db.delete(matchups).where(eq(matchups.id, m.id))
     }
   }
 
-  // Add games for newly-active sport/weeks (skipping break weeks).
+  // Add games for newly-active sport/weeks.
   const rows: any[] = []
   for (let week = 1; week <= maxWeek; week++) {
     const active = sportsActiveInWeek(schedule, week)
     if (!active.length) continue
     const pairs = pairings[(week - 1) % pairings.length]
     for (const sport of active) {
-      if (isBreak(sport, week) || have.has(`${sport}:${week}`)) continue
+      if (have.has(`${sport}:${week}`)) continue
       for (const [home, away] of pairs) {
         rows.push({ id: nanoid(), leagueId, sport, season, week, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, isComplete: false })
       }

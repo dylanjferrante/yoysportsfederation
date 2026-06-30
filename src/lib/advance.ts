@@ -304,7 +304,8 @@ async function createSeason(league: any, season: string): Promise<void> {
     const active = sportsActiveInWeek(schedule, week)
     const pairs = pairings[(week - 1) % pairings.length]
     for (const sport of active) {
-      if ((breaks[sport] ?? []).includes(week)) continue
+      // Break weeks (all-star / Olympics) are NOT empty byes — the week's matchup
+      // simply spans the break (a longer calendar window), so it still gets a game.
       for (const [home, away] of pairs) rows.push({ id: nanoid(), leagueId: league.id, sport, season, week, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, isComplete: false })
     }
   }
