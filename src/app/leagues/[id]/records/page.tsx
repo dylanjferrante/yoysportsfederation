@@ -87,12 +87,6 @@ export default function RecordsPage() {
 
       {!d ? <div className="card p-10 text-center text-slate-400 text-sm">Loading…</div> : (
         <div className="space-y-5">
-          {/* Individual player records */}
-          <div className="grid md:grid-cols-2 gap-5">
-            <PlayerList title="🌟 Best single-game (player)" rows={by(d.playerGames)} />
-            <PlayerList title="📅 Best season totals (player)" rows={by(d.playerSeasons)} />
-          </div>
-
           <div className="grid md:grid-cols-2 gap-5">
             <ScoreList title="🔥 Highest single-game (team)" rows={by(d.single.highest)} fmt={s => s.score.toFixed(1)} />
             <ScoreList title="🧊 Lowest single-game (team)" rows={by(d.single.lowest)} fmt={s => s.score.toFixed(1)} />
@@ -172,6 +166,12 @@ export default function RecordsPage() {
               )}
             </div>
           )}
+
+          {/* Individual player records — after the team records */}
+          <div className="grid md:grid-cols-2 gap-5">
+            <PlayerList title="🌟 Best single-game (player)" rows={by(d.playerGames)} />
+            <PlayerList title="📅 Best season totals (player)" rows={by(d.playerSeasons)} />
+          </div>
         </div>
       )}
     </div>

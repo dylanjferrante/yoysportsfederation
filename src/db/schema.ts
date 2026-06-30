@@ -43,6 +43,7 @@ export const leagues = sqliteTable('leagues', {
   secondaryColor: text('secondary_color').default('#3b82f6'),
   championshipColors: text('championship_colors').default('{}'), // per-scope { NFL:'#hex', FED:'#hex' }
   divisionLogos: text('division_logos').default('{}'), // JSON: { NFL: url, ... }
+  divisionLogoBg: text('division_logo_bg').default('{}'), // JSON: { NFL: true } — fill sport logo bg with its primary color
 
   // Which sports the federation plays + the season calendar
   sportsEnabled: text('sports_enabled').default('["NFL","NHL","NBA","MLB"]'), // JSON array

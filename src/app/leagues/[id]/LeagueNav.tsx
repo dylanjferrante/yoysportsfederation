@@ -7,7 +7,7 @@ type NavItem = { label: string; href: string; exact?: boolean; emoji: string }
 
 // Unified league navigation. Every section is an inline tab: clicking one soft-navigates
 // to that route, swapping the content below the persistent header (no full page reload).
-export default function LeagueNav({ leagueId, isCommissioner }: { leagueId: string; isCommissioner: boolean }) {
+export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled = true }: { leagueId: string; isCommissioner: boolean; sideGamesEnabled?: boolean }) {
   const pathname = usePathname()
   const base = `/leagues/${leagueId}`
 
@@ -23,7 +23,7 @@ export default function LeagueNav({ leagueId, isCommissioner }: { leagueId: stri
     { label: 'Odds', href: `${base}/odds`, emoji: '📈' },
     { label: 'History', href: `${base}/history`, emoji: '📜' },
     { label: 'Records', href: `${base}/records`, emoji: '🏅' },
-    { label: 'Side Games', href: `${base}/sidegames`, emoji: '🎲' },
+    ...(sideGamesEnabled || isCommissioner ? [{ label: 'Side Games', href: `${base}/sidegames`, emoji: '🎲' }] : []),
     { label: 'Transactions', href: `${base}/transactions`, emoji: '🧾' },
     { label: 'Chat', href: `${base}/chat`, emoji: '💬' },
   ]

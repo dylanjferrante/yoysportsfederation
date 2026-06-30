@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta, sportLabel, sportAbbrLabel } from '@/lib/utils'
 import { computeFederationStandings, type FederationScoring } from '@/lib/federation'
+import SportIcon from '@/components/SportIcon'
 
 type TeamLite = { id: string; name: string; abbreviation: string; logo: string | null; owner: string | null; primaryColor?: string | null; secondaryColor?: string | null }
 type TeamStat = { allTime: { w: number; l: number; t: number }; fedTitles: number; sportTitles: number }
@@ -11,7 +12,7 @@ type TeamRec = { teamId: string; sport: string; wins: number; losses: number; ti
 type Matchup = { id: string; sport: string; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 
 export default function LeagueTabs({
-  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId, teamStats = {}, sportNames = {}, sportAbbr = {},
+  leagueId, sportsEnabled, teams, records, matchups, federationScoring, rosterSettings, playoffTeams = 6, currentUserId, teamStats = {}, sportNames = {}, sportAbbr = {}, divisionLogos = {},
 }: {
   leagueId: string
   sportsEnabled: string[]
@@ -25,6 +26,7 @@ export default function LeagueTabs({
   teamStats?: Record<string, TeamStat>
   sportNames?: Record<string, string>
   sportAbbr?: Record<string, string>
+  divisionLogos?: Record<string, string>
 }) {
   const [tab, setTab] = useState<string>('OVERALL')
   const [included, setIncluded] = useState<Set<string>>(
@@ -57,7 +59,7 @@ export default function LeagueTabs({
         </button>
         {sportsEnabled.map(s => (
           <button key={s} onClick={() => setTab(s)} className={tab === s ? 'tab-active' : 'tab-inactive'}>
-            {sportMeta(s).emoji} {sportAbbrLabel(s, sportAbbr)}
+            <SportIcon sport={s} logo={divisionLogos[s]} size={15} className="mr-1" />{sportAbbrLabel(s, sportAbbr)}
           </button>
         ))}
         <button onClick={() => setTab('TEAMS')} className={tab === 'TEAMS' ? 'tab-active' : 'tab-inactive'}>

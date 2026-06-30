@@ -84,6 +84,7 @@ CREATE TABLE leagues (
   secondary_color TEXT DEFAULT '#3b82f6',
   championship_colors TEXT DEFAULT '{}',
   division_logos TEXT DEFAULT '{}',
+  division_logo_bg TEXT DEFAULT '{}',
   sports_enabled TEXT DEFAULT '["NFL","NHL","NBA","MLB"]',
   season_start TEXT DEFAULT 'FOOTBALL',
   sport_schedule TEXT DEFAULT '[]',

@@ -18,6 +18,8 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
   if (!league) notFound()
 
   const sports = safeParse<string[]>(league.sportsEnabled, [])
+  const champLogos = safeParse<Record<string, string>>(league.championshipLogos, {})
+  const champNames = safeParse<Record<string, string>>(league.championshipNames, {})
   const franchises = await db.select().from(teams).where(eq(teams.leagueId, id))
   const nameOf = (tid: string | null) => franchises.find(f => f.id === tid)?.name ?? '—'
 
@@ -46,7 +48,10 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
 
       {/* Federation champions */}
       <div className="card mb-6">
-        <div className="card-header"><h2 className="font-semibold text-slate-900">🏆 {league.name} Champions</h2></div>
+        <div className="card-header flex items-center gap-2">
+          {champLogos['FED'] ? <img src={champLogos['FED']} alt="" className="w-7 h-7 object-contain" /> : <span>🏆</span>}
+          <h2 className="font-semibold text-slate-900">{champNames['FED'] || `${league.name} Champions`}</h2>
+        </div>
         <div className="divide-y divide-slate-50">
           {seasons.length === 0 && <p className="px-6 py-4 text-slate-400 text-sm">No completed seasons yet.</p>}
           {seasons.map(season => (

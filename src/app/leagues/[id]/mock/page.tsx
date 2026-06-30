@@ -158,7 +158,7 @@ export default function MockDraft() {
           </div>
 
           {/* Draft board */}
-          <div className="card overflow-x-auto mb-5">
+          <div className="card overflow-x-auto mb-5 relative left-1/2 right-1/2 -mx-[50vw] w-screen px-4">
             <table className="border-collapse text-xs">
               <thead>
                 <tr>

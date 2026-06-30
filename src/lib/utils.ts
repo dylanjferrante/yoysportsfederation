@@ -92,9 +92,9 @@ export function safeParse<T = any>(s: string | null | undefined, fallback: T): T
 // Real-calendar months each sport is in season (1 = Jan … 12 = Dec).
 const SPORT_MONTHS: Record<string, number[]> = {
   NFL: [9, 10, 11, 12, 1],
-  NBA: [10, 11, 12, 1, 2, 3, 4, 5, 6],
-  NHL: [10, 11, 12, 1, 2, 3, 4, 5, 6],
-  MLB: [3, 4, 5, 6, 7, 8, 9, 10],
+  NBA: [10, 11, 12, 1, 2, 3, 4],
+  NHL: [10, 11, 12, 1, 2, 3, 4],
+  MLB: [4, 5, 6, 7, 8, 9],
 }
 
 // Which enabled sports are "in season" right now (by real calendar month).

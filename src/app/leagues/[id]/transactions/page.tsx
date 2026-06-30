@@ -2,6 +2,7 @@ import { db } from '@/db'
 import { leagues, activity, teams, players } from '@/db/schema'
 import { eq, desc, and, notInArray, inArray } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
+import { safeParse } from '@/lib/utils'
 import TransactionsView from './TransactionsView'
 
 export const metadata = { title: 'Transactions' }
@@ -47,5 +48,5 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
     }
   })
 
-  return <TransactionsView leagueId={id} leagueName={league.name} rows={enriched as any} />
+  return <TransactionsView leagueId={id} leagueName={league.name} rows={enriched as any} sportAbbr={safeParse<Record<string, string>>(league.sportAbbr, {})} />
 }
