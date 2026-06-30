@@ -8,7 +8,6 @@ type Side = { name: string; abbr: string; logo: string | null; primary: string; 
 type Card = { id: string; sport: string; status: 'Final' | 'LIVE' | 'PRE'; home: Side; away: Side }
 type News = { id: string; category: string; sport?: string; text: string; href: string }
 type Topic = { key: string; title: string; sport?: string; items: News[] }
-type Seg = { type: 'title'; t: Topic } | { type: 'item'; h: News }
 
 const CATEGORY_TITLE: Record<string, string> = {
   PERFORMANCE: 'Top Performers', MILESTONE: 'Milestones', SHOOTOUT: 'Shootouts', SUPERLATIVE: 'Leaders',
@@ -17,14 +16,14 @@ const CATEGORY_TITLE: Record<string, string> = {
   FORM: 'Form', PACE: 'Pace', FEDERATION: 'Federation', GOVERNANCE: 'League Office', SCHEDULE: 'Schedule',
 }
 
-type Snapshot = { scores: Card[]; news: News[]; cardIdx: number }
+type Snapshot = { scores: Card[]; news: News[]; cardIdx: number; topicIdx: number }
 const tickerCache = new Map<string, Snapshot>()
 
 export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fbbf24' }: { leagueId: string; primary?: string; secondary?: string }) {
   const [scores, setScores] = useState<Card[]>(() => tickerCache.get(leagueId)?.scores ?? [])
   const [news, setNews] = useState<News[]>(() => tickerCache.get(leagueId)?.news ?? [])
   const [cardIdx, setCardIdx] = useState(() => tickerCache.get(leagueId)?.cardIdx ?? 0)
-  const [qIdx, setQIdx] = useState(0)
+  const [topicIdx, setTopicIdx] = useState(() => tickerCache.get(leagueId)?.topicIdx ?? 0)
   const [hidden, setHidden] = useState(false)
   const [ready, setReady] = useState(false)
 
@@ -39,7 +38,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       if (!alive) return
       const sc = d.scores ?? [], nw = d.news ?? []
       setScores(sc); setNews(nw)
-      tickerCache.set(leagueId, { scores: sc, news: nw, cardIdx: tickerCache.get(leagueId)?.cardIdx ?? 0 })
+      const c = tickerCache.get(leagueId)
+      tickerCache.set(leagueId, { scores: sc, news: nw, cardIdx: c?.cardIdx ?? 0, topicIdx: c?.topicIdx ?? 0 })
     }).catch(() => {})
     load()
     const iv = setInterval(() => { if (document.visibilityState === 'visible') load() }, 45_000)
@@ -48,8 +48,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
   useEffect(() => {
     const c = tickerCache.get(leagueId)
-    if (c) tickerCache.set(leagueId, { ...c, cardIdx })
-  }, [leagueId, cardIdx])
+    if (c) tickerCache.set(leagueId, { ...c, cardIdx, topicIdx })
+  }, [leagueId, cardIdx, topicIdx])
 
   useEffect(() => {
     if (scores.length <= 1) return
@@ -71,13 +71,11 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     })
   }, [news])
 
-  const belt = useMemo<Seg[]>(() => topics.flatMap(t => [{ type: 'title', t } as Seg, ...t.items.map(h => ({ type: 'item', h } as Seg))]), [topics])
-  const totalChars = useMemo(() => belt.reduce((n, s) => n + (s.type === 'title' ? s.t.title.length + 4 : s.h.text.length + 4), 0), [belt])
-  const duration = Math.max(40, Math.round(totalChars * 0.2))
+  useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
 
   useEffect(() => {
-    if (hidden || topics.length <= 3) return
-    const iv = setInterval(() => setQIdx(i => (i + 1) % topics.length), 6000)
+    if (hidden || topics.length <= 1) return
+    const iv = setInterval(() => setTopicIdx(i => (i + 1) % topics.length), 13_000)
     return () => clearInterval(iv)
   }, [hidden, topics.length])
 
@@ -88,7 +86,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   if (hidden) {
     return (
       <div className="wirebar" style={{ background: primary }}>
-        <button onClick={() => setHiddenPersist(false)} className="show">📡 Show Wire</button>
+        <button onClick={() => setHiddenPersist(false)} className="show">Show Wire</button>
         <style jsx>{`
           .wirebar { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; justify-content: center; }
           .show { color: #fff; opacity: .85; font-size: .68rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: .35rem .8rem; }
@@ -98,27 +96,35 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     )
   }
 
-  if (!scores.length && !belt.length) return null
+  if (!scores.length && !topics.length) return null
 
   const card = scores.length ? scores[cardIdx % scores.length] : null
   const sides = card ? [card.away, card.home] : []
   const pre = card?.status === 'PRE'
-  const upNext = topics.length > 1 ? Array.from({ length: Math.min(3, topics.length) }, (_, k) => topics[(qIdx + k) % topics.length]) : []
+  const topic = topics.length ? topics[topicIdx % topics.length] : null
+  const items = topic?.items ?? []
+  const reps = Math.max(1, Math.ceil(8 / Math.max(1, items.length)))
+  const filled = Array.from({ length: reps }).flatMap(() => items)
+  const itemChars = filled.reduce((n, h) => n + h.text.length + 6, 0)
+  const duration = Math.max(16, Math.round(itemChars * 0.2))
+  const upNext = topics.length > 1
+    ? Array.from({ length: Math.min(3, topics.length - 1) }, (_, k) => topics[(topicIdx + 1 + k) % topics.length])
+    : []
 
   return (
     <div className="wrap" style={{ '--lp': primary, '--ls': secondary } as React.CSSProperties}>
-      <span className="label">📡&nbsp;Wire</span>
+      <span className="label">Wire</span>
 
       {card && (
         <Link href={`/leagues/${leagueId}/matchup/${card.id}`} className="scorecard" key={card.id}>
           <div className="schead">
             <span className="spchip" style={{ background: sportMeta(card.sport).hex }}>{card.sport}</span>
-            <span className={`status ${card.status === 'LIVE' ? 'live' : ''}`}>{card.status === 'LIVE' ? '● LIVE' : card.status === 'PRE' ? 'Upcoming' : 'Final'}</span>
+            <span className={`status ${card.status === 'LIVE' ? 'live' : ''}`}>{card.status === 'LIVE' ? 'LIVE' : card.status === 'PRE' ? 'Upcoming' : 'Final'}</span>
           </div>
           {sides.map((s, i) => (
             <div className={`team ${s.win ? 'win' : ''}`} key={i}>
               {s.logo
-                ? <img src={s.logo} alt="" className="lg" />
+                ? <img src={s.logo} alt="" className="lg" style={{ background: s.primary }} />
                 : <span className="lg badge" style={{ background: s.primary, color: s.secondary }}>{s.abbr.slice(0, 3)}</span>}
               <span className="ab">{s.abbr}</span>
               <span className="sc">{pre ? '—' : s.score}</span>
@@ -127,41 +133,37 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         </Link>
       )}
 
-      {belt.length > 0 && (
-        <div className="viewport">
-          <div className="track" style={{ animationDuration: `${duration}s` }}>
-            <div className="strip">
-              {belt.map((seg, i) => seg.type === 'title' ? (
-                <span className="ttile" key={`a-t-${seg.t.key}-${i}`}>
-                  {seg.t.sport && <span className="tbar" style={{ background: sportMeta(seg.t.sport).hex }} />}
-                  {seg.t.title}
-                </span>
-              ) : (
-                <Link className="item" href={seg.h.href} key={`a-h-${seg.h.id}-${i}`}>
-                  <span className="text">{seg.h.text}</span>
-                  <span className="sep">•</span>
-                </Link>
-              ))}
-            </div>
-            <div className="strip" aria-hidden>
-              {belt.map((seg, i) => seg.type === 'title' ? (
-                <span className="ttile" key={`b-t-${seg.t.key}-${i}`}>
-                  {seg.t.sport && <span className="tbar" style={{ background: sportMeta(seg.t.sport).hex }} />}
-                  {seg.t.title}
-                </span>
-              ) : (
-                <span className="item" key={`b-h-${seg.h.id}-${i}`}>
-                  <span className="text">{seg.h.text}</span>
-                  <span className="sep">•</span>
-                </span>
-              ))}
+      {topic && (
+        <div className="main">
+          <span className="pin" key={`pin-${topicIdx}`}>
+            {topic.sport && <span className="pbar" style={{ background: sportMeta(topic.sport).hex }} />}
+            {topic.title}
+          </span>
+          <div className="viewport">
+            <div className="track" key={topicIdx} style={{ animationDuration: `${duration}s` }}>
+              <div className="row">
+                {filled.map((h, i) => (
+                  <Link key={`a-${h.id}-${i}`} href={h.href} className="item">
+                    <span className="text">{h.text}</span>
+                    <span className="sep">•</span>
+                  </Link>
+                ))}
+              </div>
+              <div className="row" aria-hidden>
+                {filled.map((h, i) => (
+                  <span key={`b-${h.id}-${i}`} className="item">
+                    <span className="text">{h.text}</span>
+                    <span className="sep">•</span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {upNext.length > 0 && (
-        <div className="queue" key={qIdx}>
+        <div className="queue" key={topicIdx}>
           <span className="upnext">Up Next</span>
           {upNext.map((t, i) => (
             <span className="qtile" key={`${t.key}-${i}`}>
@@ -176,7 +178,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
       <style jsx>{`
         .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 66px; color: #e2e8f0; overflow: hidden; background: linear-gradient(90deg, rgba(2,6,23,.62), rgba(2,6,23,.42)), var(--lp); }
-        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1rem; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
+        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1.05rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .scorecard { flex-shrink: 0; width: 196px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: .3rem 1rem; border-right: 1px solid rgba(255,255,255,.14); text-decoration: none; color: #e2e8f0; }
         .schead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
         .spchip { font-size: .58rem; font-weight: 800; padding: .03rem .35rem; border-radius: .3rem; color: #fff; }
@@ -184,16 +186,17 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .status.live { color: #f87171; opacity: 1; }
         .team { display: flex; align-items: center; font-size: .82rem; line-height: 1.4; }
         .team.win { font-weight: 800; color: #fff; }
-        .lg { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; background: rgba(255,255,255,.1); margin-right: .55rem; }
-        .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; }
+        .lg { width: 20px; height: 20px; object-fit: contain; border-radius: 3px; flex-shrink: 0; padding: 2px; margin-right: .55rem; }
+        .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; padding: 0; }
         .ab { width: 3.2rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sc { width: 4.4ch; flex-shrink: 0; margin-left: 1.3rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; text-shadow: 0 0 6px rgba(251,191,36,.4); }
-        .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 28px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 28px), transparent 100%); }
+        .main { flex: 1; min-width: 0; display: flex; align-items: stretch; border-right: 1px solid rgba(255,255,255,.14); }
+        .pin { flex-shrink: 0; display: inline-flex; align-items: center; gap: .55rem; padding: 0 1.4rem; font-size: .86rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: rgba(2,6,23,.4); border-right: 1px solid rgba(255,255,255,.1); white-space: nowrap; animation: slidein .4s ease; }
+        .pbar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+        .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; }
         .viewport:hover .track { animation-play-state: paused; }
-        .track { display: inline-flex; white-space: nowrap; will-change: transform; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .strip { display: inline-flex; align-items: center; }
-        .ttile { display: inline-flex; align-items: center; gap: .55rem; flex-shrink: 0; margin: 0 1.9rem 0 2.4rem; font-size: .88rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ls); }
-        .tbar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+        .track { display: inline-flex; white-space: nowrap; will-change: transform; padding-left: 1.6rem; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .row { display: inline-flex; align-items: center; }
         .item { display: inline-flex; align-items: center; flex-shrink: 0; font-size: .9rem; font-weight: 500; color: #eef2f7; text-decoration: none; }
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
@@ -203,16 +206,17 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .upnext { font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); white-space: nowrap; }
         .qtile { display: inline-flex; align-items: center; gap: .45rem; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: rgba(238,242,247,.82); white-space: nowrap; }
         .qbar { width: 3px; height: 14px; border-radius: 2px; flex-shrink: 0; }
-        @keyframes qslide { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
         .hide { flex-shrink: 0; padding: 0 .85rem; color: rgba(255,255,255,.35); font-size: .8rem; }
         .hide:hover { color: #fff; }
         @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @keyframes slidein { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes qslide { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
         @media (max-width: 1024px) { .queue { display: none; } }
         @media (max-width: 640px) {
           .label { padding: 0 .6rem; font-size: .6rem; }
           .scorecard { width: 178px; padding: .3rem .65rem; }
-          .ttile { margin: 0 1.1rem 0 1.4rem; }
-          .sep { margin: 0 1.2rem; }
+          .pin { padding: 0 .9rem; font-size: .76rem; }
+          .sep { margin: 0 1.3rem; }
         }
       `}</style>
     </div>
