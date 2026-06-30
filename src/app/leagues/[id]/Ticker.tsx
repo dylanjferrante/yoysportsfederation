@@ -59,7 +59,7 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
     <div className="wrap">
       <span className="label">📡&nbsp;Wire</span>
       {card && (
-        <Link href={`/leagues/${leagueId}/scores`} className="scorecard" key={card.id}>
+        <Link href={`/leagues/${leagueId}/matchup/${card.id}`} className="scorecard" key={card.id}>
           <div className="schead">
             <span className="spchip" style={{ background: sportMeta(card.sport).hex }}>{card.sport}</span>
             <span className={`status ${card.status === 'LIVE' ? 'live' : ''}`}>{card.status === 'LIVE' ? '● LIVE' : 'Final'}</span>

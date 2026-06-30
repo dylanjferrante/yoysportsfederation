@@ -11,6 +11,33 @@ import type { Opp } from '@/lib/realschedule'
 
 const ymd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
 
+export type GameStatus = { opp: string; home: boolean; kickoff: number | null; status: string | null }
+
+// Per-team game status for a sport's fantasy week, from the real schedule:
+// opponent, kickoff (epoch ms), and the raw status string (which carries live
+// detail — quarter/clock, inning — once the live ingest refreshes it). Drives
+// the matchup game-tracker (played / playing / yet to play). Null if no schedule
+// data exists for the sport. A team with multiple games keeps its EARLIEST.
+export async function weekGameStatus(sport: string, season: string, week: number): Promise<Record<string, GameStatus> | null> {
+  const [has] = await db.select({ id: gameSchedule.id }).from(gameSchedule).where(eq(gameSchedule.sport, sport)).limit(1)
+  if (!has) return null
+  const { start, end } = weekDateRange(season, week)
+  const from = ymd(start), to = ymd(new Date(end.getTime() + 86_400_000))
+  const rows = await db.select({ home: gameSchedule.homeAbbr, away: gameSchedule.awayAbbr, epoch: gameSchedule.gameTimeEpoch, status: gameSchedule.status }).from(gameSchedule)
+    .where(and(eq(gameSchedule.sport, sport), gte(gameSchedule.gameDate, from), lte(gameSchedule.gameDate, to)))
+  const out: Record<string, GameStatus> = {}
+  for (const g of rows) {
+    const sec = Number(g.epoch); const ms = Number.isFinite(sec) && sec > 0 ? Math.round(sec * 1000) : null
+    const place = (ab: string, opp: string, home: boolean) => {
+      const cur = out[ab]
+      if (!cur || (ms != null && (cur.kickoff == null || ms < cur.kickoff))) out[ab] = { opp, home, kickoff: ms, status: g.status }
+    }
+    if (g.home) place(g.home, g.away, true)
+    if (g.away) place(g.away, g.home, false)
+  }
+  return out
+}
+
 // Real opponents for the given teams in a sport's fantasy week. Returns null if
 // no schedule data exists for the sport (so the caller can fall back). A team
 // with no game that week is simply absent from the map (real bye / off day).
