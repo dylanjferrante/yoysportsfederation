@@ -73,11 +73,10 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
         {league.logoUrl && <img src={league.logoUrl} alt="" className="w-10 h-10 object-contain" />}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Playoff Brackets</h1>
-          <p className="text-sm text-slate-500">top {n} per sport · resolves automatically</p>
+          <p className="text-sm text-slate-500">top {n} per sport</p>
         </div>
       </div>
 
-      {/* Federation champion banner */}
       {fedChamp && (
         <div className="p-5 mb-6 text-white text-center" style={{ background: champGrad('FED', 'linear-gradient(135deg,#b45309,#f59e0b)') }}>
           {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-16 h-16 object-contain mx-auto mb-2" />}
@@ -145,7 +144,6 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
                   })()}
                 </div>
               ) : (
-                // Pre-playoffs: show the projected seeds from current standings.
                 <ProjectedSeeds sport={sport} records={records} teamById={teamById} n={n} />
               )}
 
@@ -159,7 +157,6 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
   )
 }
 
-// A compact secondary bracket (consolation / losers) — no champion showcase.
 function SideBracket({ title, games, teamById }: { title: string; games: any[]; teamById: Record<string, any> }) {
   if (!games.length) return null
   const rounds = [...new Set(games.map(g => g.round))].sort((a, b) => a - b)
@@ -209,7 +206,7 @@ function ProjectedSeeds({ sport, records, teamById, n }: any) {
   const order = seedOrder((() => { let p = 1; while (p < ranked.length) p <<= 1; return p })())
   return (
     <>
-      <p className="text-xs text-slate-400 mb-3">Projected seeding — brackets fill in automatically when the regular season ends.</p>
+      <p className="text-xs text-slate-400 mb-3">Projected seeding from current standings</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {order.map((seed, i) => {
           const r = ranked[seed - 1]
