@@ -62,6 +62,23 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
   const recOf = (teamId: string, sp: string) => recs.find(r => r.teamId === teamId && r.sport === sp)
   const tsOfWeek = (week: number) => { try { return weekDateRange(season, week || 1).start.getTime() } catch { return 0 } }
   const rec3 = (w: number, l: number, t: number) => `${w}-${l}${t ? `-${t}` : ''}`
+  // Deterministic phrasing variety: same event always reads the same (no flicker
+  // on refresh), but different events pick different wording, so the feed varies.
+  const hashStr = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
+  const vary = (seed: string, ...opts: string[]) => opts[hashStr(seed) % opts.length]
+
+  // Adaptive blowout/close bands. Rather than fixed margins, derive them from
+  // the season's actual team scores in that sport — which already reflect the
+  // current scoring settings — so changing scoring (or a sport's scale) auto-
+  // adjusts what counts as a rout vs a nail-biter. A blowout is winning by ~25%
+  // of a typical team's output; a nail-biter is within ~5%. Falls back to the
+  // static SCORE_BANDS until enough games exist to measure.
+  const bandFor = (sp: string) => {
+    const scores = (bySport[sp]?.complete ?? []).flatMap(m => [m.homeScore ?? 0, m.awayScore ?? 0]).filter(v => v > 0)
+    if (scores.length < 6) return SCORE_BANDS[sp] ?? DEFAULT_BAND
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length
+    return { blowout: Math.max(1, +(avg * 0.25).toFixed(1)), close: Math.max(0.5, +(avg * 0.05).toFixed(1)) }
+  }
 
   const out: Headline[] = []
   const run = (fn: () => Headline[] | void) => { try { const r = fn(); if (r) out.push(...r) } catch { /* one generator failing must not blank the ticker */ } }
@@ -87,11 +104,15 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
       const winId = hs >= as ? m.homeTeamId : m.awayTeamId, loseId = hs >= as ? m.awayTeamId : m.homeTeamId
       const hi = Math.max(hs, as).toFixed(1), lo = Math.min(hs, as).toFixed(1)
       const margin = Math.abs(hs - as)
-      const band = SCORE_BANDS[sp] ?? DEFAULT_BAND
-      const flavor = margin >= band.blowout ? 'Blowout: ' : margin <= band.close ? 'Nail-biter: ' : ''
-      const verb = margin <= band.close ? 'edges' : margin >= band.blowout ? 'routs' : 'def.'
-      return { id: `score-${m.id}`, category: 'SCORE', sport: sp, priority: 60 + (flavor ? 5 : 0), ts: tsOfWeek(wk),
-        text: `${flavor}${nm(winId)} ${verb} ${nm(loseId)}, ${hi}–${lo}`, href: `${base}/scores` }
+      const band = bandFor(sp)
+      const isBlow = margin >= band.blowout, isClose = margin <= band.close
+      const prefix = isBlow ? vary(m.id, 'Blowout: ', 'Statement win: ', 'Rout: ', 'Laugher: ')
+        : isClose ? vary(m.id, 'Nail-biter: ', 'Instant classic: ', 'Down to the wire: ', 'Thriller: ') : ''
+      const verb = isClose ? vary(m.id, 'edges', 'sneaks past', 'survives', 'holds off', 'outlasts', 'nips')
+        : isBlow ? vary(m.id, 'routs', 'demolishes', 'steamrolls', 'runs away from', 'hammers', 'blows out')
+        : vary(m.id, 'def.', 'tops', 'takes down', 'handles', 'gets past', 'knocks off', 'outscores')
+      return { id: `score-${m.id}`, category: 'SCORE', sport: sp, priority: 60 + (prefix ? 5 : 0), ts: tsOfWeek(wk),
+        text: `${prefix}${nm(winId)} ${verb} ${nm(loseId)}, ${hi}–${lo}`, href: `${base}/scores` }
     })
   }))
   if (league.liveScoring) run(() => sportsEnabled.flatMap(sp => bySport[sp].incomplete
@@ -293,6 +314,159 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
     return res
   }))
 
+  // ── L. Stat-line milestones (real box scores) ──────────────────────────────
+  await runA(async () => {
+    const res: Headline[] = []
+    for (const sp of sportsEnabled) {
+      const wk = bySport[sp].lastWeek; if (!wk) continue
+      const rows = (await db.select({ pid: playerGameStats.playerId, tid: playerGameStats.teamId, pts: playerGameStats.points, stats: playerGameStats.stats, name: players.name })
+        .from(playerGameStats).innerJoin(players, eq(playerGameStats.playerId, players.id))
+        .where(and(eq(playerGameStats.leagueId, leagueId), eq(playerGameStats.season, season), eq(playerGameStats.sport, sp), eq(playerGameStats.week, wk))))
+        .sort((a, b) => (b.pts ?? 0) - (a.pts ?? 0))
+      const found: Headline[] = []
+      for (const r of rows) {
+        const s = safeParse<Record<string, number>>(r.stats ?? '{}', {})
+        const who = `${r.name} (${nm(r.tid)})`
+        const add = (txt: string, pr = 56) => found.push({ id: `mile-${sp}-${r.pid}-${wk}`, category: 'MILESTONE', sport: sp, priority: pr, ts: tsOfWeek(wk), text: `${who} ${txt}`, href: `${base}/scores` })
+        if (sp === 'NHL') {
+          const g = s.goals ?? 0, a = s.assists ?? 0, sv = s.saves ?? 0, ga = s.goalsAllowed ?? 0
+          if (g >= 3) add(vary(r.pid, 'nets a hat trick', 'records a natural hat trick'), 62)
+          else if (g + a >= 4) add(`piles up ${g + a} points (${g}G ${a}A)`, 58)
+          else if (g === 2) add('bags a pair of goals')
+          if (sv >= 28 && ga === 0) add(`slams the door — ${sv}-save shutout`, 60)
+        } else if (sp === 'MLB') {
+          const hr = s.homeRuns ?? 0, rbi = s.rbi ?? 0, kP = s.strikeoutsAsPitcher ?? 0
+          const h = (s.singles ?? 0) + (s.doubles ?? 0) + (s.triples ?? 0) + hr
+          if (hr >= 3) add(`goes deep ${hr} times`, 62)
+          else if (hr === 2) add('launches a pair of homers', 58)
+          if (rbi >= 5) add(`drives in ${rbi}`, 58)
+          else if (kP >= 10) add(`fans ${kP} on the mound`, 60)
+          else if (h >= 4) add(`collects ${h} hits`)
+        } else if (sp === 'NBA') {
+          const pts = s.points ?? 0, reb = (s.offRebounds ?? 0) + (s.defRebounds ?? 0), ast = s.assists ?? 0, stl = s.steals ?? 0, blk = s.blocks ?? 0, tpm = s.threesMade ?? 0
+          const dd = [pts >= 10, reb >= 10, ast >= 10, stl >= 10, blk >= 10].filter(Boolean).length
+          if (pts >= 10 && reb >= 10 && ast >= 10) add('posts a triple-double', 62)
+          else if (dd >= 2) add(`logs a double-double (${pts}/${reb}/${ast})`, 56)
+          else if (pts >= 40) add(`erupts for ${pts}`, 60)
+          else if (tpm >= 7) add(`splashes ${tpm} threes`)
+        } else if (sp === 'NFL') {
+          const pY = s.passingYards ?? 0, pTD = s.passingTD ?? 0, rY = s.rushingYards ?? 0, reY = s.receivingYards ?? 0, rTD = s.rushingTD ?? 0, reTD = s.receivingTD ?? 0, rec = s.receptions ?? 0
+          const td = pTD + rTD + reTD
+          if (td >= 3) add(`accounts for ${td} touchdowns`, 60)
+          else if (pY >= 300) add(`throws for ${pY} yards`)
+          else if (rY >= 125) add(`runs for ${rY} yards`)
+          else if (reY >= 110) add(`goes for ${reY} receiving yards${rec ? ` on ${rec} catches` : ''}`)
+        }
+      }
+      res.push(...found.slice(0, 4))
+    }
+    return res
+  })
+
+  // ── M. Game of the week: shootout (highest combined) per sport ─────────────
+  run(() => sportsEnabled.flatMap(sp => {
+    const wk = bySport[sp].lastWeek; if (!wk) return []
+    const games = bySport[sp].complete.filter(m => m.week === wk && Math.min(m.homeScore ?? 0, m.awayScore ?? 0) > 0)
+    if (!games.length) return []
+    const top = games.reduce((a, b) => ((b.homeScore ?? 0) + (b.awayScore ?? 0) > (a.homeScore ?? 0) + (a.awayScore ?? 0) ? b : a))
+    const total = ((top.homeScore ?? 0) + (top.awayScore ?? 0)).toFixed(0)
+    return [{ id: `shoot-${sp}-${wk}`, category: 'SHOOTOUT', sport: sp, priority: 50, ts: tsOfWeek(wk),
+      text: `Shootout in ${sp}: ${nm(top.homeTeamId)} and ${nm(top.awayTeamId)} combine for ${total}`, href: `${base}/scores` }]
+  }))
+
+  // ── N. Power notes: scoring leader, best/worst overall, winless ────────────
+  run(() => {
+    const res: Headline[] = []
+    for (const sp of sportsEnabled) {
+      if (!bySport[sp].lastWeek) continue
+      const ts = tsOfWeek(bySport[sp].lastWeek)
+      const byPF = recsBySport(sp).slice().sort((a, b) => (b.pointsFor ?? 0) - (a.pointsFor ?? 0))
+      if (byPF[0]) res.push({ id: `pf-${sp}`, category: 'POWER', sport: sp, priority: 44, ts, text: vary(`pf${sp}`, `${nm(byPF[0].teamId)} is the highest-scoring team in ${sp}`, `Nobody's scored more in ${sp} than ${nm(byPF[0].teamId)}`), href: base })
+      const winless = recsBySport(sp).find(r => (r.wins ?? 0) === 0 && ((r.wins ?? 0) + (r.losses ?? 0) + (r.ties ?? 0)) >= 3)
+      if (winless) res.push({ id: `winless-${sp}-${winless.teamId}`, category: 'POWER', sport: sp, priority: 36, ts, text: `${nm(winless.teamId)} is still searching for its first ${sp} win`, href: base })
+    }
+    // Best overall record across all sports.
+    const totals = new Map<string, { w: number; l: number; pf: number }>()
+    for (const r of recs) { const a = totals.get(r.teamId) ?? { w: 0, l: 0, pf: 0 }; a.w += r.wins ?? 0; a.l += r.losses ?? 0; a.pf += r.pointsFor ?? 0; totals.set(r.teamId, a) }
+    const ranked = [...totals.entries()].sort((a, b) => b[1].w - a[1].w || b[1].pf - a[1].pf)
+    if (ranked.length && ranked[0][1].w > 0) res.push({ id: 'best-overall', category: 'POWER', priority: 46, ts: Date.now(), text: vary('bestrec', `${nm(ranked[0][0])} owns the league's best overall record (${ranked[0][1].w}-${ranked[0][1].l})`, `${nm(ranked[0][0])} is the federation's winningest club at ${ranked[0][1].w}-${ranked[0][1].l}`), href: base })
+    return res
+  })
+
+  // ── O. Pace projection ─────────────────────────────────────────────────────
+  run(() => sportsEnabled.flatMap(sp => {
+    const win = bySport[sp].win, leader = recsBySport(sp)[0]
+    if (!win || !leader) return []
+    const played = (leader.wins ?? 0) + (leader.losses ?? 0) + (leader.ties ?? 0)
+    const total = win.endWeek - win.startWeek + 1
+    if (played < 4 || played >= total - 1) return []
+    const proj = Math.round((leader.wins ?? 0) / played * total)
+    return [{ id: `pace-${sp}`, category: 'PACE', sport: sp, priority: 36, ts: tsOfWeek(bySport[sp].lastWeek),
+      text: `${nm(leader.teamId)} is on pace for ${proj} wins in ${sp}`, href: base }]
+  }))
+
+  // ── P. Form: hot of late + league's longest active streak ──────────────────
+  run(() => {
+    const res: Headline[] = []
+    for (const sp of sportsEnabled) {
+      let longest = { team: '', n: 0 }
+      for (const t of teamRows) {
+        const r = teamResults(t.id, sp); if (r.length < 4) continue
+        const last5 = r.slice(-5); const w = last5.filter(x => x.res === 'W').length
+        let streak = 0; for (let i = r.length - 1; i >= 0 && r[i].res === 'W'; i--) streak++
+        if (streak > longest.n) longest = { team: t.id, n: streak }
+        if (w === 4 && last5.length === 5 && streak < 5) res.push({ id: `form-${sp}-${t.id}`, category: 'FORM', sport: sp, priority: 40, ts: tsOfWeek(bySport[sp].lastWeek), text: `${t.name} has won 4 of its last 5 in ${sp}`, href: base })
+      }
+      if (longest.n >= 4) res.push({ id: `longest-${sp}`, category: 'FORM', sport: sp, priority: 44, ts: tsOfWeek(bySport[sp].lastWeek), text: `${nm(longest.team)} owns the league's longest active ${sp} win streak (${longest.n})`, href: base })
+    }
+    return res
+  })
+
+  // ── Q. Federation total-points leader ──────────────────────────────────────
+  run(() => {
+    const pf = new Map<string, number>()
+    for (const r of recs) pf.set(r.teamId, (pf.get(r.teamId) ?? 0) + (r.pointsFor ?? 0))
+    const top = [...pf.entries()].sort((a, b) => b[1] - a[1])[0]
+    if (!top || top[1] <= 0) return []
+    return [{ id: 'fedpts', category: 'FEDERATION', priority: 42, ts: Date.now(), text: `${nm(top[0])} leads the federation in total points (${top[1].toFixed(0)})`, href: base }]
+  })
+
+  // ── R. Rivalry / rematch (current-week opponents who already met) ───────────
+  run(() => sportsEnabled.flatMap(sp => {
+    const wk = bySport[sp].curWeek; if (!wk) return []
+    return bySport[sp].incomplete.filter(m => m.week === wk).flatMap(m => {
+      const prior = bySport[sp].complete.find(p => (p.homeTeamId === m.homeTeamId && p.awayTeamId === m.awayTeamId) || (p.homeTeamId === m.awayTeamId && p.awayTeamId === m.homeTeamId))
+      if (!prior) return []
+      const homeWonFirst = (prior.homeTeamId === m.homeTeamId) === ((prior.homeScore ?? 0) >= (prior.awayScore ?? 0))
+      const firstWinner = homeWonFirst ? m.homeTeamId : m.awayTeamId
+      return [{ id: `rematch-${m.id}`, category: 'RIVALRY', sport: sp, priority: 30, ts: tsOfWeek(wk),
+        text: vary(m.id, `Rematch in ${sp}: ${nm(firstWinner)} took the first meeting with ${nm(firstWinner === m.homeTeamId ? m.awayTeamId : m.homeTeamId)}`, `${nm(m.homeTeamId)} and ${nm(m.awayTeamId)} run it back in ${sp}`), href: `${base}/scores` }]
+    })
+  }))
+
+  // ── S. Busiest GM (recent activity) ────────────────────────────────────────
+  await runA(async () => {
+    const tr = await db.select({ a: trades.initiatorId, b: trades.recipientId }).from(trades).where(and(eq(trades.leagueId, leagueId), eq(trades.status, 'ACCEPTED')))
+    const wc = await db.select({ t: waiverClaims.teamId }).from(waiverClaims).where(and(eq(waiverClaims.leagueId, leagueId), eq(waiverClaims.status, 'SUCCESS')))
+    const cnt = new Map<string, number>()
+    for (const t of tr) { for (const id of [t.a, t.b]) if (id) cnt.set(id, (cnt.get(id) ?? 0) + 1) }
+    for (const w of wc) cnt.set(w.t, (cnt.get(w.t) ?? 0) + 1)
+    const top = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0]
+    if (!top || top[1] < 3) return []
+    return [{ id: 'busiest-gm', category: 'TRANSACTION', priority: 33, ts: Date.now(), text: `${nm(top[0])} has been the league's busiest GM (${top[1]} moves)`, href: `${base}/transactions` }]
+  })
+
+  // ── T. Schedule: midpoint + playoff push ───────────────────────────────────
+  run(() => sportsEnabled.flatMap(sp => {
+    const win = bySport[sp].win; if (!win || !bySport[sp].lastWeek) return []
+    const res: Headline[] = []
+    const mid = Math.floor((win.startWeek + win.endWeek) / 2)
+    if (bySport[sp].lastWeek === mid) res.push({ id: `mid-${sp}`, category: 'SCHEDULE', sport: sp, priority: 33, ts: tsOfWeek(mid), text: `${sp} hits the midpoint of the season`, href: base })
+    const remaining = win.endWeek - bySport[sp].lastWeek
+    if (remaining > 0 && remaining <= 3) res.push({ id: `push-${sp}`, category: 'SCHEDULE', sport: sp, priority: 46, ts: tsOfWeek(bySport[sp].lastWeek), text: `Playoff push: ${playoffTeams} ${sp} spots up for grabs with ${remaining} week${remaining === 1 ? '' : 's'} to play`, href: base })
+    return res
+  }))
+
   // ── Rank, dedupe, then diversify so one category can't swamp the feed ───────
   const seen = new Set<string>()
   const ranked = out
@@ -300,10 +474,14 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
     .sort((a, b) => b.priority - a.priority || b.ts - a.ts)
   // Keep the highest-priority items per category up to a cap, so scores don't
   // crowd out streaks/standings/previews/transactions (ESPN-style variety).
-  const CAP: Record<string, number> = { SCORE: 8, LIVE: 4, PREVIEW: 4, STREAK: 5, STANDINGS: 5, SUPERLATIVE: 4, PERFORMANCE: 4, TRANSACTION: 4, PLAYOFF: 6, CHAMPION: 4, FEDERATION: 3, GOVERNANCE: 3, SCHEDULE: 3 }
+  const CAP: Record<string, number> = {
+    SCORE: 7, LIVE: 4, PREVIEW: 4, STREAK: 4, STANDINGS: 4, SUPERLATIVE: 3, PERFORMANCE: 3,
+    MILESTONE: 6, SHOOTOUT: 3, POWER: 4, PACE: 3, FORM: 4, RIVALRY: 3,
+    TRANSACTION: 4, PLAYOFF: 6, CHAMPION: 4, FEDERATION: 3, GOVERNANCE: 3, SCHEDULE: 4,
+  }
   const perCat: Record<string, number> = {}
   return ranked
     .filter(h => { const n = (perCat[h.category] = (perCat[h.category] ?? 0) + 1); return n <= (CAP[h.category] ?? 4) })
     .sort((a, b) => b.priority - a.priority || b.ts - a.ts)
-    .slice(0, 28)
+    .slice(0, 40)
 }
