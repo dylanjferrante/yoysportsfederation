@@ -13,7 +13,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
 
   const items: NavItem[] = [
     { label: 'Standings', href: base, exact: true, emoji: '🏆' },
-    ...(myTeamId ? [{ label: 'My Team', href: `/teams/${myTeamId}`, emoji: '⭐' }] : []),
+    ...(myTeamId ? [{ label: 'My Team', href: `${base}/myteam`, emoji: '⭐' }] : []),
     { label: 'Teams', href: `${base}/teams`, emoji: '👥' },
     { label: 'Scores', href: `${base}/scores`, emoji: '📊' },
     { label: 'Players', href: `${base}/waivers`, emoji: '🧑‍🤝‍🧑' },
