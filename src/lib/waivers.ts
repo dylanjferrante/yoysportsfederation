@@ -4,6 +4,7 @@ import { eq, and, lte } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { logActivity, notify } from '@/lib/activity'
+import { sendPush } from '@/lib/push'
 
 const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
@@ -124,7 +125,11 @@ async function awardClaims(league: any, pending: any[]) {
     const claimMsg = `${tName} claimed ${add?.name ?? 'a player'}${add?.sport ? ` (${add.sport})` : ''}${isFaab ? ` for $${winner.bidAmount}` : ''}` + (droppedName ? `, dropped ${droppedName}` : '')
     await logActivity(league.id, 'WAIVER', claimMsg, winner.teamId)
     const owner = tById[winner.teamId]?.userId
-    if (owner) await notify(owner, `You won ${add?.name ?? 'a player'} on waivers${isFaab ? ` for $${winner.bidAmount}` : ''}`, `/teams/${winner.teamId}`, 'WAIVER')
+    if (owner) {
+      const wmsg = `You won ${add?.name ?? 'a player'} on waivers${isFaab ? ` for $${winner.bidAmount}` : ''}`
+      await notify(owner, wmsg, `/teams/${winner.teamId}`, 'WAIVER')
+      await sendPush([owner], '✅ Waiver claim won', wmsg, { type: 'WAIVER', leagueId: league.id })
+    }
     awarded.push(playerId)
   }
 
