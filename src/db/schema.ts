@@ -278,6 +278,8 @@ export const teams = sqliteTable('teams', {
   leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
   archived: integer('archived', { mode: 'boolean' }).default(false),
   archivedAt: text('archived_at'),
+  archivedSports: text('archived_sports').default('[]'),
+  replacedBy: text('replaced_by'),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 }, (t) => ({
   uniq: uniqueIndex('team_user_league_uniq').on(t.leagueId, t.userId),

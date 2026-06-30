@@ -36,9 +36,20 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
     .where(and(eq(teams.leagueId, id), isPast ? undefined : eq(teams.archived, false)))
   const branding = isPast ? await seasonBranding(id, viewSeason) : null
 
-  const records = await db
+  const rawRecords = await db
     .select().from(teamRecords)
     .where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, viewSeason)))
+  // A partially-archived club stays in standings only for sports it's still finishing;
+  // hide its records for any sport it has already handed off to a replacement.
+  const archivedSportsByTeam: Record<string, string[]> = {}
+  const liveTeamIds = new Set<string>()
+  for (const f of franchises) {
+    liveTeamIds.add(f.team.id)
+    archivedSportsByTeam[f.team.id] = safeParse<string[]>(f.team.archivedSports, [])
+  }
+  const records = isPast
+    ? rawRecords
+    : rawRecords.filter(r => liveTeamIds.has(r.teamId) && !(archivedSportsByTeam[r.teamId] ?? []).includes(r.sport))
 
   const allMatchups = await db
     .select().from(matchups)
