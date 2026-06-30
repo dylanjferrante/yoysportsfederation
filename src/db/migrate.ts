@@ -526,5 +526,29 @@ const existing = db.prepare("SELECT name FROM sqlite_master WHERE type='table' A
 for (const { name } of existing) db.exec(`DROP TABLE IF EXISTS "${name}";`)
 
 db.exec(schema)
+
+// Indexes on the hot query paths (scoring, standings, rosters, drafts, feeds).
+// These matter at scale — without them these become full table scans. They carry
+// over conceptually to Postgres (same columns).
+const indexes = `
+CREATE INDEX IF NOT EXISTS idx_rosters_team_sport ON rosters(team_id, sport);
+CREATE INDEX IF NOT EXISTS idx_rosters_player ON rosters(player_id);
+CREATE INDEX IF NOT EXISTS idx_matchups_league_season ON matchups(league_id, season);
+CREATE INDEX IF NOT EXISTS idx_matchups_league_sport_week ON matchups(league_id, sport, week);
+CREATE INDEX IF NOT EXISTS idx_team_records_league_season ON team_records(league_id, season);
+CREATE INDEX IF NOT EXISTS idx_team_records_team ON team_records(team_id, season, sport);
+CREATE INDEX IF NOT EXISTS idx_real_stats_lookup ON real_stat_lines(sport, season, week);
+CREATE INDEX IF NOT EXISTS idx_real_stats_player ON real_stat_lines(player_id, sport, season, week);
+CREATE INDEX IF NOT EXISTS idx_players_sport ON players(sport);
+CREATE INDEX IF NOT EXISTS idx_players_external ON players(external_id);
+CREATE INDEX IF NOT EXISTS idx_player_game_stats_week ON player_game_stats(league_id, season, week, sport);
+CREATE INDEX IF NOT EXISTS idx_draft_picks_draft ON draft_picks(draft_id);
+CREATE INDEX IF NOT EXISTS idx_draft_picks_team ON draft_picks(current_team_id);
+CREATE INDEX IF NOT EXISTS idx_draft_queues_draft_team ON draft_queues(draft_id, team_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_activity_league ON activity(league_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
+`
+db.exec(indexes)
 console.log('Database schema created successfully.')
 db.close()

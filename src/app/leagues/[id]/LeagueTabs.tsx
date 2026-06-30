@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta, sportLabel, sportAbbrLabel } from '@/lib/utils'
 import { computeFederationStandings, type FederationScoring } from '@/lib/federation'
+import { strengthOfSchedule, clinchStatus } from '@/lib/standings-math'
 import SportChip from '@/components/SportChip'
 
 type TeamLite = { id: string; name: string; abbreviation: string; logo: string | null; owner: string | null; primaryColor?: string | null; secondaryColor?: string | null; division?: number | null }
@@ -324,25 +325,13 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
       let odds = 100 / (1 + Math.exp(-(playoffTeams - rank - 0.5)))
       odds = Math.round(50 + (odds - 50) * conf)
 
-      // Strength of schedule = average win% of every opponent faced/to-face.
-      const opps = opponents[r.teamId] ?? []
-      const sos = opps.length ? Math.round((opps.reduce((a, id) => a + (winPctOf[id] ?? 0), 0) / opps.length) * 1000) : 0
-
-      // Magic / tragic number vs the boundary team (single-rival simplification,
-      // ignoring PF tiebreaks): in-cut clinch over the first team out; out teams'
-      // elimination by the last team in.
-      const me = winsRem(r.teamId)
-      let clinch: 'x' | 'e' | null = null
-      let magic: number | null = null
-      if (remaining === 0) clinch = rank < cut ? 'x' : 'e'
-      else if (rank < cut) {
-        const rival = order[cut]
-        if (rival) { const b = winsRem(rival.teamId); magic = Math.max(0, b.w + b.rem - me.w + 1); if (magic === 0) clinch = 'x' }
-        else clinch = 'x'
-      } else {
-        const held = order[cut - 1]
-        if (held) { const b = winsRem(held.teamId); if (me.w + me.rem < b.w) clinch = 'e'; else magic = Math.max(0, me.w + me.rem - b.w + 1) }
-      }
+      // Strength of schedule + clinch/elimination vs the playoff-cut boundary.
+      const sos = strengthOfSchedule(opponents[r.teamId] ?? [], winPctOf)
+      const { clinch, magic } = clinchStatus({
+        rank, cut, remaining, self: winsRem(r.teamId),
+        firstOut: order[cut] ? winsRem(order[cut].teamId) : undefined,
+        lastIn: order[cut - 1] ? winsRem(order[cut - 1].teamId) : undefined,
+      })
       out[r.teamId] = { streak, last5: res.slice(-5), power, odds, sos, clinch, magic }
     }
     // Top single-week team score this season.
