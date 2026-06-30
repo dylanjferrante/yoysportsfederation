@@ -68,7 +68,7 @@ export default async function DashboardPage() {
         <Link href="/leagues/new" className="btn-primary">+ Create League</Link>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-slate-900">My Franchises</h2>
@@ -94,7 +94,7 @@ export default async function DashboardPage() {
                   <div className="text-xs text-slate-400">Fed pts · {myRank ? `#${myRank}/${total}` : '—'}</div>
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {myRecords.map((r: any) => (
                   <div key={r.sport} className="text-center bg-slate-50 rounded-lg py-2">
                     <div className="text-xs text-slate-400">{sportMeta(r.sport).emoji} {r.sport}</div>

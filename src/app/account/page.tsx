@@ -107,7 +107,7 @@ export default function AccountPage() {
                     {unavailable && <span className="text-[10px] text-slate-400">(not configured on this server)</span>}
                   </label>
                   {np[ch]?.enabled && (
-                    <div className="ml-6 grid sm:grid-cols-2 gap-x-4 gap-y-1">
+                    <div className="ml-6 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                       {Object.entries(npMeta.events).map(([key, label]) => (
                         <label key={key} className="flex items-center gap-2 text-xs text-slate-600">
                           <input type="checkbox" checked={np[ch].events[key] !== false}

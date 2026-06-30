@@ -108,7 +108,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Fantasy info */}
         <div className="card p-5">
           <h2 className="font-semibold text-slate-900 mb-3">Fantasy</h2>

@@ -34,7 +34,7 @@ export default function RulesView({ leagueId, initialRules, canEdit }: { leagueI
       )}
 
       {editing && (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <div className="text-xs font-medium text-slate-500 mb-1">Markdown — # heading, - bullet, **bold**, *italic*, [links](url)</div>
             <textarea className="input w-full font-mono text-sm" rows={22} value={draft} onChange={e => setDraft(e.target.value)} placeholder="# Constitution&#10;&#10;## Scoring&#10;- PPR&#10;..." />

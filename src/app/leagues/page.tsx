@@ -24,13 +24,13 @@ export default async function LeaguesPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Leagues</h1>
           <p className="text-slate-500 text-sm mt-0.5">Cross-sport federations — one franchise, every sport</p>
         </div>
         {session && (
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap sm:justify-end">
             <JoinLeague />
             <Link href="/leagues/new" className="btn-primary">+ Create League</Link>
           </div>
@@ -43,7 +43,7 @@ export default async function LeaguesPage() {
           {session && <Link href="/leagues/new" className="btn-primary">Create the first league</Link>}
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {allLeagues.map(league => {
             const sports = safeParse<string[]>(league.sportsEnabled, [])
             const isMember = myLeagueIds.has(league.id)

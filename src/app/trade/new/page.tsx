@@ -168,7 +168,7 @@ export default function ProposeTradePage() {
                 {nameOf(tid)}{tid === myTeam?.id ? ' (you)' : ''}
               </button>
             ))}
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" className="input w-36 text-sm py-1 ml-auto" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" className="input w-full sm:w-36 text-sm py-1 sm:ml-auto" />
           </div>
 
           {/* Sport toggle — labeled segmented control with per-franchise asset counts */}
@@ -188,7 +188,7 @@ export default function ProposeTradePage() {
             })}
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Asset list for active franchise */}
             <div className="lg:col-span-2 card overflow-hidden">
               <div className="card-header"><h2 className="font-semibold text-slate-900">{rosters[activeTeam]?.team?.name ?? '—'} · {sport}</h2></div>

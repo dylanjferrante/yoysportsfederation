@@ -37,7 +37,7 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
   return (
     <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Teams</h1>
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {franchises.map(({ team: tRaw, userName }) => {
           const b = branding?.[tRaw.id]
           const t = b ? { ...tRaw, name: b.name, abbreviation: b.abbreviation, logo: b.logo, primaryColor: b.primaryColor, secondaryColor: b.secondaryColor } : tRaw

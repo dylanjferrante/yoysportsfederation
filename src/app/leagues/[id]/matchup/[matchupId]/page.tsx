@@ -250,7 +250,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <StatTable side={home} score={m.homeScore ?? 0} />
         <StatTable side={away} score={m.awayScore ?? 0} />
       </div>

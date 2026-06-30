@@ -103,7 +103,7 @@ export default function MockDraft() {
 
       {!started ? (
         <div className="card p-6 max-w-2xl space-y-5">
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="label">Sport to mock</label>
               <select className="select" value={mockSport} onChange={e => setMockSport(e.target.value)}>
@@ -209,7 +209,7 @@ export default function MockDraft() {
             </table>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Available players */}
             <div className="lg:col-span-2 card overflow-hidden">
               <div className="p-3 border-b border-slate-100 flex gap-2 flex-wrap items-center">

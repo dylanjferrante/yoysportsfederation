@@ -112,7 +112,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
   return (
     <div className="space-y-4">
       {divGroups.length > 0 && (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {divGroups.map(({ d, rows }) => (
             <div key={d} className="card overflow-x-auto">
               <div className="card-header"><h2 className="font-semibold text-slate-900">{divLabel(d, divisionNames)}</h2></div>
@@ -347,10 +347,10 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
   const powerOrder = [...records].sort((a: TeamRec, b: TeamRec) => (analytics.byTeamId[b.teamId]?.power ?? 0) - (analytics.byTeamId[a.teamId]?.power ?? 0))
 
   return (
-    <div className="grid lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
         {divGroups.length > 0 && (
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {divGroups.map(({ d, rows }: any) => (
               <div key={d} className="card overflow-x-auto">
                 <div className="card-header"><h2 className="font-semibold text-slate-900">{divLabel(d, divisionNames)}</h2></div>

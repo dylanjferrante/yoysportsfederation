@@ -61,6 +61,7 @@ export default function OddsPage() {
                 <h2 className="font-semibold text-slate-900">Odds to win the Federation</h2>
                 <p className="text-xs text-slate-400">Aggregated across {d.includedSports.join(', ')} · expected federation points</p>
               </div>
+              <div className="table-scroll">
               <table className="w-full text-sm">
                 <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
                   <th className="text-left px-4 py-2 font-semibold">Franchise</th>
@@ -85,6 +86,7 @@ export default function OddsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ) : (
             <div className="card overflow-hidden">
@@ -93,6 +95,7 @@ export default function OddsPage() {
                 <h2 className="font-semibold text-slate-900">Playoff & title odds</h2>
                 {!d.includedSports.includes(sport) && <span className="text-[10px] text-slate-400">(excluded from federation)</span>}
               </div>
+              <div className="table-scroll">
               <table className="w-full text-sm">
                 <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
                   <th className="text-left px-4 py-2 font-semibold">Franchise</th>
@@ -112,6 +115,7 @@ export default function OddsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </>

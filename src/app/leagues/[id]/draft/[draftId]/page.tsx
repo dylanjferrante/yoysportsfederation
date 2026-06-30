@@ -173,7 +173,7 @@ export default function DraftRoom() {
 
       {/* Auction: live nomination + budgets */}
       {isAuction && d.status === 'IN_PROGRESS' && (
-        <div className="grid lg:grid-cols-3 gap-5 mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
           <div className="lg:col-span-2 card p-5">
             {au?.nomPlayer ? (
               <div>
@@ -234,7 +234,7 @@ export default function DraftRoom() {
       </div>
 
       {tab === 'players' && (
-        <div className="grid lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Available */}
           <div className="lg:col-span-2 card overflow-hidden">
             <div className="card-header flex items-center justify-between">
