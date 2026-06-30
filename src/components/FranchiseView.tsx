@@ -275,18 +275,17 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Branded header */}
-      <div className="rounded-2xl p-5 mb-6 flex items-center gap-4 flex-wrap" style={{ background: `linear-gradient(135deg, ${team.primaryColor} 0%, ${team.secondaryColor} 140%)` }}>
+      <div className="rounded-2xl p-5 mb-6 flex items-center gap-4 flex-wrap" style={{ background: team.primaryColor ?? '#0f172a', color: team.secondaryColor ?? '#ffffff' }}>
         {team.logo
           ? <img src={team.logo} alt="" className="w-16 h-16 object-contain bg-white/10" style={(team as any).logoBg ? { background: team.primaryColor } : undefined} />
-          : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-white/90" style={{ backgroundColor: team.secondaryColor }}>{team.abbreviation}</div>}
+          : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black" style={{ backgroundColor: team.secondaryColor, color: team.primaryColor }}>{team.abbreviation}</div>}
         <div className="flex-1 min-w-0">
           {team.wordmark && team.wordmark.startsWith('http')
             ? <img src={team.wordmark} alt={team.name} className="h-8 mb-1" />
-            : <h1 className="text-2xl font-black text-white">{team.wordmark || team.name}</h1>}
-          <p className="text-white/70 text-sm">{team.ownerName} · {players.length} players{data.isOwner ? ' · your franchise' : data.isCommish ? ' · 🛠 commissioner control' : data.isCoManager ? ' · co-manager' : ''}</p>
+            : <h1 className="text-2xl font-black">{team.wordmark || team.name}</h1>}
+          <p className="text-sm opacity-80">{team.ownerName} · {players.length} players{data.isOwner ? ' · your franchise' : data.isCommish ? ' · 🛠 commissioner control' : data.isCoManager ? ' · co-manager' : ''}</p>
           {(data.managers ?? []).length > 0 && (
-            <p className="text-white/50 text-xs mt-0.5">co-managers: {(data.managers ?? []).map((m: any) => m.name ?? m.email).join(', ')}</p>
+            <p className="text-xs mt-0.5 opacity-60">co-managers: {(data.managers ?? []).map((m: any) => m.name ?? m.email).join(', ')}</p>
           )}
         </div>
         {team.altLogo && <img src={team.altLogo} alt="" className="w-12 h-12 object-contain bg-white/10 hidden sm:block" />}

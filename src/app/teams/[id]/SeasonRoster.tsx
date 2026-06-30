@@ -25,13 +25,13 @@ export default async function SeasonRoster({ teamId, season }: { teamId: string;
     <div className="max-w-6xl mx-auto px-4 py-8">
       <Link href={`/leagues/${team.leagueId}/teams${isCurrent ? '' : `?season=${season}`}`} className="text-sm text-slate-500 hover:underline">← Back to {season} teams</Link>
 
-      <div className="rounded-2xl p-5 mt-3 mb-6 flex items-center gap-4 flex-wrap" style={{ background: `linear-gradient(135deg, ${primary} 0%, ${secondary} 140%)` }}>
+      <div className="rounded-2xl p-5 mt-3 mb-6 flex items-center gap-4 flex-wrap" style={{ background: primary || '#0f172a', color: secondary || '#ffffff' }}>
         {logo
           ? <img src={logo} alt="" className="w-16 h-16 object-contain bg-white/10" />
-          : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-white/90" style={{ backgroundColor: secondary }}>{abbr.slice(0, 4).toUpperCase()}</div>}
+          : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black" style={{ backgroundColor: secondary, color: primary }}>{abbr.slice(0, 4).toUpperCase()}</div>}
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-black text-white">{name}</h1>
-          <p className="text-white/70 text-sm">📅 {season} · {players.length} players · {isSnapshot ? 'archived final roster' : 'live (not yet archived)'}</p>
+          <h1 className="text-2xl font-black">{name}</h1>
+          <p className="text-sm opacity-80">📅 {season} · {players.length} players · {isSnapshot ? 'archived final roster' : 'live (not yet archived)'}</p>
         </div>
       </div>
 
