@@ -6,7 +6,7 @@ import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, lineupCadenceFor, type ScheduleEntry } from '@/lib/defaults'
 import { weekDates, gameDateOf, leagueDayLineups } from '@/lib/dailylineup'
-import { scorePlayer, generateStatLine } from '@/lib/scoring'
+import { scorePlayer } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
 import { runWaivers } from '@/lib/waivers'
@@ -98,28 +98,32 @@ function targetWeek(season: string, now = Date.now()): number {
 // Throttle read-triggered advances so page loads don't all do the work.
 const lastRun = new Map<string, number>()
 
-// ── Regular-season scoring (the engine behind the once-manual "simulate") ────
+// ── Regular-season scoring (real-only: scores from ingested Tank01 stats) ────
 async function scoreSportWeek(league: any, sport: string, week: number, detailed = true) {
   const scoring = (safeParse<any>(league.scoringSettings, {})[sport]) ?? {}
   const roster = await rostersForScoring(league, sport)
   if (!roster.length) return
-  const avgProj = roster.reduce((a, r) => a + (r.projected ?? 0), 0) / roster.length || 1
 
-  // Persist per-player box-score rows only for recent weeks (keeps bulk season
-  // catch-up fast); older weeks still score the matchups + standings.
-  if (detailed) await db.delete(playerGameStats).where(and(eq(playerGameStats.leagueId, league.id), eq(playerGameStats.season, league.season), eq(playerGameStats.week, week), eq(playerGameStats.sport, sport)))
-  // Prefer real ingested stat lines for this week; fall back to the simulator.
+  // Real-only: score strictly from ingested Tank01 stat lines. If none exist for
+  // this sport + week yet, the games aren't final/ingested — leave the matchups
+  // pending rather than fabricate scores. (The simulator is reserved for the
+  // seed's demo data; real play never invents numbers.)
   const ids = roster.map(r => r.playerId)
   const realRows = ids.length
     ? await db.select({ playerId: realStatLines.playerId, stats: realStatLines.stats }).from(realStatLines)
         .where(and(eq(realStatLines.sport, sport), eq(realStatLines.season, league.season), eq(realStatLines.week, week), inArray(realStatLines.playerId, ids)))
     : []
+  if (!realRows.length) return // no real stats yet → week stays pending
   const realBy = new Map(realRows.map(r => [r.playerId, safeParse<Record<string, number>>(r.stats, {})]))
 
+  // Persist per-player box-score rows only for recent weeks (keeps bulk season
+  // catch-up fast); older weeks still score the matchups + standings.
+  if (detailed) await db.delete(playerGameStats).where(and(eq(playerGameStats.leagueId, league.id), eq(playerGameStats.season, league.season), eq(playerGameStats.week, week), eq(playerGameStats.sport, sport)))
   const pts: Record<string, number> = {}
   const rows: any[] = []
   for (const r of roster) {
-    const stats = realBy.get(r.playerId) ?? generateStatLine(sport, r.position, (r.projected ?? avgProj) / avgProj)
+    const stats = realBy.get(r.playerId)
+    if (!stats) { pts[r.playerId] = 0; continue } // no real line → not counted (didn't play / not yet final)
     const p = scorePlayer(stats, scoring)
     pts[r.playerId] = p
     if (detailed) rows.push({ id: nanoid(), leagueId: league.id, season: league.season, week, sport, playerId: r.playerId, teamId: r.teamId, stats: JSON.stringify(stats), points: p })
@@ -206,8 +210,19 @@ async function headToHeadWins(leagueId: string, season: string, sport: string): 
 async function scoreTeam(league: any, sport: string, teamId: string, scoring: Record<string, number>, spCap = 0, week = 0) {
   const roster = await rostersForScoring(league, sport, teamId)
   if (!roster.length) return 0
-  const avg = roster.reduce((a, r) => a + (r.projected ?? 0), 0) / roster.length || 1
-  const scored: Scored[] = roster.map(r => ({ slot: r.slot, position: r.position, status: r.status, byeWeek: r.byeWeek, pts: scorePlayer(generateStatLine(sport, r.position, (r.projected ?? avg) / avg), scoring) }))
+  // Real-only: score from ingested stat lines for this playoff week; a player
+  // with no real line contributes 0 (runPlayoffs only resolves a round once real
+  // data for its week exists, so this isn't reached for un-played weeks).
+  const ids = roster.map(r => r.playerId)
+  const realRows = ids.length
+    ? await db.select({ playerId: realStatLines.playerId, stats: realStatLines.stats }).from(realStatLines)
+        .where(and(eq(realStatLines.sport, sport), eq(realStatLines.season, league.season), eq(realStatLines.week, week), inArray(realStatLines.playerId, ids)))
+    : []
+  const realBy = new Map(realRows.map(r => [r.playerId, safeParse<Record<string, number>>(r.stats, {})]))
+  const scored: Scored[] = roster.map(r => {
+    const s = realBy.get(r.playerId)
+    return { slot: r.slot, position: r.position, status: r.status, byeWeek: r.byeWeek, pts: s ? scorePlayer(s, scoring) : 0 }
+  })
   return effectiveTotal(sport, spCap, week, scored)
 }
 
@@ -278,6 +293,11 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
         const curRound = rounds.find(r => bg.some(g => g.round === r && !g.isComplete))
         if (curRound == null) break
         if (target < regEnd + curRound) break // this playoff round's week hasn't arrived
+        // Real-only: don't resolve a playoff round until its week's stats are
+        // ingested (otherwise scores would be fabricated).
+        const [anyReal] = await db.select({ id: realStatLines.id }).from(realStatLines)
+          .where(and(eq(realStatLines.sport, sport), eq(realStatLines.season, season), eq(realStatLines.week, regEnd + curRound))).limit(1)
+        if (!anyReal) break
 
         const roundGames = bg.filter(g => g.round === curRound).sort((a, b) => a.matchIndex - b.matchIndex)
         const completed: { teamId: string | null; seed: number | null }[] = []
