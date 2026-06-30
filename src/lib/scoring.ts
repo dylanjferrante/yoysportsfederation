@@ -4,10 +4,37 @@
 
 export type Stats = Record<string, number>
 
-// Points = dot product of the stat line with the league's per-stat values.
+// FG distance-tier keys (used by the default tier scoring). Skipped when a league
+// opts into per-yardage FG scoring, so the two modes never double-count.
+const FG_TIER_KEYS = new Set(['fgMade0_39', 'fgMade40_49', 'fgMade50plus'])
+
+// Per-yardage field-goal scoring (opt-in). With fgPointsPerYard = 0.1, a 32-yd kick
+// is worth 3.2; fgMinPoints sets a per-made-FG floor (e.g. min 3 → a 20-yd kick pays
+// 3.0, not 2.0). Reads the per-kick fgDist<N> keys produced by the box-score mapper.
+function fgYardagePoints(stats: Stats, scoring: Record<string, number>): number {
+  const perYard = scoring.fgPointsPerYard ?? 0
+  const minPts = scoring.fgMinPoints ?? 0
+  let pts = 0
+  for (const [k, count] of Object.entries(stats)) {
+    if (!count) continue
+    const m = /^fgDist(\d+)$/.exec(k)
+    if (!m) continue
+    pts += count * Math.max(minPts, Number(m[1]) * perYard)
+  }
+  return pts
+}
+
+// Points = dot product of the stat line with the league's per-stat values, plus
+// optional per-yardage field-goal scoring.
 export function scorePlayer(stats: Stats, scoring: Record<string, number>): number {
+  const fgYardMode = (scoring.fgPointsPerYard ?? 0) > 0 || (scoring.fgMinPoints ?? 0) > 0
   let total = 0
-  for (const [k, v] of Object.entries(stats)) total += v * (scoring[k] ?? 0)
+  for (const [k, v] of Object.entries(stats)) {
+    if (k.startsWith('fgDist')) continue              // scored via fgYardagePoints, never the dot product
+    if (fgYardMode && FG_TIER_KEYS.has(k)) continue    // per-yard mode replaces tier scoring
+    total += v * (scoring[k] ?? 0)
+  }
+  if (fgYardMode) total += fgYardagePoints(stats, scoring)
   return +total.toFixed(1)
 }
 
