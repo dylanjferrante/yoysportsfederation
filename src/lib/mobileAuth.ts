@@ -1,9 +1,5 @@
 import crypto from 'crypto'
 
-// Lightweight signed token for the native (Expo) app. NextAuth uses httpOnly
-// session COOKIES, which a React Native client can't carry cleanly, so the
-// mobile endpoints use a stateless Bearer token instead: an HMAC-signed payload
-// the app stores in SecureStore and sends as `Authorization: Bearer <token>`.
 const secret = () => process.env.NEXTAUTH_SECRET || process.env.MOBILE_TOKEN_SECRET || 'dev-mobile-secret'
 
 export function signMobileToken(payload: Record<string, unknown>, days = 30): string {
@@ -17,7 +13,6 @@ export function verifyMobileToken(token: string | null | undefined): Record<stri
   const [body, sig] = token.split('.')
   if (!body || !sig) return null
   const expected = crypto.createHmac('sha256', secret()).update(body).digest('base64url')
-  // Constant-time compare.
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null
   try {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString())
@@ -26,7 +21,6 @@ export function verifyMobileToken(token: string | null | undefined): Record<stri
   } catch { return null }
 }
 
-// Resolve the authenticated user id from a request's Bearer token (or null).
 export function bearerUserId(req: Request): string | null {
   const h = req.headers.get('authorization') || ''
   const token = h.startsWith('Bearer ') ? h.slice(7) : null

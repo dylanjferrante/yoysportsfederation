@@ -8,9 +8,6 @@ type Side = { name: string; abbr: string; logo: string | null; primary: string; 
 type Card = { id: string; sport: string; status: 'Final' | 'LIVE'; home: Side; away: Side }
 type News = { id: string; category: string; sport?: string; text: string; href: string }
 
-// ESPN-TV-style ticker: a STATIC score panel (team abbr, logo, score, status)
-// that flips between games, alongside a SCROLLING news feed. Refreshes every 45s
-// while visible (DB read, no API cost).
 export default function Ticker({ leagueId }: { leagueId: string }) {
   const [scores, setScores] = useState<Card[]>([])
   const [news, setNews] = useState<News[]>([])
@@ -24,7 +21,6 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
     return () => { alive = false; clearInterval(iv) }
   }, [leagueId])
 
-  // Flip the static score card every few seconds.
   useEffect(() => {
     if (scores.length <= 1) return
     const iv = setInterval(() => setIdx(i => (i + 1) % scores.length), 4500)

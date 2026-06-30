@@ -15,10 +15,6 @@ const SLOT_ORDER: Record<string, string[]> = {
   MLB: ['C', '1B', '2B', '3B', 'SS', 'OF', 'LF', 'CF', 'RF', 'UTIL', 'SP', 'RP', 'P'],
 }
 
-// Read-only historical roster table. Mirrors the live My Team (FranchiseView)
-// layout — sport tabs, lineup sections, per-player season stats — but without any
-// live-only concepts (opponents, projections, locks, actions) that a finished
-// season has no use for.
 export default function SeasonRosterTable({ players, season }: { players: SeasonRosterPlayer[]; season: string }) {
   const sportsPresent = SPORTS.filter(s => players.some(p => p.sport === s))
   const [sport, setSport] = useState(sportsPresent[0] ?? 'NFL')

@@ -11,8 +11,6 @@ const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 const FINAL_RE = /final|completed|closed/i
 const LIVE_RE = /in.?progress|live|q[1-4]\b|\bhalf\b|inning|period|\bot\b|delay|active|top\b|bot\b|\bmid\b|\bend\b/i
 
-// Matchup game-tracker for the native app: each team's starters bucketed into
-// played / playing / yet-to-play with each player's game status.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!bearerUserId(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params

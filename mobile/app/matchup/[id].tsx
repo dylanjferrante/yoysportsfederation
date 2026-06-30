@@ -21,14 +21,12 @@ export default function Matchup() {
     <>
       <Stack.Screen options={{ title: `${g.sport} · Week ${g.week}`, headerStyle: { backgroundColor: '#0f172a' }, headerTintColor: '#fff' }} />
       <ScrollView style={{ backgroundColor: '#f8fafc' }}>
-        {/* Scoreboard */}
         <View style={s.board}>
           <Team name={g.home.team} score={g.homeScore} win={g.homeScore >= g.awayScore && g.isComplete} />
           <Text style={s.vs}>{g.isComplete ? 'FINAL' : 'VS'}</Text>
           <Team name={g.away.team} score={g.awayScore} win={g.awayScore > g.homeScore && g.isComplete} />
         </View>
 
-        {/* Game tracker */}
         <Text style={s.h2}>📡 Game Tracker</Text>
         <View style={s.trackRow}>
           {[g.home, g.away].map((side, i) => (
@@ -44,7 +42,6 @@ export default function Matchup() {
           ))}
         </View>
 
-        {/* Lineups */}
         {[g.home, g.away].map((side, i) => (
           <View key={i} style={s.lineup}>
             <Text style={s.lineupTitle}>{side!.team}</Text>

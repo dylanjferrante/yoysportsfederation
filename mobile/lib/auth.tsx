@@ -26,7 +26,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [leagues, setLeagues] = useState<League[]>([]);
 
-  // Restore a saved session on launch.
   useEffect(() => {
     (async () => {
       try {

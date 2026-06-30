@@ -5,9 +5,6 @@ import Link from 'next/link'
 import { seasonRosterWithStats, seasonBranding } from '@/lib/seasons'
 import SeasonRosterTable from './SeasonRosterTable'
 
-// Read-only historical roster for a franchise in a past season. Mirrors the live
-// My Team view (branded header + per-sport stat tables) but every number is that
-// season's, reconstructed from the persisted game logs — never current stats.
 export default async function SeasonRoster({ teamId, season }: { teamId: string; season: string }) {
   const [team] = await db.select().from(teams).where(eq(teams.id, teamId)).limit(1)
   if (!team) return <div className="p-8 text-slate-400">Team not found.</div>
@@ -28,7 +25,6 @@ export default async function SeasonRoster({ teamId, season }: { teamId: string;
     <div className="max-w-6xl mx-auto px-4 py-8">
       <Link href={`/leagues/${team.leagueId}/teams${isCurrent ? '' : `?season=${season}`}`} className="text-sm text-slate-500 hover:underline">← Back to {season} teams</Link>
 
-      {/* Branded header — matches the live My Team header */}
       <div className="rounded-2xl p-5 mt-3 mb-6 flex items-center gap-4 flex-wrap" style={{ background: `linear-gradient(135deg, ${primary} 0%, ${secondary} 140%)` }}>
         {logo
           ? <img src={logo} alt="" className="w-16 h-16 object-contain bg-white/10" />
