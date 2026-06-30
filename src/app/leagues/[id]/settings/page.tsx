@@ -822,7 +822,7 @@ export default function CommissionerSettings() {
             {(() => {
               const teams = form.playoffTeams ?? 6
               const maxR = maxPlayoffRounds(teams)
-              const rounds = Math.min(form.playoffRounds ?? 2, maxR)
+              const rounds = Math.min(form.playoffRounds ?? maxR, maxR)
               const fmt = (form.playoffFormat ?? 'H2H') as any
               const wpr = form.weeksPerRound ?? 1
               const totalWeeks = playoffWeeks(rounds, fmt, wpr)
@@ -830,7 +830,7 @@ export default function CommissionerSettings() {
                 <>
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div><label className="label">Playoff Teams (per sport)</label>
-                      <select className="select" value={teams} onChange={e => { const t = +e.target.value; set('playoffTeams', t); if ((form.playoffRounds ?? 2) > maxPlayoffRounds(t)) set('playoffRounds', maxPlayoffRounds(t)) }}>
+                      <select className="select" value={teams} onChange={e => { const t = +e.target.value; set('playoffTeams', t); set('playoffRounds', maxPlayoffRounds(t)) }}>
                         {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n} teams</option>)}
                       </select>
                     </div>

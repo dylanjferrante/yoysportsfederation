@@ -22,7 +22,7 @@ export default function CreateLeaguePage() {
     maxTeams: 12, isPublic: false, description: '',
     draftType: 'SNAKE', rookieDraftMode: 'PER_SPORT', rookieDraftRounds: 4, tradeablePickYears: 3,
     waiverType: 'FAAB', faabBudget: 100, tradeReview: 'COMMISSIONER',
-    playoffTeams: 6, playoffStartWeek: 15, regularSeasonWeeks: 18, playoffRounds: 2, playoffFormat: 'H2H', weeksPerRound: 2,
+    playoffTeams: 6, playoffStartWeek: 15, regularSeasonWeeks: 18, playoffRounds: 3, playoffFormat: 'H2H', weeksPerRound: 2,
   })
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
   const toggleSport = (s: string) => set('sportsEnabled', form.sportsEnabled.includes(s) ? form.sportsEnabled.filter((x: string) => x !== s) : [...form.sportsEnabled, s])
@@ -159,7 +159,7 @@ export default function CreateLeaguePage() {
                 <>
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div><label className="label">Playoff Teams (per sport)</label>
-                      <select className="select" value={teams} onChange={e => { const t = +e.target.value; set('playoffTeams', t); if (form.playoffRounds > maxPlayoffRounds(t)) set('playoffRounds', maxPlayoffRounds(t)) }}>
+                      <select className="select" value={teams} onChange={e => { const t = +e.target.value; set('playoffTeams', t); set('playoffRounds', maxPlayoffRounds(t)) }}>
                         {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n} teams</option>)}
                       </select>
                     </div>

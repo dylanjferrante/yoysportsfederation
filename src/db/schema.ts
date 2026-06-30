@@ -105,7 +105,7 @@ export const leagues = sqliteTable('leagues', {
   playoffTeams: integer('playoff_teams').default(6),
   playoffStartWeek: integer('playoff_start_week').default(15),
   regularSeasonWeeks: text('regular_season_weeks').default('{}'), // per-sport JSON map { NFL: 14, ... }
-  playoffRounds: integer('playoff_rounds').default(2),
+  playoffRounds: integer('playoff_rounds').default(3), // 6 playoff teams → 3 H2H rounds
 
   // Dues
   duesAmount: integer('dues_amount').default(0), // per-franchise buy-in

@@ -349,7 +349,7 @@ insertLeague.run({
   season: CURRENT_SEASON,
   commissioner_id: ownerIds[0],
   status: 'ACTIVE',
-  max_teams: 14,
+  max_teams: 12,
   invite_code: 'NEXUS2026',
   description: 'A cross-sport dynasty federation — one franchise, four sports, one champion.',
   logo_url: LEAGUE_LOGO,

@@ -13,10 +13,9 @@ export async function GET(req: Request) {
   const free     = searchParams.get('free') === 'true'
   const rich     = searchParams.get('rich') === 'true'
 
-  const conditions = []
-  if (sport)    conditions.push(eq(players.sport, sport))
-  if (position) conditions.push(eq(players.position, position))
-  if (search)   conditions.push(like(players.name, `%${search}%`))
+  const baseConds: any[] = []
+  if (position) baseConds.push(eq(players.position, position))
+  if (search)   baseConds.push(like(players.name, `%${search}%`))
 
   // Exclude rostered players in SQL so free agents always surface (not just
   // the ones that happen to fall inside a post-filter result cap).
@@ -27,15 +26,19 @@ export async function GET(req: Request) {
       .innerJoin(teams, eq(rosters.teamId, teams.id))
       .where(eq(teams.leagueId, leagueId))
     const rosteredIds = rosteredInLeague.map(r => r.playerId).filter(Boolean) as string[]
-    if (rosteredIds.length > 0) conditions.push(notInArray(players.id, rosteredIds))
+    if (rosteredIds.length > 0) baseConds.push(notInArray(players.id, rosteredIds))
   }
 
-  const result = await db
-    .select()
-    .from(players)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(players.seasonPoints))
-    .limit(rich ? 300 : 200)
+  // When no single sport is requested, fetch a balanced top-N PER sport so
+  // low-scoring sports (NHL) aren't buried under a global points sort.
+  const wantSports = sport ? [sport] : ['NFL', 'NBA', 'NHL', 'MLB']
+  const perSport = sport ? (rich ? 350 : 250) : (rich ? 90 : 70)
+  const result = (await Promise.all(wantSports.map(sp =>
+    db.select().from(players)
+      .where(and(eq(players.sport, sp), ...baseConds))
+      .orderBy(desc(players.seasonPoints))
+      .limit(perSport)
+  ))).flat()
 
   // Attach a normalized cross-sport value so free agents can be ranked fairly
   // (raw points favor high-scoring sports like the NBA).
@@ -57,8 +60,14 @@ export async function GET(req: Request) {
     if (g.week > a.lastWk) { a.lastWk = g.week; a.lastPts = g.points ?? 0 }
   }
 
-  const rosteredRows = await db.select({ playerId: rosters.playerId }).from(rosters)
-  const ownedSet = new Set(rosteredRows.map(r => r.playerId))
+  // Ownership: scoped to this league when leagueId is given, else global.
+  const ownerRows = leagueId
+    ? await db.select({ playerId: rosters.playerId, teamId: teams.id, teamName: teams.name, teamAbbr: teams.abbreviation })
+        .from(rosters).innerJoin(teams, eq(rosters.teamId, teams.id)).where(eq(teams.leagueId, leagueId))
+    : await db.select({ playerId: rosters.playerId, teamId: teams.id, teamName: teams.name, teamAbbr: teams.abbreviation })
+        .from(rosters).innerJoin(teams, eq(rosters.teamId, teams.id))
+  const ownerByPlayer = new Map(ownerRows.map(r => [r.playerId, r]))
+  const ownedSet = new Set(ownerRows.map(r => r.playerId))
 
   // Positional rank within the returned set (already sorted by season points).
   const posCount: Record<string, number> = {}
@@ -73,6 +82,9 @@ export async function GET(req: Request) {
       lastPts: a?.lastPts ?? null,
       avg: a && a.gp ? +( (p.seasonPoints ?? 0) / a.gp ).toFixed(1) : (p.weeklyAvg ?? 0),
       owned: ownedSet.has(p.id),
+      ownerTeamId: ownerByPlayer.get(p.id)?.teamId ?? null,
+      ownerTeamName: ownerByPlayer.get(p.id)?.teamName ?? null,
+      ownerTeamAbbr: ownerByPlayer.get(p.id)?.teamAbbr ?? null,
       posRank: posCount[key],
       value: crossSportValue(p.sport, p.projectedPoints),
     }
