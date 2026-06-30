@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { trades, tradeItems, tradeApprovals, teams, players, draftPicks, leagues, matchups } from '@/db/schema'
+import { trades, tradeItems, tradeApprovals, teams, players, draftPicks, leagues, matchups, leagueHistory } from '@/db/schema'
 import { eq, or, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
@@ -113,9 +113,19 @@ export async function POST(req: Request) {
         const maxWk = mine.length ? Math.max(...mine.map(m => m.week)) : 0
         cur[sp] = inc.length ? Math.min(...inc) : maxWk + 1
       }
+      // After the deadline, trading reopens per the sport's reopen rule:
+      // CHAMPIONSHIP = once that sport has crowned its champion; FED_SEASON = once the
+      // federation champion is crowned (the season is over).
+      const reopen = safeParse<Record<string, string>>(league?.tradeReopen, {})
+      const crowned = await db.select({ scope: leagueHistory.scope }).from(leagueHistory)
+        .where(and(eq(leagueHistory.leagueId, leagueId), eq(leagueHistory.season, league?.season ?? '')))
+      const crownedSet = new Set(crowned.map(c => c.scope))
       for (const sp of dealSports) {
         const dl = resolveTradeDeadlineWeek(deadlines[sp] as any, sp, schedule, league?.playoffRounds ?? 2)
-        if ((cur[sp] ?? 1) > dl) return NextResponse.json({ error: `The ${sp} trade deadline has passed.` }, { status: 400 })
+        if ((cur[sp] ?? 1) <= dl) continue // before deadline — open
+        const mode = reopen[sp] ?? 'FED_SEASON'
+        const isReopen = mode === 'CHAMPIONSHIP' ? crownedSet.has(sp) : crownedSet.has('OVERALL')
+        if (!isReopen) return NextResponse.json({ error: `The ${sp} trade deadline has passed — trading reopens ${mode === 'CHAMPIONSHIP' ? `after the ${sp} championship` : 'at the end of the federation season'}.` }, { status: 400 })
       }
     }
 

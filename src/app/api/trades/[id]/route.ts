@@ -55,7 +55,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const allAccepted = approvals.length > 0 && approvals.every(a => a.status === 'ACCEPTED')
   if (!allAccepted) return NextResponse.json({ status: 'PENDING', waiting: true })
 
-  // Execute: route every asset from its source franchise to its destination.
+  // Execute: route every asset from its source franchise to its destination, and log
+  // a separate transaction entry for each asset (player or pick) with its details.
+  const nameOf = (tid: string | null | undefined) => teamRows.find(t => t.id === tid)?.name ?? 'A franchise'
   for (const it of items) {
     let from = it.fromTeamId, to = it.toTeamId
     if (!from || !to) {
@@ -63,18 +65,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       to = it.direction === 'GIVING' ? (trade.recipientId ?? trade.initiatorId) : trade.initiatorId
     }
     if (it.playerId && to) {
-      const [pl] = await db.select({ sport: players.sport }).from(players).where(eq(players.id, it.playerId)).limit(1)
-      // Carry the player's contract (salary + years) with them to the new franchise.
+      const [pl] = await db.select({ name: players.name, sport: players.sport, position: players.position, realTeamAbbr: players.realTeamAbbr }).from(players).where(eq(players.id, it.playerId)).limit(1)
       const [existing] = await db.select({ salary: rosters.salary, contractYears: rosters.contractYears }).from(rosters).where(eq(rosters.playerId, it.playerId)).limit(1)
       await db.delete(rosters).where(eq(rosters.playerId, it.playerId))
       await db.insert(rosters).values({ id: nanoid(), teamId: to, playerId: it.playerId, sport: pl?.sport ?? 'NFL', slot: 'BN', acquisitionType: 'TRADE', salary: existing?.salary ?? 0, contractYears: existing?.contractYears ?? null }).onConflictDoNothing()
+      await logActivity(trade.leagueId!, 'TRADE', `${nameOf(from)} traded ${pl?.name ?? 'a player'} (${pl?.sport ?? '—'}) to ${nameOf(to)}`, to ?? null)
     }
     if (it.pickId && to) {
+      const [pk] = await db.select({ year: draftPicks.year, sport: draftPicks.sport, round: draftPicks.round }).from(draftPicks).where(eq(draftPicks.id, it.pickId)).limit(1)
       await db.update(draftPicks).set({ currentTeamId: to }).where(eq(draftPicks.id, it.pickId))
+      await logActivity(trade.leagueId!, 'TRADE', `${nameOf(from)} traded a ${pk?.year ?? ''} ${pk?.sport ?? 'OVERALL'} round ${pk?.round ?? '?'} pick to ${nameOf(to)}`, to ?? null)
     }
   }
   const partyNames = teamRows.map(t => t.name).join(' / ')
-  await logActivity(trade.leagueId!, 'TRADE', `Trade completed: ${partyNames}`, trade.initiatorId)
   await notify(teamRows.map(t => t.userId).filter(Boolean) as string[], `Your trade is complete: ${partyNames}`, `/trade`, 'TRADE')
   return finish('ACCEPTED')
 }
