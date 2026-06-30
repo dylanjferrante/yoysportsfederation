@@ -88,12 +88,12 @@ export default function RecordsPage() {
       {!d ? <div className="card p-10 text-center text-slate-400 text-sm">Loading…</div> : (
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <ScoreList title="🔥 Highest single-game (team)" rows={by(d.single.highest)} fmt={s => s.score.toFixed(1)} />
-            <ScoreList title="🧊 Lowest single-game (team)" rows={by(d.single.lowest)} fmt={s => s.score.toFixed(1)} />
-            <ScoreList title="💥 Biggest blowouts" rows={by(d.single.blowouts)} fmt={s => `+${(s.score - s.oppScore).toFixed(1)}`} />
+            <ScoreList title="Highest single-game (club)" rows={by(d.single.highest)} fmt={s => s.score.toFixed(1)} />
+            <ScoreList title="Lowest single-game (club)" rows={by(d.single.lowest)} fmt={s => s.score.toFixed(1)} />
+            <ScoreList title="Biggest blowouts" rows={by(d.single.blowouts)} fmt={s => `+${(s.score - s.oppScore).toFixed(1)}`} />
 
             <div className="card p-4">
-              <h3 className="font-semibold text-slate-900 mb-2">📈 Longest win streaks</h3>
+              <h3 className="font-semibold text-slate-900 mb-2">Longest win streaks</h3>
               {by(d.streaks).length === 0 ? <p className="text-sm text-slate-400">No streaks of 2+ yet.</p> : (
                 <ol className="space-y-1.5">
                   {by(d.streaks).slice(0, 5).map((s, i) => (
@@ -111,7 +111,7 @@ export default function RecordsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="card p-4">
-              <h3 className="font-semibold text-slate-900 mb-2">🏆 Most wins in a season</h3>
+              <h3 className="font-semibold text-slate-900 mb-2">Most wins in a season</h3>
               <ol className="space-y-1.5">
                 {by(d.mostWins).slice(0, 5).map((r, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
@@ -125,7 +125,7 @@ export default function RecordsPage() {
               </ol>
             </div>
             <div className="card p-4">
-              <h3 className="font-semibold text-slate-900 mb-2">⚡ Best scoring seasons (PF)</h3>
+              <h3 className="font-semibold text-slate-900 mb-2">Best scoring seasons (PF)</h3>
               <ol className="space-y-1.5">
                 {by(d.bestPF).slice(0, 5).map((r, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
@@ -143,12 +143,12 @@ export default function RecordsPage() {
           {/* Championships are cross-sport — only meaningful on "All sports". */}
           {sport === 'ALL' && (
             <div className="card p-4">
-              <h3 className="font-semibold text-slate-900 mb-2">👑 Championship leaderboard</h3>
+              <h3 className="font-semibold text-slate-900 mb-2">Championship leaderboard</h3>
               {d.titles.length === 0 ? <p className="text-sm text-slate-400">No titles awarded yet.</p> : (
                 <div className="table-scroll">
                 <table className="w-full text-sm">
                   <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
-                    <th className="text-left py-1.5 font-semibold">Franchise</th>
+                    <th className="text-left py-1.5 font-semibold">Club</th>
                     <th className="text-right py-1.5 font-semibold">Federation</th>
                     <th className="text-right py-1.5 font-semibold">Sport</th>
                     <th className="text-right py-1.5 font-semibold">Total</th>
@@ -171,8 +171,8 @@ export default function RecordsPage() {
 
           {/* Individual player records — after the team records */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <PlayerList title="🌟 Best single-game (player)" rows={by(d.playerGames)} />
-            <PlayerList title="📅 Best season totals (player)" rows={by(d.playerSeasons)} />
+            <PlayerList title="Best single-game (player)" rows={by(d.playerGames)} />
+            <PlayerList title="Best season totals (player)" rows={by(d.playerSeasons)} />
           </div>
         </div>
       )}
