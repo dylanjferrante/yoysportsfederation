@@ -118,6 +118,7 @@ CREATE TABLE leagues (
   transaction_limits TEXT DEFAULT '{}',
   ir_eligible_designations TEXT DEFAULT '{}',
   taxi_eligibility TEXT DEFAULT 'ALL',
+  live_scoring INTEGER DEFAULT 0,
   defense_mode TEXT DEFAULT 'TEAM',
   playoff_format TEXT DEFAULT 'H2H',
   weeks_per_round INTEGER DEFAULT 1,
