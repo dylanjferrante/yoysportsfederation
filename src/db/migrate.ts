@@ -44,6 +44,7 @@ DROP TABLE IF EXISTS team_managers;
 DROP TABLE IF EXISTS teams;
 DROP TABLE IF EXISTS league_members;
 DROP TABLE IF EXISTS leagues;
+DROP TABLE IF EXISTS push_subscriptions;
 DROP TABLE IF EXISTS users;
 `
 
@@ -480,7 +481,12 @@ CREATE TABLE commissioner_actions (
 );
 `
 
-db.exec(drop)
+// Dynamically drop every existing table first, so a forgotten DROP in the static
+// list can never leave the database half-built ("table … already exists").
+const existing = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]
+for (const { name } of existing) db.exec(`DROP TABLE IF EXISTS "${name}";`)
+
+db.exec(drop) // explicit list kept for clarity / ordering
 db.exec(schema)
 console.log('Database schema created successfully.')
 db.close()
