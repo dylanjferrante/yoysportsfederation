@@ -108,6 +108,16 @@ export default function DraftRoom() {
           {s.isCommish && d.status === 'PAUSED' && (
             <button onClick={() => action({ action: 'RESUME' })} disabled={busy} className="btn-primary text-sm">Resume draft</button>
           )}
+          {s.isCommish && d.status !== 'PENDING' && (
+            <button onClick={async () => {
+              if (!confirm('⚠️ Reset this draft?\n\nEvery pick is cleared and all players drafted here are removed from rosters. This cannot be undone.')) return
+              if (!confirm('Are you absolutely sure? The draft will reopen to PENDING and must be re-run.')) return
+              if (prompt('Final confirmation — type RESET to proceed.') !== 'RESET') return
+              setBusy(true)
+              await fetch(`/api/leagues/${id}/dynasty`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESET', draftId: d.id }) })
+              setBusy(false); load()
+            }} disabled={busy} className="text-sm px-3 py-1.5 rounded-lg font-medium bg-red-50 text-red-600 hover:bg-red-100">Reset draft</button>
+          )}
         </div>
       </div>
 
