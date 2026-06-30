@@ -54,10 +54,47 @@ This is the dominant line item at every tier — not compute.
 Daily-finalize ingestion fits the free/basic tier. Live in-game scoring multiplies
 calls — enable it (`liveScoring`) only with budget headroom or a paid feed.
 
+## Background work: move it off the request path
+
+Two things currently run inline on page render and must become scheduled jobs
+before high league counts:
+
+- **Season auto-advance** — `advanceLeague()` is called when a league page loads.
+  At 1000+ leagues this runs redundant work on every visit. Move it to a cron/queue
+  job, idempotent per league+week (the `/api/cron/stats` route is the seed of this).
+- **Ticker / standings recompute** — `buildHeadlines` / `buildScoreboard` and
+  standings recompute on every 45s poll. Precompute on the events that change them
+  (score finalize, trade, waiver) and cache (Redis, short TTL); the client poll
+  then reads cache instead of recomputing.
+
+## Admin portal & payments
+
+A separate operator surface, gated on a **global super-admin role** (today there is
+only per-league commissioner — add `isSuperAdmin` on users, or a `platform_admins`
+table, and gate `/admin/*` plus admin APIs on it).
+
+What it covers:
+
+- **Leagues:** search/list every league, drill in, transfer commissioner, suspend,
+  delete. The cascade delete already exists (`DELETE /api/leagues/[id]`).
+- **Users:** search, disable, password reset, view league memberships.
+- **Payments:** real money via **Stripe** (the dues tracker is manual today). Stripe
+  Customer per user/league; checkout for league fees or dues; webhooks mark dues paid
+  and reconcile against the existing dues panel. Store only Stripe IDs — never card data.
+- **Usage & cost:** Tank01 spend is already recorded in the `api_usage` table; surface
+  it per-league alongside signups and activity over time.
+- **Health:** job-queue status, error rates, last successful stats pull.
+
+The admin portal is mostly queries + a role check, so it can be built on SQLite now
+and ride through the Postgres migration unchanged.
+
 ## Operational checklist before a real launch
 
 - [ ] Move to Postgres + connection pooler.
 - [ ] Redis for the draft bus + caching + rate limiting.
+- [ ] Move auto-advance + ticker/standings off the request path into jobs + cache.
+- [ ] Global super-admin role + `/admin` portal.
+- [ ] Stripe for payments; reconcile with the dues tracker.
 - [ ] Run the stats cron (`/api/cron/stats`, `CRON_SECRET`) on a scheduler.
 - [ ] Set VAPID keys (`npm run push:keys`) for push; confirm the Tank01 box-score
       field mappings against a live key (`npm run tank01:probe`).
