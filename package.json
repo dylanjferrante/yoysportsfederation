@@ -15,6 +15,7 @@
     "db:reset": "tsx src/db/migrate.ts && tsx src/db/seed.ts",
     "setup": "npm install && npm run db:reset",
     "stats:pull": "tsx scripts/stats-pull.ts",
+    "stats:project": "tsx scripts/derive-projections.ts",
     "push:keys": "tsx scripts/push-keys.ts",
     "tank01:probe": "tsx scripts/tank01-probe.ts",
     "tank01:pull": "tsx scripts/tank01-pull.ts",

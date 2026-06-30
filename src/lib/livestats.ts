@@ -1,8 +1,9 @@
 import { db } from '@/db'
 import { apiUsage, realStatLines, players } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
-import { weekDateRange } from '@/lib/defaults'
+import { weekDateRange, DEFAULT_SCORING } from '@/lib/defaults'
+import { scorePlayer } from '@/lib/scoring'
 import { tank01Configured, tank01GamesForDate, tank01BoxScore } from '@/lib/providers/tank01'
 import { mapBoxScoreBase, deriveWeekly } from '@/lib/providers/boxscore-map'
 
@@ -113,6 +114,44 @@ export async function ingestDateForSeasons(sport: Sport, date: Date, seasons: st
   const bySeason: Record<string, number> = {}
   for (const season of uniq) bySeason[season] = await upsertDay(sport, season, date, agg)
   return { calls, bySeason }
+}
+
+// Derive projections from REAL ingested stats. Tank01 exposes no fantasy-point
+// projections for NBA/NHL/MLB (and only preseason ones for NFL), so we project
+// each player from their own real production: the mean of their per-week real
+// stat lines becomes the projected stat line, scored under default scoring for a
+// projectedPoints. Costs NO API calls. Only players with ≥1 real line are touched
+// (others keep whatever projection they had). ADP is then re-ranked per sport.
+export async function deriveProjections(season: string): Promise<{ updated: number }> {
+  const lines = await db.select({ playerId: realStatLines.playerId, sport: realStatLines.sport, stats: realStatLines.stats })
+    .from(realStatLines).where(eq(realStatLines.season, season))
+
+  const byPlayer = new Map<string, { sport: string; weeks: Record<string, number>[] }>()
+  for (const l of lines) {
+    const e = byPlayer.get(l.playerId) ?? { sport: l.sport, weeks: [] }
+    try { e.weeks.push(JSON.parse(l.stats ?? '{}')) } catch { /* skip bad line */ }
+    byPlayer.set(l.playerId, e)
+  }
+
+  let updated = 0
+  const sportsTouched = new Set<string>()
+  for (const [pid, { sport, weeks }] of byPlayer) {
+    if (!weeks.length) continue
+    const sum: Record<string, number> = {}
+    for (const w of weeks) for (const [k, v] of Object.entries(w)) if (typeof v === 'number') sum[k] = (sum[k] ?? 0) + v
+    const mean: Record<string, number> = {}
+    for (const [k, v] of Object.entries(sum)) mean[k] = v / weeks.length
+    const proj = +scorePlayer(mean, DEFAULT_SCORING[sport] ?? {}).toFixed(1)
+    await db.update(players).set({ stats: JSON.stringify(mean), projectedPoints: proj, weeklyAvg: proj }).where(eq(players.id, pid))
+    updated++
+    sportsTouched.add(sport)
+  }
+
+  // Re-rank ADP within each touched sport (1 = highest projected points).
+  for (const sport of sportsTouched) {
+    await db.run(sql`UPDATE players SET adp = (SELECT COUNT(*) + 1 FROM players p2 WHERE p2.sport = players.sport AND p2.projected_points > players.projected_points) WHERE sport = ${sport}`)
+  }
+  return { updated }
 }
 
 // Real stat line for a player in a fantasy week, if one has been ingested.
