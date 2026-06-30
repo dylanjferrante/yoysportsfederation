@@ -66,7 +66,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
   const teamsLite = franchises.map(f => ({
     id: f.team.id, name: f.team.name, abbreviation: f.team.abbreviation, logo: f.team.logo, owner: f.userName,
-    primaryColor: f.team.primaryColor, secondaryColor: f.team.secondaryColor,
+    primaryColor: f.team.primaryColor, secondaryColor: f.team.secondaryColor, division: f.team.division ?? null,
   }))
 
   return (
@@ -80,6 +80,8 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         federationScoring={federationScoring}
         rosterSettings={rosterSettings}
         playoffTeams={league.playoffTeams ?? 6}
+        divisions={league.divisions ?? 0}
+        divisionNames={safeParse<Record<string, string>>(league.divisionNames, {})}
         currentUserId={session?.user?.id}
         teamStats={teamStats}
         sportNames={safeParse<Record<string, string>>(league.sportNames, {})}
