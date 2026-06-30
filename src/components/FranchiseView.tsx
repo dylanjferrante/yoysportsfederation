@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
-import { eligibleSlots } from '@/lib/defaults'
+import { eligibleSlots, SPORT_POSITIONS } from '@/lib/defaults'
 import { boxScoreColumns } from '@/lib/scoring-categories'
 import { oppLabel } from '@/lib/realschedule'
 
@@ -132,6 +132,39 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   const bench = rosterForSport.filter(p => p.slot === 'BN').sort(byPos)
   const taxi = rosterForSport.filter(p => p.slot === 'TAXI').sort(byPos)
   const ir = rosterForSport.filter(p => ['IR', 'IL', 'DL'].includes(p.slot)).sort(byPos)
+
+  // ── Lineup advisor: optimal projected lineup + start/sit suggestions ──────────
+  // A starter who's on bye or inactive this week projects 0, so the optimizer will
+  // want to bench them. Projection is the static per-player projection we store.
+  const curWeek: number | undefined = data.week ?? undefined
+  const isOut = (p: P) => p.status !== 'ACTIVE' || (curWeek != null && p.byeWeek === curWeek)
+  const effProj = (p: P) => isOut(p) ? 0 : (p.projectedPoints ?? 0)
+  const advisor = (() => {
+    const startable = rosterForSport.filter(p => !RESERVE.includes(p.slot) || p.slot === 'BN')
+    // Expand configured starter slots into individual instances.
+    const slotInstances: string[] = []
+    for (const slot of starterSlots) for (let i = 0; i < (cfg[slot] || 0); i++) slotInstances.push(slot)
+    if (!slotInstances.length) return null
+    // Restrictiveness: how many of the sport's positions can fill a slot (fill flex last).
+    const positions = SPORT_POSITIONS[sport] ?? []
+    const slotWidth = (slot: string) => positions.filter(pos => eligibleSlots(pos, cfg).includes(slot)).length || 99
+    const open = slotInstances.map((slot, idx) => ({ slot, idx, width: slotWidth(slot), taken: null as P | null }))
+    // Greedy: best projected players first, into the most restrictive eligible open slot.
+    for (const p of [...startable].sort((a, b) => effProj(b) - effProj(a))) {
+      const cand = open.filter(o => !o.taken && eligibleSlots(p.position, cfg).includes(o.slot)).sort((a, b) => a.width - b.width)
+      if (cand.length) cand[0].taken = p
+    }
+    const optimalIds = new Set(open.filter(o => o.taken).map(o => o.taken!.rosterId))
+    const currentStarters = lineup.filter(e => e.player).map(e => e.player!)
+    const currentIds = new Set(currentStarters.map(p => p.rosterId))
+    const currentTotal = currentStarters.reduce((s, p) => s + effProj(p), 0)
+    const optimalTotal = open.reduce((s, o) => s + (o.taken ? effProj(o.taken) : 0), 0)
+    // Promotions (start, with the optimizer's target slot) and benchings (sit).
+    const toStart = open.filter(o => o.taken && !currentIds.has(o.taken.rosterId)).map(o => ({ player: o.taken!, slot: o.slot }))
+    const toSit = currentStarters.filter(p => !optimalIds.has(p.rosterId))
+    const alerts = currentStarters.filter(p => isOut(p))
+    return { currentTotal, optimalTotal, toStart, toSit, alerts, gain: +(optimalTotal - currentTotal).toFixed(1) }
+  })()
 
   const renderHead = () => (
     <thead className="sticky top-0 z-10 bg-slate-50">
@@ -317,6 +350,40 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
 
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
+              {advisor && (
+                <div className="card p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="font-semibold text-slate-900 flex items-center gap-2">📋 Lineup Advisor</h2>
+                    <span className="text-xs text-slate-400">projected points</span>
+                  </div>
+                  <div className="flex items-center gap-6 text-sm">
+                    <div><span className="text-slate-400 text-xs block">Your starters</span><span className="font-bold tabular-nums text-slate-900 text-lg">{advisor.currentTotal.toFixed(1)}</span></div>
+                    <div><span className="text-slate-400 text-xs block">Optimal</span><span className="font-bold tabular-nums text-slate-900 text-lg">{advisor.optimalTotal.toFixed(1)}</span></div>
+                    {advisor.gain > 0.05
+                      ? <div className="ml-auto text-right"><span className="text-amber-600 text-xs block">Leaving on bench</span><span className="font-bold tabular-nums text-amber-600 text-lg">+{advisor.gain.toFixed(1)}</span></div>
+                      : <div className="ml-auto text-emerald-600 text-sm font-semibold">✓ Optimal lineup set</div>}
+                  </div>
+                  {advisor.alerts.length > 0 && (
+                    <p className="mt-3 text-xs text-red-600">⚠ Starting {advisor.alerts.map(p => `${p.name} (${p.status !== 'ACTIVE' ? p.status : 'BYE'})`).join(', ')} — projecting 0.</p>
+                  )}
+                  {canManage && advisor.gain > 0.05 && advisor.toStart.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {advisor.toStart.map(({ player: sIn, slot }, i) => {
+                        const out = advisor.toSit[i]
+                        return (
+                          <div key={sIn.rosterId} className="flex items-center gap-2 text-xs">
+                            <span className="text-emerald-600 font-semibold">▲ Start</span>
+                            <button onClick={() => act({ action: 'SET_SLOT', rosterId: sIn.rosterId, slot })} className="font-medium text-slate-800 hover:text-blue-600 underline decoration-dotted">{sIn.name}</button>
+                            <span className="text-slate-400">→ {slot}</span>
+                            <span className="text-slate-400 tabular-nums">{(sIn.projectedPoints ?? 0).toFixed(1)}</span>
+                            {out && <><span className="text-red-500 font-semibold ml-2">▼ Sit</span><span className="text-slate-600">{out.name}</span><span className="text-slate-400 tabular-nums">{effProj(out).toFixed(1)}</span></>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {([
                 { key: 'Starting Lineup', count: lineup.length, body: lineup.map((e, i) => e.player ? renderRow(e.player) : emptyRow(e.slot, i)) },
                 { key: 'Bench', count: bench.length, body: bench.map(renderRow) },
