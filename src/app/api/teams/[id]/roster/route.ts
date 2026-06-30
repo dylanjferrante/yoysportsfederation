@@ -126,6 +126,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   return NextResponse.json({
     team, players: enriched, picks, managers,
     cadence, weekDates: sportWeekDates, dailyLineups: dailyOverrides,
+    liveScoring: !!league?.liveScoring,
     rosterSettings: safeParse(league?.rosterSettings, {}),
     keeperEnabled: !!league?.keeperEnabled, keeperCount: league?.keeperCount ?? 0,
     salaryCapEnabled: !!league?.salaryCapEnabled, salaryCap: league?.salaryCap ?? 0, capMode: league?.capMode ?? 'SOFT',
