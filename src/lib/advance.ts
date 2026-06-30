@@ -1,6 +1,6 @@
 import 'server-only'
 import { db } from '@/db'
-import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStats, playoffGames, leagueHistory, realStatLines } from '@/db/schema'
+import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStats, playoffGames, leagueHistory, realStatLines, rosterSnapshots } from '@/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
@@ -10,9 +10,42 @@ import { scorePlayer, generateStatLine } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
 import { runWaivers } from '@/lib/waivers'
-import { snapshotSeasonBranding, snapshotSeasonRosters } from '@/lib/seasons'
+import { snapshotSeasonBranding, snapshotSportRoster } from '@/lib/seasons'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
+
+type ScoreRosterRow = { playerId: string; teamId: string; slot: string; position: string; projected: number | null; status: string | null; byeWeek: number | null; realTeamAbbr: string | null }
+
+// The roster rows to score for a (season, sport). Liveness is decided PER SPORT,
+// not per federation season: sports run sequentially, so a new football season
+// can begin while the prior season's baseball is still being played. A sport is
+// frozen the moment its champion is crowned (or a commissioner archives it),
+// which writes a roster_snapshot; from then on that sport-season scores from the
+// snapshot, so next-season roster moves can't retroactively change it. A sport
+// with no snapshot yet — an in-progress sport, including a prior season's sport
+// still in play — scores from the live rosters table and stays fully editable.
+async function rostersForScoring(league: any, sport: string, teamId?: string): Promise<ScoreRosterRow[]> {
+  const cols = {
+    playerId: players.id, teamId: rosters.teamId, slot: rosters.slot, position: players.position,
+    projected: players.projectedPoints, status: players.status, byeWeek: players.byeWeek, realTeamAbbr: players.realTeamAbbr,
+  }
+  const [frozen] = await db.select({ id: rosterSnapshots.id }).from(rosterSnapshots)
+    .where(and(eq(rosterSnapshots.leagueId, league.id), eq(rosterSnapshots.season, league.season), eq(rosterSnapshots.sport, sport))).limit(1)
+  if (!frozen) {
+    const conds = [eq(teams.leagueId, league.id), eq(rosters.sport, sport)]
+    if (teamId) conds.push(eq(rosters.teamId, teamId))
+    const rows = await db.select(cols).from(rosters)
+      .innerJoin(players, eq(rosters.playerId, players.id)).innerJoin(teams, eq(rosters.teamId, teams.id))
+      .where(and(...conds))
+    return rows.map(r => ({ ...r, slot: r.slot ?? 'BN' }))
+  }
+  const conds = [eq(rosterSnapshots.leagueId, league.id), eq(rosterSnapshots.season, league.season), eq(rosterSnapshots.sport, sport)]
+  if (teamId) conds.push(eq(rosterSnapshots.teamId, teamId))
+  const rows = await db.select({ ...cols, playerId: players.id, teamId: rosterSnapshots.teamId, slot: rosterSnapshots.slot })
+    .from(rosterSnapshots).innerJoin(players, eq(rosterSnapshots.playerId, players.id))
+    .where(and(...conds))
+  return rows.map(r => ({ ...r, slot: r.slot ?? 'BN' }))
+}
 
 // A starter is auto-subbed if they're clearly unavailable that week.
 const OUT_STATUSES = ['OUT', 'INJURED', 'IR', 'IL', 'DL', 'PUP', 'NFI', 'SUSPENDED', 'LTIR']
@@ -68,10 +101,7 @@ const lastRun = new Map<string, number>()
 // ── Regular-season scoring (the engine behind the once-manual "simulate") ────
 async function scoreSportWeek(league: any, sport: string, week: number, detailed = true) {
   const scoring = (safeParse<any>(league.scoringSettings, {})[sport]) ?? {}
-  const roster = await db
-    .select({ playerId: rosters.playerId, teamId: rosters.teamId, slot: rosters.slot, position: players.position, projected: players.projectedPoints, status: players.status, byeWeek: players.byeWeek, realTeamAbbr: players.realTeamAbbr })
-    .from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).innerJoin(teams, eq(rosters.teamId, teams.id))
-    .where(and(eq(teams.leagueId, league.id), eq(rosters.sport, sport)))
+  const roster = await rostersForScoring(league, sport)
   if (!roster.length) return
   const avgProj = roster.reduce((a, r) => a + (r.projected ?? 0), 0) / roster.length || 1
 
@@ -173,10 +203,8 @@ async function headToHeadWins(leagueId: string, season: string, sport: string): 
   return wins
 }
 
-async function scoreTeam(sport: string, teamId: string, scoring: Record<string, number>, spCap = 0, week = 0) {
-  const roster = await db.select({ slot: rosters.slot, position: players.position, projected: players.projectedPoints, status: players.status, byeWeek: players.byeWeek })
-    .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
-    .where(and(eq(rosters.teamId, teamId), eq(rosters.sport, sport)))
+async function scoreTeam(league: any, sport: string, teamId: string, scoring: Record<string, number>, spCap = 0, week = 0) {
+  const roster = await rostersForScoring(league, sport, teamId)
   if (!roster.length) return 0
   const avg = roster.reduce((a, r) => a + (r.projected ?? 0), 0) / roster.length || 1
   const scored: Scored[] = roster.map(r => ({ slot: r.slot, position: r.position, status: r.status, byeWeek: r.byeWeek, pts: scorePlayer(generateStatLine(sport, r.position, (r.projected ?? avg) / avg), scoring) }))
@@ -260,8 +288,8 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
             if (g.homeTeamId && !g.awayTeamId) winner = g.homeTeamId
             else if (!g.homeTeamId && g.awayTeamId) winner = g.awayTeamId
             else if (g.homeTeamId && g.awayTeamId) {
-              hs = await scoreTeam(sport, g.homeTeamId, scoring, league.mlbSpCap ?? 0, target)
-              as = await scoreTeam(sport, g.awayTeamId, scoring, league.mlbSpCap ?? 0, target)
+              hs = await scoreTeam(league, sport, g.homeTeamId, scoring, league.mlbSpCap ?? 0, target)
+              as = await scoreTeam(league, sport, g.awayTeamId, scoring, league.mlbSpCap ?? 0, target)
               if (hs === as) hs += 0.1
               winner = hs > as ? g.homeTeamId : g.awayTeamId
             }
@@ -282,6 +310,10 @@ async function runPlayoffs(league: any, sports: string[], target: number) {
                 const [t] = await db.select({ name: teams.name }).from(teams).where(eq(teams.id, champ)).limit(1)
                 await logActivity(league.id, 'LEAGUE', `🏆 ${t?.name ?? 'A franchise'} won the ${sport} championship!`, champ)
               }
+              // This sport-season is now decided: freeze its rosters. From here it
+              // scores from the snapshot, so franchises can still trade/draft (those
+              // moves belong to the next season) without changing this one.
+              await snapshotSportRoster(league.id, season, sport)
             }
           }
           break
@@ -431,7 +463,8 @@ export async function renewSeason(leagueOrId: string | any): Promise<{ season: s
   if (await seasonExists(league.id, nxt)) return { error: `The ${nxt} season already exists` }
   await finalizeSeason(league)
   await snapshotSeasonBranding(league.id, league.season)
-  await snapshotSeasonRosters(league.id, league.season)
+  // Rosters are frozen per sport as each sport-season is crowned (see runPlayoffs),
+  // not wholesale here — a sport still in play stays live and editable.
   await createSeason(league, nxt)
   await db.update(leagues).set({ season: nxt }).where(eq(leagues.id, league.id))
   return { season: nxt }
@@ -453,7 +486,8 @@ export async function advanceLeague(leagueOrId: string | any, force = false): Pr
     if (targetWeek(nxt) >= 1 && !(await seasonExists(league.id, nxt))) {
       await finalizeSeason({ ...league, season: current }) // play out the rest of the season
       await snapshotSeasonBranding(league.id, current) // freeze the outgoing season's logos
-      await snapshotSeasonRosters(league.id, current)  // …and its final rosters
+      // Rosters freeze per sport at each championship (runPlayoffs), so a sport
+      // still being played in the outgoing season stays live and editable.
       await createSeason(league, nxt)
       await db.update(leagues).set({ season: nxt }).where(eq(leagues.id, league.id))
       league.season = nxt

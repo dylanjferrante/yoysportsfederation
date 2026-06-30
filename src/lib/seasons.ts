@@ -35,27 +35,59 @@ export async function snapshotSeasonBranding(leagueId: string, season: string): 
 // Snapshot every franchise's CURRENT roster into roster_snapshots for a season
 // (replacing any existing snapshot). Player name/position are stored too, so the
 // historical roster reads correctly even if the player later moves or is renamed.
-export async function snapshotSeasonRosters(leagueId: string, season: string): Promise<number> {
+export async function snapshotSeasonRosters(leagueId: string, season: string, force = false): Promise<number> {
+  const sports = ['NFL', 'NHL', 'NBA', 'MLB']
+  let n = 0
+  for (const sp of sports) n += await snapshotSportRoster(leagueId, season, sp, force)
+  return n
+}
+
+// Freeze ONE sport's rosters for a season. Called the moment that sport-season
+// finishes (its champion is crowned) so it becomes immutable, while the other
+// sports of the same federation season may still be in progress (sports run
+// sequentially, so a new football season can begin while the prior season's
+// baseball is still being played). A frozen sport is scored from this snapshot,
+// so later roster moves — which belong to the next season — can't change it.
+export async function snapshotSportRoster(leagueId: string, season: string, sport: string, force = false): Promise<number> {
+  // First freeze wins: a sport is snapshotted once, at its championship. Don't
+  // overwrite it later (that would capture post-championship trades into the
+  // frozen season) unless a commissioner forces a re-freeze.
+  if (!force) {
+    const [existing] = await db.select({ id: rosterSnapshots.id }).from(rosterSnapshots)
+      .where(and(eq(rosterSnapshots.leagueId, leagueId), eq(rosterSnapshots.season, season), eq(rosterSnapshots.sport, sport))).limit(1)
+    if (existing) return 0
+  }
   const teamRows = await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, leagueId))
   const teamIds = teamRows.map(t => t.id)
   if (!teamIds.length) return 0
   const cur = await db.select({ teamId: rosters.teamId, playerId: rosters.playerId, slot: rosters.slot, sport: rosters.sport, name: players.name, position: players.position })
-    .from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).where(inArray(rosters.teamId, teamIds))
-  await db.delete(rosterSnapshots).where(and(eq(rosterSnapshots.leagueId, leagueId), eq(rosterSnapshots.season, season)))
+    .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
+    .where(and(inArray(rosters.teamId, teamIds), eq(rosters.sport, sport)))
+  await db.delete(rosterSnapshots).where(and(eq(rosterSnapshots.leagueId, leagueId), eq(rosterSnapshots.season, season), eq(rosterSnapshots.sport, sport)))
   if (cur.length) await db.insert(rosterSnapshots).values(cur.map(r => ({ id: nanoid(), leagueId, teamId: r.teamId, season, playerId: r.playerId, playerName: r.name, sport: r.sport, position: r.position, slot: r.slot })))
   return cur.length
 }
 
 export type SeasonPlayer = { playerId: string | null; name: string; sport: string; position: string; slot: string }
 
-// A franchise's roster for a season: the snapshot if one exists, otherwise the
-// current roster (fallback for seasons archived before snapshots existed).
+// A franchise's roster for a season, merged PER SPORT: a sport that has been
+// frozen (its championship decided) comes from the snapshot; a sport still in
+// play — e.g. a prior season's baseball that's still going while the next
+// football season has begun — comes from the live roster. isSnapshot is true
+// only when every sport on the roster is frozen (a fully-archived past season).
 export async function seasonRoster(leagueId: string, teamId: string, season: string): Promise<{ players: SeasonPlayer[]; isSnapshot: boolean }> {
   const snap = await db.select().from(rosterSnapshots).where(and(eq(rosterSnapshots.leagueId, leagueId), eq(rosterSnapshots.teamId, teamId), eq(rosterSnapshots.season, season)))
-  if (snap.length) return { isSnapshot: true, players: snap.map(s => ({ playerId: s.playerId, name: s.playerName ?? '', sport: s.sport ?? '', position: s.position ?? '', slot: s.slot ?? 'BN' })) }
+  const frozenSports = new Set(snap.map(s => s.sport ?? ''))
   const cur = await db.select({ playerId: rosters.playerId, slot: rosters.slot, sport: rosters.sport, name: players.name, position: players.position })
     .from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).where(eq(rosters.teamId, teamId))
-  return { isSnapshot: false, players: cur.map(c => ({ playerId: c.playerId, name: c.name, sport: c.sport, position: c.position, slot: c.slot })) }
+  const liveSports = new Set(cur.map(c => c.sport))
+  const out: SeasonPlayer[] = [
+    ...snap.map(s => ({ playerId: s.playerId, name: s.playerName ?? '', sport: s.sport ?? '', position: s.position ?? '', slot: s.slot ?? 'BN' })),
+    // Live sports that aren't frozen yet (still being played this season).
+    ...cur.filter(c => !frozenSports.has(c.sport)).map(c => ({ playerId: c.playerId, name: c.name, sport: c.sport, position: c.position, slot: c.slot })),
+  ]
+  const allFrozen = snap.length > 0 && [...liveSports].every(s => frozenSports.has(s))
+  return { isSnapshot: allFrozen, players: out }
 }
 
 export type SeasonRosterPlayer = SeasonPlayer & {
