@@ -4,7 +4,11 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
-type Row = { id: string; type: string; message: string; teamId: string | null; createdAt: string | null }
+type Row = {
+  id: string; type: string; message: string; createdAt: string | null
+  teamName: string | null; teamAbbr: string | null
+  player: string | null; position: string | null; proTeam: string | null; sport: string | null
+}
 
 const FILTERS: { key: string; label: string; types: string[] }[] = [
   { key: 'ALL', label: 'All', types: [] },
@@ -21,18 +25,15 @@ export default function TransactionsView({ leagueId, leagueName, rows }: { leagu
   const [filter, setFilter] = useState('ALL')
   const [sport, setSport] = useState('ALL')
 
-  // Detect the sport a row pertains to from its message (sports are embedded as "(NBA)", "NFL Wk", etc.).
-  const sportOf = (msg: string) => SPORTS.find(s => new RegExp(`\\b${s}\\b`).test(msg)) ?? null
-
   const filtered = useMemo(() => {
     const set = FILTERS.find(f => f.key === filter)?.types ?? []
-    return rows.filter(r => (set.length === 0 || set.includes(r.type)) && (sport === 'ALL' || sportOf(r.message) === sport))
+    return rows.filter(r => (set.length === 0 || set.includes(r.type)) && (sport === 'ALL' || r.sport === sport))
   }, [rows, filter, sport])
 
   const counts = useMemo(() => Object.fromEntries(FILTERS.map(f => [f.key, f.types.length === 0 ? rows.length : rows.filter(r => f.types.includes(r.type)).length])), [rows])
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-5">
         <Link href={`/leagues/${leagueId}`} className="btn-ghost text-slate-500">← League</Link>
         <div>
@@ -41,7 +42,6 @@ export default function TransactionsView({ leagueId, leagueName, rows }: { leagu
         </div>
       </div>
 
-      {/* Type filters */}
       <div className="flex gap-1.5 flex-wrap mb-3">
         {FILTERS.map(f => (
           <button key={f.key} onClick={() => setFilter(f.key)}
@@ -51,7 +51,6 @@ export default function TransactionsView({ leagueId, leagueName, rows }: { leagu
         ))}
       </div>
 
-      {/* Sport filter */}
       <div className="flex gap-1.5 flex-wrap mb-5">
         <button onClick={() => setSport('ALL')} className={`px-2.5 py-1 rounded-md text-xs font-medium ${sport === 'ALL' ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}>All sports</button>
         {SPORTS.map(s => (
@@ -65,27 +64,32 @@ export default function TransactionsView({ leagueId, leagueName, rows }: { leagu
         {filtered.length === 0 ? (
           <p className="px-4 py-10 text-center text-slate-400 text-sm">No transactions match this filter.</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm whitespace-nowrap">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100 bg-slate-50/60">
-                <th className="px-4 py-2 font-medium w-32">Date</th>
-                <th className="px-2 py-2 font-medium w-24">Type</th>
-                <th className="px-2 py-2 font-medium w-14">Sport</th>
-                <th className="px-4 py-2 font-medium">Details</th>
+                <th className="px-3 py-2 font-medium">Date</th>
+                <th className="px-3 py-2 font-medium">Team</th>
+                <th className="px-3 py-2 font-medium">Type</th>
+                <th className="px-3 py-2 font-medium">Sport</th>
+                <th className="px-3 py-2 font-medium">Player</th>
+                <th className="px-3 py-2 font-medium">League</th>
+                <th className="px-3 py-2 font-medium">Pos</th>
+                <th className="px-3 py-2 font-medium">Pro Team</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.map(r => {
-                const sp = sportOf(r.message)
-                return (
-                  <tr key={r.id} className="hover:bg-slate-50/60">
-                    <td className="px-4 py-2.5 text-xs text-slate-400 whitespace-nowrap">{r.createdAt ? new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</td>
-                    <td className="px-2 py-2.5"><span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">{ICON[r.type] ?? '•'} {r.type}</span></td>
-                    <td className="px-2 py-2.5">{sp ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(sp).light}`}>{sp}</span> : <span className="text-slate-300">—</span>}</td>
-                    <td className="px-4 py-2.5 text-slate-700">{r.message}</td>
-                  </tr>
-                )
-              })}
+              {filtered.map(r => (
+                <tr key={r.id} className="hover:bg-slate-50/60">
+                  <td className="px-3 py-2.5 text-xs text-slate-400">{r.createdAt ? new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</td>
+                  <td className="px-3 py-2.5 font-medium text-slate-700">{r.teamAbbr ?? r.teamName ?? '—'}</td>
+                  <td className="px-3 py-2.5"><span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">{ICON[r.type] ?? '•'} {r.type}</span></td>
+                  <td className="px-3 py-2.5">{r.sport ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(r.sport).light}`}>{r.sport}</span> : <span className="text-slate-300">—</span>}</td>
+                  <td className="px-3 py-2.5 text-slate-800">{r.player ?? <span className="text-slate-400 whitespace-normal">{r.message}</span>}</td>
+                  <td className="px-3 py-2.5 text-slate-500 text-xs">{leagueName}</td>
+                  <td className="px-3 py-2.5 text-slate-500">{r.position ?? '—'}</td>
+                  <td className="px-3 py-2.5 text-slate-500">{r.proTeam ?? '—'}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
