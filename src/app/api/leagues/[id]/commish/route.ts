@@ -9,7 +9,8 @@ import { safeParse } from '@/lib/utils'
 import { isCommissioner } from '@/lib/permissions'
 import { logCommissionerAction, logActivity, notify } from '@/lib/activity'
 import { executeTrade } from '@/lib/trades'
-import { rescoreWeeks, advanceLeague } from '@/lib/advance'
+import { rescoreWeeks, advanceLeague, renewSeason } from '@/lib/advance'
+import { snapshotSeasonBranding } from '@/lib/seasons'
 
 // ── Commissioner tools ───────────────────────────────────────────────────────
 // Manual stat corrections, score overrides, force/veto trades, co-commissioner
@@ -168,6 +169,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       await db.update(leagues).set({ inviteCode }).where(eq(leagues.id, id))
       await log({})
       return NextResponse.json({ ok: true, inviteCode })
+    }
+
+    // Archive the current season's branding (freeze its logos for history).
+    case 'ARCHIVE_SEASON': {
+      const n = await snapshotSeasonBranding(id, league.season)
+      await log({ season: league.season, teams: n })
+      await logActivity(id, 'SEASON', `Commissioner archived the ${league.season} season's branding`)
+      return NextResponse.json({ ok: true, season: league.season, teams: n })
+    }
+
+    // Finish the current season and start the next one (snapshots branding first).
+    case 'RENEW_SEASON': {
+      const from = league.season
+      const res = await renewSeason(league)
+      if ('error' in res) return NextResponse.json({ error: res.error }, { status: 400 })
+      await log({ from, to: res.season })
+      await logActivity(id, 'SEASON', `📅 ${from} archived — the ${res.season} season has begun!`)
+      const members = await db.select({ userId: leagueMembers.userId }).from(leagueMembers).where(eq(leagueMembers.leagueId, id))
+      await notify(members.map(m => m.userId), `A new season has started: ${res.season}`, `/leagues/${id}`, 'LEAGUE')
+      return NextResponse.json({ ok: true, season: res.season })
     }
 
     // Post a league-wide announcement (activity feed + notify every member).

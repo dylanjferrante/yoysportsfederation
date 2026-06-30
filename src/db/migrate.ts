@@ -180,6 +180,22 @@ CREATE TABLE proposal_votes (
   UNIQUE(proposal_id, user_id)
 );
 
+CREATE TABLE team_season_branding (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  season TEXT NOT NULL,
+  name TEXT,
+  abbreviation TEXT,
+  logo TEXT,
+  alt_logo TEXT,
+  wordmark TEXT,
+  primary_color TEXT,
+  secondary_color TEXT,
+  logo_bg INTEGER DEFAULT 0,
+  UNIQUE(team_id, season)
+);
+
 CREATE TABLE league_members (
   id TEXT PRIMARY KEY,
   league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
