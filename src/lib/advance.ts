@@ -101,7 +101,7 @@ async function scoreSportWeek(league: any, sport: string, week: number, detailed
   const teamTotal: Record<string, number> = {}
   for (const [tid, rs] of Object.entries(byTeam)) teamTotal[tid] = effectiveTotal(sport, spCap, week, rs)
 
-  const games = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.sport, sport), eq(matchups.week, week)))
+  const games = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.season, league.season), eq(matchups.sport, sport), eq(matchups.week, week)))
   for (const g of games) {
     const hs = teamTotal[g.homeTeamId] ?? 0
     const as = g.awayTeamId ? (teamTotal[g.awayTeamId] ?? 0) : 0
@@ -372,9 +372,31 @@ async function createSeason(league: any, season: string): Promise<void> {
   if (rows.length) await db.insert(matchups).values(rows)
 }
 
-// Commissioner-triggered manual rollover: snapshot the current season's branding,
-// then spin up the next season immediately (independent of the calendar). Rosters
-// carry over (dynasty); the new season gets fresh records + a full schedule.
+// Play out every still-unplayed regular-season week for every sport so the season
+// is fully scored before it is archived. Without this, a season archived mid-
+// calendar leaves later-starting sports (e.g. MLB, whose window opens after the
+// football/winter phases) with no game logs at all — the historical roster and
+// scores pages would then show that sport as empty. scoreSportWeek persists full
+// per-player box scores and recomputes standings, so the archived season reads
+// exactly as it stood in its final week.
+export async function finalizeSeason(leagueOrId: string | any): Promise<void> {
+  const league = typeof leagueOrId === 'string'
+    ? (await db.select().from(leagues).where(eq(leagues.id, leagueOrId)).limit(1))[0]
+    : leagueOrId
+  if (!league) return
+  const sports = safeParse<string[]>(league.sportsEnabled, [])
+  for (const sport of sports) {
+    const incomplete = await db.select({ week: matchups.week }).from(matchups)
+      .where(and(eq(matchups.leagueId, league.id), eq(matchups.season, league.season), eq(matchups.sport, sport), eq(matchups.isComplete, false)))
+    const weeks = [...new Set(incomplete.map(m => m.week))].sort((a, b) => a - b)
+    for (const week of weeks) await scoreSportWeek(league, sport, week, true)
+  }
+}
+
+// Commissioner-triggered manual rollover: finalize the outgoing season (so every
+// sport is fully scored), snapshot its branding + rosters, then spin up the next
+// season immediately (independent of the calendar). Rosters carry over (dynasty);
+// the new season gets fresh records + a full schedule.
 export async function renewSeason(leagueOrId: string | any): Promise<{ season: string } | { error: string }> {
   const league = typeof leagueOrId === 'string'
     ? (await db.select().from(leagues).where(eq(leagues.id, leagueOrId)).limit(1))[0]
@@ -382,6 +404,7 @@ export async function renewSeason(leagueOrId: string | any): Promise<{ season: s
   if (!league) return { error: 'League not found' }
   const nxt = nextSeason(league.season)
   if (await seasonExists(league.id, nxt)) return { error: `The ${nxt} season already exists` }
+  await finalizeSeason(league)
   await snapshotSeasonBranding(league.id, league.season)
   await snapshotSeasonRosters(league.id, league.season)
   await createSeason(league, nxt)
@@ -403,6 +426,7 @@ export async function advanceLeague(leagueOrId: string | any, force = false): Pr
     let current = league.season
     const nxt = nextSeason(current)
     if (targetWeek(nxt) >= 1 && !(await seasonExists(league.id, nxt))) {
+      await finalizeSeason({ ...league, season: current }) // play out the rest of the season
       await snapshotSeasonBranding(league.id, current) // freeze the outgoing season's logos
       await snapshotSeasonRosters(league.id, current)  // …and its final rosters
       await createSeason(league, nxt)
