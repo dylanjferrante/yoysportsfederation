@@ -66,7 +66,7 @@ export default function LeagueTabs({
       </div>
 
       {tab === 'OVERALL'
-        ? <Overall standings={standings} sportsEnabled={sportsEnabled} sportNames={sportNames} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
+        ? <Overall standings={standings} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
         : tab === 'TEAMS'
         ? <TeamsList teams={teams} records={records} sportsEnabled={sportsEnabled} teamStats={teamStats} />
         : <SportView sport={tab} sportNames={sportNames} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
@@ -74,7 +74,7 @@ export default function LeagueTabs({
   )
 }
 
-function Overall({ standings, sportsEnabled, sportNames = {}, included, toggle, teamById, currentUserId, fed }: any) {
+function Overall({ standings, sportsEnabled, sportNames = {}, sportAbbr = {}, included, toggle, teamById, currentUserId, fed }: any) {
   return (
     <div className="space-y-4">
       <div className="card p-4 flex flex-wrap items-center gap-3">
@@ -82,7 +82,7 @@ function Overall({ standings, sportsEnabled, sportNames = {}, included, toggle, 
         {sportsEnabled.map((s: string) => (
           <label key={s} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
             <input type="checkbox" checked={included.has(s)} onChange={() => toggle(s)} className="w-4 h-4" />
-            <span>{sportMeta(s).emoji} {sportLabel(s, sportNames)}</span>
+            <span>{sportMeta(s).emoji} {sportAbbrLabel(s, sportAbbr)}</span>
           </label>
         ))}
         <span className="text-xs text-slate-400 ml-auto">
