@@ -65,15 +65,15 @@ export default function LeagueTabs({
       </div>
 
       {tab === 'OVERALL'
-        ? <Overall standings={standings} sportsEnabled={sportsEnabled} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
+        ? <Overall standings={standings} sportsEnabled={sportsEnabled} sportNames={sportNames} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
         : tab === 'TEAMS'
         ? <TeamsList teams={teams} records={records} sportsEnabled={sportsEnabled} teamStats={teamStats} />
-        : <SportView sport={tab} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
+        : <SportView sport={tab} sportNames={sportNames} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
     </div>
   )
 }
 
-function Overall({ standings, sportsEnabled, included, toggle, teamById, currentUserId, fed }: any) {
+function Overall({ standings, sportsEnabled, sportNames = {}, included, toggle, teamById, currentUserId, fed }: any) {
   return (
     <div className="space-y-4">
       <div className="card p-4 flex flex-wrap items-center gap-3">
@@ -81,7 +81,7 @@ function Overall({ standings, sportsEnabled, included, toggle, teamById, current
         {sportsEnabled.map((s: string) => (
           <label key={s} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
             <input type="checkbox" checked={included.has(s)} onChange={() => toggle(s)} className="w-4 h-4" />
-            <span>{sportMeta(s).emoji} {s}</span>
+            <span>{sportMeta(s).emoji} {sportLabel(s, sportNames)}</span>
           </label>
         ))}
         <span className="text-xs text-slate-400 ml-auto">
@@ -136,7 +136,7 @@ function Overall({ standings, sportsEnabled, included, toggle, teamById, current
   )
 }
 
-function SportView({ sport, teamById, records, matchups, rosterSettings, playoffTeams = 6, currentUserId }: any) {
+function SportView({ sport, sportNames = {}, teamById, records, matchups, rosterSettings, playoffTeams = 6, currentUserId }: any) {
   const meta = sportMeta(sport)
   const ranked = [...records].sort((a: TeamRec, b: TeamRec) =>
     (a.finishPosition ?? 99) - (b.finishPosition ?? 99) || b.wins - a.wins || b.pointsFor - a.pointsFor)
@@ -196,7 +196,7 @@ function SportView({ sport, teamById, records, matchups, rosterSettings, playoff
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
         <div className="card overflow-x-auto">
-          <div className="card-header"><h2 className="font-semibold text-slate-900">{meta.emoji} {sport} Standings</h2></div>
+          <div className="card-header"><h2 className="font-semibold text-slate-900">{meta.emoji} {sportLabel(sport, sportNames)} Standings</h2></div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
@@ -308,7 +308,7 @@ function SportView({ sport, teamById, records, matchups, rosterSettings, playoff
         )}
 
         <div className="card">
-          <div className="card-header"><h2 className="font-semibold text-slate-900">{sport} Roster Slots</h2></div>
+          <div className="card-header"><h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)} Roster Slots</h2></div>
           <div className="card-body space-y-1 text-sm">
             {Object.entries(rosterSettings).length === 0
               ? <p className="text-slate-400">No roster configured.</p>
