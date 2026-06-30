@@ -41,11 +41,21 @@ export default function DraftRoom() {
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [live])
+  // Realtime updates via Server-Sent Events — reload the full state whenever the
+  // server signals a change (a pick lands, the clock advances, status changes).
+  // Falls back to a slow poll only if the stream can't connect.
   useEffect(() => {
-    if (!live) return
-    const poll = setInterval(() => load(), 4000)
-    return () => clearInterval(poll)
-  }, [live, load])
+    if (typeof window === 'undefined' || !('EventSource' in window)) {
+      const poll = setInterval(() => load(), 4000)
+      return () => clearInterval(poll)
+    }
+    const es = new EventSource(`/api/drafts/${draftId}/stream`)
+    es.addEventListener('update', () => load())
+    let fallback: ReturnType<typeof setInterval> | null = null
+    es.onerror = () => { if (!fallback) fallback = setInterval(() => load(), 5000) }
+    es.onopen = () => { if (fallback) { clearInterval(fallback); fallback = null } }
+    return () => { es.close(); if (fallback) clearInterval(fallback) }
+  }, [draftId, load])
   useEffect(() => {
     if (live && deadline && now >= deadline && !busy) {
       action({ action: 'TICK' })

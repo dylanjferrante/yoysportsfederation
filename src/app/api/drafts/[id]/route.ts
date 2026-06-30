@@ -7,6 +7,7 @@ import { eq, and, inArray, sql } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { computeFederationStandings } from '@/lib/federation'
+import { publishDraft } from '@/lib/draft-events'
 
 const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
@@ -201,6 +202,7 @@ async function commitPick(draft: any, order: any[], teamId: string, playerId: st
   if (slot) await db.update(draftPicks).set({ isUsed: true, pickedPlayerId: pl.id, pickNumber, sport: pl.sport }).where(eq(draftPicks.id, slot.id))
   else await db.insert(draftPicks).values({ id: nanoid(), leagueId: draft.leagueId, draftId: draft.id, sport: pl.sport, round: Math.ceil(pickNumber / order.length), year: Number(draft.season.slice(0, 4)) || 2027, originalTeamId: teamId, currentTeamId: teamId, isUsed: true, pickedPlayerId: pl.id, pickNumber })
   await db.delete(draftQueues).where(and(eq(draftQueues.draftId, draft.id), eq(draftQueues.playerId, pl.id)))
+  publishDraft(draft.id) // push the new pick to live SSE clients instantly
 }
 
 // Auto-select for the on-the-clock team: top available queued player, else best available by share.
@@ -340,6 +342,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // ── Auction drafts: nomination + open bidding ──────────────────────────────
   if (draft.type === 'AUCTION') {
     const result = await runAuction(draft, league, order, body, { isCommish, myTeam, sportsFilter, newDeadline })
+    publishDraft(id)
     return NextResponse.json(result)
   }
 
@@ -381,6 +384,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.action === 'PAUSE') {
     if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
     await db.update(drafts).set({ status: 'PAUSED', pickDeadline: null }).where(eq(drafts.id, id))
+    publishDraft(id)
     return NextResponse.json({ ok: true })
   }
   if (body.action === 'RESUME') {
@@ -459,5 +463,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
+  publishDraft(id) // notify live SSE clients of any state change
   return NextResponse.json({ ok: true })
 }
