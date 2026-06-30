@@ -485,8 +485,8 @@ function SettingsInner() {
                         </label>
                       </div>
                       <div className="mt-2 text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span>Reg. season: <strong className="text-slate-700">Week {startWk}</strong> ({formatWeekRange(form.season, startWk)}) → <strong className="text-slate-700">Week {endWk}</strong> ({formatWeekRange(form.season, endWk)})</span>
-                        <span className="text-slate-400">Playoffs begin Week {endWk + 1} ({formatWeekRange(form.season, endWk + 1)})</span>
+                        <span>Reg. season: <strong className="text-slate-700">Week {startWk}</strong> ({formatWeekRange(form.season, startWk, { seasonStart: form.seasonStart })}) → <strong className="text-slate-700">Week {endWk}</strong> ({formatWeekRange(form.season, endWk, { year: true, seasonStart: form.seasonStart })})</span>
+                        <span className="text-slate-400">Playoffs begin Week {endWk + 1} ({formatWeekRange(form.season, endWk + 1, { seasonStart: form.seasonStart })})</span>
                       </div>
                     </div>
                   )
@@ -1032,7 +1032,7 @@ function SettingsInner() {
                     <div key={s} className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 p-2.5">
                       <span className={`text-xs font-bold px-2 py-1 rounded w-14 text-center ${sportMeta(s).light}`}>{sportMeta(s).emoji} {s}</span>
                       <span className="text-[11px] text-slate-500">Weeks {startWk}–{startWk + len - 1}</span>
-                      <span className="text-[11px] text-slate-400 sm:ml-auto"><strong className="text-slate-600">Playoffs begin week {playoffStart}</strong> ({formatWeekRange(form.season, playoffStart)})</span>
+                      <span className="text-[11px] text-slate-400 sm:ml-auto"><strong className="text-slate-600">Playoffs begin week {playoffStart}</strong> ({formatWeekRange(form.season, playoffStart, { seasonStart: form.seasonStart })})</span>
                     </div>
                   )
                 })}
