@@ -152,6 +152,11 @@ export const DEFAULT_SCORING: Record<string, ScoringSettings> = {
     fgMade0_39: 3,
     fgMade40_49: 4,
     fgMade50plus: 5,
+    // Optional per-yardage FG scoring (set fgPointsPerYard > 0 to use instead of the
+    // tiers above — e.g. 0.1 → 3.2 pts for a 32-yd kick). fgMinPoints is a per-made-FG
+    // floor under per-yardage scoring. Both default 0 (off → the tiers above are used).
+    fgPointsPerYard: 0,
+    fgMinPoints: 0,
     fgMissed: -1,
     xpMade: 1,
     xpMissed: -1,

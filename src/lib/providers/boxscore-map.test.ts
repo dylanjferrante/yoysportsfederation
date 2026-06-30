@@ -34,6 +34,41 @@ describe('boxscore-map → scoring keys', () => {
     expect(stats.homeRuns).toBe(1)
   })
 
+  it('scores NFL field goals by tier, by yardage, and with a per-FG minimum', () => {
+    // Distances arrive from scoringPlays as __fgMade (attached by tank01BoxScore).
+    const base = mapBoxScoreBase('NFL', { Kicking: { fgMade: '4', xpMade: '0' }, __fgMade: [32, 23, 55, 60] })
+    expect(base.fgDist32).toBe(1)
+    expect(base.fgMade0_39).toBe(2) // 32, 23
+    expect(base.fgMade50plus).toBe(2) // 55, 60
+    // Tier scoring (default): 2×3 + 2×5
+    expect(scorePlayer(base, DEFAULT_SCORING.NFL)).toBe(16)
+    // Per-yardage: (32+23+55+60) × 0.1 — and NOT double-counted with tiers
+    expect(scorePlayer(base, { ...DEFAULT_SCORING.NFL, fgPointsPerYard: 0.1 })).toBe(17)
+    // Per-yardage with a 3-pt floor: the 23-yarder pays 3.0 instead of 2.3
+    expect(scorePlayer(base, { ...DEFAULT_SCORING.NFL, fgPointsPerYard: 0.1, fgMinPoints: 3 })).toBe(17.7)
+  })
+
+  it('maps NFL team defense (DST) points/yards-allowed tiers + turnovers', () => {
+    const stingy = mapBoxScoreBase('NFL', { __dst: { teamID: '4', sacks: '3', defensiveInterceptions: '2', fumblesRecovered: '1', defTD: '0', ptsAllowed: '8', ydsAllowed: '122', safeties: '0' } })
+    expect(stingy.ptsAllowed7_13).toBe(1)
+    expect(stingy.yardsAllowed100_199).toBe(1)
+    expect(stingy.sack).toBe(3)
+    expect(stingy.interception).toBe(2)
+    expect(stingy.fumbleRecovery).toBe(1)
+    const blownOut = mapBoxScoreBase('NFL', { __dst: { teamID: '25', sacks: '0', ptsAllowed: '35', ydsAllowed: '470' } })
+    expect(blownOut.ptsAllowed35plus).toBe(1)
+    expect(blownOut.yardsAllowed400plus).toBe(1)
+  })
+
+  it('maps NFL individual-defender (IDP) stats to idp* keys', () => {
+    const base = mapBoxScoreBase('NFL', { Defense: { totalTackles: '7', soloTackles: '5', sacks: '1', tfl: '2', qbHits: '1', passDeflections: '1', defensiveInterceptions: '1', forcedFumbles: '1', defTD: '0' } })
+    expect(base.idpSoloTackle).toBe(5)
+    expect(base.idpAssistTackle).toBe(2) // 7 total − 5 solo
+    expect(base.idpSack).toBe(1)
+    expect(base.idpInterception).toBe(1)
+    expect(base.idpForcedFumble).toBe(1)
+  })
+
   it('maps the NFL passing/receiving 2-pt and special-teams-return fields', () => {
     const base = mapBoxScoreBase('NFL', {
       Passing: { passYds: '120', passTD: '1', passingTwoPointConversion: '1' },

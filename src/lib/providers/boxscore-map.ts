@@ -247,14 +247,71 @@ function applyNHLGoalie(raw: any, out: Record<string, number>): void {
   if (dec === 'W' && num(raw?.goalsAgainst) === 0) out.shutout = 1
 }
 
+// NFL team-defense (DST) — maps the box score's top-level DST block (attached as
+// raw.__dst by tank01BoxScore) to our team-defense scoring keys. Points-allowed and
+// yards-allowed TIERS are per-game flags (an NFL team plays once per fantasy week).
+function mapNFLDST(dst: any): Record<string, number> {
+  const out: Record<string, number> = {}
+  const put = (k: string, v: number) => { if (v) out[k] = v }
+  put('sack', num(dst.sacks))
+  put('interception', num(dst.defensiveInterceptions))
+  put('fumbleRecovery', num(dst.fumblesRecovered))
+  put('defensiveTD', num(dst.defTD))
+  put('safeties', num(dst.safeties))
+  // Points allowed → tier (always exactly one tier per game).
+  const pa = num(dst.ptsAllowed)
+  out[pa === 0 ? 'ptsAllowed0' : pa <= 6 ? 'ptsAllowed1_6' : pa <= 13 ? 'ptsAllowed7_13'
+    : pa <= 20 ? 'ptsAllowed14_20' : pa <= 27 ? 'ptsAllowed21_27' : pa <= 34 ? 'ptsAllowed28_34' : 'ptsAllowed35plus'] = 1
+  // Yards allowed → only the four scored buckets (200–349 is the neutral middle).
+  const ya = num(dst.ydsAllowed)
+  if (ya < 100) out.yardsAllowedUnder100 = 1
+  else if (ya < 200) out.yardsAllowed100_199 = 1
+  else if (ya >= 400) out.yardsAllowed400plus = 1
+  else if (ya >= 350) out.yardsAllowed350_399 = 1
+  return out
+}
+
+// NFL per-player extras that the flat-alias path can't produce:
+//  • FG-by-distance: scoringPlays distances (attached as raw.__fgMade) become both
+//    per-kick fgDist<N> keys (for per-yard / min scoring) and tier counts.
+//  • IDP: the per-player Defense group maps to the idp* individual-defender keys.
+function applyNFLExtras(raw: any, out: Record<string, number>): void {
+  const dists: number[] | null = Array.isArray(raw?.__fgMade) ? raw.__fgMade : null
+  if (dists) {
+    for (const d of dists) {
+      const dist = num(d)
+      if (!dist) continue
+      out[`fgDist${dist}`] = (out[`fgDist${dist}`] ?? 0) + 1
+      const tier = dist < 40 ? 'fgMade0_39' : dist < 50 ? 'fgMade40_49' : 'fgMade50plus'
+      out[tier] = (out[tier] ?? 0) + 1
+    }
+  }
+  const D = raw?.Defense
+  if (D && typeof D === 'object') {
+    const tot = num(D.totalTackles), solo = num(D.soloTackles)
+    const put = (k: string, v: number) => { if (v) out[k] = v }
+    put('idpSoloTackle', solo)
+    put('idpAssistTackle', Math.max(0, tot - solo))
+    put('idpSack', num(D.sacks))
+    put('idpTackleForLoss', num(D.tfl))
+    put('idpQbHit', num(D.qbHits))
+    put('idpPassDefended', num(D.passDeflections))
+    put('idpInterception', num(D.defensiveInterceptions))
+    put('idpForcedFumble', num(D.forcedFumbles))
+    put('idpDefTD', num(D.defTD))
+  }
+}
+
 // Map ONE game's box-score entry for a player to our base scoring keys (no
 // game-level bonuses — those are derived once per fantasy week from the totals).
 export function mapBoxScoreBase(sport: string, raw: any): Record<string, number> {
   // MLB needs group-aware extraction (shared Hitting/Pitching leaf names).
   if (sport === 'MLB') return mapMLB(raw)
+  if (sport === 'NFL' && raw?.__dst) return mapNFLDST(raw.__dst)
   const flat = flattenDeep(raw)
   const out = extract(ALIASES[sport] ?? {}, flat)
   if (sport === 'NHL') applyNHLGoalie(raw, out)
+  if (sport === 'NFL') applyNFLExtras(raw, out)
   return out
 }
 

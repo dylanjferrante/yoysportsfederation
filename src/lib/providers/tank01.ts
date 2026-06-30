@@ -85,7 +85,32 @@ export async function tank01GamesForDate(sport: Sport, yyyymmdd: string): Promis
 export async function tank01BoxScore(sport: Sport, gameId: string): Promise<{ externalId: string; raw: any }[]> {
   const body = await call<any>(sport, EP(sport).boxScore, { gameID: gameId }, 0)
   const ps = body?.playerStats ?? body?.PlayerStats ?? body?.playerStatsMap ?? {}
-  return Object.entries<any>(ps).map(([playerID, raw]) => ({ externalId: String((raw?.playerID ?? playerID)), raw }))
+  const entries = Object.entries<any>(ps).map(([playerID, raw]) => ({ externalId: String((raw?.playerID ?? playerID)), raw }))
+
+  if (sport === 'NFL') {
+    // Made-FG distances only exist in scoringPlays (e.g. "Butker 36 Yd Field Goal"),
+    // not in the per-player Kicking leaf fields. Attribute each to its kicker so the
+    // mapper can score FG by distance/yardage. playerIDs[0] is the kicker.
+    const fgByKicker: Record<string, number[]> = {}
+    for (const play of (body?.scoringPlays ?? []) as any[]) {
+      if (String(play?.scoreType) !== 'FG') continue
+      const m = /(\d+)\s*Yd/i.exec(String(play?.score ?? ''))
+      const kid = String((play?.playerIDs ?? [])[0] ?? '')
+      if (m && kid) (fgByKicker[kid] ??= []).push(Number(m[1]))
+    }
+    for (const e of entries) {
+      const ds = fgByKicker[e.externalId]
+      if (ds?.length) e.raw = { ...e.raw, __fgMade: ds }
+    }
+    // Team-defense (DST) stats live in the box score's top-level DST block, keyed
+    // by side. Emit them as DST_<teamID> entries so the DEF roster slot scores.
+    const dst = body?.DST ?? {}
+    for (const side of ['away', 'home']) {
+      const d = (dst as any)[side]
+      if (d?.teamID) entries.push({ externalId: `DST_${d.teamID}`, raw: { __dst: d } })
+    }
+  }
+  return entries
 }
 
 // One team's full-season schedule, normalized. Each real game appears on two
