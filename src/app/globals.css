@@ -9,8 +9,12 @@
 
 @layer components {
   .card { @apply bg-white rounded-2xl border border-slate-100 shadow-sm; }
-  .card-header { @apply px-6 py-4 border-b border-slate-100; }
-  .card-body { @apply p-6; }
+  .card-header { @apply px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100; }
+  .card-body { @apply p-4 sm:p-6; }
+
+  /* Wrap a wide table so it scrolls horizontally on small screens instead of
+     overflowing the viewport. Bleeds to the card edges for more usable width. */
+  .table-scroll { @apply -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto; }
 
   .btn { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all text-sm; }
   .btn-primary { @apply btn bg-slate-900 text-white hover:bg-slate-700 px-4 py-2; }

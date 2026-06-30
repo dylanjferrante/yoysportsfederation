@@ -243,7 +243,7 @@ export default function CommissionerSettings() {
         {tab === 'General' && (
           <>
             <h3 className="font-semibold text-slate-900">General</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="label">League Name</label><input className="input" value={form.name ?? ''} onChange={e => set('name', e.target.value)} /></div>
               <div><label className="label">League Abbreviation</label><input className="input" maxLength={5} placeholder="NXS" value={form.abbreviation ?? ''} onChange={e => set('abbreviation', e.target.value)} /></div>
               <div>
@@ -320,7 +320,7 @@ export default function CommissionerSettings() {
               </div>
               <p className="text-xs text-slate-500 mt-1">Assign each franchise to a division below. Divisions must have an equal number of teams before settings can be saved.</p>
               {(form.divisions ?? 0) > 0 && (
-                <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
                   {Array.from({ length: form.divisions }, (_, i) => i + 1).map(d => (
                     <div key={d} className="flex items-center gap-2">
                       <span className="text-xs text-slate-500 w-12">Div {d}</span>
@@ -343,7 +343,7 @@ export default function CommissionerSettings() {
                       <p className="text-xs text-slate-400 truncate">{f.ownerName} · {f.ownerEmail}</p>
                     </div>
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><label className="label">Franchise Name</label><input className="input" value={f.name} onChange={e => setFranchise(f.id, { name: e.target.value })} /></div>
                     <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={f.abbreviation} onChange={e => setFranchise(f.id, { abbreviation: e.target.value })} /></div>
                     <div className="sm:col-span-2">
@@ -391,7 +391,7 @@ export default function CommissionerSettings() {
             <div className="rounded-xl border border-dashed border-slate-300 p-4">
               <p className="font-semibold text-slate-900 text-sm mb-1">Add a franchise</p>
               <p className="text-xs text-slate-500 mb-3">Creates the franchise and its owner. {franchises.length}/{form.maxTeams ?? 12} teams used.</p>
-              <div className="grid sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label className="label">Franchise Name</label><input className="input" value={newFr.name} onChange={e => setNewFr(v => ({ ...v, name: e.target.value }))} placeholder="New Dynasty" /></div>
                 <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={newFr.abbreviation} onChange={e => setNewFr(v => ({ ...v, abbreviation: e.target.value }))} placeholder="ND" /></div>
                 <div><label className="label">Owner Name</label><input className="input" value={newFr.ownerName} onChange={e => setNewFr(v => ({ ...v, ownerName: e.target.value }))} /></div>
@@ -528,7 +528,7 @@ export default function CommissionerSettings() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-xs font-bold ${sportMeta(s).color}`}>{sportMeta(s).emoji} {s}</span>
                     </div>
-                    <div className="grid sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                       <input className="input text-sm" placeholder={`Sport name (${s})`} value={sportNames[s] ?? ''} onChange={e => setSportNames(d => ({ ...d, [s]: e.target.value }))} />
                       <input className="input text-sm" maxLength={5} placeholder={`Abbr (${s})`} value={sportAbbr[s] ?? ''} onChange={e => setSportAbbr(d => ({ ...d, [s]: e.target.value }))} />
                       <input className="input text-sm" placeholder="Championship name" value={champNames[s] ?? ''} onChange={e => setChampNames(d => ({ ...d, [s]: e.target.value }))} />
@@ -544,7 +544,7 @@ export default function CommissionerSettings() {
                 {/* Federation (overall) championship */}
                 <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
                   <div className="flex items-center gap-2 mb-2"><span className="text-xs font-bold text-amber-600">🏆 Federation Championship</span></div>
-                  <div className="grid sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input className="input text-sm" placeholder={`Championship name (e.g. ${form.name ?? 'Nexus'} Cup)`} value={champNames['FED'] ?? ''} onChange={e => setChampNames(d => ({ ...d, FED: e.target.value }))} />
                     <div className="flex items-center gap-2">
                       <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos['FED'] ?? ''} onChange={e => setChampLogos(d => ({ ...d, FED: e.target.value }))} />
@@ -669,7 +669,7 @@ export default function CommissionerSettings() {
               </label>
               <p className="text-xs text-slate-500 mb-2">Track player salaries and contract years for a dynasty cap. Each franchise&apos;s total salary may not exceed the cap.</p>
               {form.salaryCapEnabled && (
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="label">Salary cap (total)</label>
                     <input type="number" min={0} step={1} value={form.salaryCap ?? 0} onChange={e => set('salaryCap', Math.max(0, +e.target.value))} className="input w-full text-sm" />
@@ -699,7 +699,7 @@ export default function CommissionerSettings() {
               {groupScoring(subSport, scoringObj[subSport] ?? {}).map(group => (
                 <div key={group.group}>
                   <p className="text-xs font-bold text-slate-500 uppercase mb-2">{group.group}</p>
-                  <div className="grid sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {group.items.map(item => (
                       <div key={item.key} className="flex items-center gap-2">
                         <span className="text-sm text-slate-600 flex-1 min-w-0 truncate">{item.label}</span>
@@ -742,7 +742,7 @@ export default function CommissionerSettings() {
             })()}
 
             {(() => { const locked = dynasty?.status === 'COMPLETED'; return (
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Draft Type</label>
                 <select className="select" disabled={locked} value={form.draftType ?? 'SNAKE'} onChange={e => set('draftType', e.target.value)}>
@@ -820,7 +820,7 @@ export default function CommissionerSettings() {
         {tab === 'Waivers' && (
           <>
             <h3 className="font-semibold text-slate-900">Waivers</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Waiver Type</label>
                 <select className="select" value={form.waiverType ?? 'PRIORITY'} onChange={e => set('waiverType', e.target.value)}>
@@ -903,7 +903,7 @@ export default function CommissionerSettings() {
         {tab === 'Trades' && (
           <>
             <h3 className="font-semibold text-slate-900">Trades</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Trade Review</label>
                 <select className="select" value={form.tradeReview ?? 'COMMISSIONER'} onChange={e => set('tradeReview', e.target.value)}>
@@ -927,7 +927,7 @@ export default function CommissionerSettings() {
                   return (
                     <div key={s} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-100 p-2.5">
                       <span className={`text-xs font-bold px-2 py-1 rounded ${sportMeta(s).light} w-14 text-center`}>{sportMeta(s).emoji} {s}</span>
-                      <select className="select flex-1 min-w-44 text-sm py-1.5" value={d.mode} onChange={e => setD({ mode: e.target.value })}>
+                      <select className="select flex-1 w-full sm:w-auto sm:min-w-44 text-sm py-1.5" value={d.mode} onChange={e => setD({ mode: e.target.value })}>
                         {TRADE_DEADLINE_MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                       </select>
                       {d.mode === 'WEEK' && (
@@ -971,7 +971,7 @@ export default function CommissionerSettings() {
               const totalWeeks = playoffWeeks(rounds, fmt, wpr)
               return (
                 <>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label className="label">Playoff Teams (per sport)</label>
                       <select className="select" value={teams} onChange={e => { const t = +e.target.value; set('playoffTeams', t); set('playoffRounds', maxPlayoffRounds(t)) }}>
                         {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n} teams</option>)}
@@ -1084,7 +1084,7 @@ export default function CommissionerSettings() {
                 ))}
               </div>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="label">Champion Bonus</label><input type="number" className="input" value={fed.championBonus ?? 0} onChange={e => setFed((f: any) => ({ ...f, championBonus: +e.target.value }))} /></div>
               <div><label className="label">Regular-Season #1 Bonus</label><input type="number" className="input" value={fed.regularSeasonBonus ?? 0} onChange={e => setFed((f: any) => ({ ...f, regularSeasonBonus: +e.target.value }))} /></div>
             </div>

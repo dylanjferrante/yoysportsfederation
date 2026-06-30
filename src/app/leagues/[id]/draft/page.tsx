@@ -45,7 +45,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
       {/* Dynasty draft */}
       {dynasty.map(d => (
         <div key={d.id} className="card p-5 mb-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h2 className="font-semibold text-slate-900">Inaugural Dynasty Draft</h2>
               <p className="text-sm text-slate-500">Combined across all sports · {d.rounds} rounds · {draftTypeLabel(d.type ?? 'SNAKE')}</p>
@@ -65,7 +65,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
         {rookies.length === 0 && <p className="text-slate-400 text-sm">No rookie drafts scheduled.</p>}
         {rookies.map(d => (
           <div key={d.id} className="card">
-            <div className="card-header flex items-center justify-between">
+            <div className="card-header flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-semibold text-slate-900">
                 {d.scope === 'OVERALL' ? '🏆 Combined' : `${sportMeta(d.scope).emoji} ${d.scope}`} Rookie Draft · {d.season}
               </h3>

@@ -92,7 +92,7 @@ export default function PlayersPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <input type="search" placeholder="Search players…" value={search} onChange={e => setSearch(e.target.value)} className="input w-56 text-sm py-2" />
+        <input type="search" placeholder="Search players…" value={search} onChange={e => setSearch(e.target.value)} className="input w-full sm:w-56 text-sm py-2" />
         <button onClick={() => { setSport(''); setPosition('') }} className={`px-3 py-1.5 rounded-full text-sm font-medium ${!sport ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>All</button>
         {SPORTS.map(s => {
           const m = sportMeta(s)

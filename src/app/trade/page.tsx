@@ -38,7 +38,7 @@ export default function TradeCenterPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Trade Center</h1>
           <p className="text-slate-500 text-sm mt-0.5">Propose and manage cross-sport trades</p>
@@ -122,7 +122,7 @@ function TradeCard({ trade, onAction, readonly }: { trade: Trade; onAction: (id:
       {trade.note && <div className="px-4 pb-3"><p className="text-xs text-slate-500 italic">"{trade.note}"</p></div>}
 
       {!readonly && trade.status === 'PENDING' && (
-        <div className="px-4 pb-4 flex gap-2">
+        <div className="px-4 pb-4 flex flex-wrap gap-2">
           <button onClick={() => onAction(trade.id, 'ACCEPT')} className="btn-primary bg-green-600 hover:bg-green-500 text-sm py-1.5">Accept</button>
           <button onClick={() => onAction(trade.id, 'REJECT')} className="btn-secondary text-red-600 border-red-200 text-sm py-1.5">Reject</button>
           <button onClick={() => onAction(trade.id, 'CANCEL')} className="btn-ghost text-sm">Cancel</button>

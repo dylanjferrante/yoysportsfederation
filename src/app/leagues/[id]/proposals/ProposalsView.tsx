@@ -62,7 +62,7 @@ function VotingSettings({ settings, post }: { settings: Settings; post: any }) {
         <span>⚙️ Voting rules (commissioner)</span><span className="text-slate-400">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div className="mt-3 grid sm:grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="text-sm">Who can propose
             <select className="select w-full mt-1" value={s.policy} onChange={e => setS({ ...s, policy: e.target.value as any })}>
               <option value="ANY">Any member</option>
@@ -146,7 +146,7 @@ function ProposalCard({ p, data, post }: { p: Proposal; data: Data; post: any })
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {voteBtn('YES', 'Yes', 'bg-emerald-600 text-white')}
         {voteBtn('NO', 'No', 'bg-rose-500 text-white')}
         {voteBtn('ABSTAIN', 'Abstain', 'bg-slate-600 text-white')}

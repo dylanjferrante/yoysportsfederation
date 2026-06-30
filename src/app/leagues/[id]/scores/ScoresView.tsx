@@ -64,7 +64,7 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
           </span>
           <button onClick={() => setWeek(weeks[Math.min(weeks.length - 1, idx + 1)])} disabled={idx >= weeks.length - 1} className="btn-secondary text-sm disabled:opacity-40">Next →</button>
         </div>
-        <select className="select text-sm w-auto" value={activeWeek} onChange={e => setWeek(+e.target.value)}>
+        <select className="select text-sm w-full sm:w-auto" value={activeWeek} onChange={e => setWeek(+e.target.value)}>
           {weeks.map(w => {
             const { start, end } = weekDateRange(season, w)
             const d = (x: Date) => x.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })
@@ -72,8 +72,8 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
           })}
         </select>
         <button onClick={() => setWeek(defaultWeek)} className="btn-ghost text-sm">Current week</button>
-        <div className="ml-auto flex items-center gap-2">
-          <select className="select" value={season} onChange={e => { setSeason(e.target.value); setWeek(null) }}>
+        <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2">
+          <select className="select w-full sm:w-auto" value={season} onChange={e => { setSeason(e.target.value); setWeek(null) }}>
             {seasons.map(s => <option key={s} value={s}>{s}{s === currentSeason ? ' (current)' : ''}</option>)}
           </select>
         </div>
@@ -93,7 +93,7 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
                 {(() => { const sw = sportWeekOf(schedule, sport, activeWeek); return sw ? <span className="text-xs font-medium text-slate-500">{sport} Wk {sw}</span> : null })()}
                 <span className="text-xs text-slate-400">{games.length} games</span>
               </div>
-              <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 divide-slate-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 divide-slate-50">
                 {games.map(m => {
                   const home = teamById[m.homeTeamId], away = m.awayTeamId ? teamById[m.awayTeamId] : null
                   const homeWin = m.homeScore >= m.awayScore

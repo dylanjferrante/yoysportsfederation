@@ -210,7 +210,7 @@ function ProjectedSeeds({ sport, records, teamById, n }: any) {
   return (
     <>
       <p className="text-xs text-slate-400 mb-3">Projected seeding — brackets fill in automatically when the regular season ends.</p>
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {order.map((seed, i) => {
           const r = ranked[seed - 1]
           const t = r ? teamById[r.teamId] : null

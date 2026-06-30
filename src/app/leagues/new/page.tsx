@@ -105,7 +105,7 @@ export default function CreateLeaguePage() {
                 <p className="text-[10px] text-slate-400 mt-2">Sports that share weeks play the same matchups. You can fine-tune each start week later in settings.</p>
               </div>
             )}
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Season</label>
                 <select className="select" value={form.season} onChange={e => set('season', e.target.value)}>
@@ -132,7 +132,7 @@ export default function CreateLeaguePage() {
         {step === 2 && (
           <>
             <h2 className="font-semibold text-slate-900">League Rules</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="label">Draft Type</label><select className="select" value={form.draftType} onChange={e => set('draftType', e.target.value)}><option value="SNAKE">Snake</option><option value="AUCTION">Auction</option><option value="LINEAR">Linear</option></select></div>
               <div><label className="label">Rookie Drafts</label><select className="select" value={form.rookieDraftMode} onChange={e => set('rookieDraftMode', e.target.value)}><option value="PER_SPORT">One per sport</option><option value="COMBINED">One combined</option></select></div>
               <div><label className="label">Rookie Draft Rounds</label><input type="number" min={1} max={20} className="input" value={form.rookieDraftRounds} onChange={e => set('rookieDraftRounds', +e.target.value)} /></div>
@@ -157,7 +157,7 @@ export default function CreateLeaguePage() {
               const totalWeeks = playoffWeeks(rounds, fmt, wpr)
               return (
                 <>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label className="label">Playoff Teams (per sport)</label>
                       <select className="select" value={teams} onChange={e => { const t = +e.target.value; set('playoffTeams', t); set('playoffRounds', maxPlayoffRounds(t)) }}>
                         {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n} teams</option>)}

@@ -301,7 +301,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
       {editing && (
         <div className="card p-5 mb-6 space-y-3">
           <h3 className="font-semibold text-slate-900">Team Branding</h3>
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div><label className="label">Team Name</label><input className="input" value={brand.name} onChange={e => setBrand({ ...brand, name: e.target.value })} /></div>
             <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={brand.abbreviation} onChange={e => setBrand({ ...brand, abbreviation: e.target.value })} /></div>
             <div><label className="label">Logo URL</label><input className="input" placeholder="https://…" value={brand.logo} onChange={e => setBrand({ ...brand, logo: e.target.value })} /></div>
@@ -397,7 +397,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
             </div>
           )}
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
               {advisor && !dayMap && (
                 <div className="card p-4">

@@ -41,8 +41,8 @@ export default function RecordsPage() {
             <li key={i} className="flex items-center gap-2 text-sm">
               <span className="text-slate-300 tabular-nums w-4">{i + 1}</span>
               <SportTag s={s.sport} />
-              <span className="font-medium text-slate-800 truncate">{s.team}</span>
-              <span className="text-slate-400 text-xs truncate">vs {s.opp} · {s.season} Wk{s.week}{s.playoff ? ' · PO' : ''}</span>
+              <span className="font-medium text-slate-800 truncate min-w-0">{s.team}</span>
+              <span className="text-slate-400 text-xs truncate min-w-0">vs {s.opp} · {s.season} Wk{s.week}{s.playoff ? ' · PO' : ''}</span>
               <span className="ml-auto font-bold tabular-nums text-slate-900">{fmt(s)}</span>
             </li>
           ))}
@@ -60,8 +60,8 @@ export default function RecordsPage() {
             <li key={i} className="flex items-center gap-2 text-sm">
               <span className="text-slate-300 tabular-nums w-4">{i + 1}</span>
               <SportTag s={r.sport} />
-              <span className="font-medium text-slate-800 truncate">{r.player} <span className="text-xs text-slate-400">{r.position}</span></span>
-              <span className="text-slate-400 text-xs truncate hidden sm:inline">{r.team ? `${r.team} · ` : ''}{r.season}{r.week ? ` Wk${r.week}` : ''}</span>
+              <span className="font-medium text-slate-800 truncate min-w-0">{r.player} <span className="text-xs text-slate-400">{r.position}</span></span>
+              <span className="text-slate-400 text-xs truncate min-w-0 hidden sm:inline">{r.team ? `${r.team} · ` : ''}{r.season}{r.week ? ` Wk${r.week}` : ''}</span>
               <span className="ml-auto font-bold tabular-nums text-slate-900">{r.points.toFixed(1)}</span>
             </li>
           ))}
@@ -87,7 +87,7 @@ export default function RecordsPage() {
 
       {!d ? <div className="card p-10 text-center text-slate-400 text-sm">Loading…</div> : (
         <div className="space-y-5">
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <ScoreList title="🔥 Highest single-game (team)" rows={by(d.single.highest)} fmt={s => s.score.toFixed(1)} />
             <ScoreList title="🧊 Lowest single-game (team)" rows={by(d.single.lowest)} fmt={s => s.score.toFixed(1)} />
             <ScoreList title="💥 Biggest blowouts" rows={by(d.single.blowouts)} fmt={s => `+${(s.score - s.oppScore).toFixed(1)}`} />
@@ -100,7 +100,7 @@ export default function RecordsPage() {
                     <li key={i} className="flex items-center gap-2 text-sm">
                       <span className="text-slate-300 tabular-nums w-4">{i + 1}</span>
                       <SportTag s={s.sport} />
-                      <span className="font-medium text-slate-800 truncate">{s.team}</span>
+                      <span className="font-medium text-slate-800 truncate min-w-0">{s.team}</span>
                       <span className="ml-auto font-bold tabular-nums text-slate-900">{s.len}W</span>
                     </li>
                   ))}
@@ -109,7 +109,7 @@ export default function RecordsPage() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="card p-4">
               <h3 className="font-semibold text-slate-900 mb-2">🏆 Most wins in a season</h3>
               <ol className="space-y-1.5">
@@ -117,7 +117,7 @@ export default function RecordsPage() {
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <span className="text-slate-300 tabular-nums w-4">{i + 1}</span>
                     <SportTag s={r.sport} />
-                    <span className="font-medium text-slate-800 truncate">{r.team}</span>
+                    <span className="font-medium text-slate-800 truncate min-w-0">{r.team}</span>
                     <span className="text-slate-400 text-xs">{r.season}</span>
                     <span className="ml-auto font-bold tabular-nums text-slate-900">{r.wins}–{r.losses}</span>
                   </li>
@@ -131,7 +131,7 @@ export default function RecordsPage() {
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <span className="text-slate-300 tabular-nums w-4">{i + 1}</span>
                     <SportTag s={r.sport} />
-                    <span className="font-medium text-slate-800 truncate">{r.team}</span>
+                    <span className="font-medium text-slate-800 truncate min-w-0">{r.team}</span>
                     <span className="text-slate-400 text-xs">{r.season}</span>
                     <span className="ml-auto font-bold tabular-nums text-slate-900">{r.pf.toFixed(1)}</span>
                   </li>
@@ -145,6 +145,7 @@ export default function RecordsPage() {
             <div className="card p-4">
               <h3 className="font-semibold text-slate-900 mb-2">👑 Championship leaderboard</h3>
               {d.titles.length === 0 ? <p className="text-sm text-slate-400">No titles awarded yet.</p> : (
+                <div className="table-scroll">
                 <table className="w-full text-sm">
                   <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
                     <th className="text-left py-1.5 font-semibold">Franchise</th>
@@ -163,12 +164,13 @@ export default function RecordsPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           )}
 
           {/* Individual player records — after the team records */}
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <PlayerList title="🌟 Best single-game (player)" rows={by(d.playerGames)} />
             <PlayerList title="📅 Best season totals (player)" rows={by(d.playerSeasons)} />
           </div>

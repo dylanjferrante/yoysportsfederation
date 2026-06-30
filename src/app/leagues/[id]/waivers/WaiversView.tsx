@@ -170,7 +170,7 @@ export default function WaiversView({
 
       {/* Claims drawer */}
       {showClaims && (
-        <div className="grid lg:grid-cols-2 gap-5 mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
           <div className="card">
             <div className="card-header"><h2 className="font-semibold text-slate-900">Pending Claims</h2></div>
             {pending.length === 0 ? <p className="px-4 py-5 text-sm text-slate-400">No pending claims.</p> : (
@@ -204,7 +204,7 @@ export default function WaiversView({
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <input type="search" placeholder="Search players…" value={search} onChange={e => setSearch(e.target.value)} className="input w-56 text-sm py-2" />
+        <input type="search" placeholder="Search players…" value={search} onChange={e => setSearch(e.target.value)} className="input w-full sm:w-56 text-sm py-2" />
         <button onClick={() => { setSport(''); setPosition('') }} className={`px-3 py-1.5 rounded-full text-sm font-medium ${!sport ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>All</button>
         {enabled.map(s => {
           const m = sportMeta(s)
