@@ -8,7 +8,6 @@ import { sendPush } from '@/lib/push'
 
 const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
-// The most recent past occurrence of a weekly (weekday, hour) waiver run.
 export function mostRecentWaiverRun(day: number, hour: number, now: Date = new Date()): Date {
   const r = new Date(now)
   r.setHours(hour, 0, 0, 0)
@@ -18,7 +17,6 @@ export function mostRecentWaiverRun(day: number, hour: number, now: Date = new D
   return r
 }
 
-// Put a dropped player on the wire for `days` (claim-only until it clears).
 export async function placeOnWaivers(leagueId: string, playerId: string, sport: string | null, droppedByTeamId: string, days: number) {
   if (days <= 0) return
   const clearsAt = new Date(Date.now() + days * 86_400_000).toISOString()
@@ -26,19 +24,16 @@ export async function placeOnWaivers(leagueId: string, playerId: string, sport: 
   await db.insert(waiverWire).values({ id: nanoid(), leagueId, playerId, sport, droppedByTeamId, clearsAt })
 }
 
-// Is this player currently held on the wire in the league (not yet cleared)?
 export async function onWaivers(leagueId: string, playerId: string, now: Date = new Date()): Promise<boolean> {
   const [w] = await db.select({ clearsAt: waiverWire.clearsAt }).from(waiverWire)
     .where(and(eq(waiverWire.leagueId, leagueId), eq(waiverWire.playerId, playerId))).limit(1)
   return !!w && new Date(w.clearsAt) > now
 }
 
-// Drop cleared rows so those players become ordinary free agents.
 export async function clearExpiredWire(leagueId: string, now: Date = new Date()) {
   await db.delete(waiverWire).where(and(eq(waiverWire.leagueId, leagueId), lte(waiverWire.clearsAt, now.toISOString())))
 }
 
-// Resolve a set of pending claims, honoring the league's waiver type (FAAB or priority).
 async function awardClaims(league: any, pending: any[]) {
   if (!pending.length) return { processed: 0, awarded: 0 }
   const teamRows = await db.select().from(teams).where(eq(teams.leagueId, league.id))
@@ -98,7 +93,6 @@ async function awardClaims(league: any, pending: any[]) {
       const [drop] = await db.select().from(players).where(eq(players.id, winner.dropPlayerId)).limit(1)
       droppedName = drop?.name ?? null
       await db.delete(rosters).where(and(eq(rosters.teamId, winner.teamId), eq(rosters.playerId, winner.dropPlayerId)))
-      // The dropped player goes on the wire too.
       await placeOnWaivers(league.id, winner.dropPlayerId, drop?.sport ?? null, winner.teamId, league.waiverPeriodDays ?? 0)
     }
     await db.insert(rosters).values({ id: nanoid(), teamId: winner.teamId, playerId, sport: add?.sport ?? sport, slot: 'BN', acquisitionType: 'WAIVER' }).onConflictDoNothing()
@@ -143,15 +137,12 @@ async function awardClaims(league: any, pending: any[]) {
   return { processed: pending.length, awarded: awarded.length }
 }
 
-// Commissioner "process now": clear the wire and award every pending claim immediately.
 export async function processAllNow(league: any) {
   await clearExpiredWire(league.id)
   const pending = await db.select().from(waiverClaims).where(and(eq(waiverClaims.leagueId, league.id), eq(waiverClaims.status, 'PENDING')))
   return awardClaims(league, pending)
 }
 
-// Automatic run (called from advanceLeague): clear the wire, then for each sport award
-// claims that were placed before that sport's most recent scheduled waiver run.
 export async function runWaivers(league: any) {
   if (league.waiverType === 'FREE_AGENT') { await clearExpiredWire(league.id); return { processed: 0, awarded: 0 } }
   await clearExpiredWire(league.id)

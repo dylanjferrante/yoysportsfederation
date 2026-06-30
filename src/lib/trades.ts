@@ -5,11 +5,6 @@ import { nanoid } from 'nanoid'
 import { logActivity, notify } from '@/lib/activity'
 import { sendPush } from '@/lib/push'
 
-// Execute a trade: route every asset from its source franchise to its destination,
-// log a transaction entry per asset, mark the trade ACCEPTED, and notify parties.
-// Shared by the normal accept flow (after approvals + validation) and the
-// commissioner force-trade tool (which bypasses approvals). Idempotent-ish: it
-// no-ops if the trade is missing or already settled.
 export async function executeTrade(tradeId: string): Promise<boolean> {
   const [trade] = await db.select().from(trades).where(eq(trades.id, tradeId)).limit(1)
   if (!trade || trade.status !== 'PENDING') return false

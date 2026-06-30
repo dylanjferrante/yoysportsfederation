@@ -3,13 +3,11 @@ import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 import { registerForPush } from '../../lib/push';
 
-// Native bottom tab bar — the standard mobile fantasy-app navigation.
 function Icon({ emoji, color }: { emoji: string; color: string }) {
   return <Text style={{ fontSize: 20, color }}>{emoji}</Text>;
 }
 
 export default function TabsLayout() {
-  // Register for push once the user is in the authenticated area.
   useEffect(() => { registerForPush(); }, []);
   return (
     <Tabs

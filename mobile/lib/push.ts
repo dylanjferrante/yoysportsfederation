@@ -5,14 +5,10 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from './config';
 
-// Show notifications while the app is foregrounded too.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false }),
 });
 
-// Ask for permission, get this device's Expo push token, and register it with
-// the backend (so server events — trades, waivers — can push to it). Safe to
-// call repeatedly; no-ops on a simulator or without an EAS projectId.
 export async function registerForPush(): Promise<void> {
   try {
     if (!Device.isDevice) return;
@@ -24,7 +20,7 @@ export async function registerForPush(): Promise<void> {
     if (status !== 'granted') return;
 
     const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId;
-    if (!projectId) return; // set by `eas build:configure`
+    if (!projectId) return;
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     const auth = await SecureStore.getItemAsync('nf_token');
     if (!auth || !token) return;
@@ -34,5 +30,5 @@ export async function registerForPush(): Promise<void> {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
       body: JSON.stringify({ token, platform: Platform.OS }),
     });
-  } catch { /* push is best-effort */ }
+  } catch { }
 }

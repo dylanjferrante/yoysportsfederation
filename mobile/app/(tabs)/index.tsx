@@ -7,7 +7,6 @@ type News = { id: string; category: string; sport?: string; text: string };
 type Side = { abbr: string; score: number; win: boolean };
 type Card = { id: string; sport: string; status: string; home: Side; away: Side };
 
-// Federation Wire — the same live feed as the web dashboard ticker, native.
 export default function Wire() {
   const { leagues } = useAuth();
   const lid = leagues[0]?.id;

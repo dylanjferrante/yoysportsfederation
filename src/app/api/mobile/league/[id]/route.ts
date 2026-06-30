@@ -5,8 +5,6 @@ import { eq, and } from 'drizzle-orm'
 import { safeParse, orderedSports } from '@/lib/utils'
 import { bearerUserId } from '@/lib/mobileAuth'
 
-// League data for the native app: branding, standings (per-sport records), and
-// the requesting user's team. Bearer-token authed.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const uid = bearerUserId(req)
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -20,7 +18,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const recs = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
   const sports = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
 
-  // Per-sport standings (sorted by wins, then points for).
   const standings = sports.map(sport => ({
     sport,
     rows: recs.filter(r => r.sport === sport)

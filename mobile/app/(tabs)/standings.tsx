@@ -6,7 +6,6 @@ import { apiGet } from '../../lib/api';
 type Row = { teamId: string; name: string; abbr: string; wins: number; losses: number; ties: number; pointsFor: number };
 type Standing = { sport: string; rows: Row[] };
 
-// Per-sport standings, Bearer-authed against /api/mobile/league/[id].
 export default function Standings() {
   const { leagues } = useAuth();
   const lid = leagues[0]?.id;

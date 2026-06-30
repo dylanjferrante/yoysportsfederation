@@ -7,10 +7,6 @@ import { eq, and } from 'drizzle-orm'
 import { safeParse } from '@/lib/utils'
 import { rescoreWeeks } from '@/lib/advance'
 
-// Commissioner action: (re)score a sport+week — or each sport's current week —
-// from ingested Tank01 stats. Real-only: weeks without ingested stats stay
-// pending (nothing is fabricated). Stats are pulled separately via the
-// ingestion jobs; this just (re)computes matchups/standings from what's in.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -26,7 +22,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.sport && body.week) {
     targets.push({ sport: body.sport, week: body.week })
   } else {
-    // Each sport's current (lowest incomplete) week.
     for (const sport of sports) {
       const incomplete = await db.select({ week: matchups.week }).from(matchups)
         .where(and(eq(matchups.leagueId, id), eq(matchups.sport, sport), eq(matchups.isComplete, false)))

@@ -14,9 +14,6 @@ import MatchupChat from './MatchupChat'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
-// Classify a player's real game: final (scored / game over), live (started, not
-// final), or pending (yet to play). The status string carries live detail
-// (quarter/clock, inning) once the live ingest refreshes it.
 const FINAL_RE = /final|completed|closed/i
 const LIVE_RE = /in.?progress|live|q[1-4]\b|\bhalf\b|inning|period|\bot\b|delay|active|top\b|bot\b|\bmid\b|\bend\b/i
 type Bucket = 'final' | 'live' | 'pending'
@@ -54,12 +51,10 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
       .leftJoin(playerGameStats, and(eq(playerGameStats.playerId, rosters.playerId), eq(playerGameStats.leagueId, id), eq(playerGameStats.season, season), eq(playerGameStats.week, m.week)))
       .where(and(eq(rosters.teamId, teamId), eq(rosters.sport, m.sport)))
-    // Attach real-game status to each player (real schedule, else synthetic lock).
     for (const r of rows as any[]) {
       const gs: GameStatus | undefined = r.realTeamAbbr ? statusMap?.[r.realTeamAbbr] : undefined
       const kickoff = gs?.kickoff ?? playerKickoff(m.sport, r.realTeamAbbr, season, m.week)
       const eff = { kickoff, status: gs?.status ?? null }
-      // A completed matchup is authoritative: every game in it is final.
       const bucket: Bucket = m.isComplete ? 'final' : gameBucket(r.points, eff, now)
       r.game = { bucket, label: gameLabel(bucket, eff), opp: gs ? oppLabel(gs) : null }
     }
@@ -79,12 +74,10 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
   const home = await lineup(m.homeTeamId)
   const away = await lineup(m.awayTeamId)
 
-  // Pregame win probability from projected starter totals (logistic on the spread).
   const spread = (home.proj || 0) - (away.proj || 0)
   const scale = Math.max(10, ((home.proj || 0) + (away.proj || 0)) * 0.06)
   const homeWinPct = Math.round(100 / (1 + Math.exp(-spread / scale)))
 
-  // All-time head-to-head between these two franchises in this sport.
   let h2h: { homeW: number; awayW: number; recent: { week: number; season: string | null; hs: number; as: number; homeIsThis: boolean }[] } | null = null
   if (m.homeTeamId && m.awayTeamId) {
     const a = m.homeTeamId, b = m.awayTeamId
@@ -170,7 +163,6 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* Scoreboard + analysis */}
       <div className="card p-5 mb-6">
         <div className="grid grid-cols-3 items-center mb-4">
           <div className="text-center">
@@ -186,7 +178,6 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        {/* Win probability bar */}
         <div className="mb-4">
           <div className="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
             <span>{homeWinPct}%</span>
@@ -199,7 +190,6 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        {/* Matchup facts */}
         <div className="border-t border-slate-100 pt-2 divide-y divide-slate-50">
           <Fact label="Projected" h={home.proj} a={away.proj} fmt={n => n.toFixed(1)} />
           <Fact label="Optimal" h={home.optimal} a={away.optimal} fmt={n => n.toFixed(1)} />
@@ -207,7 +197,6 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* Game tracker: played / playing / yet to play, with points in & to come */}
       <div className="card p-5 mb-6">
         <h2 className="font-semibold text-slate-900 mb-3">📡 Game Tracker</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
@@ -227,7 +216,6 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* Head-to-head history */}
       {h2h && (h2h.homeW + h2h.awayW > 0) && (
         <div className="card p-5 mb-6">
           <div className="flex items-center justify-between mb-3">

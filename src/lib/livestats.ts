@@ -9,7 +9,6 @@ import { mapBoxScoreBase, deriveWeekly } from '@/lib/providers/boxscore-map'
 
 type Sport = 'NFL' | 'NBA' | 'NHL' | 'MLB'
 
-// Hard monthly cap so a free-tier key (≈1000/mo) is never exceeded.
 export const MONTHLY_CAP = Number(process.env.TANK01_MONTHLY_CAP ?? 1000)
 const ym = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
@@ -25,7 +24,6 @@ async function bumpUsage(n = 1) {
 }
 async function budgetLeft(): Promise<number> { return MONTHLY_CAP - (await usageThisMonth()) }
 
-// Map a calendar date to the fantasy week of a season (the week whose range covers it).
 export function fantasyWeekOf(season: string, date: Date): number | null {
   for (let w = 1; w <= 45; w++) {
     const { start, end } = weekDateRange(season, w)
@@ -37,24 +35,16 @@ export function fantasyWeekOf(season: string, date: Date): number | null {
 const yyyymmdd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
 
 export type IngestMode = 'FINAL' | 'LIVE'
-// Which games to ingest: FINAL = finished only (daily finalize); LIVE = finished
-// plus in-progress (live scoring), but never not-yet-started games.
 function gamesToIngest(games: { gameId: string; status: string }[], mode: IngestMode) {
   const isFinal = (s: string) => /final|completed|closed/i.test(s)
   const inProgress = (s: string) => /in.?progress|live|q[1-4]\b|half|inning|period|ot\b|delay|active/i.test(s)
   return games.filter(g => isFinal(g.status) || (mode === 'LIVE' && inProgress(g.status)))
 }
 
-// Box scores and games are GLOBAL (the same real game serves every league), so
-// fetch each game ONCE per cron run and reuse the result for every season that
-// needs it. Returns externalId → derived weekly stat line, plus the call count.
-// Mutates nothing in the DB; respects the monthly budget.
 async function fetchDayStats(sport: Sport, date: Date, mode: IngestMode): Promise<{ agg: Record<string, Record<string, number>>; calls: number; budget: boolean }> {
   if ((await budgetLeft()) < 2) return { agg: {}, calls: 0, budget: false }
   let calls = 0
   const games = await tank01GamesForDate(sport, yyyymmdd(date)); calls++; await bumpUsage(1)
-  // Refresh the schedule's live status (quarter/clock, inning) so the matchup
-  // game-tracker reflects in-progress games. gameID is the game_schedule row id.
   for (const g of games) if (g.gameId && g.status) await db.update(gameSchedule).set({ status: g.status }).where(eq(gameSchedule.id, g.gameId))
   const want = gamesToIngest(games, mode)
 
@@ -72,8 +62,6 @@ async function fetchDayStats(sport: Sport, date: Date, mode: IngestMode): Promis
   return { agg, calls, budget: true }
 }
 
-// Upsert an already-fetched day's stats into one season's fantasy week (no API
-// calls). externalId → players.id is resolved against the global player pool.
 async function upsertDay(sport: Sport, season: string, date: Date, agg: Record<string, Record<string, number>>): Promise<number> {
   const week = fantasyWeekOf(season, date)
   if (week == null) return 0
@@ -95,7 +83,6 @@ async function upsertDay(sport: Sport, season: string, date: Date, agg: Record<s
   return ingested
 }
 
-// Single-season ingest (one fetch + one upsert). Used by the commissioner pull.
 export async function ingestDate(sport: Sport, date: Date, season: string, mode: IngestMode = 'FINAL'): Promise<{ ingested: number; calls: number; week?: number; skipped?: string }> {
   if (!tank01Configured()) return { ingested: 0, calls: 0, skipped: 'no API key' }
   const week = fantasyWeekOf(season, date)
@@ -106,9 +93,6 @@ export async function ingestDate(sport: Sport, date: Date, season: string, mode:
   return { ingested, calls, week }
 }
 
-// Scale-aware ingest: fetch each game ONCE, then upsert into every season that
-// needs it. Used by the scheduled cron so N leagues sharing real games don't
-// multiply the API spend. Returns per-season ingested counts + total calls.
 export async function ingestDateForSeasons(sport: Sport, date: Date, seasons: string[], mode: IngestMode = 'FINAL'): Promise<{ calls: number; bySeason: Record<string, number>; skipped?: string }> {
   if (!tank01Configured()) return { calls: 0, bySeason: {}, skipped: 'no API key' }
   const uniq = [...new Set(seasons)]
@@ -119,12 +103,6 @@ export async function ingestDateForSeasons(sport: Sport, date: Date, seasons: st
   return { calls, bySeason }
 }
 
-// Derive projections from REAL ingested stats. Tank01 exposes no fantasy-point
-// projections for NBA/NHL/MLB (and only preseason ones for NFL), so we project
-// each player from their own real production: the mean of their per-week real
-// stat lines becomes the projected stat line, scored under default scoring for a
-// projectedPoints. Costs NO API calls. Only players with ≥1 real line are touched
-// (others keep whatever projection they had). ADP is then re-ranked per sport.
 export async function deriveProjections(season: string): Promise<{ updated: number }> {
   const lines = await db.select({ playerId: realStatLines.playerId, sport: realStatLines.sport, stats: realStatLines.stats })
     .from(realStatLines).where(eq(realStatLines.season, season))
@@ -132,7 +110,7 @@ export async function deriveProjections(season: string): Promise<{ updated: numb
   const byPlayer = new Map<string, { sport: string; weeks: Record<string, number>[] }>()
   for (const l of lines) {
     const e = byPlayer.get(l.playerId) ?? { sport: l.sport, weeks: [] }
-    try { e.weeks.push(JSON.parse(l.stats ?? '{}')) } catch { /* skip bad line */ }
+    try { e.weeks.push(JSON.parse(l.stats ?? '{}')) } catch {  }
     byPlayer.set(l.playerId, e)
   }
 
@@ -150,14 +128,12 @@ export async function deriveProjections(season: string): Promise<{ updated: numb
     sportsTouched.add(sport)
   }
 
-  // Re-rank ADP within each touched sport (1 = highest projected points).
   for (const sport of sportsTouched) {
     await db.run(sql`UPDATE players SET adp = (SELECT COUNT(*) + 1 FROM players p2 WHERE p2.sport = players.sport AND p2.projected_points > players.projected_points) WHERE sport = ${sport}`)
   }
   return { updated }
 }
 
-// Real stat line for a player in a fantasy week, if one has been ingested.
 export async function realStatsFor(playerId: string, sport: string, season: string, week: number): Promise<Record<string, number> | null> {
   const [row] = await db.select({ stats: realStatLines.stats }).from(realStatLines)
     .where(and(eq(realStatLines.playerId, playerId), eq(realStatLines.sport, sport), eq(realStatLines.season, season), eq(realStatLines.week, week))).limit(1)
