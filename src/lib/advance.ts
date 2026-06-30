@@ -9,7 +9,7 @@ import { scorePlayer, generateStatLine } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
 import { runWaivers } from '@/lib/waivers'
-import { snapshotSeasonBranding } from '@/lib/seasons'
+import { snapshotSeasonBranding, snapshotSeasonRosters } from '@/lib/seasons'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
@@ -383,6 +383,7 @@ export async function renewSeason(leagueOrId: string | any): Promise<{ season: s
   const nxt = nextSeason(league.season)
   if (await seasonExists(league.id, nxt)) return { error: `The ${nxt} season already exists` }
   await snapshotSeasonBranding(league.id, league.season)
+  await snapshotSeasonRosters(league.id, league.season)
   await createSeason(league, nxt)
   await db.update(leagues).set({ season: nxt }).where(eq(leagues.id, league.id))
   return { season: nxt }
@@ -403,6 +404,7 @@ export async function advanceLeague(leagueOrId: string | any, force = false): Pr
     const nxt = nextSeason(current)
     if (targetWeek(nxt) >= 1 && !(await seasonExists(league.id, nxt))) {
       await snapshotSeasonBranding(league.id, current) // freeze the outgoing season's logos
+      await snapshotSeasonRosters(league.id, current)  // …and its final rosters
       await createSeason(league, nxt)
       await db.update(leagues).set({ season: nxt }).where(eq(leagues.id, league.id))
       league.season = nxt

@@ -10,7 +10,7 @@ import { isCommissioner } from '@/lib/permissions'
 import { logCommissionerAction, logActivity, notify } from '@/lib/activity'
 import { executeTrade } from '@/lib/trades'
 import { rescoreWeeks, advanceLeague, renewSeason } from '@/lib/advance'
-import { snapshotSeasonBranding } from '@/lib/seasons'
+import { snapshotSeasonBranding, snapshotSeasonRosters } from '@/lib/seasons'
 
 // ── Commissioner tools ───────────────────────────────────────────────────────
 // Manual stat corrections, score overrides, force/veto trades, co-commissioner
@@ -174,9 +174,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Archive the current season's branding (freeze its logos for history).
     case 'ARCHIVE_SEASON': {
       const n = await snapshotSeasonBranding(id, league.season)
-      await log({ season: league.season, teams: n })
-      await logActivity(id, 'SEASON', `Commissioner archived the ${league.season} season's branding`)
-      return NextResponse.json({ ok: true, season: league.season, teams: n })
+      const r = await snapshotSeasonRosters(id, league.season)
+      await log({ season: league.season, teams: n, rosterSpots: r })
+      await logActivity(id, 'SEASON', `Commissioner archived the ${league.season} season (branding + rosters)`)
+      return NextResponse.json({ ok: true, season: league.season, teams: n, rosterSpots: r })
     }
 
     // Finish the current season and start the next one (snapshots branding first).
