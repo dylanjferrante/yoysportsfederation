@@ -24,6 +24,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const [scores, setScores] = useState<Card[]>(() => tickerCache.get(leagueId)?.scores ?? [])
   const [news, setNews] = useState<News[]>(() => tickerCache.get(leagueId)?.news ?? [])
   const [cardIdx, setCardIdx] = useState(() => tickerCache.get(leagueId)?.cardIdx ?? 0)
+  const [qIdx, setQIdx] = useState(0)
   const [hidden, setHidden] = useState(false)
   const [ready, setReady] = useState(false)
 
@@ -74,6 +75,12 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const totalChars = useMemo(() => belt.reduce((n, s) => n + (s.type === 'title' ? s.t.title.length + 4 : s.h.text.length + 4), 0), [belt])
   const duration = Math.max(40, Math.round(totalChars * 0.2))
 
+  useEffect(() => {
+    if (hidden || topics.length <= 3) return
+    const iv = setInterval(() => setQIdx(i => (i + 1) % topics.length), 6000)
+    return () => clearInterval(iv)
+  }, [hidden, topics.length])
+
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
 
   if (!ready) return null
@@ -96,6 +103,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const card = scores.length ? scores[cardIdx % scores.length] : null
   const sides = card ? [card.away, card.home] : []
   const pre = card?.status === 'PRE'
+  const upNext = topics.length > 1 ? Array.from({ length: Math.min(3, topics.length) }, (_, k) => topics[(qIdx + k) % topics.length]) : []
 
   return (
     <div className="wrap" style={{ '--lp': primary, '--ls': secondary } as React.CSSProperties}>
@@ -152,6 +160,18 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         </div>
       )}
 
+      {upNext.length > 0 && (
+        <div className="queue" key={qIdx}>
+          <span className="upnext">Up Next</span>
+          {upNext.map((t, i) => (
+            <span className="qtile" key={`${t.key}-${i}`}>
+              {t.sport && <span className="qbar" style={{ background: sportMeta(t.sport).hex }} />}
+              {t.title}
+            </span>
+          ))}
+        </div>
+      )}
+
       <button onClick={() => setHiddenPersist(true)} className="hide" aria-label="Hide wire">✕</button>
 
       <style jsx>{`
@@ -168,7 +188,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; }
         .ab { width: 3.2rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sc { width: 4.4ch; flex-shrink: 0; margin-left: 1.3rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; text-shadow: 0 0 6px rgba(251,191,36,.4); }
-        .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; }
+        .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 28px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 28px), transparent 100%); }
         .viewport:hover .track { animation-play-state: paused; }
         .track { display: inline-flex; white-space: nowrap; will-change: transform; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
         .strip { display: inline-flex; align-items: center; }
@@ -178,9 +198,16 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
         .sep { color: rgba(255,255,255,.4); margin: 0 1.9rem; font-size: .72rem; }
+        .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.4rem; padding: 0 1.5rem; border-left: 1px solid rgba(255,255,255,.14); background: linear-gradient(90deg, transparent, rgba(2,6,23,.5) 30%); }
+        .queue > .qtile { animation: qslide .5s ease; }
+        .upnext { font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); white-space: nowrap; }
+        .qtile { display: inline-flex; align-items: center; gap: .45rem; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: rgba(238,242,247,.82); white-space: nowrap; }
+        .qbar { width: 3px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+        @keyframes qslide { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
         .hide { flex-shrink: 0; padding: 0 .85rem; color: rgba(255,255,255,.35); font-size: .8rem; }
         .hide:hover { color: #fff; }
         @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @media (max-width: 1024px) { .queue { display: none; } }
         @media (max-width: 640px) {
           .label { padding: 0 .6rem; font-size: .6rem; }
           .scorecard { width: 178px; padding: .3rem .65rem; }
