@@ -42,6 +42,26 @@ export default function LeagueTabs({
     [...included],
   ), [teams, records, federationScoring, included])
 
+  // Combined cross-sport power ranking — separate from federation points. Each sport's
+  // power = win% (62%) + scoring relative to that sport's leader (38%); a franchise's
+  // league power is the average across the counted sports. A projection of overall strength.
+  const power = useMemo(() => {
+    const maxPF: Record<string, number> = {}
+    for (const r of records) if (included.has(r.sport)) maxPF[r.sport] = Math.max(maxPF[r.sport] ?? 1, r.pointsFor ?? 0)
+    const byTeam: Record<string, { sum: number; n: number; perSport: Record<string, number> }> = {}
+    for (const r of records) {
+      if (!included.has(r.sport)) continue
+      const gp = (r.wins ?? 0) + (r.losses ?? 0) + (r.ties ?? 0)
+      const winPct = gp ? ((r.wins ?? 0) + 0.5 * (r.ties ?? 0)) / gp : 0
+      const p = Math.round(winPct * 100 * 0.62 + ((r.pointsFor ?? 0) / (maxPF[r.sport] || 1)) * 100 * 0.38)
+      const t = (byTeam[r.teamId] ??= { sum: 0, n: 0, perSport: {} })
+      t.sum += p; t.n++; t.perSport[r.sport] = p
+    }
+    return teams
+      .map(t => { const b = byTeam[t.id]; return { team: t, power: b && b.n ? Math.round(b.sum / b.n) : 0, perSport: b?.perSport ?? {} } })
+      .sort((a, b) => b.power - a.power)
+  }, [records, teams, included])
+
   function toggle(sport: string) {
     setIncluded(prev => {
       const next = new Set(prev)
@@ -68,7 +88,7 @@ export default function LeagueTabs({
       </div>
 
       {tab === 'OVERALL'
-        ? <Overall standings={standings} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
+        ? <Overall standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} included={included} toggle={toggle} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} />
         : tab === 'TEAMS'
         ? <TeamsList teams={teams} records={records} sportsEnabled={sportsEnabled} teamStats={teamStats} />
         : <SportView sport={tab} sportNames={sportNames} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} />}
@@ -76,7 +96,7 @@ export default function LeagueTabs({
   )
 }
 
-function Overall({ standings, sportsEnabled, sportNames = {}, sportAbbr = {}, included, toggle, teamById, currentUserId, fed }: any) {
+function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, included, toggle, teamById, currentUserId, fed }: any) {
   return (
     <div className="space-y-4">
       <div className="card p-4 flex flex-wrap items-center gap-3">
@@ -99,7 +119,7 @@ function Overall({ standings, sportsEnabled, sportNames = {}, sportAbbr = {}, in
               <th className="text-left px-4 py-3 font-medium">#</th>
               <th className="text-left px-2 py-3 font-medium">Franchise</th>
               {sportsEnabled.filter((s: string) => included.has(s)).map((s: string) => (
-                <th key={s} className="text-center px-2 py-3 font-medium">{sportMeta(s).emoji}</th>
+                <th key={s} className="text-center px-2 py-3 font-medium"><SportIcon sport={s} logo={divisionLogos[s]} size={16} /></th>
               ))}
               <th className="text-center px-4 py-3 font-medium">Fed Pts</th>
             </tr>
@@ -135,6 +155,53 @@ function Overall({ standings, sportsEnabled, sportNames = {}, sportAbbr = {}, in
       <p className="text-xs text-slate-400 px-1">
         Federation points are awarded by where each franchise finishes in every counted sport. Toggle sports above to see the standings with or without them.
       </p>
+
+      {/* Combined cross-sport power ranking — a projection of overall strength, not titles. */}
+      <div className="card overflow-x-auto">
+        <div className="card-header flex items-center justify-between">
+          <h2 className="font-semibold text-slate-900">⚡ League Power Rankings</h2>
+          <span className="text-xs text-slate-400">combined strength across counted sports</span>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
+              <th className="text-left px-4 py-2.5 font-medium">#</th>
+              <th className="text-left px-2 py-2.5 font-medium">Franchise</th>
+              {sportsEnabled.filter((s: string) => included.has(s)).map((s: string) => (
+                <th key={s} className="text-center px-2 py-2.5 font-medium hidden sm:table-cell"><SportIcon sport={s} logo={divisionLogos[s]} size={16} /></th>
+              ))}
+              <th className="text-right px-4 py-2.5 font-medium">Power</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {power.map((row: any, i: number) => {
+              const t = teamById[row.team.id]
+              const max = power[0]?.power || 1
+              return (
+                <tr key={row.team.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td>
+                  <td className="px-2 py-2.5">
+                    <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>
+                      <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
+                    </Link>
+                  </td>
+                  {sportsEnabled.filter((s: string) => included.has(s)).map((s: string) => (
+                    <td key={s} className="text-center px-2 py-2.5 text-slate-500 tabular-nums hidden sm:table-cell">{row.perSport[s] ?? '—'}</td>
+                  ))}
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden hidden md:block"><span className="block h-full bg-slate-800" style={{ width: `${(row.power / max) * 100}%` }} /></span>
+                      <span className="tabular-nums font-bold text-slate-900 w-8 text-right">{row.power}</span>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        <p className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-50">A projection of overall strength (win % + scoring) averaged across the counted sports — independent of federation points.</p>
+      </div>
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { sportMeta, sportLabel } from '@/lib/utils'
 import { formatWeekRange, sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
 import SportIcon from '@/components/SportIcon'
 
-type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
+type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean; playoff?: boolean; playoffLabel?: string }
 type Team = { id: string; name: string; abbreviation: string; logo?: string | null; primaryColor?: string | null; secondaryColor?: string | null; logoBg?: boolean | null }
 type Rec = { teamId: string; sport: string; wins: number; losses: number; ties: number }
 
@@ -81,11 +81,13 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
                 {games.map(m => {
                   const home = teamById[m.homeTeamId], away = m.awayTeamId ? teamById[m.awayTeamId] : null
                   const homeWin = m.homeScore >= m.awayScore
+                  const href = m.playoff ? `/leagues/${leagueId}/playoffs` : `/leagues/${leagueId}/matchup/${m.id}`
                   return (
-                    <Link key={m.id} href={`/leagues/${leagueId}/matchup/${m.id}`} className="block sm:m-1.5 rounded-xl overflow-hidden border border-slate-100 hover:ring-2 hover:ring-slate-200 transition">
+                    <Link key={m.id} href={href} className={`block sm:m-1.5 rounded-xl overflow-hidden border hover:ring-2 hover:ring-slate-200 transition ${m.playoff ? 'border-amber-300' : 'border-slate-100'}`}>
+                      {m.playoff && <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 px-3 py-1">🏆 {m.playoffLabel ?? 'Playoff'}</p>}
                       <TeamBar team={home} score={m.homeScore} win={m.isComplete && homeWin} rec={home ? recBy[`${home.id}:${sport}`] : null} />
                       <TeamBar team={away} score={m.awayScore} win={m.isComplete && !homeWin} rec={away ? recBy[`${away.id}:${sport}`] : null} bye={!away} />
-                      <p className="text-[10px] text-slate-400 px-3 py-1 bg-white">{m.isComplete ? 'Final' : 'Live'} · box score →</p>
+                      <p className="text-[10px] text-slate-400 px-3 py-1 bg-white">{m.isComplete ? 'Final' : 'Live'} · {m.playoff ? 'bracket →' : 'box score →'}</p>
                     </Link>
                   )
                 })}
