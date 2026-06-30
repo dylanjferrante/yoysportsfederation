@@ -295,7 +295,21 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
     }
     const maxPF = Math.max(1, ...records.map((r: TeamRec) => r.pointsFor ?? 0))
     const order = [...records].sort((a: TeamRec, b: TeamRec) => b.wins - a.wins || b.pointsFor - a.pointsFor)
-    const out: Record<string, { streak: string; last5: ('W'|'L'|'T')[]; power: number; odds: number }> = {}
+
+    // Win% per team (for strength-of-schedule), and each team's opponent list.
+    const winPctOf: Record<string, number> = {}
+    for (const r of records) { const gp = (r.wins ?? 0) + (r.losses ?? 0) + (r.ties ?? 0); winPctOf[r.teamId] = gp ? ((r.wins ?? 0) + 0.5 * (r.ties ?? 0)) / gp : 0 }
+    const opponents: Record<string, string[]> = {}
+    for (const m of matchups) {
+      if (!m.awayTeamId) continue
+      ;(opponents[m.homeTeamId] ??= []).push(m.awayTeamId)
+      ;(opponents[m.awayTeamId] ??= []).push(m.homeTeamId)
+    }
+    const recById: Record<string, TeamRec> = Object.fromEntries(records.map((r: TeamRec) => [r.teamId, r]))
+    const winsRem = (id: string) => ({ w: recById[id]?.wins ?? 0, rem: byTeam[id]?.remaining ?? 0 })
+    const cut = playoffTeams
+
+    const out: Record<string, { streak: string; last5: ('W'|'L'|'T')[]; power: number; odds: number; sos: number; clinch: 'x' | 'e' | null; magic: number | null }> = {}
     for (const r of records) {
       const res = byTeam[r.teamId]?.res ?? []
       const last = res[res.length - 1]
@@ -309,7 +323,27 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
       const conf = Math.max(0.4, gp / (gp + remaining || 1))
       let odds = 100 / (1 + Math.exp(-(playoffTeams - rank - 0.5)))
       odds = Math.round(50 + (odds - 50) * conf)
-      out[r.teamId] = { streak, last5: res.slice(-5), power, odds }
+
+      // Strength of schedule = average win% of every opponent faced/to-face.
+      const opps = opponents[r.teamId] ?? []
+      const sos = opps.length ? Math.round((opps.reduce((a, id) => a + (winPctOf[id] ?? 0), 0) / opps.length) * 1000) : 0
+
+      // Magic / tragic number vs the boundary team (single-rival simplification,
+      // ignoring PF tiebreaks): in-cut clinch over the first team out; out teams'
+      // elimination by the last team in.
+      const me = winsRem(r.teamId)
+      let clinch: 'x' | 'e' | null = null
+      let magic: number | null = null
+      if (remaining === 0) clinch = rank < cut ? 'x' : 'e'
+      else if (rank < cut) {
+        const rival = order[cut]
+        if (rival) { const b = winsRem(rival.teamId); magic = Math.max(0, b.w + b.rem - me.w + 1); if (magic === 0) clinch = 'x' }
+        else clinch = 'x'
+      } else {
+        const held = order[cut - 1]
+        if (held) { const b = winsRem(held.teamId); if (me.w + me.rem < b.w) clinch = 'e'; else magic = Math.max(0, me.w + me.rem - b.w + 1) }
+      }
+      out[r.teamId] = { streak, last5: res.slice(-5), power, odds, sos, clinch, magic }
     }
     // Top single-week team score this season.
     let top: { teamId: string; score: number; week: number } | null = null
@@ -383,6 +417,7 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
                 <th className="text-center px-2 py-2 font-semibold hidden md:table-cell">Last 5</th>
                 <th className="text-right px-2 py-2 font-semibold hidden sm:table-cell">PF</th>
                 <th className="text-right px-2 py-2 font-semibold hidden md:table-cell">PA</th>
+                <th className="text-right px-2 py-2 font-semibold hidden lg:table-cell" title="Strength of schedule — average opponent win %">SoS</th>
                 <th className="text-right px-3 py-2 font-semibold">Odds</th>
               </tr>
             </thead>
@@ -395,8 +430,11 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
                 const inPlayoffs = i < playoffTeams
                 return (
                   <tr key={r.teamId} className={`hover:bg-slate-50 ${inPlayoffs ? '' : ''}`}>
-                    <td className="px-3 py-2.5 font-medium">
+                    <td className="px-3 py-2.5 font-medium whitespace-nowrap">
                       <span className={inPlayoffs ? 'text-green-600' : 'text-slate-300'}>{i + 1}</span>
+                      {a?.clinch === 'x' && <span title="Clinched a playoff spot" className="ml-1 text-[9px] font-bold text-green-600 align-top">x</span>}
+                      {a?.clinch === 'e' && <span title="Eliminated from playoff contention" className="ml-1 text-[9px] font-bold text-red-400 align-top">e</span>}
+                      {!a?.clinch && a?.magic != null && inPlayoffs && a.magic <= 4 && <span title="Magic number to clinch a playoff spot" className="ml-1 text-[9px] font-bold text-amber-500 align-top">{a.magic}</span>}
                     </td>
                     <td className="px-2 py-2.5">
                       <Link href={`/teams/${r.teamId}`} className="flex items-center gap-2 group">
@@ -419,13 +457,14 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
                     </td>
                     <td className="text-right px-2 py-2.5 text-slate-700 tabular-nums hidden sm:table-cell">{r.pointsFor?.toFixed(0)}</td>
                     <td className="text-right px-2 py-2.5 text-slate-400 tabular-nums hidden md:table-cell">{r.pointsAgainst?.toFixed(0)}</td>
+                    <td className="text-right px-2 py-2.5 text-slate-500 tabular-nums hidden lg:table-cell">{a?.sos ? `.${String(a.sos).padStart(3, '0')}` : '—'}</td>
                     <td className="text-right px-3 py-2.5 tabular-nums font-semibold" style={{ color: (a?.odds ?? 0) >= 50 ? meta.hex : undefined }}>{a ? `${a.odds}%` : '—'}</td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
-          <p className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-50">Top {playoffTeams} make the playoffs (green). Odds are a projection from record + scoring.</p>
+          <p className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-50">Top {playoffTeams} make the playoffs (green). <span className="font-semibold text-green-600">x</span> = clinched · <span className="font-semibold text-red-400">e</span> = eliminated · amber number = magic number to clinch · SoS = avg opponent win %. Odds project record + scoring.</p>
         </div>
 
         {weekMatchups.length > 0 && (
