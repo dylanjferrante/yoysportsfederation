@@ -51,7 +51,7 @@ export default async function LeaguesPage() {
               <Link key={league.id} href={`/leagues/${league.id}`} className="card p-5 hover:shadow-md transition-shadow block">
                 <div className="flex items-start justify-between mb-3">
                   {league.logoUrl
-                    ? <img src={league.logoUrl} alt="" className="w-12 h-12 object-cover bg-slate-100" />
+                    ? <img src={league.logoUrl} alt="" className="w-12 h-12 object-contain bg-slate-100" />
                     : <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center text-2xl">🏆</div>}
                   {isMember && <span className="badge bg-blue-100 text-blue-700">Joined</span>}
                 </div>

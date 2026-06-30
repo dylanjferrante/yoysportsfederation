@@ -123,7 +123,7 @@ export default function CreateLeaguePage() {
               <label className="label">League Logo URL (optional)</label>
               <div className="flex gap-2 items-center">
                 <input className="input flex-1" value={form.logoUrl} onChange={e => set('logoUrl', e.target.value)} placeholder="https://…/logo.png" />
-                {form.logoUrl && <img src={form.logoUrl} alt="" className="w-10 h-10 object-cover bg-slate-100" />}
+                {form.logoUrl && <img src={form.logoUrl} alt="" className="w-10 h-10 object-contain bg-slate-100" />}
               </div>
             </div>
           </>

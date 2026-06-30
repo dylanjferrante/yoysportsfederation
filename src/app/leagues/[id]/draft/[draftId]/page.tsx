@@ -73,7 +73,7 @@ export default function DraftRoom() {
       </div>
 
       {/* Control bar */}
-      <div className="card p-4 mb-5 flex items-center justify-between flex-wrap gap-3">
+      <div className="card p-4 mb-5 flex items-center justify-between flex-wrap gap-3 sticky top-0 z-30">
         <div>
           {d.status === 'PENDING' && <p className="text-slate-600">Draft hasn't started.</p>}
           {d.status === 'IN_PROGRESS' && onClock && (
@@ -256,18 +256,19 @@ export default function DraftRoom() {
       )}
 
       {tab === 'board' && (
-        <div className="card p-2 overflow-x-auto">
+        <div className="card p-2 overflow-auto max-h-[72vh]">
           <div className="inline-block min-w-full">
-            {/* Team header row — franchise colors, logo + name; sticks on scroll */}
-            <div className="flex gap-1 mb-1 sticky top-0 z-10 bg-white py-1">
+            {/* Team header row — franchise colors, logo + full name; pins to the
+                top of the board while scrolling through rounds. */}
+            <div className="flex gap-1 mb-1 sticky top-0 z-20 bg-white py-1">
               <span className="w-6 flex-shrink-0" />
               {(s.order ?? []).map((t: any) => (
-                <div key={t.id} className="w-28 h-12 flex-shrink-0 rounded-lg px-2 flex items-center gap-1.5"
+                <div key={t.id} className="w-28 min-h-[3rem] flex-shrink-0 px-2 py-1 flex items-center gap-1.5"
                   style={{ background: t.primaryColor || '#0f172a', color: t.secondaryColor || '#fff' }}>
                   {t.logo
-                    ? <img src={t.logo} alt="" className="w-6 h-6 object-cover flex-shrink-0" />
-                    : <span className="w-6 h-6 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: t.secondaryColor || '#fff', color: t.primaryColor || '#0f172a' }}>{(t.abbreviation || t.name || '?').slice(0, 2).toUpperCase()}</span>}
-                  <span className="text-[11px] font-bold leading-tight line-clamp-2">{t.name}</span>
+                    ? <img src={t.logo} alt="" className="w-6 h-6 object-contain flex-shrink-0" />
+                    : <span className="w-6 h-6 flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: t.secondaryColor || '#fff', color: t.primaryColor || '#0f172a' }}>{(t.abbreviation || t.name || '?').slice(0, 2).toUpperCase()}</span>}
+                  <span className="text-[11px] font-bold leading-tight break-words">{t.name}</span>
                 </div>
               ))}
             </div>

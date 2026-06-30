@@ -122,7 +122,7 @@ export default function TeamPage() {
             <p className="text-white/50 text-xs mt-0.5">co-managers: {(data.managers ?? []).map((m: any) => m.name ?? m.email).join(', ')}</p>
           )}
         </div>
-        {team.altLogo && <img src={team.altLogo} alt="" className="w-12 h-12 object-cover bg-white/10 hidden sm:block" />}
+        {team.altLogo && <img src={team.altLogo} alt="" className="w-12 h-12 object-contain bg-white/10 hidden sm:block" />}
         <div className="flex gap-2">
           {canManage && <button onClick={() => { setBrand({ name: team.name, abbreviation: team.abbreviation, logo: team.logo ?? '', altLogo: team.altLogo ?? '', wordmark: team.wordmark ?? '', primaryColor: team.primaryColor, secondaryColor: team.secondaryColor, logoBg: (team as any).logoBg ?? false }); setEditing(!editing) }} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Edit</button>}
           {(data.isOwner || data.isCommish) && <button onClick={() => setShowMgr(!showMgr)} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Co-managers</button>}

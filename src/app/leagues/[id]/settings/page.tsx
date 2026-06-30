@@ -264,7 +264,7 @@ export default function CommissionerSettings() {
                 <div className="flex items-center gap-3">
                   <input className="input flex-1" placeholder="https://…/logo.png" value={form.logoUrl ?? ''} onChange={e => set('logoUrl', e.target.value)} />
                   {form.logoUrl
-                    ? <img src={form.logoUrl} alt="" className="w-12 h-12 object-cover bg-slate-100 flex-shrink-0" />
+                    ? <img src={form.logoUrl} alt="" className="w-12 h-12 object-contain bg-slate-100 flex-shrink-0" />
                     : <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">🏆</div>}
                 </div>
               </div>
@@ -326,9 +326,9 @@ export default function CommissionerSettings() {
               {franchises.map(f => (
                 <div key={f.id} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-11 h-11 rounded-lg flex items-center justify-center text-lg font-bold flex-shrink-0 overflow-hidden"
+                    <div className="w-11 h-11 flex items-center justify-center text-lg font-bold flex-shrink-0 overflow-hidden"
                       style={{ background: f.primaryColor, color: f.secondaryColor }}>
-                      {f.logo ? <img src={f.logo} alt="" className="w-full h-full object-cover" /> : (f.abbreviation || f.name || '?').slice(0, 4).toUpperCase()}
+                      {f.logo ? <img src={f.logo} alt="" className="w-full h-full object-contain" /> : (f.abbreviation || f.name || '?').slice(0, 4).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <p className="font-semibold text-slate-900 truncate">{f.name || 'Unnamed franchise'}</p>
@@ -493,7 +493,7 @@ export default function CommissionerSettings() {
                   <div key={s} className="flex items-center gap-2">
                     <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
                     <input className="input flex-1 text-sm" placeholder="https://…" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
-                    {divisionLogos[s] && <img src={divisionLogos[s]} alt="" className="w-8 h-8 object-cover bg-slate-100" />}
+                    {divisionLogos[s] && <img src={divisionLogos[s]} alt="" className="w-8 h-8 object-contain bg-slate-100" />}
                   </div>
                 ))}
               </div>
@@ -518,7 +518,7 @@ export default function CommissionerSettings() {
                       <input className="input text-sm" placeholder="Championship name" value={champNames[s] ?? ''} onChange={e => setChampNames(d => ({ ...d, [s]: e.target.value }))} />
                       <div className="flex items-center gap-2">
                         <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos[s] ?? ''} onChange={e => setChampLogos(d => ({ ...d, [s]: e.target.value }))} />
-                        {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 object-cover bg-slate-100" />}
+                        {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 object-contain bg-slate-100" />}
                         <input type="color" title="Championship primary color" className="h-9 w-9 rounded border border-slate-200" value={champColors[s]?.p ?? '#b45309'} onChange={e => setChampColors(d => ({ ...d, [s]: { ...d[s], p: e.target.value } }))} />
                         <input type="color" title="Championship secondary color" className="h-9 w-9 rounded border border-slate-200" value={champColors[s]?.s ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, [s]: { ...d[s], s: e.target.value } }))} />
                       </div>
@@ -532,7 +532,7 @@ export default function CommissionerSettings() {
                     <input className="input text-sm" placeholder={`Championship name (e.g. ${form.name ?? 'Nexus'} Cup)`} value={champNames['FED'] ?? ''} onChange={e => setChampNames(d => ({ ...d, FED: e.target.value }))} />
                     <div className="flex items-center gap-2">
                       <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos['FED'] ?? ''} onChange={e => setChampLogos(d => ({ ...d, FED: e.target.value }))} />
-                      {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-7 h-7 object-cover bg-slate-100" />}
+                      {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-7 h-7 object-contain bg-slate-100" />}
                       <input type="color" title="Federation championship primary color" className="h-9 w-9 rounded border border-slate-200" value={champColors['FED']?.p ?? '#b45309'} onChange={e => setChampColors(d => ({ ...d, FED: { ...d.FED, p: e.target.value } }))} />
                       <input type="color" title="Federation championship secondary color" className="h-9 w-9 rounded border border-slate-200" value={champColors['FED']?.s ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, FED: { ...d.FED, s: e.target.value } }))} />
                     </div>

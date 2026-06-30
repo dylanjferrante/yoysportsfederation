@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { matchups, teams, teamRecords, leagueHistory } from '@/db/schema'
+import { matchups, teams, teamRecords, leagueHistory, playerGameStats, players } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 
 // League record book / superlatives — computed from completed matchups, season
@@ -69,10 +69,37 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   const single = topScores(sides)
 
+  // ── Individual player records ─────────────────────────────────────────────
+  const pgs = await db.select({
+    playerId: playerGameStats.playerId, points: playerGameStats.points, week: playerGameStats.week,
+    season: playerGameStats.season, sport: playerGameStats.sport, teamId: playerGameStats.teamId,
+    name: players.name, position: players.position,
+  }).from(playerGameStats).innerJoin(players, eq(playerGameStats.playerId, players.id))
+    .where(eq(playerGameStats.leagueId, id))
+
+  // Best single-game performances.
+  const playerGames = [...pgs]
+    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+    .slice(0, 10)
+    .map(g => ({ player: g.name, position: g.position, sport: g.sport, points: +(g.points ?? 0).toFixed(1), week: g.week, season: g.season, team: g.teamId ? tname[g.teamId] ?? null : null }))
+
+  // Best full-season point totals (per player per season).
+  const seasonAgg: Record<string, { player: string; position: string; sport: string; season: string; points: number }> = {}
+  for (const g of pgs) {
+    const key = `${g.playerId}:${g.season}`
+    const a = (seasonAgg[key] ??= { player: g.name, position: g.position, sport: g.sport, season: g.season, points: 0 })
+    a.points += g.points ?? 0
+  }
+  const playerSeasons = Object.values(seasonAgg)
+    .map(a => ({ ...a, points: +a.points.toFixed(1) }))
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 10)
+
   return NextResponse.json({
     single,
     streaks: streaks.slice(0, 5),
     mostWins, bestPF, titles,
+    playerGames, playerSeasons,
     gamesPlayed: real.length,
   })
 }

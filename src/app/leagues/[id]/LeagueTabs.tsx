@@ -340,7 +340,7 @@ function TeamsList({ teams, records, sportsEnabled, teamStats }: { teams: TeamLi
             {/* Header band in franchise colors */}
             <div className="p-3 flex items-center gap-3" style={{ background: primary, color: secondary }}>
               {t.logo
-                ? <img src={t.logo} alt="" className="w-12 h-12 object-cover flex-shrink-0 bg-white/10" />
+                ? <img src={t.logo} alt="" className="w-12 h-12 object-contain flex-shrink-0 bg-white/10" />
                 : <span className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 4).toUpperCase()}</span>}
               <div className="min-w-0">
                 <p className="font-bold leading-tight truncate">{t.name}</p>

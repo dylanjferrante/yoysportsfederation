@@ -77,34 +77,58 @@ export default function HeadToHead({ matchups, teams, sportsEnabled }: { matchup
       </table>
 
       {/* Matchup list for the selected pair — inline, below the table */}
-      {pair && (
+      {pair && (() => {
+        const aWins = pairGames.filter(m => (m.homeTeamId === pair.a.id ? m.homeScore : m.awayScore) >= (m.homeTeamId === pair.a.id ? m.awayScore : m.homeScore)).length
+        const bWins = pairGames.length - aWins
+        return (
         <div className="border-t border-slate-100">
-          <div className="px-5 py-3 flex items-center justify-between bg-slate-50">
-            <h3 className="font-semibold text-slate-900 text-sm">{pair.a.name} vs {pair.b.name}{sport !== 'ALL' ? ` · ${sport}` : ''}</h3>
+          <div className="px-5 py-3 flex items-center justify-between bg-slate-50 flex-wrap gap-2">
+            <h3 className="font-semibold text-slate-900 text-sm">
+              {pair.a.name} vs {pair.b.name}{sport !== 'ALL' ? ` · ${sport}` : ''}
+              <span className="ml-2 font-normal text-slate-400">{pairGames.length} games · {aWins}–{bWins}</span>
+            </h3>
             <button onClick={() => setPair(null)} className="text-slate-400 hover:text-slate-700 text-sm">Close ×</button>
           </div>
-          <div className="divide-y divide-slate-50 max-h-96 overflow-y-auto">
-            {pairGames.length === 0 && <p className="px-5 py-8 text-center text-slate-400 text-sm">No completed matchups.</p>}
-            {pairGames.map((m, i) => {
-              const aHome = m.homeTeamId === pair.a.id
-              const aScore = aHome ? m.homeScore : m.awayScore
-              const bScore = aHome ? m.awayScore : m.homeScore
-              const aWon = aScore >= bScore
-              const meta = sportMeta(m.sport)
-              return (
-                <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-sm">
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{meta.emoji} {m.sport}</span>
-                  <span className="text-xs text-slate-400 w-24">{m.season ?? ''}{m.week ? ` · Wk ${m.week}` : ''}</span>
-                  <span className="text-slate-600 text-xs flex-1 truncate">{pair.a.abbreviation} vs {pair.b.abbreviation}</span>
-                  <span className={`tabular-nums ${aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(aScore ?? 0).toFixed(1)}</span>
-                  <span className="text-slate-300">–</span>
-                  <span className={`tabular-nums ${!aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(bScore ?? 0).toFixed(1)}</span>
-                </div>
-              )
-            })}
-          </div>
+          {pairGames.length === 0 ? <p className="px-5 py-8 text-center text-slate-400 text-sm">No completed matchups.</p> : (
+            <div className="max-h-96 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100 bg-white sticky top-0">
+                    <th className="text-left px-5 py-2 font-semibold">Sport</th>
+                    <th className="text-left px-2 py-2 font-semibold">Season</th>
+                    <th className="text-left px-2 py-2 font-semibold">Week</th>
+                    <th className="text-right px-3 py-2 font-semibold">{pair.a.name}</th>
+                    <th className="text-right px-3 py-2 font-semibold">{pair.b.name}</th>
+                    <th className="text-left px-3 py-2 font-semibold">Result</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {pairGames.map((m, i) => {
+                    const aHome = m.homeTeamId === pair.a.id
+                    const aScore = aHome ? m.homeScore : m.awayScore
+                    const bScore = aHome ? m.awayScore : m.homeScore
+                    const aWon = aScore >= bScore
+                    const margin = Math.abs(aScore - bScore).toFixed(1)
+                    const meta = sportMeta(m.sport)
+                    const winner = aWon ? pair.a : pair.b
+                    return (
+                      <tr key={i} className="hover:bg-slate-50">
+                        <td className="px-5 py-2"><span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{meta.emoji} {m.sport}</span></td>
+                        <td className="px-2 py-2 text-slate-500 text-xs tabular-nums">{m.season ?? '—'}</td>
+                        <td className="px-2 py-2 text-slate-500 text-xs tabular-nums">{m.week ? `Wk ${m.week}` : '—'}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums ${aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(aScore ?? 0).toFixed(1)}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums ${!aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(bScore ?? 0).toFixed(1)}</td>
+                        <td className="px-3 py-2 text-xs text-slate-500"><span className="font-semibold text-slate-700">{winner.abbreviation}</span> by {margin}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
