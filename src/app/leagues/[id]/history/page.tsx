@@ -115,7 +115,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="mt-6">
-        <HeadToHead matchups={allMatchups as any} teams={franchises.map(f => ({ id: f.id, name: f.name, abbreviation: f.abbreviation }))} sportsEnabled={sports} />
+        <HeadToHead matchups={allMatchups as any} teams={franchises.map(f => ({ id: f.id, name: f.name, abbreviation: f.abbreviation }))} sportsEnabled={sports} schedule={safeParse<any[]>(league.sportSchedule, [])} />
       </div>
     </div>
   )

@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import { sportMeta } from '@/lib/utils'
+import { sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
 
 type Matchup = { sport: string; season?: string | null; week?: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 type Team = { id: string; name: string; abbreviation: string }
 
-export default function HeadToHead({ matchups, teams, sportsEnabled }: { matchups: Matchup[]; teams: Team[]; sportsEnabled: string[] }) {
+export default function HeadToHead({ matchups, teams, sportsEnabled, schedule = [] }: { matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; schedule?: ScheduleEntry[] }) {
   const [sport, setSport] = useState('ALL')
   const [pair, setPair] = useState<{ a: Team; b: Team } | null>(null)
 
@@ -115,7 +116,7 @@ export default function HeadToHead({ matchups, teams, sportsEnabled }: { matchup
                       <tr key={i} className="hover:bg-slate-50">
                         <td className="px-5 py-2"><span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{meta.emoji} {m.sport}</span></td>
                         <td className="px-2 py-2 text-slate-500 text-xs tabular-nums">{m.season ?? '—'}</td>
-                        <td className="px-2 py-2 text-slate-500 text-xs tabular-nums">{m.week ? `Wk ${m.week}` : '—'}</td>
+                        <td className="px-2 py-2 text-slate-500 text-xs tabular-nums">{(() => { const sw = m.week ? sportWeekOf(schedule, m.sport, m.week) : null; return sw ? `Wk ${sw}` : (m.week ? `Wk ${m.week}` : '—') })()}</td>
                         <td className={`px-3 py-2 text-right tabular-nums ${aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(aScore ?? 0).toFixed(1)}</td>
                         <td className={`px-3 py-2 text-right tabular-nums ${!aWon ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{(bScore ?? 0).toFixed(1)}</td>
                         <td className="px-3 py-2 text-xs text-slate-500"><span className="font-semibold text-slate-700">{winner.abbreviation}</span> by {margin}</td>

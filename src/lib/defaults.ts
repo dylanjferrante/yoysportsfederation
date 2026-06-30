@@ -298,6 +298,9 @@ export type ScheduleEntry = { sport: string; phase: string; startWeek: number; e
 // winter mid-Oct, baseball late March). Used to space the phases realistically so
 // e.g. baseball runs spring→late August instead of being crammed into winter.
 const PHASE_CAL_WEEK: Record<string, number> = { FOOTBALL: 36, WINTER: 42, BASEBALL: 12 }
+// Within a shared phase, sports don't all tip off the same week. Hockey starts a
+// couple weeks before basketball, so NBA is offset later inside the Winter phase.
+const SPORT_PHASE_OFFSET: Record<string, number> = { NBA: 2 }
 
 export function buildSchedule(
   seasonStart: string,
@@ -314,8 +317,9 @@ export function buildSchedule(
     for (const sport of sportsEnabled) {
       if (SPORT_PHASE[sport] === phase) {
         const len = seasonWeeks?.[sport] ?? DEFAULT_SEASON_WEEKS[sport] ?? 18
-        // Commissioner may override a sport's start week; otherwise it anchors to its phase.
-        const startWeek = starts?.[sport] && starts[sport] > 0 ? starts[sport] : phaseStart
+        // Commissioner may override a sport's start week; otherwise it anchors to its
+        // phase, plus a within-phase offset (hockey before basketball).
+        const startWeek = starts?.[sport] && starts[sport] > 0 ? starts[sport] : phaseStart + (SPORT_PHASE_OFFSET[sport] ?? 0)
         schedule.push({ sport, phase, startWeek, endWeek: startWeek + len - 1 })
       }
     }
@@ -325,6 +329,15 @@ export function buildSchedule(
 
 export function scheduleWeeks(schedule: ScheduleEntry[]): number {
   return schedule.reduce((max, s) => Math.max(max, s.endWeek), 0)
+}
+
+// A sport's own week number (1-based within its season) for a given federation
+// week — so baseball's "federation week 56" reads as "MLB week 12".
+export function sportWeekOf(schedule: ScheduleEntry[], sport: string, federationWeek: number): number | null {
+  const e = schedule.find(s => s.sport === sport)
+  if (!e) return null
+  const w = federationWeek - e.startWeek + 1
+  return w >= 1 ? w : null
 }
 
 export function sportsActiveInWeek(schedule: ScheduleEntry[], week: number): string[] {
