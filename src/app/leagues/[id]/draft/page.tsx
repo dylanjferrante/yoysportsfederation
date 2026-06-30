@@ -36,13 +36,10 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   const rookies = draftList.filter(d => d.kind === 'ROOKIE')
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← Back</Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Draft Center</h1>
-          <p className="text-sm text-slate-500">{league.name} · {draftTypeLabel(league.draftType ?? 'SNAKE')} · rookie drafts {rookieMode === 'COMBINED' ? 'combined' : 'per sport'}</p>
-        </div>
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900">Draft Center</h1>
+        <p className="text-sm text-slate-500">{draftTypeLabel(league.draftType ?? 'SNAKE')} · rookie drafts {rookieMode === 'COMBINED' ? 'combined' : 'per sport'}</p>
       </div>
 
       {/* Dynasty draft */}

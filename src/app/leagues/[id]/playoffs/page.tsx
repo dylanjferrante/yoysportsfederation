@@ -2,7 +2,6 @@ import { db } from '@/db'
 import { leagues, teams, teamRecords, playoffGames, leagueHistory } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { sportMeta, safeParse, sportLabel, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import TeamChip from '@/components/TeamChip'
@@ -61,13 +60,12 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div>
       <div className="flex items-center gap-3 mb-6">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← Back</Link>
         {league.logoUrl && <img src={league.logoUrl} alt="" className="w-10 h-10 object-contain" />}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Playoff Brackets</h1>
-          <p className="text-sm text-slate-500">{league.name} · top {n} per sport · resolves automatically</p>
+          <p className="text-sm text-slate-500">top {n} per sport · resolves automatically</p>
         </div>
       </div>
 

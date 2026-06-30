@@ -2,7 +2,6 @@ import { db } from '@/db'
 import { leagues, teams, matchups, teamRecords } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { safeParse, orderedSports } from '@/lib/utils'
@@ -30,14 +29,8 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
   const isCommish = league.commissionerId === session?.user?.id
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← Back</Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Scoreboard</h1>
-          <p className="text-sm text-slate-500">{league.name}</p>
-        </div>
-      </div>
+    <div>
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">Scoreboard</h1>
       <ScoresView
         leagueId={id}
         matchups={all as any}

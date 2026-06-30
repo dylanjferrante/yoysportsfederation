@@ -41,14 +41,8 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
     history.find(h => h.season === season && h.scope === scope)?.championTeamId ?? null
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← Back</Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">History & Records</h1>
-          <p className="text-sm text-slate-500">{league.name}</p>
-        </div>
-      </div>
+    <div>
+      <h1 className="text-2xl font-bold text-slate-900 mb-8">History & Records</h1>
 
       {/* Federation champions */}
       <div className="card mb-6">

@@ -37,9 +37,8 @@ export default function LeagueTradeCenter() {
   const completed = trades.filter(t => t.status !== 'PENDING')
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div>
       <div className="flex items-center gap-3 mb-6">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← League</Link>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-slate-900">Trade Center</h1>
           <p className="text-slate-500 text-sm">Propose and manage trades in this league</p>

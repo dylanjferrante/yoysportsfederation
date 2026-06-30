@@ -22,13 +22,10 @@ export default function Marketplace() {
     .sort((a, b) => crossSportValue(b.sport, b.projectedPoints) - crossSportValue(a.sport, a.projectedPoints))
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-5">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← League</Link>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Trade Block</h1>
-          <p className="text-sm text-slate-500">Players around the league flagged as available · {rows.length} listed</p>
-        </div>
+    <div>
+      <div className="mb-5">
+        <h1 className="text-xl font-bold text-slate-900">Trade Block</h1>
+        <p className="text-sm text-slate-500">Players around the league flagged as available · {rows.length} listed</p>
       </div>
 
       <div className="flex gap-1.5 flex-wrap mb-4">

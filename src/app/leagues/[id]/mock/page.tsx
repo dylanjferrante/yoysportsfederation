@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
 type Team = { id: string; name: string; abbreviation: string; primaryColor: string; secondaryColor: string; logo: string | null }
@@ -95,13 +94,10 @@ export default function MockDraft() {
   const myPicks = picks.filter(p => p.slot === mySlot)
 
   return (
-    <div className="max-w-[90rem] mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-5">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← League</Link>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Mock Draft</h1>
-          <p className="text-sm text-slate-500">Practice against auto-drafting bots · nothing is saved</p>
-        </div>
+    <div>
+      <div className="mb-5">
+        <h1 className="text-xl font-bold text-slate-900">Mock Draft</h1>
+        <p className="text-sm text-slate-500">Practice against auto-drafting bots · nothing is saved</p>
       </div>
 
       {!started ? (

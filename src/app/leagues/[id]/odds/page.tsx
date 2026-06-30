@@ -23,7 +23,7 @@ export default function OddsPage() {
 
   useEffect(() => { fetch(`/api/leagues/${id}/odds`).then(r => r.json()).then(setD) }, [id])
 
-  if (!d) return <div className="max-w-4xl mx-auto px-4 py-8"><div className="card p-10 text-center text-slate-400 text-sm">Simulating season…</div></div>
+  if (!d) return <div className="card p-10 text-center text-slate-400 text-sm">Simulating season…</div>
 
   const tname = Object.fromEntries(d.teams.map(t => [t.id, t]))
   const odds = d.odds
@@ -38,13 +38,10 @@ export default function OddsPage() {
     .sort((a, b) => b.title - a.title || b.po - a.po) : []
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-5">
-        <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← League</Link>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Playoff & Championship Odds</h1>
-          <p className="text-sm text-slate-500">Rest-of-season Monte-Carlo projection{odds ? ` · ${odds.sims.toLocaleString()} simulations` : ''}</p>
-        </div>
+    <div>
+      <div className="mb-5">
+        <h1 className="text-xl font-bold text-slate-900">Playoff & Championship Odds</h1>
+        <p className="text-sm text-slate-500">Rest-of-season Monte-Carlo projection{odds ? ` · ${odds.sims.toLocaleString()} simulations` : ''}</p>
       </div>
 
       {!odds ? (
