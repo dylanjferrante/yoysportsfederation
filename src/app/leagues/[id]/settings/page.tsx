@@ -48,6 +48,7 @@ export default function CommissionerSettings() {
   const [teamError, setTeamError] = useState<string>('')
   const [newFr, setNewFr] = useState({ name: '', abbreviation: '', ownerName: '', ownerEmail: '' })
   const [addingFr, setAddingFr] = useState(false)
+  const [dynasty, setDynasty] = useState<{ id: string; status: string } | null>(null)
 
   const parse = (s: any, f: any) => { try { return JSON.parse(s) } catch { return f } }
 
@@ -96,6 +97,7 @@ export default function CommissionerSettings() {
       setBreakWeeks(parse(l.breakWeeks, {}))
       setFed(parse(l.federationScoring, { placement: [], championBonus: 3, regularSeasonBonus: 1, includedSports: se }))
     })
+    fetch(`/api/leagues/${params.id}/dynasty`).then(r => r.json()).then(d => setDynasty(d.draft ?? null))
   }, [params.id])
 
   if (!league) return <div className="flex items-center justify-center min-h-64 text-slate-400">Loading…</div>
@@ -686,16 +688,33 @@ export default function CommissionerSettings() {
         {tab === 'Draft' && (
           <>
             <h3 className="font-semibold text-slate-900">Draft</h3>
+
+            {/* Initial (dynasty) draft — locked once completed */}
+            {(() => {
+              const locked = dynasty?.status === 'COMPLETED'
+              return (
+                <div className={`rounded-xl border p-3 ${locked ? 'border-slate-200 bg-slate-50' : 'border-blue-200 bg-blue-50/40'}`}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-slate-800">Initial Dynasty Draft</span>
+                    {dynasty && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${locked ? 'bg-slate-200 text-slate-600' : dynasty.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{dynasty.status}</span>}
+                    {locked && <button onClick={async () => { if (confirm('Reset the dynasty draft? This clears all dynasty picks and drafted rosters so settings can be edited and the draft re-run.')) { await fetch(`/api/leagues/${params.id}/dynasty`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESET' }) }); const d = await (await fetch(`/api/leagues/${params.id}/dynasty`)).json(); setDynasty(d.draft ?? null) } }} className="ml-auto btn-secondary text-xs text-red-600 border-red-200">Reset draft</button>}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">{locked ? 'These settings are locked because the dynasty draft is complete. Reset the draft to make changes.' : 'Configure the one-time initial draft. Settings lock automatically once it finishes.'}</p>
+                </div>
+              )
+            })()}
+
+            {(() => { const locked = dynasty?.status === 'COMPLETED'; return (
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Draft Type</label>
-                <select className="select" value={form.draftType ?? 'SNAKE'} onChange={e => set('draftType', e.target.value)}>
+                <select className="select" disabled={locked} value={form.draftType ?? 'SNAKE'} onChange={e => set('draftType', e.target.value)}>
                   <option value="SNAKE">Snake</option><option value="AUCTION">Auction</option><option value="LINEAR">Linear</option>
                 </select>
               </div>
               <div>
                 <label className="label">Dynasty Draft Date</label>
-                <input type="datetime-local" className="input" value={form.draftDate ?? ''} onChange={e => set('draftDate', e.target.value)} />
+                <input type="datetime-local" disabled={locked} className="input" value={form.draftDate ?? ''} onChange={e => set('draftDate', e.target.value)} />
               </div>
               <div>
                 <label className="label">Rookie Draft Format</label>
@@ -706,7 +725,7 @@ export default function CommissionerSettings() {
               </div>
               <div>
                 <label className="label">Draft Order Method</label>
-                <select className="select" value={form.draftOrderMethod ?? 'REVERSE_STANDINGS'} onChange={e => set('draftOrderMethod', e.target.value)}>
+                <select className="select" disabled={locked} value={form.draftOrderMethod ?? 'REVERSE_STANDINGS'} onChange={e => set('draftOrderMethod', e.target.value)}>
                   <option value="REVERSE_STANDINGS">Reverse standings</option>
                   <option value="LOTTERY">Weighted lottery (anti-tank)</option>
                   <option value="RANDOM">Randomized</option>
@@ -715,13 +734,14 @@ export default function CommissionerSettings() {
               </div>
               <div>
                 <label className="label">Seconds Per Pick</label>
-                <input type="number" min={15} max={600} className="input" value={form.secondsPerPick ?? 90} onChange={e => set('secondsPerPick', +e.target.value)} />
+                <input type="number" min={15} max={600} disabled={locked} className="input" value={form.secondsPerPick ?? 90} onChange={e => set('secondsPerPick', +e.target.value)} />
               </div>
               <div>
                 <label className="label">Tradeable Future Pick Years</label>
                 <input type="number" min={0} max={7} className="input" value={form.tradeablePickYears ?? 3} onChange={e => set('tradeablePickYears', +e.target.value)} />
               </div>
             </div>
+            ) })()}
 
             {/* Rookie draft date(s) — per sport when drafts run per sport */}
             <div className="border-t border-slate-100 pt-4">
