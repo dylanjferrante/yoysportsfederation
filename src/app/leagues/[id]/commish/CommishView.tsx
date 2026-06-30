@@ -46,7 +46,7 @@ export default function CommishView({ leagueId, leagueName }: { leagueId: string
   return (
     <div className="max-w-5xl mx-auto pb-16">
       <div className="flex items-center gap-2 mb-1">
-        <h1 className="text-xl font-bold text-slate-900">⚖️ Commissioner Tools</h1>
+        <h1 className="text-xl font-bold text-slate-900">Commissioner Tools</h1>
         {!data.isPrimaryCommissioner && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Co-Commissioner</span>}
       </div>
       <p className="text-sm text-slate-500 mb-5">{leagueName} · every action is recorded in the audit log.</p>
@@ -84,7 +84,7 @@ function Announce({ post, invite }: { post: any; invite: string | null }) {
   return (
     <div className="space-y-4">
       <div className={card}>
-        <h2 className="font-semibold text-slate-800 mb-2">📣 League Announcement</h2>
+        <h2 className="font-semibold text-slate-800 mb-2">League Announcement</h2>
         <p className="text-xs text-slate-500 mb-2">Posts to the activity feed and notifies every member.</p>
         <textarea className="input w-full text-sm" rows={3} maxLength={1000} value={msg} onChange={e => setMsg(e.target.value)} placeholder="Playoffs start next week — set your lineups!" />
         <div className="mt-2 flex justify-end">
@@ -92,7 +92,7 @@ function Announce({ post, invite }: { post: any; invite: string | null }) {
         </div>
       </div>
       <div className={card}>
-        <h2 className="font-semibold text-slate-800 mb-2">🔗 Invite Code</h2>
+        <h2 className="font-semibold text-slate-800 mb-2">Invite Code</h2>
         <div className="flex items-center gap-3">
           <span className="font-mono font-semibold tracking-wider text-slate-700 text-lg">{invite ?? '—'}</span>
           <button onClick={() => post({ action: 'ROTATE_INVITE' }, 'Invite code rotated')} className={`${btn} bg-slate-100 text-slate-700 hover:bg-slate-200`}>Rotate (revoke old)</button>
@@ -106,7 +106,7 @@ function Announce({ post, invite }: { post: any; invite: string | null }) {
 function Members({ data, post }: { data: Data; post: any }) {
   return (
     <div className={card}>
-      <h2 className="font-semibold text-slate-800 mb-1">👥 Members & Co-Commissioners</h2>
+      <h2 className="font-semibold text-slate-800 mb-1">Members & Co-Commissioners</h2>
       <p className="text-xs text-slate-500 mb-3">{data.isPrimaryCommissioner ? 'Grant co-commissioners full access to these tools.' : 'Only the primary commissioner can change roles.'}</p>
       <div className="divide-y divide-slate-100">
         {data.members.map(m => (
@@ -276,8 +276,8 @@ function Season({ season, post }: { season: string; post: any }) {
   return (
     <div className={`${card} space-y-3`}>
       <div>
-        <h2 className="font-semibold text-slate-800">📅 Current Season — {season}</h2>
-        <p className="text-xs text-slate-500 mt-1">Archiving snapshots every franchise's current logo, name, and colors so past-season pages always show the branding used <b>that</b> season. Starting the next season carries over rosters (dynasty), resets records, and builds a fresh schedule.</p>
+        <h2 className="font-semibold text-slate-800">Current Season — {season}</h2>
+        <p className="text-xs text-slate-500 mt-1">Archiving snapshots every club's current logo, name, and colors so past-season pages always show the branding used <b>that</b> season. Starting the next season carries over rosters (dynasty), resets records, and builds a fresh schedule.</p>
       </div>
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => post({ action: 'ARCHIVE_SEASON' }, `Archived ${season} branding`)} className={`${btn} bg-slate-100 text-slate-700 hover:bg-slate-200`}>Archive {season} branding</button>
@@ -292,7 +292,7 @@ function Audit({ actions }: { actions: Action[] }) {
   if (!actions.length) return <div className={`${card} text-slate-500 text-sm`}>No commissioner actions yet.</div>
   return (
     <div className={card}>
-      <h2 className="font-semibold text-slate-800 mb-3">🧾 Audit Log</h2>
+      <h2 className="font-semibold text-slate-800 mb-3">Audit Log</h2>
       <div className="divide-y divide-slate-100">
         {actions.map(a => (
           <div key={a.id} className="py-2 text-sm flex items-start gap-3">

@@ -55,7 +55,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
               <Link href={`/leagues/${id}/draft/${d.id}`} className="btn-secondary text-xs py-1">View Board</Link>
             </div>
           </div>
-          {d.status === 'COMPLETED' && <p className="text-xs text-slate-400 mt-2">Completed — current franchise rosters reflect the results.</p>}
+          {d.status === 'COMPLETED' && <p className="text-xs text-slate-400 mt-2">Completed — current club rosters reflect the results.</p>}
         </div>
       ))}
 
@@ -67,7 +67,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
           <div key={d.id} className="card">
             <div className="card-header flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-semibold text-slate-900">
-                {d.scope === 'OVERALL' ? '🏆 Combined' : `${sportMeta(d.scope).emoji} ${d.scope}`} Rookie Draft · {d.season}
+                {d.scope === 'OVERALL' ? 'Combined' : `${sportMeta(d.scope).emoji} ${d.scope}`} Rookie Draft · {d.season}
               </h3>
               <div className="flex items-center gap-2">
                 {d.startsAt && <span className="text-xs text-slate-400">{new Date(d.startsAt).toLocaleDateString()}</span>}

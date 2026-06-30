@@ -91,7 +91,7 @@ export default function SideGames() {
             <div className="card overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100">
                 <h2 className="font-semibold text-slate-900">High-Score Pool</h2>
-                <p className="text-xs text-slate-400">Each week, the franchise with the single highest score earns a point. Auto-scored.</p>
+                <p className="text-xs text-slate-400">Each week, the club with the single highest score earns a point. Auto-scored.</p>
               </div>
               {d.standings.highScore.length === 0 ? <p className="px-4 py-8 text-center text-slate-400 text-sm">No completed weeks yet.</p> : (
                 <ol className="divide-y divide-slate-50">
@@ -112,7 +112,7 @@ export default function SideGames() {
               <div className="card overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
                   <h2 className="font-semibold text-slate-900">Survivor standings</h2>
-                  <p className="text-xs text-slate-400">Pick one winner each week — a franchise can only be used once. One loss and you&apos;re out.</p>
+                  <p className="text-xs text-slate-400">Pick one winner each week — a club can only be used once. One loss and you&apos;re out.</p>
                 </div>
                 {d.standings.survivor.length === 0 ? <p className="px-4 py-8 text-center text-slate-400 text-sm">No picks yet.</p> : (
                   <ul className="divide-y divide-slate-50">

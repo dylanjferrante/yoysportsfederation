@@ -129,9 +129,9 @@ export default function MockDraft() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="label mb-0">Draft order — pick your slot</label>
-              <button onClick={randomize} className="btn-secondary text-xs">🎲 Randomize</button>
+              <button onClick={randomize} className="btn-secondary text-xs">Randomize</button>
             </div>
-            <p className="text-[11px] text-slate-400 mb-1">Drag to reorder, or pick a team&apos;s position from its dropdown.</p>
+            <p className="text-[11px] text-slate-400 mb-1">Drag to reorder, or pick a club&apos;s position from its dropdown.</p>
             <ol className="space-y-1">
               {order.map((t, i) => (
                 <li key={t.id}

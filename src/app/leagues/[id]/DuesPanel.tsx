@@ -30,7 +30,7 @@ export default function DuesPanel({ leagueId, isCommissioner }: { leagueId: stri
     <div className="card mt-8">
       <div className="card-header flex items-center justify-between">
         <h2 className="font-semibold text-slate-900">League Dues</h2>
-        <span className="text-sm text-slate-500">${collected} / ${total} collected · ${amount} per franchise</span>
+        <span className="text-sm text-slate-500">${collected} / ${total} collected · ${amount} per club</span>
       </div>
       <ul className="divide-y divide-slate-50">
         {members.map(m => (

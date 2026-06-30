@@ -60,7 +60,7 @@ export default async function SeasonsPage({ params, searchParams }: { params: Pr
 
   return (
     <div className="max-w-4xl mx-auto pb-16">
-      <h1 className="text-xl font-bold text-slate-900 mb-1">📅 Seasons</h1>
+      <h1 className="text-xl font-bold text-slate-900 mb-1">Seasons</h1>
       <p className="text-sm text-slate-500 mb-4">Browse past seasons. Logos and names shown are the ones used <b>during that season</b>.</p>
 
       <div className="flex gap-1 flex-wrap mb-5">
@@ -83,7 +83,7 @@ export default async function SeasonsPage({ params, searchParams }: { params: Pr
 
       {fedChampId && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 flex items-center gap-3">
-          <span className="text-2xl">🏆</span>
+          <span className="text-2xl"></span>
           <TeamLogo logo={branding[fedChampId]?.logo ?? null} name={branding[fedChampId]?.name ?? ''} abbr={branding[fedChampId]?.abbreviation ?? ''} color={branding[fedChampId]?.primaryColor ?? null} bg={branding[fedChampId]?.logoBg ?? 0} />
           <div>
             <div className="text-xs text-amber-700 font-medium uppercase tracking-wide">{season} Federation Champion</div>
@@ -101,12 +101,12 @@ export default async function SeasonsPage({ params, searchParams }: { params: Pr
             <div key={tid} className="flex items-center gap-3 p-3">
               <TeamLogo logo={b.logo} name={b.name} abbr={b.abbreviation} color={b.primaryColor} bg={b.logoBg} />
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-slate-800 flex items-center gap-2">{b.name}{tid === fedChampId && <span className="text-amber-500">🏆</span>}</div>
+                <div className="font-medium text-slate-800 flex items-center gap-2">{b.name}{tid === fedChampId && <span className="text-amber-500"></span>}</div>
                 {rec && (rec.w + rec.l > 0) ? <div className="text-xs text-slate-400">{rec.w}-{rec.l}</div> : <div className="text-xs text-slate-300">—</div>}
               </div>
               <div className="flex items-center gap-3 justify-end">
                 <div className="flex gap-1 flex-wrap justify-end">
-                  {rec?.titles.map(s => <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">🏆 {s}</span>)}
+                  {rec?.titles.map(s => <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{s}</span>)}
                 </div>
                 <div className="text-right w-14 flex-shrink-0">
                   <div className="font-bold text-slate-900 tabular-nums leading-none">{(fedPts[tid] ?? 0).toFixed(0)}</div>

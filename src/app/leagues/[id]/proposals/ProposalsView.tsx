@@ -33,7 +33,7 @@ export default function ProposalsView({ leagueId }: { leagueId: string }) {
   return (
     <div className="max-w-3xl mx-auto pb-16 space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">🗳️ Proposals & Voting</h1>
+        <h1 className="text-xl font-bold text-slate-900">Proposals & Voting</h1>
         <p className="text-sm text-slate-500">
           {data.settings.policy === 'COMMISH' ? 'Only the commissioner can post proposals.' : 'Any member can post a proposal.'}{' '}
           Pass needs <b>{data.settings.threshold}%</b> yes{data.settings.quorum > 0 ? <> · quorum <b>{data.settings.quorum}</b> votes</> : null} · {data.settings.durationDays}-day window.
@@ -59,7 +59,7 @@ function VotingSettings({ settings, post }: { settings: Settings; post: any }) {
   return (
     <div className={card}>
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between text-sm font-semibold text-slate-700">
-        <span>⚙️ Voting rules (commissioner)</span><span className="text-slate-400">{open ? '▲' : '▼'}</span>
+        <span>Voting rules (commissioner)</span><span className="text-slate-400">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">

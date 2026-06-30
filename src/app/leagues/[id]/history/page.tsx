@@ -67,7 +67,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
       {/* Federation champions */}
       <div className="card mb-6">
         <div className="card-header flex items-center gap-2">
-          {champLogos['FED'] ? <img src={champLogos['FED']} alt="" className="w-7 h-7 object-contain" /> : <span>🏆</span>}
+          {champLogos['FED'] ? <img src={champLogos['FED']} alt="" className="w-7 h-7 object-contain" /> : <span></span>}
           <h2 className="font-semibold text-slate-900">{champNames['FED'] || `${league.name} Champions`}</h2>
         </div>
         <div className="divide-y divide-slate-50">
@@ -106,11 +106,11 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
 
       {/* All-time records */}
       <div className="card overflow-x-auto">
-        <div className="card-header"><h2 className="font-semibold text-slate-900">All-Time Franchise Records</h2></div>
+        <div className="card-header"><h2 className="font-semibold text-slate-900">All-Time Club Records</h2></div>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-4 py-2 font-medium">Franchise</th>
+              <th className="text-left px-4 py-2 font-medium">Club</th>
               <th className="text-center px-3 py-2 font-medium">All-Time W-L</th>
               <th className="text-center px-3 py-2 font-medium">Sport Titles</th>
               <th className="text-center px-3 py-2 font-medium">Fed Titles</th>

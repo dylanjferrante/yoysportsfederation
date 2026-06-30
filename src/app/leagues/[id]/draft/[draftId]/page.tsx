@@ -102,8 +102,8 @@ export default function DraftRoom() {
               <p className="text-slate-700">On the clock: <span className="font-bold text-slate-900">{onClock.name}</span>{myTurn && <span className="ml-2 text-green-600 font-semibold">— your pick!</span>}</p>
             </div>
           )}
-          {d.status === 'COMPLETED' && <p className="text-slate-600 font-medium">Draft complete 🎉</p>}
-          {d.status === 'PAUSED' && <p className="text-amber-600 font-semibold">⏸ Draft paused by commissioner</p>}
+          {d.status === 'COMPLETED' && <p className="text-slate-600 font-medium">Draft complete</p>}
+          {d.status === 'PAUSED' && <p className="text-amber-600 font-semibold">Draft paused by commissioner</p>}
         </div>
         <div className="flex items-center gap-2">
           {d.status === 'PENDING' && s.isCommish && <button onClick={() => setOrderEdit(orderEdit ? null : [...(s.order ?? [])])} className="btn-secondary text-sm">{orderEdit ? 'Close order' : 'Set draft order'}</button>}
@@ -128,7 +128,7 @@ export default function DraftRoom() {
           )}
           {s.isCommish && d.status !== 'PENDING' && (
             <button onClick={async () => {
-              if (!confirm('⚠️ Reset this draft?\n\nEvery pick is cleared and all players drafted here are removed from rosters. This cannot be undone.')) return
+              if (!confirm('Reset this draft?\n\nEvery pick is cleared and all players drafted here are removed from rosters. This cannot be undone.')) return
               if (!confirm('Are you absolutely sure? The draft will reopen to PENDING and must be re-run.')) return
               if (prompt('Final confirmation — type RESET to proceed.') !== 'RESET') return
               setBusy(true)
@@ -145,7 +145,7 @@ export default function DraftRoom() {
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-slate-900">Set Draft Order</h3>
             <div className="flex gap-2">
-              <button onClick={() => setOrderEdit([...orderEdit].sort(() => Math.random() - 0.5))} className="btn-secondary text-xs">🎲 Shuffle</button>
+              <button onClick={() => setOrderEdit([...orderEdit].sort(() => Math.random() - 0.5))} className="btn-secondary text-xs">Shuffle</button>
               <button disabled={busy} onClick={async () => { await action({ action: 'SET_ORDER', order: orderEdit.map((o: any) => o.id) }); setOrderEdit(null) }} className="btn-primary text-xs">Save order</button>
             </div>
           </div>

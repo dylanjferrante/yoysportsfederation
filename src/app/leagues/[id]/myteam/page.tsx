@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm'
 import Link from 'next/link'
 import FranchiseView from '@/components/FranchiseView'
 
-export const metadata = { title: 'My Team' }
+export const metadata = { title: 'My Club' }
 
 // Renders the user's franchise inline within the league layout (not a separate page).
 export default async function MyTeamPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,8 +19,8 @@ export default async function MyTeamPage({ params }: { params: Promise<{ id: str
   if (!myTeam) {
     return (
       <div className="card p-8 text-center text-slate-500">
-        You don&apos;t have a franchise in this league.{' '}
-        <Link href={`/leagues/${id}/teams`} className="text-blue-600 hover:underline">Browse teams →</Link>
+        You don&apos;t have a club in this league.{' '}
+        <Link href={`/leagues/${id}/teams`} className="text-blue-600 hover:underline">Browse clubs →</Link>
       </div>
     )
   }
