@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, matchups, activity } from '@/db/schema'
+import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, matchups, activity, dailyLineups } from '@/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
-import { slotEligible, irEligible, defaultIrDesignations } from '@/lib/defaults'
+import { slotEligible, irEligible, defaultIrDesignations, lineupCadenceFor } from '@/lib/defaults'
+import { weekDates, gameDateOf, teamDayLineups } from '@/lib/dailylineup'
 import { logActivity } from '@/lib/activity'
 import { realOpponents } from '@/lib/realschedule'
 import { scheduleOpponents, scheduleKickoffs } from '@/lib/schedule'
@@ -92,8 +93,23 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       opp: r.realTeamAbbr ? (oppMaps[r.sport]?.[r.realTeamAbbr] ?? null) : null,
       kickoff,
       locked: kickoff != null && Date.now() >= kickoff,
+      gameDate: gameDateOf(r.sport, r.realTeamAbbr, season, wk),
     }
   }).sort((x, y) => (y.seasonPoints ?? 0) - (x.seasonPoints ?? 0))
+
+  // Lineup cadence per sport (NFL weekly, others daily by default) + the current
+  // week's calendar dates and the team's per-day lineup overrides for daily sports.
+  const cadRaw = safeParse<Record<string, string>>(league?.lineupCadence, {})
+  const cadence: Record<string, string> = {}
+  const sportWeekDates: Record<string, string[]> = {}
+  const dailyOverrides: Record<string, Record<string, Record<string, string>>> = {}
+  for (const sp of sportsOnRoster) {
+    cadence[sp] = lineupCadenceFor(cadRaw, sp)
+    if (cadence[sp] !== 'DAILY') continue
+    const dates = weekDates(season, curWeek[sp] ?? 1)
+    sportWeekDates[sp] = dates
+    dailyOverrides[sp] = await teamDayLineups(team.leagueId, id, season, sp, dates)
+  }
 
   picks.sort((a, b) => a.year - b.year || (a.sport ?? '').localeCompare(b.sport ?? '') || a.round - b.round)
 
@@ -109,6 +125,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   return NextResponse.json({
     team, players: enriched, picks, managers,
+    cadence, weekDates: sportWeekDates, dailyLineups: dailyOverrides,
     rosterSettings: safeParse(league?.rosterSettings, {}),
     keeperEnabled: !!league?.keeperEnabled, keeperCount: league?.keeperCount ?? 0,
     salaryCapEnabled: !!league?.salaryCapEnabled, salaryCap: league?.salaryCap ?? 0, capMode: league?.capMode ?? 'SOFT',
@@ -128,12 +145,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (team.userId !== session.user.id && league?.commissionerId !== session.user.id && !(await isTeamManager(id, session.user.id)))
     return NextResponse.json({ error: 'Not your franchise' }, { status: 403 })
 
-  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean; isKeeper?: boolean; salary?: number; contractYears?: number }
+  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean; isKeeper?: boolean; salary?: number; contractYears?: number; date?: string }
 
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
     // Validate the player is eligible for the requested slot.
     const [row] = await db
-      .select({ sport: rosters.sport, slot: rosters.slot, position: players.position, status: players.status, realTeamAbbr: players.realTeamAbbr, isRookie: players.isRookie })
+      .select({ playerId: rosters.playerId, sport: rosters.sport, slot: rosters.slot, position: players.position, status: players.status, realTeamAbbr: players.realTeamAbbr, isRookie: players.isRookie })
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
       .where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
     if (!row) return NextResponse.json({ error: 'Not on roster' }, { status: 400 })
@@ -163,6 +180,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Taxi-squad eligibility (e.g. rookies only).
     if (body.slot === 'TAXI' && (league?.taxiEligibility ?? 'ALL') === 'ROOKIES' && !row.isRookie) {
       return NextResponse.json({ error: 'Only rookies may be placed on the taxi squad in this league' }, { status: 400 })
+    }
+    // Daily-cadence sports: a dated move sets that one calendar day's lineup
+    // (leaving the standing lineup, and every other day, untouched). A move with
+    // no date sets the standing lineup that every un-overridden day inherits.
+    const cadence = lineupCadenceFor(safeParse<Record<string, string>>(league?.lineupCadence, {}), row.sport)
+    if (body.date && cadence === 'DAILY') {
+      await db.insert(dailyLineups)
+        .values({ id: nanoid(), leagueId: team.leagueId, teamId: id, season: league?.season ?? '', sport: row.sport, date: body.date, playerId: row.playerId, slot: body.slot })
+        .onConflictDoUpdate({ target: [dailyLineups.teamId, dailyLineups.season, dailyLineups.sport, dailyLineups.date, dailyLineups.playerId], set: { slot: body.slot } })
+      return NextResponse.json({ ok: true })
     }
     await db.update(rosters).set({ slot: body.slot }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     return NextResponse.json({ ok: true })
