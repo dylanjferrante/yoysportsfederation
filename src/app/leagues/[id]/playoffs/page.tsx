@@ -122,7 +122,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
                         </div>
                         <div className="mt-3 border-2 border-amber-200 bg-amber-50 rounded-xl px-4 py-3 flex flex-col items-center gap-1.5 min-w-[8rem]">
                           {champTeam?.logo
-                            ? <img src={champTeam.logo} alt="" className="w-12 h-12 object-contain" style={champTeam.logoBg ? { background: champTeam.primaryColor } : undefined} />
+                            ? <img src={champTeam.logo} alt="" className="w-12 h-12 object-contain" style={champTeam.logoBg ? { background: champTeam.primaryColor ?? undefined } : undefined} />
                             : <span className="w-12 h-12 flex items-center justify-center text-sm font-black" style={{ background: champTeam?.secondaryColor ?? '#fde68a', color: champTeam?.primaryColor ?? '#92400e' }}>{champTeam?.abbreviation ?? 'TBD'}</span>}
                           <span className="text-sm font-bold text-amber-800 text-center">{champTeam?.name ?? 'TBD'}</span>
                         </div>
