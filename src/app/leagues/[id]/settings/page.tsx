@@ -257,7 +257,7 @@ export default function CommissionerSettings() {
                 <div className="flex items-center gap-3">
                   <input className="input flex-1" placeholder="https://…/logo.png" value={form.logoUrl ?? ''} onChange={e => set('logoUrl', e.target.value)} />
                   {form.logoUrl
-                    ? <img src={form.logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover bg-slate-100 flex-shrink-0" />
+                    ? <img src={form.logoUrl} alt="" className="w-12 h-12 object-cover bg-slate-100 flex-shrink-0" />
                     : <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">🏆</div>}
                 </div>
               </div>
@@ -473,7 +473,7 @@ export default function CommissionerSettings() {
                   <div key={s} className="flex items-center gap-2">
                     <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
                     <input className="input flex-1 text-sm" placeholder="https://…" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
-                    {divisionLogos[s] && <img src={divisionLogos[s]} alt="" className="w-8 h-8 rounded object-cover bg-slate-100" />}
+                    {divisionLogos[s] && <img src={divisionLogos[s]} alt="" className="w-8 h-8 object-cover bg-slate-100" />}
                   </div>
                 ))}
               </div>
@@ -498,7 +498,7 @@ export default function CommissionerSettings() {
                       <input className="input text-sm" placeholder="Championship name" value={champNames[s] ?? ''} onChange={e => setChampNames(d => ({ ...d, [s]: e.target.value }))} />
                       <div className="flex items-center gap-2">
                         <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos[s] ?? ''} onChange={e => setChampLogos(d => ({ ...d, [s]: e.target.value }))} />
-                        {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 rounded object-cover bg-slate-100" />}
+                        {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 object-cover bg-slate-100" />}
                       </div>
                     </div>
                   </div>
