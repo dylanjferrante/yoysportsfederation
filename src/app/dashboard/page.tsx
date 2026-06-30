@@ -83,7 +83,7 @@ export default async function DashboardPage() {
             <div key={league.id} className="card p-5">
               <div className="flex items-center gap-3 mb-3">
                 {league.logoUrl
-                  ? <img src={league.logoUrl} alt="" className="w-11 h-11 rounded-xl object-cover bg-slate-100" />
+                  ? <img src={league.logoUrl} alt="" className="w-11 h-11 object-cover bg-slate-100" />
                   : <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xl">🏆</div>}
                 <div className="flex-1 min-w-0">
                   <Link href={`/leagues/${league.id}`} className="font-semibold text-slate-900 hover:text-blue-600">{league.name}</Link>

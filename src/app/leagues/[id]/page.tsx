@@ -78,7 +78,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           {league.logoUrl
-            ? <img src={league.logoUrl} alt="" className="w-16 h-16 rounded-2xl object-cover bg-slate-100 flex-shrink-0" />
+            ? <img src={league.logoUrl} alt="" className="w-16 h-16 object-cover bg-slate-100 flex-shrink-0" />
             : <div className="w-16 h-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-3xl flex-shrink-0">🏆</div>}
           <div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">

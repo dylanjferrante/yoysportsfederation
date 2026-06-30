@@ -58,7 +58,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
       <div className="rounded-2xl p-6 mb-6 text-white" style={{ background: `linear-gradient(135deg, ${meta.hex} 0%, ${meta.hex}cc 100%)` }}>
         <div className="flex items-center gap-4 flex-wrap">
           {p.photoUrl
-            ? <img src={p.photoUrl} alt="" className="w-16 h-16 rounded-2xl object-cover bg-white/15" />
+            ? <img src={p.photoUrl} alt="" className="w-16 h-16 object-cover bg-white/15" />
             : <div className="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center text-xl font-black">{p.name.split(' ').map(w => w[0]).slice(0, 2).join('')}</div>}
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">

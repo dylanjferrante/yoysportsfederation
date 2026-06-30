@@ -228,7 +228,7 @@ export default function DraftRoom() {
                 <div key={t.id} className="w-36 h-12 flex-shrink-0 rounded-lg px-2 flex items-center gap-1.5"
                   style={{ background: t.primaryColor || '#0f172a', color: t.secondaryColor || '#fff' }}>
                   {t.logo
-                    ? <img src={t.logo} alt="" className="w-6 h-6 rounded object-cover flex-shrink-0" />
+                    ? <img src={t.logo} alt="" className="w-6 h-6 object-cover flex-shrink-0" />
                     : <span className="w-6 h-6 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: t.secondaryColor || '#fff', color: t.primaryColor || '#0f172a' }}>{(t.abbreviation || t.name || '?').slice(0, 2).toUpperCase()}</span>}
                   <span className="text-[11px] font-bold leading-tight line-clamp-2">{t.name}</span>
                 </div>
