@@ -73,7 +73,7 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
     const b = branding?.[f.team.id]
     return {
       id: f.team.id, name: b?.name ?? f.team.name, abbreviation: b?.abbreviation ?? f.team.abbreviation,
-      logo: b ? b.logo : f.team.logo, owner: f.userName,
+      logo: b ? b.logo : f.team.logo, altLogo: (b as any)?.altLogo ?? f.team.altLogo, owner: f.userName,
       primaryColor: b?.primaryColor ?? f.team.primaryColor, secondaryColor: b?.secondaryColor ?? f.team.secondaryColor, division: f.team.division ?? null,
     }
   })
@@ -96,6 +96,7 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
         sportNames={safeParse<Record<string, string>>(league.sportNames, {})}
         sportAbbr={safeParse<Record<string, string>>(league.sportAbbr, {})}
         divisionLogos={safeParse<Record<string, string>>(league.divisionLogos, {})}
+        divisionLogosAlt={safeParse<Record<string, string>>(league.divisionLogosAlt, {})}
         divisionLogoBg={safeParse<Record<string, boolean>>(league.divisionLogoBg, {})}
         championshipColors={safeParse<Record<string, { p?: string; s?: string }>>(league.championshipColors, {})}
       />
