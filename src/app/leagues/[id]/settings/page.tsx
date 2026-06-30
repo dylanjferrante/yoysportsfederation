@@ -60,7 +60,7 @@ export default function CommissionerSettings() {
         id: t.team.id,
         name: t.team.name, abbreviation: t.team.abbreviation,
         logo: t.team.logo ?? '', wordmark: t.team.wordmark ?? '',
-        primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6',
+        primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6', logoBg: t.team.logoBg ?? false,
         ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '', division: t.team.division ?? null,
       })))
       const se = parse(l.sportsEnabled, ALL_SPORTS)
@@ -147,7 +147,7 @@ export default function CommissionerSettings() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: f.name, abbreviation: f.abbreviation, logo: f.logo, wordmark: f.wordmark,
-        primaryColor: f.primaryColor, secondaryColor: f.secondaryColor,
+        primaryColor: f.primaryColor, secondaryColor: f.secondaryColor, logoBg: !!f.logoBg,
         ownerName: f.ownerName, ownerEmail: f.ownerEmail, division: f.division,
       }),
     })
@@ -165,7 +165,7 @@ export default function CommissionerSettings() {
     setFranchises((d.teams ?? []).map((t: any) => ({
       id: t.team.id, name: t.team.name, abbreviation: t.team.abbreviation,
       logo: t.team.logo ?? '', wordmark: t.team.wordmark ?? '',
-      primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6',
+      primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6', logoBg: t.team.logoBg ?? false,
       ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '',
     })))
   }
@@ -337,6 +337,7 @@ export default function CommissionerSettings() {
                         <label className="label">Secondary</label>
                         <input type="color" className="h-10 w-14 rounded border border-slate-200 bg-white p-0.5" value={f.secondaryColor} onChange={e => setFranchise(f.id, { secondaryColor: e.target.value })} />
                       </div>
+                      <label className="flex items-center gap-2 text-xs text-slate-600 self-end pb-2"><input type="checkbox" checked={!!f.logoBg} onChange={e => setFranchise(f.id, { logoBg: e.target.checked })} /> Logo on primary bg</label>
                     </div>
                     <div><label className="label">Owner Name</label><input className="input" value={f.ownerName} onChange={e => setFranchise(f.id, { ownerName: e.target.value })} /></div>
                     <div><label className="label">Owner Email</label><input className="input" type="email" value={f.ownerEmail} onChange={e => setFranchise(f.id, { ownerEmail: e.target.value })} /></div>
@@ -503,6 +504,17 @@ export default function CommissionerSettings() {
                     </div>
                   </div>
                 ))}
+                {/* Federation (overall) championship */}
+                <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
+                  <div className="flex items-center gap-2 mb-2"><span className="text-xs font-bold text-amber-600">🏆 Federation Championship</span></div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <input className="input text-sm" placeholder={`Championship name (e.g. ${form.name ?? 'Nexus'} Cup)`} value={champNames['FED'] ?? ''} onChange={e => setChampNames(d => ({ ...d, FED: e.target.value }))} />
+                    <div className="flex items-center gap-2">
+                      <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos['FED'] ?? ''} onChange={e => setChampLogos(d => ({ ...d, FED: e.target.value }))} />
+                      {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-7 h-7 object-cover bg-slate-100" />}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </>

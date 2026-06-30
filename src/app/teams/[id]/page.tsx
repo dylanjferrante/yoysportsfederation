@@ -111,7 +111,7 @@ export default function TeamPage() {
       {/* Branded header */}
       <div className="rounded-2xl p-5 mb-6 flex items-center gap-4 flex-wrap" style={{ background: `linear-gradient(135deg, ${team.primaryColor} 0%, ${team.secondaryColor} 140%)` }}>
         {team.logo
-          ? <img src={team.logo} alt="" className="w-16 h-16 object-cover bg-white/10" />
+          ? <img src={team.logo} alt="" className="w-16 h-16 object-contain bg-white/10" style={(team as any).logoBg ? { background: team.primaryColor } : undefined} />
           : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-white/90" style={{ backgroundColor: team.secondaryColor }}>{team.abbreviation}</div>}
         <div className="flex-1 min-w-0">
           {team.wordmark && team.wordmark.startsWith('http')
@@ -124,7 +124,7 @@ export default function TeamPage() {
         </div>
         {team.altLogo && <img src={team.altLogo} alt="" className="w-12 h-12 object-cover bg-white/10 hidden sm:block" />}
         <div className="flex gap-2">
-          {canManage && <button onClick={() => { setBrand({ name: team.name, abbreviation: team.abbreviation, logo: team.logo ?? '', altLogo: team.altLogo ?? '', wordmark: team.wordmark ?? '', primaryColor: team.primaryColor, secondaryColor: team.secondaryColor }); setEditing(!editing) }} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Edit</button>}
+          {canManage && <button onClick={() => { setBrand({ name: team.name, abbreviation: team.abbreviation, logo: team.logo ?? '', altLogo: team.altLogo ?? '', wordmark: team.wordmark ?? '', primaryColor: team.primaryColor, secondaryColor: team.secondaryColor, logoBg: (team as any).logoBg ?? false }); setEditing(!editing) }} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Edit</button>}
           {(data.isOwner || data.isCommish) && <button onClick={() => setShowMgr(!showMgr)} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Co-managers</button>}
           <Link href={`/leagues/${team.leagueId}`} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">← League</Link>
         </div>
@@ -140,9 +140,10 @@ export default function TeamPage() {
             <div><label className="label">Logo URL</label><input className="input" placeholder="https://…" value={brand.logo} onChange={e => setBrand({ ...brand, logo: e.target.value })} /></div>
             <div><label className="label">Alternate Logo URL</label><input className="input" placeholder="https://…" value={brand.altLogo} onChange={e => setBrand({ ...brand, altLogo: e.target.value })} /></div>
             <div><label className="label">Wordmark (text or image URL)</label><input className="input" value={brand.wordmark} onChange={e => setBrand({ ...brand, wordmark: e.target.value })} /></div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-end">
               <div><label className="label">Primary</label><input type="color" className="h-10 w-16 rounded border border-slate-200" value={brand.primaryColor} onChange={e => setBrand({ ...brand, primaryColor: e.target.value })} /></div>
               <div><label className="label">Secondary</label><input type="color" className="h-10 w-16 rounded border border-slate-200" value={brand.secondaryColor} onChange={e => setBrand({ ...brand, secondaryColor: e.target.value })} /></div>
+              <label className="flex items-center gap-2 text-sm text-slate-600 pb-2"><input type="checkbox" checked={!!brand.logoBg} onChange={e => setBrand({ ...brand, logoBg: e.target.checked })} /> Logo on primary-color background</label>
             </div>
           </div>
           <div className="flex gap-2"><button onClick={saveBranding} className="btn-primary">Save Branding</button><button onClick={() => setEditing(false)} className="btn-secondary">Cancel</button></div>

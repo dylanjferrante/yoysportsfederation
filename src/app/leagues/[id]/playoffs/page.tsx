@@ -3,8 +3,9 @@ import { leagues, teams, teamRecords, playoffGames, leagueHistory } from '@/db/s
 import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { sportMeta, safeParse } from '@/lib/utils'
+import { sportMeta, safeParse, sportLabel } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
+import TeamChip from '@/components/TeamChip'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -29,6 +30,9 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
   await advanceLeague(league)
 
   const sports = safeParse<string[]>(league.sportsEnabled, [])
+  const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
+  const champNames = safeParse<Record<string, string>>(league.championshipNames, {})
+  const champLogos = safeParse<Record<string, string>>(league.championshipLogos, {})
   const n = league.playoffTeams ?? 4
   const franchises = await db.select().from(teams).where(eq(teams.leagueId, id))
   const records = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
@@ -41,9 +45,9 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
   function Slot({ teamId, seed, score, winner, done }: { teamId: string | null; seed: number | null; score?: number; winner?: boolean; done?: boolean }) {
     const t = teamId ? teamById[teamId] : null
     return (
-      <div className={`flex items-center gap-1.5 px-2 py-1.5 text-sm ${winner ? 'font-bold' : done ? 'text-slate-400' : ''}`}>
+      <div className={`flex items-center gap-1.5 px-2 py-1.5 text-sm ${winner ? 'font-bold' : done && !winner ? 'opacity-60' : ''}`}>
         <span className="text-[10px] font-bold text-slate-400 w-4">{seed ?? ''}</span>
-        <span className="truncate flex-1">{t?.abbreviation ?? (teamId === null && done ? 'BYE' : 'TBD')}</span>
+        <span className="flex-1 min-w-0">{t ? <TeamChip team={t} size="sm" useAbbr link={false} /> : <span className="text-slate-400 text-xs">{teamId === null && done ? 'BYE' : 'TBD'}</span>}</span>
         {score != null && done && <span className="tabular-nums text-xs">{score.toFixed(0)}</span>}
         {winner && done && <span className="text-amber-500">▸</span>}
       </div>
@@ -54,6 +58,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-6">
         <Link href={`/leagues/${id}`} className="btn-ghost text-slate-500">← Back</Link>
+        {league.logoUrl && <img src={league.logoUrl} alt="" className="w-10 h-10 object-contain" />}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Playoff Brackets</h1>
           <p className="text-sm text-slate-500">{league.name} · top {n} per sport · resolves automatically</p>
@@ -62,9 +67,10 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
 
       {/* Federation champion banner */}
       {fedChamp && (
-        <div className="rounded-2xl p-5 mb-6 text-white text-center" style={{ background: 'linear-gradient(135deg,#b45309,#f59e0b)' }}>
-          <p className="text-xs uppercase tracking-widest text-white/80">{league.season} {league.name} Champion</p>
-          <p className="text-2xl font-black mt-1">🏆 {teamById[fedChamp.championTeamId ?? '']?.name ?? '—'}</p>
+        <div className="p-5 mb-6 text-white text-center" style={{ background: 'linear-gradient(135deg,#b45309,#f59e0b)' }}>
+          {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-16 h-16 object-contain mx-auto mb-2" />}
+          <p className="text-xs uppercase tracking-widest text-white/80">{league.season} {champNames['FED'] || `${league.name} Champion`}</p>
+          <p className="text-2xl font-black mt-1 flex items-center justify-center gap-2">🏆 {teamById[fedChamp.championTeamId ?? '']?.name ?? '—'}</p>
         </div>
       )}
 
@@ -79,8 +85,11 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
             <div key={sport} className="card p-5">
               <div className="flex items-center gap-2 mb-4">
                 <span className={`w-8 h-8 rounded-lg ${meta.bg} text-white flex items-center justify-center`}>{meta.emoji}</span>
-                <h2 className="font-semibold text-slate-900">{sport} Playoffs</h2>
-                {champ && <span className="ml-auto text-sm font-semibold text-amber-600">🏆 {teamById[champ.championTeamId ?? '']?.abbreviation} champion</span>}
+                <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)} {champNames[sport] || 'Playoffs'}</h2>
+                {champ && <span className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-amber-600">
+                  {champLogos[sport] && <img src={champLogos[sport]} alt="" className="w-6 h-6 object-contain" />}
+                  🏆 {teamById[champ.championTeamId ?? '']?.abbreviation} champion
+                </span>}
               </div>
 
               {sportGames.length > 0 ? (

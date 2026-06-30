@@ -156,6 +156,7 @@ export const teams = sqliteTable('teams', {
   division: integer('division'), // 1-based division index (null = unassigned)
   primaryColor: text('primary_color').default('#0f172a'),
   secondaryColor: text('secondary_color').default('#3b82f6'),
+  logoBg: integer('logo_bg', { mode: 'boolean' }).default(false), // fill logo background with primary color
   userId: text('user_id').notNull().references(() => users.id),
   leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
   createdAt: text('created_at').default(sql`(datetime('now'))`),

@@ -19,7 +19,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const session = await getServerSession(authOptions)
 
   const [team] = await db
-    .select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, wordmark: teams.wordmark, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, leagueId: teams.leagueId, userId: teams.userId, ownerName: users.name })
+    .select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, wordmark: teams.wordmark, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, logoBg: teams.logoBg, leagueId: teams.leagueId, userId: teams.userId, ownerName: users.name })
     .from(teams).leftJoin(users, eq(teams.userId, users.id))
     .where(eq(teams.id, id)).limit(1)
   if (!team) return NextResponse.json({ error: 'Not found' }, { status: 404 })
