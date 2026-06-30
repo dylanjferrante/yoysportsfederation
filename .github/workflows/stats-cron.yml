@@ -1,0 +1,38 @@
+# Scheduled stats pull — GitHub acts as an "alarm clock" that pokes the deployed
+# app's cron endpoint; the app does the actual Tank01 calls and scoring.
+#
+# Setup (one time):
+#   1. Deploy the app to a PUBLIC url (GitHub can't reach localhost).
+#   2. Repo → Settings → Secrets and variables → Actions → New repository secret:
+#        APP_URL      = https://your-app.example.com   (no trailing slash)
+#        CRON_SECRET  = the same value as CRON_SECRET in the app's env
+#   3. Scheduled workflows only run from the DEFAULT branch, so merge this there.
+#
+# Note: the RapidAPI key is NOT set here — it stays in the app's own environment.
+name: Pull stats
+
+on:
+  workflow_dispatch: {}        # lets you run it by hand from the Actions tab
+  schedule:
+    # Daily "finalize" — ingests finished games. Cheap; safe for any plan.
+    # 08:10 and 20:10 UTC. (cron is always UTC.)
+    - cron: '10 8 * * *'
+    - cron: '10 20 * * *'
+    # LIVE in-game updates — uncomment to enable. This polls in-progress games and
+    # can use a LOT of API calls, so only turn it on with a paid tier and tune it
+    # to your game windows. Example: every 15 min.
+    # - cron: '*/15 * * * *'
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit the stats cron endpoint
+        env:
+          # 'live' for the */15 schedule above, otherwise 'final'.
+          MODE: ${{ github.event.schedule == '*/15 * * * *' && 'live' || 'final' }}
+        run: |
+          url="${{ secrets.APP_URL }}/api/cron/stats"
+          [ "$MODE" = "live" ] && url="$url?mode=live"
+          echo "Pulling: $url"
+          curl -fsS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$url"
