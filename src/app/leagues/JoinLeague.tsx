@@ -30,7 +30,7 @@ export default function JoinLeague() {
     <div className="flex items-center gap-2 flex-wrap">
       <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="INVITE CODE"
         className="input w-36 text-sm py-1.5 tracking-wider font-mono" maxLength={12} />
-      <input value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="Franchise name (optional)"
+      <input value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="Club name (optional)"
         className="input w-44 text-sm py-1.5" maxLength={40} />
       <button onClick={join} disabled={busy} className="btn-primary text-sm disabled:opacity-40">{busy ? 'Joining…' : 'Join'}</button>
       <button onClick={() => { setOpen(false); setErr(null) }} className="btn-ghost text-sm text-slate-400">Cancel</button>

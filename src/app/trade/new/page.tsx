@@ -126,7 +126,7 @@ export default function ProposeTradePage() {
         <Link href="/trade" className="btn-ghost text-slate-500">← Back</Link>
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Propose Trade</h1>
-          <p className="text-slate-500 text-sm">Route players and picks between two or more franchises across any sport</p>
+          <p className="text-slate-500 text-sm">Route players and picks between two or more clubs across any sport</p>
         </div>
       </div>
 
@@ -141,7 +141,7 @@ export default function ProposeTradePage() {
           <div className="flex-1 min-w-48">
             <label className="label">Add trade partner</label>
             <select className="select" value="" onChange={e => { if (e.target.value) setPartnerIds(p => [...p, e.target.value]) }}>
-              <option value="">+ Add a franchise…</option>
+              <option value="">+ Add a club…</option>
               {addablePartners.map(f => <option key={f.id} value={f.id}>{f.name} ({f.ownerName})</option>)}
             </select>
           </div>

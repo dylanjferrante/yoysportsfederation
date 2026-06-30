@@ -27,7 +27,7 @@ export default async function LeaguesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Leagues</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Cross-sport federations — one franchise, every sport</p>
+          <p className="text-slate-500 text-sm mt-0.5">Cross-sport federations — one club, every sport</p>
         </div>
         {session && (
           <div className="flex items-center gap-2 flex-wrap sm:justify-end">
@@ -52,11 +52,11 @@ export default async function LeaguesPage() {
                 <div className="flex items-start justify-between mb-3">
                   {league.logoUrl
                     ? <img src={league.logoUrl} alt="" className="w-12 h-12 object-contain bg-slate-100" />
-                    : <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center text-2xl">🏆</div>}
+                    : <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center text-2xl"></div>}
                   {isMember && <span className="badge bg-blue-100 text-blue-700">Joined</span>}
                 </div>
                 <h3 className="font-semibold text-slate-900 mb-1">{league.name}</h3>
-                <p className="text-xs text-slate-400 mb-3">{league.season} · {teamCount[league.id] ?? 0}/{league.maxTeams} franchises · {league.status}</p>
+                <p className="text-xs text-slate-400 mb-3">{league.season} · {teamCount[league.id] ?? 0}/{league.maxTeams} clubs · {league.status}</p>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {sports.map(s => (
                     <span key={s} className={`text-xs font-semibold px-2 py-0.5 rounded-full ${sportMeta(s).light}`}>{sportMeta(s).emoji} {s}</span>

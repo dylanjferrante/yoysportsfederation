@@ -66,7 +66,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
               {p.status !== 'ACTIVE' && <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded">{p.status}</span>}
             </div>
             <p className="text-white/80 text-sm">{meta.emoji} {p.sport} · {p.position} · {p.realTeam} · eligible: {eligible.join(', ')}</p>
-            {p.status !== 'ACTIVE' && p.injuryNote && <p className="text-white/90 text-sm mt-1 font-medium">🚑 {p.injuryNote}</p>}
+            {p.status !== 'ACTIVE' && p.injuryNote && <p className="text-white/90 text-sm mt-1 font-medium">{p.injuryNote}</p>}
           </div>
         </div>
       </div>
@@ -77,10 +77,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           <div className="card-header"><h2 className="font-semibold text-slate-900">Latest News</h2></div>
           <ul className="divide-y divide-slate-50">
             {news.map(n => {
-              const icon = n.category === 'INJURY' ? '🚑' : n.category === 'PERFORMANCE' ? '📈' : n.category === 'TRANSACTION' ? '🔁' : '📰'
               return (
                 <li key={n.id} className="flex items-start gap-3 px-4 py-3">
-                  <span className="text-base leading-5">{icon}</span>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-900">{n.headline}</p>
                     {n.body && <p className="text-sm text-slate-500 mt-0.5">{n.body}</p>}
