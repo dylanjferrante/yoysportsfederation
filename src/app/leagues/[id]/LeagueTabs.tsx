@@ -153,7 +153,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
         </div>
       )}
       <div className="card p-4 flex flex-wrap items-center gap-3">
-        <span className="text-sm font-semibold text-slate-700">Count sports:</span>
+        <span className="text-sm font-semibold text-slate-700">Count active + completed sports:</span>
         {sportsEnabled.map((s: string) => (
           <label key={s} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
             <input type="checkbox" checked={included.has(s)} onChange={() => toggle(s)} className="w-4 h-4" />
