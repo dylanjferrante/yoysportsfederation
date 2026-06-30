@@ -5,6 +5,7 @@ import { leagues, teams, leagueHistory } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import { safeParse, inSeasonNow, orderedSports } from '@/lib/utils'
+import { isCommissioner as checkCommissioner } from '@/lib/permissions'
 import LeagueNav from './LeagueNav'
 
 // Persistent league shell: header + unified inline tab bar. Section routes render below as
@@ -20,7 +21,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
   const myTeamId = session?.user?.id ? franchises.find(f => f.userId === session.user!.id)?.id ?? null : null
   const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
-  const isCommissioner = league.commissionerId === session?.user?.id
+  const isCommissioner = await checkCommissioner(id, session?.user?.id)
 
   // A sport drops out of "in season" once its champion has been crowned this season.
   const crowned = await db.select({ scope: leagueHistory.scope }).from(leagueHistory)

@@ -54,8 +54,18 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
         })}
         {isCommissioner && (
           <Link
-            href={`${base}/settings`}
+            href={`${base}/commish`}
             className={`whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium transition flex-shrink-0 ml-auto ${
+              pathname.startsWith(`${base}/commish`) ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'
+            }`}
+          >
+            ⚖️ Commish
+          </Link>
+        )}
+        {isCommissioner && (
+          <Link
+            href={`${base}/settings`}
+            className={`whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium transition flex-shrink-0 ${
               pathname.startsWith(`${base}/settings`) ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'
             }`}
           >
