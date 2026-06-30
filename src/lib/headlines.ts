@@ -12,6 +12,18 @@ import { weekDateRange } from '@/lib/defaults'
 
 export type Headline = { id: string; category: string; sport?: string; priority: number; ts: number; text: string; href: string }
 
+// Per-sport score bands for "blowout"/"nail-biter" flavor. Weekly point totals
+// differ enormously by sport (an NBA week runs ~10x an NFL week), so a margin
+// that's a rout in football is noise in basketball. Tune to your league's
+// scoring; see docs/ticker-headlines.md for the reference totals these assume.
+export const SCORE_BANDS: Record<string, { blowout: number; close: number }> = {
+  NFL: { blowout: 35, close: 5 },   // ~110–170 pts/week
+  NBA: { blowout: 250, close: 30 }, // ~900–1300 pts/week
+  NHL: { blowout: 45, close: 6 },   // ~110–180 pts/week
+  MLB: { blowout: 18, close: 3 },   // lower, pitcher-driven, can dip near 0
+}
+const DEFAULT_BAND = { blowout: 40, close: 5 }
+
 const RESERVE = ['BN', 'IR', 'IL', 'DL', 'TAXI']
 
 export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
@@ -75,8 +87,9 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
       const winId = hs >= as ? m.homeTeamId : m.awayTeamId, loseId = hs >= as ? m.awayTeamId : m.homeTeamId
       const hi = Math.max(hs, as).toFixed(1), lo = Math.min(hs, as).toFixed(1)
       const margin = Math.abs(hs - as)
-      const flavor = margin >= 40 ? 'Blowout: ' : margin <= 3 ? 'Nail-biter: ' : ''
-      const verb = margin <= 3 ? 'edges' : margin >= 40 ? 'routs' : 'def.'
+      const band = SCORE_BANDS[sp] ?? DEFAULT_BAND
+      const flavor = margin >= band.blowout ? 'Blowout: ' : margin <= band.close ? 'Nail-biter: ' : ''
+      const verb = margin <= band.close ? 'edges' : margin >= band.blowout ? 'routs' : 'def.'
       return { id: `score-${m.id}`, category: 'SCORE', sport: sp, priority: 60 + (flavor ? 5 : 0), ts: tsOfWeek(wk),
         text: `${flavor}${nm(winId)} ${verb} ${nm(loseId)}, ${hi}–${lo}`, href: `${base}/scores` }
     })
