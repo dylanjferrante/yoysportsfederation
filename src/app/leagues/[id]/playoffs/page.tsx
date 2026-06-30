@@ -83,7 +83,8 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
       <div className="space-y-8">
         {sports.map(sport => {
           const meta = sportMeta(sport)
-          const sportGames = games.filter(g => g.sport === sport)
+          const bracketGames = (b: string) => games.filter(g => g.sport === sport && (g.bracket ?? 'WINNERS') === b)
+          const sportGames = bracketGames('WINNERS')
           const champ = champOf(sport)
           const rounds = [...new Set(sportGames.map(g => g.round))].sort((a, b) => a - b)
 
@@ -141,9 +142,54 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
                 // Pre-playoffs: show the projected seeds from current standings.
                 <ProjectedSeeds sport={sport} records={records} teamById={teamById} n={n} />
               )}
+
+              <SideBracket title="Consolation Bracket" games={bracketGames('CONSOLATION')} teamById={teamById} />
+              <SideBracket title="Toilet Bowl · Losers Bracket" games={bracketGames('LOSERS')} teamById={teamById} />
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+// A compact secondary bracket (consolation / losers) — no champion showcase.
+function SideBracket({ title, games, teamById }: { title: string; games: any[]; teamById: Record<string, any> }) {
+  if (!games.length) return null
+  const rounds = [...new Set(games.map(g => g.round))].sort((a, b) => a - b)
+  const total = rounds.length
+  const slot = (g: any, home: boolean) => {
+    const teamId = home ? g.homeTeamId : g.awayTeamId
+    const seed = home ? g.homeSeed : g.awaySeed
+    const score = home ? g.homeScore : g.awayScore
+    const winner = g.winnerTeamId === teamId
+    const t = teamId ? teamById[teamId] : null
+    return (
+      <div className={`flex items-center gap-1.5 px-2 py-1.5 text-sm ${winner ? 'font-bold' : g.isComplete && !winner ? 'opacity-60' : ''}`}>
+        <span className="text-[10px] font-bold text-slate-400 w-4">{seed ?? ''}</span>
+        <span className="flex-1 min-w-0">{t ? <TeamChip team={t} size="sm" useAbbr link={false} /> : <span className="text-slate-400 text-xs">{teamId === null && g.isComplete ? 'BYE' : 'TBD'}</span>}</span>
+        {score != null && g.isComplete && <span className="tabular-nums text-xs">{(score as number).toFixed(0)}</span>}
+        {winner && g.isComplete && <span className="text-slate-400">▸</span>}
+      </div>
+    )
+  }
+  return (
+    <div className="mt-5 border-t border-slate-100 pt-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">{title}</p>
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        {rounds.map((rnd, ri) => (
+          <div key={rnd} className="flex-shrink-0 w-44">
+            <p className="text-[11px] font-bold text-slate-400 uppercase mb-2 text-center">{roundName(ri, total)}</p>
+            <div className="space-y-3">
+              {games.filter(g => g.round === rnd).sort((a, b) => a.matchIndex - b.matchIndex).map(g => (
+                <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
+                  {slot(g, true)}
+                  {slot(g, false)}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

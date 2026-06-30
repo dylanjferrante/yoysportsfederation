@@ -137,6 +137,7 @@ export default function CommissionerSettings() {
         waiverType: form.waiverType, faabBudget: form.faabBudget, faabMode: form.faabMode, waiverSchedule: waiverSchedObj, irEligibleDesignations: irDesigObj, lockDay: form.lockDay,
         playoffTeams: form.playoffTeams, playoffStartWeek: form.playoffStartWeek, regularSeasonWeeks: seasonWeeksObj, playoffRounds: form.playoffRounds,
         playoffFormat: form.playoffFormat, weeksPerRound: form.weeksPerRound,
+        playoffReseed: form.playoffReseed, consolationBracket: form.consolationBracket, losersBracket: form.losersBracket,
         keeperEnabled: form.keeperEnabled, keeperCount: form.keeperCount,
         salaryCapEnabled: form.salaryCapEnabled, salaryCap: form.salaryCap, capMode: form.capMode,
         sportSchedule: buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj, startWeeksObj),
@@ -974,6 +975,22 @@ export default function CommissionerSettings() {
                   )
                 })}
               </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 space-y-3">
+              <p className="text-sm font-semibold text-slate-700">Bracket options</p>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={!!form.playoffReseed} onChange={e => set('playoffReseed', e.target.checked)} />
+                <span><span className="text-sm font-medium text-slate-800">Re-seed after round 1</span><span className="block text-xs text-slate-500">Re-pair survivors by seed each round (1 plays the lowest remaining seed, 2 the next, …) instead of a fixed bracket.</span></span>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={!!form.consolationBracket} onChange={e => set('consolationBracket', e.target.checked)} />
+                <span><span className="text-sm font-medium text-slate-800">Consolation bracket</span><span className="block text-xs text-slate-500">Franchises that just missed the playoffs play their own bracket for a consolation title.</span></span>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={!!form.losersBracket} onChange={e => set('losersBracket', e.target.checked)} />
+                <span><span className="text-sm font-medium text-slate-800">Losers bracket (toilet bowl)</span><span className="block text-xs text-slate-500">The bottom franchises play a bracket to settle last place.</span></span>
+              </label>
             </div>
           </>
         )}
