@@ -10,7 +10,6 @@ const NAV = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/leagues',   label: 'Leagues' },
   { href: '/players',   label: 'Players' },
-  { href: '/trade',     label: 'Trade Center' },
 ]
 
 export default function Navbar() {
