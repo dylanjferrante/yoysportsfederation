@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import { sportMeta, safeParse, sportLabel, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
+import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import TeamChip from '@/components/TeamChip'
 import SportIcon from '@/components/SportIcon'
 
@@ -23,11 +24,12 @@ const roundName = (ri: number, total: number) => {
   return fromEnd === 0 ? 'Final' : fromEnd === 1 ? 'Semifinals' : fromEnd === 2 ? 'Quarterfinals' : `Round ${ri + 1}`
 }
 
-export default async function PlayoffsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PlayoffsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ season?: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
-  await advanceLeague(league)
+  const { season: viewSeason, isPast } = viewSeasonOf(league, await searchParams)
+  if (!isPast) await advanceLeague(league)
 
   const sports = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
@@ -41,10 +43,14 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
   }
   const champInk = (scope: string, fallback: string) => champColors[scope]?.p ?? champColors[scope]?.s ?? fallback
   const n = league.playoffTeams ?? 4
-  const franchises = await db.select().from(teams).where(eq(teams.leagueId, id))
-  const records = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
-  const games = await db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, id), eq(playoffGames.season, league.season)))
-  const champions = await db.select().from(leagueHistory).where(and(eq(leagueHistory.leagueId, id), eq(leagueHistory.season, league.season)))
+  let franchises = await db.select().from(teams).where(eq(teams.leagueId, id))
+  if (isPast) {
+    const b = await seasonBranding(id, viewSeason)
+    franchises = franchises.map(f => b[f.id] ? { ...f, name: b[f.id].name, abbreviation: b[f.id].abbreviation, logo: b[f.id].logo, primaryColor: b[f.id].primaryColor, secondaryColor: b[f.id].secondaryColor } : f)
+  }
+  const records = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, viewSeason)))
+  const games = await db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, id), eq(playoffGames.season, viewSeason)))
+  const champions = await db.select().from(leagueHistory).where(and(eq(leagueHistory.leagueId, id), eq(leagueHistory.season, viewSeason)))
   const teamById = Object.fromEntries(franchises.map(f => [f.id, f]))
   const champOf = (scope: string) => champions.find(c => c.scope === scope)
   const fedChamp = champOf('OVERALL')
@@ -75,7 +81,7 @@ export default async function PlayoffsPage({ params }: { params: Promise<{ id: s
       {fedChamp && (
         <div className="p-5 mb-6 text-white text-center" style={{ background: champGrad('FED', 'linear-gradient(135deg,#b45309,#f59e0b)') }}>
           {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-16 h-16 object-contain mx-auto mb-2" />}
-          <p className="text-xs uppercase tracking-widest text-white/80">{league.season} {champNames['FED'] || `${league.name} Champion`}</p>
+          <p className="text-xs uppercase tracking-widest text-white/80">{viewSeason} {champNames['FED'] || `${league.name} Champion`}</p>
           <p className="text-2xl font-black mt-1 flex items-center justify-center gap-2">🏆 {teamById[fedChamp.championTeamId ?? '']?.name ?? '—'}</p>
         </div>
       )}

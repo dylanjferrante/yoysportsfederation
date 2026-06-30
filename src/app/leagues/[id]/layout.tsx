@@ -52,7 +52,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
         </div>
       </div>
 
-      <LeagueNav leagueId={id} isCommissioner={isCommissioner} sideGamesEnabled={sideGamesEnabled} myTeamId={myTeamId} />
+      <LeagueNav leagueId={id} isCommissioner={isCommissioner} sideGamesEnabled={sideGamesEnabled} myTeamId={myTeamId} currentSeason={league.season} />
 
       {children}
     </div>

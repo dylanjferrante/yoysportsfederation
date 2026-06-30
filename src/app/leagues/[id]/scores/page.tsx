@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { safeParse, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
+import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import ScoresView from './ScoresView'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -14,23 +15,28 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: `${league?.name ?? 'League'} · Scores` }
 }
 
-export default async function ScoresPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ScoresPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ season?: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
-  await advanceLeague(league)
+  const { season: viewSeason, isPast } = viewSeasonOf(league, await searchParams)
+  if (!isPast) await advanceLeague(league)
 
   const session = await getServerSession(authOptions)
-  const franchises = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, logoBg: teams.logoBg }).from(teams).where(eq(teams.leagueId, id))
+  let franchises = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, logoBg: teams.logoBg }).from(teams).where(eq(teams.leagueId, id))
+  if (isPast) {
+    const b = await seasonBranding(id, viewSeason)
+    franchises = franchises.map(f => b[f.id] ? { ...f, name: b[f.id].name, abbreviation: b[f.id].abbreviation, logo: b[f.id].logo, primaryColor: b[f.id].primaryColor, secondaryColor: b[f.id].secondaryColor, logoBg: b[f.id].logoBg ? true : false } : f)
+  }
   const all = await db.select().from(matchups).where(eq(matchups.leagueId, id)).limit(3000)
   const recs = await db.select({ teamId: teamRecords.teamId, sport: teamRecords.sport, wins: teamRecords.wins, losses: teamRecords.losses, ties: teamRecords.ties })
-    .from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
+    .from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, viewSeason)))
   const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
 
   // Fold playoff games onto the scoreboard timeline. A game in round R for a sport sits at
   // federation week (regular-season end + R); flag it so the view can mark it as a playoff.
   const schedule = safeParse<any[]>(league.sportSchedule, [])
-  const poGames = await db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, id), eq(playoffGames.season, league.season)))
+  const poGames = await db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, id), eq(playoffGames.season, viewSeason)))
   const maxRoundBySport: Record<string, number> = {}
   for (const g of poGames) maxRoundBySport[g.sport] = Math.max(maxRoundBySport[g.sport] ?? 0, g.round)
   const roundLabel = (sport: string, round: number) => {
@@ -57,7 +63,7 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
         matchups={[...all, ...playoffMatchups] as any}
         teams={franchises}
         sportsEnabled={sportsEnabled}
-        currentSeason={league.season}
+        currentSeason={viewSeason}
         sportNames={safeParse<Record<string, string>>(league.sportNames, {})}
         divisionLogos={safeParse<Record<string, string>>(league.divisionLogos, {})}
         schedule={schedule}
