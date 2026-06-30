@@ -9,6 +9,7 @@ import { safeParse } from '@/lib/utils'
 import { slotEligible, irEligible, defaultIrDesignations } from '@/lib/defaults'
 import { logActivity } from '@/lib/activity'
 import { realOpponents } from '@/lib/realschedule'
+import { scheduleOpponents } from '@/lib/schedule'
 import { isPlayerLocked, playerKickoff } from '@/lib/locks'
 import { placeOnWaivers, onWaivers } from '@/lib/waivers'
 import { isTeamManager } from '@/lib/permissions'
@@ -63,12 +64,15 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const curWeek: Record<string, number> = {}
   for (const m of incompletes) curWeek[m.sport] = Math.min(curWeek[m.sport] ?? Infinity, m.week)
 
-  // Real-game opponent map per sport (built from the full real-team set in each sport).
+  // Real-game opponent map per sport. Prefer the real schedule (game_schedule);
+  // fall back to the synthetic round-robin when no schedule has been synced.
   const sportsOnRoster = [...new Set(roster.map(r => r.sport))]
+  const leagueSeason = league?.season ?? ''
   const oppMaps: Record<string, Record<string, { opp: string; home: boolean }>> = {}
   for (const sp of sportsOnRoster) {
+    const week = curWeek[sp] ?? 1
     const abbrs = (await db.select({ a: players.realTeamAbbr }).from(players).where(eq(players.sport, sp))).map(r => r.a).filter(Boolean) as string[]
-    oppMaps[sp] = realOpponents(abbrs, curWeek[sp] ?? 1)
+    oppMaps[sp] = (await scheduleOpponents(sp, leagueSeason, abbrs, week)) ?? realOpponents(abbrs, week)
   }
 
   const season = league?.season ?? ''

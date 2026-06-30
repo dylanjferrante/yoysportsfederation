@@ -485,6 +485,20 @@ export const realStatLines = sqliteTable('real_stat_lines', {
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 })
 
+// Real game schedule pulled from the provider (get<Sport>TeamSchedule), deduped
+// by gameID. League-independent; drives real "this week's opponent" labels, bye
+// weeks, and game-time lineup locks. Synced occasionally (budget-cheap).
+export const gameSchedule = sqliteTable('game_schedule', {
+  id: text('id').primaryKey(),            // Tank01 gameID, e.g. 20260104_NYJ@BUF
+  sport: text('sport').notNull(),
+  gameDate: text('game_date').notNull(),  // YYYYMMDD
+  homeAbbr: text('home_abbr').notNull(),
+  awayAbbr: text('away_abbr').notNull(),
+  gameTimeEpoch: text('game_time_epoch'), // unix seconds (string) for kickoff
+  status: text('status'),                 // gameStatus (Completed / scheduled / live)
+  seasonType: text('season_type'),        // Regular Season / Playoffs / Preseason
+})
+
 // ── Waiver Wire ────────────────────────────────────────────────────────────
 // A player dropped in a league sits on the wire (claim-only) until `clearsAt`,
 // then becomes an ordinary free agent. One row per (league, player) on waivers.
