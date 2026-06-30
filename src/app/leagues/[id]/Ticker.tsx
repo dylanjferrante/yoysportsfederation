@@ -186,7 +186,7 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
         .lg { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; background: rgba(255,255,255,.08); margin-right: .55rem; }
         .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; }
         .ab { width: 3.4rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sc { width: 3.6ch; flex-shrink: 0; margin-left: 1.15rem; text-align: right; font-family: "punto", ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: .98rem; letter-spacing: .05em; color: #f1f5f9; }
+        .sc { width: 3.6ch; flex-shrink: 0; margin-left: 1.15rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.05rem; letter-spacing: .04em; color: #f1f5f9; }
         .main { flex: 1; min-width: 0; display: flex; align-items: center; border-right: 1px solid #1e293b; }
         .mainpin { flex-shrink: 0; display: inline-flex; align-items: center; padding: 0 1.4rem 0 1.5rem; animation: slidein .45s ease; }
         .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; }
