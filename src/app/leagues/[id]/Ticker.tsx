@@ -16,11 +16,14 @@ const CATEGORY_TITLE: Record<string, string> = {
   FORM: 'Form', PACE: 'Pace', FEDERATION: 'Federation', GOVERNANCE: 'League Office', SCHEDULE: 'Schedule',
 }
 
+type Snapshot = { scores: Card[]; news: News[]; topicIdx: number; cardIdx: number }
+const tickerCache = new Map<string, Snapshot>()
+
 export default function Ticker({ leagueId }: { leagueId: string }) {
-  const [scores, setScores] = useState<Card[]>([])
-  const [news, setNews] = useState<News[]>([])
-  const [cardIdx, setCardIdx] = useState(0)
-  const [topicIdx, setTopicIdx] = useState(0)
+  const [scores, setScores] = useState<Card[]>(() => tickerCache.get(leagueId)?.scores ?? [])
+  const [news, setNews] = useState<News[]>(() => tickerCache.get(leagueId)?.news ?? [])
+  const [cardIdx, setCardIdx] = useState(() => tickerCache.get(leagueId)?.cardIdx ?? 0)
+  const [topicIdx, setTopicIdx] = useState(() => tickerCache.get(leagueId)?.topicIdx ?? 0)
   const [hidden, setHidden] = useState(false)
   const [ready, setReady] = useState(false)
 
@@ -35,11 +38,22 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
 
   useEffect(() => {
     let alive = true
-    const load = () => fetch(`/api/leagues/${leagueId}/ticker`).then(r => r.json()).then(d => { if (!alive) return; setScores(d.scores ?? []); setNews(d.news ?? []) }).catch(() => {})
+    const load = () => fetch(`/api/leagues/${leagueId}/ticker`).then(r => r.json()).then(d => {
+      if (!alive) return
+      const sc = d.scores ?? [], nw = d.news ?? []
+      setScores(sc); setNews(nw)
+      const c = tickerCache.get(leagueId)
+      tickerCache.set(leagueId, { scores: sc, news: nw, topicIdx: c?.topicIdx ?? 0, cardIdx: c?.cardIdx ?? 0 })
+    }).catch(() => {})
     load()
     const iv = setInterval(() => { if (document.visibilityState === 'visible') load() }, 45_000)
     return () => { alive = false; clearInterval(iv) }
   }, [leagueId])
+
+  useEffect(() => {
+    const c = tickerCache.get(leagueId)
+    if (c) tickerCache.set(leagueId, { ...c, topicIdx, cardIdx })
+  }, [leagueId, topicIdx, cardIdx])
 
   const topics = useMemo<Topic[]>(() => {
     const order: string[] = []
@@ -55,7 +69,7 @@ export default function Ticker({ leagueId }: { leagueId: string }) {
     })
   }, [news])
 
-  useEffect(() => { setTopicIdx(0) }, [topics.length])
+  useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
 
   useEffect(() => {
     if (scores.length <= 1) return
