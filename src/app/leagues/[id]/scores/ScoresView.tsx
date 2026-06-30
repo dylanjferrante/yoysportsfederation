@@ -4,15 +4,20 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta, sportLabel } from '@/lib/utils'
 import { formatWeekRange, sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
-import TeamChip from '@/components/TeamChip'
 
 type Matchup = { id: string; sport: string; season: string | null; week: number; homeTeamId: string; awayTeamId: string | null; homeScore: number; awayScore: number; isComplete: boolean }
 type Team = { id: string; name: string; abbreviation: string; logo?: string | null; primaryColor?: string | null; secondaryColor?: string | null; logoBg?: boolean | null }
+type Rec = { teamId: string; sport: string; wins: number; losses: number; ties: number }
 
-export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason, sportNames = {}, schedule = [] }: {
-  leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; sportNames?: Record<string, string>; schedule?: ScheduleEntry[]; isCommish?: boolean
+export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, currentSeason, sportNames = {}, schedule = [], records = [] }: {
+  leagueId: string; matchups: Matchup[]; teams: Team[]; sportsEnabled: string[]; currentSeason: string; sportNames?: Record<string, string>; schedule?: ScheduleEntry[]; records?: Rec[]; isCommish?: boolean
 }) {
   const teamById = useMemo(() => Object.fromEntries(teams.map(t => [t.id, t])), [teams])
+  const recBy = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const r of records) m[`${r.teamId}:${r.sport}`] = `${r.wins ?? 0}-${r.losses ?? 0}${(r.ties ?? 0) ? `-${r.ties}` : ''}`
+    return m
+  }, [records])
   const seasons = useMemo(() => {
     const s = [...new Set(matchups.map(m => m.season).filter(Boolean) as string[])]
     return s.sort().reverse()
@@ -73,16 +78,10 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
                   const home = teamById[m.homeTeamId], away = m.awayTeamId ? teamById[m.awayTeamId] : null
                   const homeWin = m.homeScore >= m.awayScore
                   return (
-                    <Link key={m.id} href={`/leagues/${leagueId}/matchup/${m.id}`} className="block p-4 border-slate-50 sm:border sm:m-1.5 sm:rounded-xl hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center justify-between gap-2 text-sm">
-                        {home ? <TeamChip team={home} size="sm" link={false} /> : <span className="text-slate-400">—</span>}
-                        <span className={`tabular-nums ${m.isComplete && homeWin ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{m.homeScore?.toFixed(1)}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2 text-sm mt-1.5">
-                        {away ? <TeamChip team={away} size="sm" link={false} /> : <span className="text-slate-400 text-xs px-2">BYE</span>}
-                        <span className={`tabular-nums ${m.isComplete && !homeWin ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{m.awayScore?.toFixed(1)}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-1.5">{m.isComplete ? 'Final' : 'Live'} · box score →</p>
+                    <Link key={m.id} href={`/leagues/${leagueId}/matchup/${m.id}`} className="block sm:m-1.5 rounded-xl overflow-hidden border border-slate-100 hover:ring-2 hover:ring-slate-200 transition">
+                      <TeamBar team={home} score={m.homeScore} win={m.isComplete && homeWin} rec={home ? recBy[`${home.id}:${sport}`] : null} />
+                      <TeamBar team={away} score={m.awayScore} win={m.isComplete && !homeWin} rec={away ? recBy[`${away.id}:${sport}`] : null} bye={!away} />
+                      <p className="text-[10px] text-slate-400 px-3 py-1 bg-white">{m.isComplete ? 'Final' : 'Live'} · box score →</p>
                     </Link>
                   )
                 })}
@@ -91,6 +90,27 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// Full-width franchise bar: the team's primary→secondary gradient fills the row,
+// logo + name + record on the left, score on the right (white text for contrast).
+function TeamBar({ team, score, win, rec, bye }: { team: Team | null; score: number; win: boolean; rec?: string | null; bye?: boolean }) {
+  if (bye || !team) return <div className="px-3 py-2.5 bg-slate-100 text-slate-400 text-sm font-medium">BYE</div>
+  const primary = team.primaryColor || '#0f172a'
+  const secondary = team.secondaryColor || '#3b82f6'
+  const ink = { color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.45)' }
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ background: `linear-gradient(100deg, ${primary} 0%, ${secondary} 100%)` }}>
+      {team.logo
+        ? <img src={team.logo} alt="" className="w-8 h-8 object-contain flex-shrink-0" style={team.logoBg ? { background: primary } : undefined} />
+        : <span className="w-8 h-8 flex items-center justify-center text-[10px] font-black flex-shrink-0" style={{ background: '#ffffff33', color: '#fff' }}>{(team.abbreviation || '?').slice(0, 3)}</span>}
+      <div className="flex-1 min-w-0">
+        <div className="font-bold truncate leading-tight" style={ink}>{team.name}{win ? ' ▸' : ''}</div>
+        {rec && <div className="text-[11px] leading-tight" style={ink}>{rec}</div>}
+      </div>
+      <span className="tabular-nums font-black text-lg flex-shrink-0" style={ink}>{(score ?? 0).toFixed(1)}</span>
     </div>
   )
 }

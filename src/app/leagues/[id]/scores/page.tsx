@@ -1,6 +1,6 @@
 import { db } from '@/db'
-import { leagues, teams, matchups } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { leagues, teams, matchups, teamRecords } from '@/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
@@ -24,6 +24,8 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
   const session = await getServerSession(authOptions)
   const franchises = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, logoBg: teams.logoBg }).from(teams).where(eq(teams.leagueId, id))
   const all = await db.select().from(matchups).where(eq(matchups.leagueId, id)).limit(3000)
+  const recs = await db.select({ teamId: teamRecords.teamId, sport: teamRecords.sport, wins: teamRecords.wins, losses: teamRecords.losses, ties: teamRecords.ties })
+    .from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
   const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const isCommish = league.commissionerId === session?.user?.id
 
@@ -44,6 +46,7 @@ export default async function ScoresPage({ params }: { params: Promise<{ id: str
         currentSeason={league.season}
         sportNames={safeParse<Record<string, string>>(league.sportNames, {})}
         schedule={safeParse<any[]>(league.sportSchedule, [])}
+        records={recs as any}
         isCommish={isCommish}
       />
     </div>
