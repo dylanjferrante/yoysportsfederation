@@ -8,6 +8,7 @@ type Side = { name: string; abbr: string; logo: string | null; primary: string; 
 type Card = { id: string; sport: string; status: 'Final' | 'LIVE' | 'PRE'; home: Side; away: Side }
 type News = { id: string; category: string; sport?: string; text: string; href: string }
 type Topic = { key: string; title: string; sport?: string; items: News[] }
+type Seg = { type: 'title'; t: Topic } | { type: 'item'; h: News }
 
 const CATEGORY_TITLE: Record<string, string> = {
   PERFORMANCE: 'Top Performers', MILESTONE: 'Milestones', SHOOTOUT: 'Shootouts', SUPERLATIVE: 'Leaders',
@@ -16,14 +17,13 @@ const CATEGORY_TITLE: Record<string, string> = {
   FORM: 'Form', PACE: 'Pace', FEDERATION: 'Federation', GOVERNANCE: 'League Office', SCHEDULE: 'Schedule',
 }
 
-type Snapshot = { scores: Card[]; news: News[]; cardIdx: number; topicIdx: number }
+type Snapshot = { scores: Card[]; news: News[]; cardIdx: number }
 const tickerCache = new Map<string, Snapshot>()
 
 export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fbbf24' }: { leagueId: string; primary?: string; secondary?: string }) {
   const [scores, setScores] = useState<Card[]>(() => tickerCache.get(leagueId)?.scores ?? [])
   const [news, setNews] = useState<News[]>(() => tickerCache.get(leagueId)?.news ?? [])
   const [cardIdx, setCardIdx] = useState(() => tickerCache.get(leagueId)?.cardIdx ?? 0)
-  const [topicIdx, setTopicIdx] = useState(() => tickerCache.get(leagueId)?.topicIdx ?? 0)
   const [hidden, setHidden] = useState(false)
   const [ready, setReady] = useState(false)
 
@@ -38,8 +38,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       if (!alive) return
       const sc = d.scores ?? [], nw = d.news ?? []
       setScores(sc); setNews(nw)
-      const c = tickerCache.get(leagueId)
-      tickerCache.set(leagueId, { scores: sc, news: nw, cardIdx: c?.cardIdx ?? 0, topicIdx: c?.topicIdx ?? 0 })
+      tickerCache.set(leagueId, { scores: sc, news: nw, cardIdx: tickerCache.get(leagueId)?.cardIdx ?? 0 })
     }).catch(() => {})
     load()
     const iv = setInterval(() => { if (document.visibilityState === 'visible') load() }, 45_000)
@@ -48,8 +47,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
   useEffect(() => {
     const c = tickerCache.get(leagueId)
-    if (c) tickerCache.set(leagueId, { ...c, cardIdx, topicIdx })
-  }, [leagueId, cardIdx, topicIdx])
+    if (c) tickerCache.set(leagueId, { ...c, cardIdx })
+  }, [leagueId, cardIdx])
 
   useEffect(() => {
     if (scores.length <= 1) return
@@ -71,13 +70,9 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     })
   }, [news])
 
-  useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
-
-  useEffect(() => {
-    if (hidden || topics.length <= 1) return
-    const iv = setInterval(() => setTopicIdx(i => (i + 1) % topics.length), 14_000)
-    return () => clearInterval(iv)
-  }, [hidden, topics.length])
+  const belt = useMemo<Seg[]>(() => topics.flatMap(t => [{ type: 'title', t } as Seg, ...t.items.map(h => ({ type: 'item', h } as Seg))]), [topics])
+  const totalChars = useMemo(() => belt.reduce((n, s) => n + (s.type === 'title' ? s.t.title.length + 4 : s.h.text.length + 4), 0), [belt])
+  const duration = Math.max(40, Math.round(totalChars * 0.2))
 
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
 
@@ -96,38 +91,14 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     )
   }
 
-  if (!scores.length && !topics.length) return null
+  if (!scores.length && !belt.length) return null
 
   const card = scores.length ? scores[cardIdx % scores.length] : null
-  const topic = topics.length ? topics[topicIdx % topics.length] : null
-  const queue = topics.length > 1
-    ? Array.from({ length: Math.min(5, topics.length - 1) }, (_, k) => topics[(topicIdx + 1 + k) % topics.length])
-    : []
-  const items = topic?.items ?? []
-  const chars = items.reduce((n, h) => n + h.text.length + 6, 0)
-  const duration = Math.max(18, Math.round(chars * 0.22))
-
-  const Row = ({ k }: { k: string }) => (
-    <div className="row" aria-hidden={k === 'b'}>
-      {items.map(h => (
-        <Link key={`${k}-${h.id}`} href={h.href} className="item">
-          <span className="text">{h.text}</span>
-          <span className="dot">•</span>
-        </Link>
-      ))}
-    </div>
-  )
-
-  const Team = ({ s, pre }: { s: Side; pre?: boolean }) => (
-    <div className={`team ${s.win ? 'win' : ''}`}>
-      {s.logo ? <img src={s.logo} alt="" className="lg" /> : <span className="lg badge" style={{ background: s.primary, color: s.secondary }}>{s.abbr.slice(0, 3)}</span>}
-      <span className="ab">{s.abbr}</span>
-      <span className="sc">{pre ? '—' : s.score}</span>
-    </div>
-  )
+  const sides = card ? [card.away, card.home] : []
+  const pre = card?.status === 'PRE'
 
   return (
-    <div className="wrap" style={{ ['--lp' as string]: primary, ['--ls' as string]: secondary }}>
+    <div className="wrap" style={{ '--lp': primary, '--ls': secondary } as React.CSSProperties}>
       <span className="label">📡&nbsp;Wire</span>
 
       {card && (
@@ -136,35 +107,48 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
             <span className="spchip" style={{ background: sportMeta(card.sport).hex }}>{card.sport}</span>
             <span className={`status ${card.status === 'LIVE' ? 'live' : ''}`}>{card.status === 'LIVE' ? '● LIVE' : card.status === 'PRE' ? 'Upcoming' : 'Final'}</span>
           </div>
-          <Team s={card.away} pre={card.status === 'PRE'} />
-          <Team s={card.home} pre={card.status === 'PRE'} />
+          {sides.map((s, i) => (
+            <div className={`team ${s.win ? 'win' : ''}`} key={i}>
+              {s.logo
+                ? <img src={s.logo} alt="" className="lg" />
+                : <span className="lg badge" style={{ background: s.primary, color: s.secondary }}>{s.abbr.slice(0, 3)}</span>}
+              <span className="ab">{s.abbr}</span>
+              <span className="sc">{pre ? '—' : s.score}</span>
+            </div>
+          ))}
         </Link>
       )}
 
-      {topic && (
-        <div className="main">
-          <span className="pin" key={`pin-${topicIdx}`}>
-            {topic.sport && <span className="pbar" style={{ background: sportMeta(topic.sport).hex }} />}
-            {topic.title}
-          </span>
-          <div className="viewport">
-            <div className="track" style={{ animationDuration: `${duration}s` }}>
-              <Row k="a" />
-              <Row k="b" />
+      {belt.length > 0 && (
+        <div className="viewport">
+          <div className="track" style={{ animationDuration: `${duration}s` }}>
+            <div className="strip">
+              {belt.map((seg, i) => seg.type === 'title' ? (
+                <span className="ttile" key={`a-t-${seg.t.key}-${i}`}>
+                  {seg.t.sport && <span className="tbar" style={{ background: sportMeta(seg.t.sport).hex }} />}
+                  {seg.t.title}
+                </span>
+              ) : (
+                <Link className="item" href={seg.h.href} key={`a-h-${seg.h.id}-${i}`}>
+                  <span className="text">{seg.h.text}</span>
+                  <span className="sep">•</span>
+                </Link>
+              ))}
+            </div>
+            <div className="strip" aria-hidden>
+              {belt.map((seg, i) => seg.type === 'title' ? (
+                <span className="ttile" key={`b-t-${seg.t.key}-${i}`}>
+                  {seg.t.sport && <span className="tbar" style={{ background: sportMeta(seg.t.sport).hex }} />}
+                  {seg.t.title}
+                </span>
+              ) : (
+                <span className="item" key={`b-h-${seg.h.id}-${i}`}>
+                  <span className="text">{seg.h.text}</span>
+                  <span className="sep">•</span>
+                </span>
+              ))}
             </div>
           </div>
-        </div>
-      )}
-
-      {queue.length > 0 && (
-        <div className="queue" key={`q-${topicIdx}`}>
-          <span className="upnext">Up next</span>
-          {queue.map((t, i) => (
-            <span className="qt" key={`${t.key}-${i}`}>
-              {t.sport && <span className="qdot" style={{ background: sportMeta(t.sport).hex }} />}
-              {t.title}
-            </span>
-          ))}
         </div>
       )}
 
@@ -173,7 +157,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       <style jsx>{`
         .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 66px; color: #e2e8f0; overflow: hidden; background: linear-gradient(90deg, rgba(2,6,23,.62), rgba(2,6,23,.42)), var(--lp); }
         .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1rem; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
-        .scorecard { flex-shrink: 0; width: 190px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: .3rem 1rem; border-right: 1px solid rgba(255,255,255,.12); text-decoration: none; color: #e2e8f0; animation: fade .45s ease; }
+        .scorecard { flex-shrink: 0; width: 196px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: .3rem 1rem; border-right: 1px solid rgba(255,255,255,.14); text-decoration: none; color: #e2e8f0; }
         .schead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
         .spchip { font-size: .58rem; font-weight: 800; padding: .03rem .35rem; border-radius: .3rem; color: #fff; }
         .status { font-size: .58rem; font-weight: 700; color: #cbd5e1; opacity: .75; text-transform: uppercase; }
@@ -182,36 +166,26 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .team.win { font-weight: 800; color: #fff; }
         .lg { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; background: rgba(255,255,255,.1); margin-right: .55rem; }
         .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; }
-        .ab { width: 3.4rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sc { width: 4.2ch; flex-shrink: 0; margin-left: 1.15rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; text-shadow: 0 0 6px rgba(251,191,36,.4); }
-        .main { flex: 1; min-width: 0; display: flex; align-items: center; border-right: 1px solid rgba(255,255,255,.12); }
-        .pin { flex-shrink: 0; display: inline-flex; align-items: center; gap: .5rem; padding: 0 1.5rem; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ls); animation: slidein .45s ease; white-space: nowrap; }
-        .pbar { width: 4px; height: 18px; border-radius: 2px; }
+        .ab { width: 3.2rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sc { width: 4.4ch; flex-shrink: 0; margin-left: 1.3rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; text-shadow: 0 0 6px rgba(251,191,36,.4); }
         .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; }
         .viewport:hover .track { animation-play-state: paused; }
         .track { display: inline-flex; white-space: nowrap; will-change: transform; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .row { display: inline-flex; align-items: center; }
-        .item { display: inline-flex; align-items: center; gap: 1.7rem; font-size: .85rem; font-weight: 500; color: #e2e8f0; text-decoration: none; }
+        .strip { display: inline-flex; align-items: center; }
+        .ttile { display: inline-flex; align-items: center; gap: .55rem; flex-shrink: 0; margin: 0 1.9rem 0 2.4rem; font-size: .88rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ls); }
+        .tbar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+        .item { display: inline-flex; align-items: center; flex-shrink: 0; font-size: .9rem; font-weight: 500; color: #eef2f7; text-decoration: none; }
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
-        .dot { color: rgba(255,255,255,.3); margin: 0 1.7rem; font-size: .7rem; }
-        .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.2rem; padding: 0 1.3rem; background: linear-gradient(90deg, transparent, rgba(2,6,23,.5) 22%); animation: slideleft .5s ease; }
-        .upnext { font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: rgba(255,255,255,.4); white-space: nowrap; }
-        .qt { display: inline-flex; align-items: center; gap: .45rem; font-size: .76rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: rgba(226,232,240,.78); white-space: nowrap; }
-        .qdot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+        .sep { color: rgba(255,255,255,.4); margin: 0 1.9rem; font-size: .72rem; }
         .hide { flex-shrink: 0; padding: 0 .85rem; color: rgba(255,255,255,.35); font-size: .8rem; }
         .hide:hover { color: #fff; }
         @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slidein { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes slideleft { from { opacity: .3; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
-        @media (max-width: 900px) { .queue { display: none; } }
         @media (max-width: 640px) {
           .label { padding: 0 .6rem; font-size: .6rem; }
-          .scorecard { width: 172px; padding: .3rem .65rem; }
-          .pin { padding: 0 1rem; }
-          .item { gap: 1.2rem; }
-          .dot { margin: 0 1.2rem; }
+          .scorecard { width: 178px; padding: .3rem .65rem; }
+          .ttile { margin: 0 1.1rem 0 1.4rem; }
+          .sep { margin: 0 1.2rem; }
         }
       `}</style>
     </div>
