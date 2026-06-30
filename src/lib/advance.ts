@@ -4,7 +4,8 @@ import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStat
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
-import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, type ScheduleEntry } from '@/lib/defaults'
+import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, lineupCadenceFor, type ScheduleEntry } from '@/lib/defaults'
+import { weekDates, gameDateOf, leagueDayLineups } from '@/lib/dailylineup'
 import { scorePlayer, generateStatLine } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
@@ -68,7 +69,7 @@ const lastRun = new Map<string, number>()
 async function scoreSportWeek(league: any, sport: string, week: number, detailed = true) {
   const scoring = (safeParse<any>(league.scoringSettings, {})[sport]) ?? {}
   const roster = await db
-    .select({ playerId: rosters.playerId, teamId: rosters.teamId, slot: rosters.slot, position: players.position, projected: players.projectedPoints, status: players.status, byeWeek: players.byeWeek })
+    .select({ playerId: rosters.playerId, teamId: rosters.teamId, slot: rosters.slot, position: players.position, projected: players.projectedPoints, status: players.status, byeWeek: players.byeWeek, realTeamAbbr: players.realTeamAbbr })
     .from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).innerJoin(teams, eq(rosters.teamId, teams.id))
     .where(and(eq(teams.leagueId, league.id), eq(rosters.sport, sport)))
   if (!roster.length) return
@@ -96,10 +97,34 @@ async function scoreSportWeek(league: any, sport: string, week: number, detailed
   if (detailed && rows.length) await db.insert(playerGameStats).values(rows)
   // Sum each team's starters — auto-substitute inactive starters, then SP cap.
   const spCap = league.mlbSpCap ?? 0
-  const byTeam: Record<string, Scored[]> = {}
-  for (const r of roster) (byTeam[r.teamId] ??= []).push({ slot: r.slot, position: r.position, pts: pts[r.playerId] ?? 0, status: r.status, byeWeek: r.byeWeek })
+  const cadence = lineupCadenceFor(safeParse<Record<string, string>>(league.lineupCadence, {}), sport)
   const teamTotal: Record<string, number> = {}
-  for (const [tid, rs] of Object.entries(byTeam)) teamTotal[tid] = effectiveTotal(sport, spCap, week, rs)
+  const scoredOf = (r: typeof roster[number], slot: string): Scored => ({ slot, position: r.position, pts: pts[r.playerId] ?? 0, status: r.status, byeWeek: r.byeWeek })
+
+  if (cadence === 'DAILY') {
+    // Each player scores on the day their game falls; that day's lineup (a daily
+    // override, else the standing slot) decides whether they started. Summing
+    // each day's started players lets one slot credit different players across
+    // the week — a bench player can cover a day a starter is off.
+    const dates = weekDates(league.season, week)
+    const dayLineups = await leagueDayLineups(league.id, league.season, sport, dates)
+    const buckets: Record<string, Scored[]> = {} // `${teamId}|${date}` → that day's roster
+    for (const r of roster) {
+      const gd = gameDateOf(sport, r.realTeamAbbr, league.season, week) ?? 'none'
+      const key = `${r.teamId}|${gd}`
+      const slot = dayLineups.get(key)?.[r.playerId] ?? r.slot
+      ;(buckets[key] ??= []).push(scoredOf(r, slot))
+    }
+    for (const [key, rs] of Object.entries(buckets)) {
+      const tid = key.slice(0, key.indexOf('|'))
+      teamTotal[tid] = +((teamTotal[tid] ?? 0) + effectiveTotal(sport, spCap, week, rs)).toFixed(1)
+    }
+  } else {
+    // Weekly: one standing lineup locks for the whole week.
+    const byTeam: Record<string, Scored[]> = {}
+    for (const r of roster) (byTeam[r.teamId] ??= []).push(scoredOf(r, r.slot))
+    for (const [tid, rs] of Object.entries(byTeam)) teamTotal[tid] = effectiveTotal(sport, spCap, week, rs)
+  }
 
   const games = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.season, league.season), eq(matchups.sport, sport), eq(matchups.week, week)))
   for (const g of games) {

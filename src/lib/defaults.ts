@@ -14,6 +14,24 @@ export const DEFAULT_ROSTER: Record<string, RosterSettings> = {
 // Bench/reserve slot keys (not in the active scoring lineup).
 export const RESERVE_SLOTS = ['BN', 'IR', 'IL', 'DL', 'TAXI']
 
+export type LineupCadence = 'DAILY' | 'WEEKLY'
+
+// How often lineups are set/locked per sport. Football is a weekly game (one
+// lineup locks for the whole week); the other three play most nights, so their
+// default is daily — a bench player can be started on a day a starter is off,
+// and each day's lineup locks game-by-game.
+export const DEFAULT_LINEUP_CADENCE: Record<string, LineupCadence> = {
+  NFL: 'WEEKLY', NHL: 'DAILY', NBA: 'DAILY', MLB: 'DAILY',
+}
+
+// Resolve a sport's lineup cadence from the league's stored override map,
+// falling back to the per-sport default.
+export function lineupCadenceFor(raw: Record<string, string> | null | undefined, sport: string): LineupCadence {
+  const v = raw?.[sport]
+  if (v === 'DAILY' || v === 'WEEKLY') return v
+  return DEFAULT_LINEUP_CADENCE[sport] ?? 'WEEKLY'
+}
+
 // IDP (individual defensive player) slot → eligible real positions. Used when a
 // league runs individual defenders instead of a single team defense (DST).
 // Note: 'DL' is both an IDP slot here and a reserve key above; reserve wins in

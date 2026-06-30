@@ -109,6 +109,7 @@ export const leagues = sqliteTable('leagues', {
   championshipLogos: text('championship_logos').default('{}'), // per-sport trophy/logo URLs
   breakWeeks: text('break_weeks').default('{}'), // per-sport bye/break weeks (all-star, Olympics): { sport: number[] }
   lineupLocks: text('lineup_locks').default('{}'), // per-sport lineup lock { sport: { day, hour } }
+  lineupCadence: text('lineup_cadence').default('{}'), // per-sport { sport: 'DAILY' | 'WEEKLY' } (default: NFL weekly, others daily)
   salaryCapEnabled: integer('salary_cap_enabled', { mode: 'boolean' }).default(false),
   salaryCap: integer('salary_cap').default(200),
   capMode: text('cap_mode').default('TOTAL'), // TOTAL (one cross-sport cap) | PER_SPORT
@@ -190,6 +191,23 @@ export const rosterSnapshots = sqliteTable('roster_snapshots', {
   position: text('position'),
   slot: text('slot'),
 })
+
+// Per-day starting lineups for daily-cadence sports (NHL/NBA/MLB by default).
+// A row records the slot a player occupied on a specific calendar date; absence
+// of rows for a date means that date inherits the standing rosters.slot lineup.
+// Lets an owner start a different player in a slot each day a starter is off.
+export const dailyLineups = sqliteTable('daily_lineups', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  season: text('season').notNull(),
+  sport: text('sport').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD
+  playerId: text('player_id').notNull(),
+  slot: text('slot').notNull(),
+}, (t) => ({
+  uniq: uniqueIndex('daily_lineup_uniq').on(t.teamId, t.season, t.sport, t.date, t.playerId),
+}))
 
 export const proposalVotes = sqliteTable('proposal_votes', {
   id: text('id').primaryKey(),

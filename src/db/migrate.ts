@@ -133,6 +133,7 @@ CREATE TABLE leagues (
   championship_logos TEXT DEFAULT '{}',
   break_weeks TEXT DEFAULT '{}',
   lineup_locks TEXT DEFAULT '{}',
+  lineup_cadence TEXT DEFAULT '{}',
   salary_cap_enabled INTEGER DEFAULT 0,
   salary_cap INTEGER DEFAULT 200,
   cap_mode TEXT DEFAULT 'TOTAL',
@@ -191,6 +192,18 @@ CREATE TABLE roster_snapshots (
   position TEXT,
   slot TEXT
 );
+
+CREATE TABLE daily_lineups (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  season TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  date TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  slot TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS daily_lineup_uniq ON daily_lineups(team_id, season, sport, date, player_id);
 
 CREATE TABLE team_season_branding (
   id TEXT PRIMARY KEY,
@@ -605,6 +618,7 @@ CREATE INDEX IF NOT EXISTS idx_real_stats_lookup ON real_stat_lines(sport, seaso
 CREATE INDEX IF NOT EXISTS idx_real_stats_player ON real_stat_lines(player_id, sport, season, week);
 CREATE INDEX IF NOT EXISTS idx_game_schedule_sport_date ON game_schedule(sport, game_date);
 CREATE INDEX IF NOT EXISTS idx_roster_snapshots ON roster_snapshots(league_id, season, team_id);
+CREATE INDEX IF NOT EXISTS idx_daily_lineups ON daily_lineups(league_id, team_id, sport, date);
 CREATE INDEX IF NOT EXISTS idx_proposals_league ON proposals(league_id, status);
 CREATE INDEX IF NOT EXISTS idx_proposal_votes_proposal ON proposal_votes(proposal_id);
 CREATE INDEX IF NOT EXISTS idx_players_sport ON players(sport);

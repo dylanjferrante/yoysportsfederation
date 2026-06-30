@@ -13,7 +13,7 @@ type P = {
   realTeam: string; realTeamAbbr: string | null; status: string; injuryNote: string | null; byeWeek: number | null
   seasonPoints: number; projectedPoints: number; weeklyAvg: number
   gp: number; lastPts: number | null; seasonStats: Record<string, number>; opp: { opp: string; home: boolean } | null
-  locked?: boolean; kickoff?: number | null
+  locked?: boolean; kickoff?: number | null; gameDate?: string | null
 }
 type Pick = { id: string; sport: string | null; round: number; year: number }
 type Team = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; wordmark: string | null; primaryColor: string; secondaryColor: string; leagueId: string; userId: string; ownerName: string | null }
@@ -35,6 +35,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   const [history, setHistory] = useState<any>(null)
   const [sport, setSport] = useState('NFL')
   const [view, setView] = useState<'roster' | 'history'>('roster')
+  const [lineupDate, setLineupDate] = useState<string | null>(null) // null = standing lineup (daily sports only)
   const [fa, setFa] = useState<FA[]>([])
   const [showFA, setShowFA] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -62,6 +63,16 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   useEffect(() => {
     if (showFA && data?.team) fetch(`/api/players?sport=${sport}&free=true&leagueId=${data.team.leagueId}`).then(r => r.json()).then(setFa)
   }, [showFA, sport, data?.team])
+  // For daily-cadence sports, default the lineup date to today (if in this week) or
+  // the week's first day; weekly sports clear it (single standing lineup).
+  useEffect(() => {
+    const dates: string[] = data?.weekDates?.[sport] ?? []
+    if ((data?.cadence?.[sport]) === 'DAILY' && dates.length) {
+      const now = new Date()
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      setLineupDate(prev => (prev && dates.includes(prev)) ? prev : (dates.includes(today) ? today : dates[0]))
+    } else setLineupDate(null)
+  }, [sport, data])
 
   async function act(payload: any) {
     await fetch(`/api/teams/${id}/roster`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -106,7 +117,18 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   const picks: Pick[] = data.picks ?? []
   const canManage: boolean = data.canManage
   const sportsPresent = SPORTS.filter(s => players.some(p => p.sport === s))
-  const rosterForSport = players.filter(p => p.sport === sport).sort((a, b) => (STARTER(b.slot) ? 1 : 0) - (STARTER(a.slot) ? 1 : 0) || b.seasonPoints - a.seasonPoints)
+  // Daily-cadence sports manage a lineup per calendar day. With a date selected,
+  // each player's effective slot is that day's override (falling back to the
+  // standing slot); roster moves write to that day only.
+  const cadence: Record<string, string> = data.cadence ?? {}
+  const isDaily = cadence[sport] === 'DAILY'
+  const weekDays: string[] = data.weekDates?.[sport] ?? []
+  const dayMap: Record<string, string> | null = (isDaily && lineupDate) ? (data.dailyLineups?.[sport]?.[lineupDate] ?? {}) : null
+  const rosterForSport = players.filter(p => p.sport === sport)
+    .map(p => dayMap ? { ...p, slot: dayMap[p.id] ?? p.slot } : p)
+    .sort((a, b) => (STARTER(b.slot) ? 1 : 0) - (STARTER(a.slot) ? 1 : 0) || b.seasonPoints - a.seasonPoints)
+  const dayLabel = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }) }
+  const playsOn = (d: string) => players.filter(p => p.sport === sport && p.gameDate === d).length
   const picksForSport = picks.filter(p => p.sport === sport || p.sport === null)
   const capEnabled: boolean = !!data.salaryCapEnabled
   const cap: number = data.salaryCap ?? 0
@@ -195,7 +217,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
             <div className="absolute z-20 left-2 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 w-28">
               <p className="text-[10px] text-slate-400 px-1 pb-1">Move to…</p>
               {slots.map(slot => (
-                <button key={slot} onClick={() => { act({ action: 'SET_SLOT', rosterId: p.rosterId, slot }); setOpenSlot(null) }}
+                <button key={slot} onClick={() => { act({ action: 'SET_SLOT', rosterId: p.rosterId, slot, ...(dayMap ? { date: lineupDate } : {}) }); setOpenSlot(null) }}
                   className={`block w-full text-left text-xs px-2 py-1 rounded hover:bg-slate-100 ${slot === p.slot ? 'font-bold text-blue-600' : 'text-slate-700'}`}>
                   {slot}{slot === p.slot ? ' ✓' : ''}
                 </button>
@@ -208,6 +230,8 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
           <span className="text-[11px] text-slate-400"> {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
           {p.status !== 'ACTIVE' && <span className="ml-1 text-[9px] font-bold text-red-500 align-top">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
           {p.byeWeek ? <span className="ml-1 text-[9px] text-slate-300">BYE {p.byeWeek}</span> : null}
+          {dayMap && p.gameDate === lineupDate && <span className="ml-1 text-[9px] font-bold text-emerald-500 align-top">PLAYS</span>}
+          {dayMap && p.gameDate && p.gameDate !== lineupDate && <span className="ml-1 text-[9px] text-slate-300 align-top">off · {dayLabel(p.gameDate)}</span>}
           {capEnabled && (p.salary ?? 0) > 0 && <span className="ml-1 text-[10px] text-emerald-600 font-semibold tabular-nums">${(p.salary ?? 0).toLocaleString()}{p.contractYears ? ` · ${p.contractYears}yr` : ''}</span>}
         </td>
         <td className="px-1.5 py-1.5 text-center text-[11px] text-slate-500 tabular-nums whitespace-nowrap">{oppLabel(p.opp ?? undefined)}</td>
@@ -343,9 +367,28 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
             {canManage && <button onClick={() => setShowFA(!showFA)} className="ml-auto btn-secondary text-sm">{showFA ? 'Hide' : '+ Add'} Free Agents</button>}
           </div>
 
+          {/* Daily-lineup day picker (NHL/NBA/MLB) */}
+          {isDaily && weekDays.length > 0 && (
+            <div className="card p-3 mb-4">
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-xs font-semibold text-slate-700">📅 Daily lineup</span>
+                <span className="text-[11px] text-slate-400">{lineupDate ? `start whoever plays ${dayLabel(lineupDate)} — a bench player can cover a slot on a day its starter is off` : 'the default lineup applied to any day you don’t customize'}</span>
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto">
+                <button onClick={() => setLineupDate(null)} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold ${!lineupDate ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Standing</button>
+                {weekDays.map(d => (
+                  <button key={d} onClick={() => setLineupDate(d)} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-center ${lineupDate === d ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                    <span className="block text-xs font-semibold">{dayLabel(d)}</span>
+                    <span className={`block text-[9px] ${lineupDate === d ? 'text-white/80' : 'text-slate-400'}`}>{playsOn(d)} play</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-              {advisor && (
+              {advisor && !dayMap && (
                 <div className="card p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="font-semibold text-slate-900 flex items-center gap-2">📋 Lineup Advisor</h2>
