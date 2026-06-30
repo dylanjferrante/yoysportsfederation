@@ -10,19 +10,21 @@ schedule headlines work regardless.
 
 ---
 
-## Per-sport score bands (blowout / nail-biter)
+## Blowout / nail-biter bands (adaptive)
 
-Weekly point totals differ enormously by sport, so "blowout" and "close game" use
-**per-sport margins**, not one fixed number. These are tunable constants
-(`SCORE_BANDS` in `lib/headlines.ts`).
+"Blowout" and "close game" are **not** fixed numbers — they're derived from the
+season's actual team scores in that sport, which already reflect the current
+scoring settings. So if the commissioner changes scoring (or sports simply score
+on different scales), the thresholds re-tune themselves automatically.
 
-| Sport | Typical total / week | **Blowout** when margin ≥ | **Nail-biter** when margin ≤ |
-|-------|----------------------|---------------------------|------------------------------|
-| NFL   | ~110–170             | **35**                    | **5**                        |
-| NBA   | ~900–1300            | **250**                   | **30**                       |
-| NHL   | ~110–180             | **45**                    | **6**                        |
-| MLB   | lower, pitcher-driven (can dip near 0) | **18** | **3**            |
-| *(other)* | —                | 40                        | 5                            |
+- **Blowout** = margin ≥ **25%** of a typical team's score that sport.
+- **Nail-biter** = margin ≤ **5%** of a typical team's score.
+- "Typical" = the average team score across that season's completed games (≥ 6
+  games needed). Until then, it falls back to the static `SCORE_BANDS` defaults
+  in `lib/headlines.ts` (NFL 35/5 · NBA 250/30 · NHL 45/6 · MLB 18/3).
+
+*Real stat-line milestones (below) use real counting stats (goals, yards, points)
+and are independent of fantasy scoring, so they never need re-tuning.*
 
 ---
 
@@ -115,3 +117,57 @@ Per-category cap is in the last column.
 |----------|------|-------------|---------|
 | Season opens | `{Sport} season opens this week` | Sport's current week == its start week and nothing played yet | 32 / 3 |
 | Season wraps | `{Sport} regular season wraps — playoffs next` | Sport's last completed week == its end week and no games remain | 34 / 3 |
+| Midpoint | `{Sport} hits the midpoint of the season` | Latest completed week == the sport's middle week | 33 / 4 |
+| Playoff push | `Playoff push: K {Sport} spots up for grabs with N weeks to play` | ≤ 3 weeks left in the sport's regular season | 46 / 4 |
+
+### L · Stat-line milestones (real box scores)  → /scores
+
+Detected from the latest completed week's real player stats; phrasing varies. Up to 6 per sport.
+
+| Sport | Body (examples) | Requirement |
+|-------|-----------------|-------------|
+| NHL | `{Player} records a natural hat trick` · `…bags a pair of goals` · `…N-point night` · `…N-save shutout` | goals ≥ 3 · = 2 · goals+assists ≥ 4 · saves ≥ 28 & 0 allowed |
+| MLB | `{Player} goes deep N times` · `…drives in N` · `…fans N on the mound` · `…collects N hits` | HR ≥ 3 (or 2) · RBI ≥ 5 · pitcher K ≥ 10 · hits ≥ 4 |
+| NBA | `{Player} posts a triple-double` · `…double-double (p/r/a)` · `…erupts for N` · `…splashes N threes` | pts/reb/ast all ≥ 10 · two ≥ 10 · pts ≥ 40 · 3PM ≥ 7 |
+| NFL | `{Player} accounts for N touchdowns` · `…throws for N yards` · `…runs for N` · `…N receiving yards` | total TD ≥ 3 · pass yds ≥ 300 · rush ≥ 125 · rec ≥ 110 |
+
+### M · Game of the week  → /scores
+
+| Headline | Body | Requirement | P / cap |
+|----------|------|-------------|---------|
+| Shootout | `Shootout in {Sport}: {A} and {B} combine for X` | Highest **combined** score of the latest completed week | 50 / 3 |
+
+### N · Power notes  → standings
+
+| Headline | Body | Requirement | P / cap |
+|----------|------|-------------|---------|
+| Best record | `{Team} owns the league's best overall record (W-L)` | Most total wins across all sports | 46 / 4 |
+| Scoring leader | `{Team} is the highest-scoring team in {Sport}` | Most points-for in that sport | 44 / 4 |
+| Winless | `{Team} is still searching for its first {Sport} win` | 0 wins after ≥ 3 games | 36 / 4 |
+
+### O · Pace  → standings
+
+| Headline | Body | Requirement | P / cap |
+|----------|------|-------------|---------|
+| On pace | `{Team} is on pace for N wins in {Sport}` | Sport leader, projected from current win rate (after ≥ 4 games, before the final week) | 36 / 3 |
+
+### P · Form  → standings
+
+| Headline | Body | Requirement | P / cap |
+|----------|------|-------------|---------|
+| Hot lately | `{Team} has won 4 of its last 5 in {Sport}` | 4 wins in the last 5 (and not already a 5-game streak) | 40 / 4 |
+| Longest streak | `{Team} owns the league's longest active {Sport} win streak (N)` | The league's longest current win streak (≥ 4) in that sport | 44 / 4 |
+
+### Q · Rivalry / rematch  → /scores
+
+| Headline | Body | Requirement | P / cap |
+|----------|------|-------------|---------|
+| Rematch | `Rematch in {Sport}: {A} took the first meeting with {B}` (or `…run it back`) | This week's opponents already played earlier in the season | 30 / 3 |
+
+### R · Busiest GM  → /transactions
+
+| Headline | Body | Requirement | P / cap |
+|----------|------|-------------|---------|
+| Busiest GM | `{Team} has been the league's busiest GM (N moves)` | Most accepted trades + successful waivers (≥ 3) | 33 / 4 |
+
+*Total feed is capped at **40** items after per-category caps and ranking.*
