@@ -177,7 +177,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       <button onClick={() => setHiddenPersist(true)} className="hide" aria-label="Hide wire">✕</button>
 
       <style jsx>{`
-        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 66px; color: #e2e8f0; overflow: hidden; background: linear-gradient(90deg, rgba(2,6,23,.62), rgba(2,6,23,.42)), var(--lp); }
+        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 66px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); }
         .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1.05rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .scorecard { flex-shrink: 0; width: 196px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: .3rem 1rem; border-right: 1px solid rgba(255,255,255,.14); text-decoration: none; color: #e2e8f0; }
         .schead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
@@ -201,7 +201,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
         .sep { color: rgba(255,255,255,.4); margin: 0 1.9rem; font-size: .72rem; }
-        .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.4rem; padding: 0 1.5rem; border-left: 1px solid rgba(255,255,255,.14); background: linear-gradient(90deg, transparent, rgba(2,6,23,.5) 30%); }
+        .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.4rem; padding: 0 1.5rem; border-left: 1px solid rgba(255,255,255,.14); }
         .queue > .qtile { animation: qslide .5s ease; }
         .upnext { font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); white-space: nowrap; }
         .qtile { display: inline-flex; align-items: center; gap: .45rem; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: rgba(238,242,247,.82); white-space: nowrap; }
