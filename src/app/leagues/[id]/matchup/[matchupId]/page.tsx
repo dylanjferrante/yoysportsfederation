@@ -10,6 +10,7 @@ import { boxScoreColumns } from '@/lib/scoring-categories'
 import { weekGameStatus, type GameStatus } from '@/lib/schedule'
 import { playerKickoff } from '@/lib/locks'
 import { oppLabel } from '@/lib/realschedule'
+import { weekDates, teamDayLineups } from '@/lib/dailylineup'
 import MatchupChat from './MatchupChat'
 import BoxScores from './BoxScores'
 
@@ -79,6 +80,15 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
   const home = await lineup(m.homeTeamId)
   const away = await lineup(m.awayTeamId)
 
+  // Daily sports: the week's dates and each club's per-day lineup overrides so
+  // the box score can be stepped through day by day.
+  const isDaily = m.sport !== 'NFL'
+  const weekDaysList = isDaily ? weekDates(season, m.week) : []
+  const homeOverrides = isDaily && m.homeTeamId ? await teamDayLineups(id, m.homeTeamId, season, m.sport, weekDaysList) : {}
+  const awayOverrides = isDaily && m.awayTeamId ? await teamDayLineups(id, m.awayTeamId, season, m.sport, weekDaysList) : {}
+  const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const weekDays = weekDaysList.map(d => { const dt = new Date(`${d}T00:00:00`); return { date: d, label: `${WD[dt.getDay()]} ${dt.getMonth() + 1}/${dt.getDate()}` } })
+
   const spread = (home.proj || 0) - (away.proj || 0)
   const scale = Math.max(10, ((home.proj || 0) + (away.proj || 0)) * 0.06)
   const homeWinPct = Math.round(100 / (1 + Math.exp(-spread / scale)))
@@ -110,12 +120,12 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       projected: +(p.projected ?? 0).toFixed(1),
       points: p.points == null ? null : +p.points.toFixed(1),
       colVals: cols.map(c => p.points == null ? null : (+c.get(stats).toFixed(1) || 0)),
-      isToday: !!p.isToday, gameLabel: p.game?.label ?? null, gameBucket: p.game?.bucket ?? null,
+      gameDate: p.gameDate ?? null, gameLabel: p.game?.label ?? null, gameBucket: p.game?.bucket ?? null,
     }
   }
-  const sideLite = (side: any) => ({
+  const sideLite = (side: any, overrides: Record<string, Record<string, string>>) => ({
     team: side.team ? { name: side.team.name, abbreviation: side.team.abbreviation, logo: side.team.logo, altLogo: side.team.altLogo, primaryColor: side.team.primaryColor, secondaryColor: side.team.secondaryColor, logoBg: !!side.team.logoBg } : null,
-    starters: side.starters.map(toPL), bench: side.bench.slice(0, 10).map(toPL),
+    starters: side.starters.map(toPL), bench: side.bench.slice(0, 12).map(toPL), dayOverrides: overrides,
   })
 
   return (
@@ -170,8 +180,8 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Box scores — up front, no scrolling past hero cards */}
-      <BoxScores home={sideLite(home)} away={sideLite(away)} cols={cols.map(c => c.label)} accent={meta.hex}
-        weekScore={{ home: m.homeScore ?? 0, away: m.awayScore ?? 0 }} />
+      <BoxScores home={sideLite(home, homeOverrides)} away={sideLite(away, awayOverrides)} cols={cols.map(c => c.label)} accent={meta.hex}
+        weekScore={{ home: m.homeScore ?? 0, away: m.awayScore ?? 0 }} weekDays={weekDays} today={todayStr} />
 
       {h2h && h2h.recent.length > 0 && (
         <details className="card mt-5">
