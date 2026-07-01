@@ -104,16 +104,18 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
     const wk = bySport[sp].curWeek
     if (!wk) return []
     const top3 = new Set(recsBySport(sp).slice(0, 3).map(r => r.teamId))
-    return bySport[sp].incomplete.filter(m => m.week === wk).slice(0, 4).map(m => {
+    // Only surface previews with a hook (an undefeated club or a top-3 clash);
+    // the generic "A (rec) vs B (rec) this week" line is noise, so it is dropped.
+    return bySport[sp].incomplete.filter(m => m.week === wk).slice(0, 4).flatMap(m => {
       const hr = recOf(m.homeTeamId, sp), ar = m.awayTeamId ? recOf(m.awayTeamId, sp) : undefined
       const undef = [{ id: m.homeTeamId, r: hr }, { id: m.awayTeamId, r: ar }].find(x => x.r && (x.r.wins ?? 0) >= 3 && (x.r.losses ?? 0) === 0)
-      let text: string, priority = 25
+      let text: string, priority: number
       if (undef) { const opp = undef.id === m.homeTeamId ? m.awayTeamId : m.homeTeamId
         text = `${nm(undef.id)} looks to stay perfect (${undef.r!.wins}-0) in ${sp} vs ${nm(opp)}`; priority = 50 }
       else if (top3.has(m.homeTeamId) && m.awayTeamId && top3.has(m.awayTeamId)) {
         text = `Top-3 clash in ${sp}: ${nm(m.homeTeamId)} vs ${nm(m.awayTeamId)}`; priority = 45 }
-      else text = `${nm(m.homeTeamId)} (${rec3(hr?.wins ?? 0, hr?.losses ?? 0, hr?.ties ?? 0)}) vs ${nm(m.awayTeamId)} (${rec3(ar?.wins ?? 0, ar?.losses ?? 0, ar?.ties ?? 0)}) this week in ${sp}`
-      return { id: `prev-${m.id}`, category: 'PREVIEW', sport: sp, priority, ts: tsOfWeek(wk), text, href: `${base}/scores` }
+      else return []
+      return [{ id: `prev-${m.id}`, category: 'PREVIEW', sport: sp, priority, ts: tsOfWeek(wk), text, href: `${base}/scores` }]
     })
   }))
 
@@ -335,8 +337,6 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
   run(() => sportsEnabled.flatMap(sp => {
     const w = bySport[sp].win; if (!w) return []
     const res: Headline[] = []
-    if (bySport[sp].curWeek === w.startWeek && bySport[sp].lastWeek === 0)
-      res.push({ id: `open-${sp}`, category: 'SCHEDULE', sport: sp, priority: 32, ts: tsOfWeek(w.startWeek), text: `${sp} season opens this week`, href: `${base}/scores` })
     if (bySport[sp].lastWeek === w.endWeek && bySport[sp].incomplete.length === 0)
       res.push({ id: `wrap-${sp}`, category: 'SCHEDULE', sport: sp, priority: 34, ts: tsOfWeek(w.endWeek), text: `${sp} regular season wraps — playoffs next`, href: `${base}/playoffs` })
     return res
