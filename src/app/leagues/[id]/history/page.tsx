@@ -64,21 +64,38 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
     <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-8">History & Records</h1>
 
-      {/* Federation champions */}
-      <div className="card mb-6">
+      {/* Federation champions — each tile carries the champion club's branding. */}
+      <div className="card mb-6 overflow-hidden">
         <div className="card-header flex items-center gap-2">
-          {champLogos['FED'] ? <img src={champLogos['FED']} alt="" className="w-7 h-7 object-contain" /> : <span></span>}
+          {champLogos['FED'] ? <img src={champLogos['FED']} alt="" className="w-7 h-7 object-contain" /> : null}
           <h2 className="font-semibold text-slate-900">{champNames['FED'] || `${league.name} Champions`}</h2>
         </div>
-        <div className="divide-y divide-slate-50">
-          {seasons.length === 0 && <p className="px-6 py-4 text-slate-400 text-sm">No completed seasons yet.</p>}
-          {seasons.map(season => (
-            <div key={season} className="px-6 py-3 flex items-center justify-between">
-              <span className="text-sm text-slate-500">{season}</span>
-              <span className="font-semibold text-slate-900">{nameOf(championOf(season, 'OVERALL'))}</span>
+        {seasons.length === 0
+          ? <p className="px-6 py-4 text-slate-400 text-sm">No completed seasons yet.</p>
+          : (
+            <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,.08)' }}>
+              {seasons.map(season => {
+                const champId = championOf(season, 'OVERALL')
+                const t = franchises.find(f => f.id === champId)
+                const primary = t?.primaryColor || '#0f172a'
+                const secondary = t?.secondaryColor || '#ffffff'
+                const src = t?.altLogo || t?.logo
+                return (
+                  <div key={season} className="flex items-center gap-3 px-4 py-3" style={{ background: primary, color: secondary }}>
+                    {src
+                      ? <span className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: t?.logoBg ? primary : 'rgba(255,255,255,.14)' }}><img src={src} alt="" className="w-[80%] h-[80%] object-contain" /></span>
+                      : <span className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(t?.abbreviation || t?.name || '?').slice(0, 3).toUpperCase()}</span>}
+                    <div className="min-w-0 flex-1">
+                      {t?.wordmark
+                        ? <img src={t.wordmark} alt={t?.name ?? ''} className="h-7 w-auto max-w-[220px] object-contain object-left" />
+                        : <span className="font-bold truncate">{t?.name ?? '—'}</span>}
+                    </div>
+                    <span className="font-black tabular-nums flex-shrink-0" style={{ color: secondary, opacity: .92 }}>{season}</span>
+                  </div>
+                )
+              })}
             </div>
-          ))}
-        </div>
+          )}
       </div>
 
       {/* Champions by sport */}

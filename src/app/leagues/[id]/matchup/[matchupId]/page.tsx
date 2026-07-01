@@ -3,7 +3,7 @@ import { leagues, teams, matchups, rosters, players, playerGameStats, playerDayS
 import { eq, and, or, ne, inArray } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { sportMeta, safeParse } from '@/lib/utils'
+import { sportMeta, safeParse, sportAbbrLabel } from '@/lib/utils'
 import { sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
 import { RESERVE_SLOTS } from '@/lib/defaults'
 import { boxScoreColumns } from '@/lib/scoring-categories'
@@ -39,6 +39,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
   const [m] = await db.select().from(matchups).where(eq(matchups.id, matchupId)).limit(1)
   if (!league || !m) notFound()
   const meta = sportMeta(m.sport)
+  const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
   const cols = boxScoreColumns(m.sport)
 
   const season = m.season ?? league.season
@@ -147,7 +148,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
           const sw = sportWeekOf(safeParse<ScheduleEntry[]>(league.sportSchedule, []), m.sport, m.week)
           return (
             <p className="text-sm font-semibold text-slate-700">
-              {m.sport} · {sw ? `Week ${sw}` : `Week ${m.week}`}
+              {sportAbbrLabel(m.sport, sportAbbr)} · {sw ? `Week ${sw}` : `Week ${m.week}`}
               <span className="font-normal text-slate-400"> · {league.name} · {m.isComplete ? 'Final' : 'Live'}</span>
             </p>
           )

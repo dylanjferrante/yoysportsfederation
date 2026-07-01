@@ -5,8 +5,10 @@ import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
+import { useSportAbbr } from '@/components/SportNaming'
 
 export default function DraftRoom() {
+  const abbr = useSportAbbr()
   const { id, draftId } = useParams<{ id: string; draftId: string }>()
   const { data: session } = useSession()
   const [s, setS] = useState<any>(null)
@@ -82,7 +84,7 @@ export default function DraftRoom() {
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <Link href={`/leagues/${id}/draft`} className="btn-ghost text-slate-500">← Drafts</Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-900">{d.kind === 'DYNASTY' ? 'Dynasty Draft' : `${d.scope === 'OVERALL' ? 'Combined' : d.scope} Rookie Draft`}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{d.kind === 'DYNASTY' ? 'Dynasty Draft' : `${d.scope === 'OVERALL' ? 'Combined' : abbr(d.scope)} Rookie Draft`}</h1>
           <p className="text-sm text-slate-500">{d.season} · {d.rounds} rounds · pick {s.current}/{s.total}</p>
         </div>
         <span className={`badge ${d.status === 'IN_PROGRESS' ? 'bg-green-100 text-green-700' : d.status === 'COMPLETED' ? 'bg-slate-100 text-slate-600' : 'bg-yellow-100 text-yellow-800'}`}>{d.status}</span>
@@ -182,7 +184,7 @@ export default function DraftRoom() {
                     <span className={`w-10 h-10 rounded-xl ${sportMeta(au.nomPlayer.sport).bg} text-white flex items-center justify-center text-xs font-bold`}>{au.nomPlayer.position?.slice(0, 2)}</span>
                     <div>
                       <p className="font-bold text-slate-900">{au.nomPlayer.name}</p>
-                      <p className="text-xs text-slate-400">{au.nomPlayer.sport} · {au.nomPlayer.realTeam}</p>
+                      <p className="text-xs text-slate-400">{abbr(au.nomPlayer.sport)} · {au.nomPlayer.realTeam}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -247,7 +249,7 @@ export default function DraftRoom() {
                   <span className={`w-7 h-7 rounded-lg ${sportMeta(p.sport).bg} text-white flex items-center justify-center text-[10px] font-bold`}>{p.position?.slice(0, 2)}</span>
                   <span className="flex-1 min-w-0">
                     <span className="font-medium text-sm text-slate-900 truncate block">{p.name}</span>
-                    <span className="text-xs text-slate-400">{p.sport} · {p.realTeam} · value {p.value}{p.adp ? ` · ADP ${p.adp}` : ''}</span>
+                    <span className="text-xs text-slate-400">{abbr(p.sport)} · {p.realTeam} · value {p.value}{p.adp ? ` · ADP ${p.adp}` : ''}</span>
                   </span>
                   {d.status === 'IN_PROGRESS' && !isAuction && myTurn && <button onClick={() => action({ action: 'PICK', playerId: p.id })} disabled={busy} className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500">Draft</button>}
                   {d.status === 'IN_PROGRESS' && isAuction && canNominate && <button onClick={() => action({ action: 'NOMINATE', playerId: p.id, bid: 1 })} disabled={busy} className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500">Nominate</button>}
@@ -267,7 +269,7 @@ export default function DraftRoom() {
               {(s.myQueue ?? []).map((q: any, i: number) => (
                 <div key={q.playerId} className="flex items-center gap-2 px-3 py-2 text-sm">
                   <span className="text-xs font-bold text-slate-400 w-5">{i + 1}</span>
-                  <span className="flex-1 min-w-0"><span className="font-medium text-slate-900 truncate block">{q.name}</span><span className="text-xs text-slate-400">{q.sport} · {q.pos}</span></span>
+                  <span className="flex-1 min-w-0"><span className="font-medium text-slate-900 truncate block">{q.name}</span><span className="text-xs text-slate-400">{abbr(q.sport)} · {q.pos}</span></span>
                   <button onClick={() => action({ action: 'QUEUE_MOVE', playerId: q.playerId, direction: 'up' })} disabled={busy || i === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30">▲</button>
                   <button onClick={() => action({ action: 'QUEUE_MOVE', playerId: q.playerId, direction: 'down' })} disabled={busy} className="text-slate-400 hover:text-slate-700">▼</button>
                   <button onClick={() => action({ action: 'QUEUE_REMOVE', playerId: q.playerId })} disabled={busy} className="text-red-400 hover:text-red-600">×</button>
@@ -315,7 +317,7 @@ export default function DraftRoom() {
                       <div className="text-[9px] font-semibold tabular-nums text-slate-500 leading-tight">({b.pickNumber}, {b.round}.{b.pickInRound})</div>
                       {p ? (
                         <>
-                          <div className="text-[9px] font-medium text-slate-500 leading-tight">{p.sport}-{p.realTeamAbbr ?? '—'}, {p.position}</div>
+                          <div className="text-[9px] font-medium text-slate-500 leading-tight">{abbr(p.sport)}-{p.realTeamAbbr ?? '—'}, {p.position}</div>
                           <div className="text-[11px] text-slate-600 leading-tight mt-0.5">{first}</div>
                           <div className="text-xs font-bold text-slate-900 leading-tight">{rest.join(' ')}</div>
                         </>

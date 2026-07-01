@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
+import { useSportAbbr } from '@/components/SportNaming'
 import { boxScoreColumns } from '@/lib/scoring-categories'
 
 type Rec = { sport: string; faabRemaining: number; waiverPriority: number }
@@ -37,6 +38,7 @@ export default function WaiversView({
   sportsEnabled: string[]; isCommissioner: boolean
   myTeam: { id: string; name: string } | null; myRecords: Rec[]
 }) {
+  const abbr = useSportAbbr()
   const isFaab = waiverType === 'FAAB'
   const enabled = sportsEnabled.length ? sportsEnabled : SPORTS
 
@@ -240,7 +242,7 @@ export default function WaiversView({
                           <span className="text-[10px] text-slate-300 tabular-nums w-5 flex-shrink-0">{position ? p.posRank : i + 1}</span>
                           <span>
                             <Link href={`/players/${p.id}`} className="font-medium text-slate-900 hover:text-blue-600">{p.name}</Link>
-                            <span className="text-[11px] text-slate-400"> {p.sport} · {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
+                            <span className="text-[11px] text-slate-400"> {abbr(p.sport)} · {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
                             {p.status !== 'ACTIVE' && <span className="ml-1 text-[9px] font-bold text-red-500">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
                           </span>
                         </div>
@@ -272,7 +274,7 @@ export default function WaiversView({
                                 <input type="number" min={0} max={myRec?.faabRemaining ?? 0} value={bid} onChange={e => setBid(Math.max(0, +e.target.value))} className="mt-1 w-24 rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums block" />
                               </label>
                             )}
-                            <label className="text-xs text-slate-500">Drop ({p.sport}, optional)
+                            <label className="text-xs text-slate-500">Drop ({abbr(p.sport)}, optional)
                               <select value={selDrop} onChange={e => setSelDrop(e.target.value)} className="mt-1 w-52 rounded-lg border border-slate-200 px-2 py-1.5 text-sm block">
                                 <option value="">— none —</option>
                                 {dropOptions.map(d => <option key={d.rosterId} value={d.id}>{d.name} ({d.position})</option>)}

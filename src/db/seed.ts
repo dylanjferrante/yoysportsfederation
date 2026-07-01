@@ -728,7 +728,7 @@ const faNFL = freeAgentsBySport('NFL', 4)
 const faNHL = freeAgentsBySport('NHL', 2)
 // Scores update automatically via the API, so they are never logged as transactions.
 const seedActivity: [string, string, string | null, string][] = [
-  ['TRADE',  `${fName(0)} proposed a trade to ${fName(1)}`, teamIds[0], '-5 hours'],
+  // Trade *proposals* are private and never surface in activity — only completed trades do.
   ['WAIVER', `${fName(2)} claimed ${faNBA[0] ?? 'a guard'} (NBA) for $17, dropped ${faNBA[1] ?? 'a wing'}`, teamIds[2], '-1 days'],
   ['ROSTER', `${fName(3)} added ${faNFL[0] ?? 'a running back'} (NFL)`, teamIds[3], '-1 days'],
   ['ROSTER', `${fName(3)} dropped ${faNFL[1] ?? 'a tight end'} (NFL)`, teamIds[3], '-1 days'],

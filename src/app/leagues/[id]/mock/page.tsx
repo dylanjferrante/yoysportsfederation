@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { sportMeta } from '@/lib/utils'
+import { useSportAbbr } from '@/components/SportNaming'
 
 type Team = { id: string; name: string; abbreviation: string; primaryColor: string; secondaryColor: string; logo: string | null; altLogo?: string | null; logoBg?: boolean }
 type Player = { id: string; name: string; position: string; sport: string; realTeamAbbr: string | null; adp: number | null; projectedPoints: number | null }
@@ -12,6 +13,7 @@ const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
 export default function MockDraft() {
   const { id } = useParams<{ id: string }>()
+  const abbr = useSportAbbr()
   const [teams, setTeams] = useState<Team[]>([])
   const [pool, setPool] = useState<Player[]>([])
   const [enabledSports, setEnabledSports] = useState<string[]>(SPORTS)
@@ -236,7 +238,7 @@ export default function MockDraft() {
               <div className="max-h-[26rem] overflow-y-auto divide-y divide-slate-50">
                 {available.slice(0, 100).map(p => (
                   <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 text-sm">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(p.sport).light}`}>{p.sport}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(p.sport).light}`}>{abbr(p.sport)}</span>
                     <span className="font-medium text-slate-800 truncate flex-1">{p.name} <span className="text-xs text-slate-400">{p.position} · {p.realTeamAbbr}</span></span>
                     <span className="text-xs text-slate-400 tabular-nums hidden sm:inline">ADP {p.adp ? p.adp.toFixed(0) : '—'}</span>
                     <button onClick={() => pick(p)} disabled={!myTurn} className="btn-primary text-xs px-3 py-1 disabled:opacity-30">Draft</button>
@@ -253,7 +255,7 @@ export default function MockDraft() {
                 {myPicks.length === 0 ? <p className="px-4 py-4 text-slate-400 text-sm">No picks yet.</p> : myPicks.map(p => (
                   <div key={p.overall} className="flex items-center gap-2 px-4 py-1.5 text-sm">
                     <span className="text-[11px] text-slate-300 tabular-nums w-7">{p.round}.{String(p.slot + 1).padStart(2, '0')}</span>
-                    <span className={`text-[10px] font-bold px-1 rounded ${sportMeta(p.player.sport).light}`}>{p.player.sport}</span>
+                    <span className={`text-[10px] font-bold px-1 rounded ${sportMeta(p.player.sport).light}`}>{abbr(p.player.sport)}</span>
                     <span className="truncate text-slate-800">{p.player.name}</span>
                   </div>
                 ))}

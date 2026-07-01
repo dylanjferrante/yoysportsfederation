@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta, tradeStatusClass } from '@/lib/utils'
+import { useSportAbbr } from '@/components/SportNaming'
 
 type TeamRef = { id: string; name: string; abbreviation: string }
 type TradeItem = {
@@ -72,6 +73,7 @@ export default function LeagueTradeCenter() {
 }
 
 function TradeCard({ trade, onAction, readonly }: { trade: Trade; onAction: (id: string, action: 'ACCEPT' | 'REJECT' | 'CANCEL') => void; readonly?: boolean }) {
+  const abbr = useSportAbbr()
   const partAbbr = new Set<string>()
   trade.items.forEach(i => { if (i.fromTeam) partAbbr.add(i.fromTeam.abbreviation); if (i.toTeam) partAbbr.add(i.toTeam.abbreviation) })
   if (partAbbr.size === 0) { if (trade.initiatorTeam?.abbreviation) partAbbr.add(trade.initiatorTeam.abbreviation); if (trade.recipientTeam?.abbreviation) partAbbr.add(trade.recipientTeam.abbreviation) }
@@ -104,7 +106,7 @@ function TradeCard({ trade, onAction, readonly }: { trade: Trade; onAction: (id:
           const to = item.toTeam?.abbreviation ?? trade.recipientTeam?.abbreviation
           return (
             <div key={item.id} className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm">
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{a.sport}</span>
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${meta.light}`}>{abbr(a.sport)}</span>
               <span className="font-medium text-slate-900">{a.label}</span>
               <span className="text-slate-400 text-xs hidden sm:inline">{a.sub}</span>
               <span className="ml-auto text-xs text-slate-500 font-medium whitespace-nowrap">{from} → {to}</span>
