@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { buildHeadlines, buildScoreboard } from '@/lib/headlines'
+import { buildScoreboard } from '@/lib/headlines'
+import { buildWireTopics } from '@/lib/wire'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [headlines, scores] = await Promise.all([buildHeadlines(id), buildScoreboard(id)])
-  const news = headlines.filter(h => h.category !== 'SCORE' && h.category !== 'LIVE')
-  return NextResponse.json({ scores, news })
+  const [topics, scores] = await Promise.all([buildWireTopics(id), buildScoreboard(id)])
+  return NextResponse.json({ scores, topics })
 }
