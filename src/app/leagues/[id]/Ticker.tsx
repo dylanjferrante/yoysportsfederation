@@ -161,12 +161,6 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     ? Array.from({ length: Math.min(3, topics.length - 1) }, (_, k) => topics[(curIdx + 1 + k) % topics.length])
     : []
 
-  const seg = (s: typeof train[number], copy: number) => s.kind === 'topic'
-    ? <span className="tcard" data-copy={copy} data-idx={s.idx} key={`t${copy}-${s.idx}`}>
-        {s.topic.sport && <span className="pbar" style={{ background: sportMeta(s.topic.sport).hex }} />}{s.topic.title}
-      </span>
-    : <Link className="item" href={s.h.href} key={`n${copy}-${s.key}`}><span className="text">{s.h.text}</span><span className="sep">•</span></Link>
-
   return (
     <div className="wrap" style={{ '--lp': primary, '--ls': secondary } as React.CSSProperties}>
       <span className="label">Wire</span>
@@ -201,8 +195,12 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
             {current?.title}
           </span>
           <div className="train" ref={trainRef}>
-            {train.map(s => seg(s, 0))}
-            {train.map(s => seg(s, 1))}
+            {train.map(s => s.kind === 'topic'
+              ? <span className="tcard" data-copy={0} data-idx={s.idx} key={`t0-${s.idx}`}>{s.topic.sport && <span className="pbar" style={{ background: sportMeta(s.topic.sport).hex }} />}{s.topic.title}</span>
+              : <Link className="item" href={s.h.href} key={`n0-${s.key}`}><span className="text">{s.h.text}</span><span className="sep">•</span></Link>)}
+            {train.map(s => s.kind === 'topic'
+              ? <span className="tcard" data-copy={1} data-idx={s.idx} key={`t1-${s.idx}`}>{s.topic.sport && <span className="pbar" style={{ background: sportMeta(s.topic.sport).hex }} />}{s.topic.title}</span>
+              : <Link className="item" href={s.h.href} key={`n1-${s.key}`}><span className="text">{s.h.text}</span><span className="sep">•</span></Link>)}
           </div>
         </div>
       )}
