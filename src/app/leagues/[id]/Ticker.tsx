@@ -185,28 +185,28 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       </div>
 
       <style jsx>{`
-        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 60px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
-        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1.05rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
+        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 46px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
+        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 .95rem; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .stage { flex: 1; min-width: 0; position: relative; overflow: hidden; display: flex; align-items: center; }
-        .line { display: flex; align-items: center; gap: .7rem; width: 100%; min-width: 0; padding: 0 1.1rem; text-decoration: none; color: #e2e8f0; animation: fade .4s ease; white-space: nowrap; }
-        .spchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .28rem; font-size: .6rem; font-weight: 800; padding: .1rem .42rem; border-radius: .3rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
-        .splogo { width: .85rem; height: .85rem; object-fit: contain; border-radius: 2px; }
-        .status { flex-shrink: 0; font-size: .58rem; font-weight: 800; color: #cbd5e1; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
+        .line { display: flex; align-items: center; gap: .6rem; width: 100%; min-width: 0; padding: 0 1rem; text-decoration: none; color: #e2e8f0; animation: fade .4s ease; white-space: nowrap; }
+        .spchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .25rem; font-size: .56rem; font-weight: 800; padding: .08rem .38rem; border-radius: .28rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
+        .splogo { width: .78rem; height: .78rem; object-fit: contain; border-radius: 2px; }
+        .status { flex-shrink: 0; font-size: .54rem; font-weight: 800; color: #cbd5e1; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
         .status.live { color: #f87171; opacity: 1; }
-        .side { flex-shrink: 0; display: inline-flex; align-items: center; gap: .45rem; }
-        .tlogo { width: 24px; height: 24px; object-fit: contain; border-radius: 4px; flex-shrink: 0; padding: 2px; }
-        .tbadge { display: inline-flex; align-items: center; justify-content: center; font-size: .52rem; font-weight: 800; padding: 0; }
-        .tcol { display: flex; flex-direction: column; line-height: 1.08; }
-        .nm { font-size: .9rem; font-weight: 600; color: #cbd5e1; white-space: nowrap; }
+        .side { flex-shrink: 0; display: inline-flex; align-items: center; gap: .4rem; }
+        .tlogo { width: 20px; height: 20px; object-fit: contain; border-radius: 3px; flex-shrink: 0; padding: 1.5px; }
+        .tbadge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; padding: 0; }
+        .tcol { display: flex; flex-direction: column; line-height: 1; }
+        .nm { font-size: .82rem; font-weight: 600; color: #cbd5e1; white-space: nowrap; }
         .side.win .nm { font-weight: 800; color: #fff; }
-        .sub { font-size: .6rem; font-weight: 600; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 1px; }
-        .sc { flex-shrink: 0; margin-left: .2rem; font-variant-numeric: tabular-nums; font-size: 1.05rem; font-weight: 800; letter-spacing: .03em; color: rgba(226,232,240,.55); }
+        .sub { font-size: .55rem; font-weight: 600; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 1.5px; }
+        .sc { flex-shrink: 0; margin-left: .15rem; font-variant-numeric: tabular-nums; font-size: .95rem; font-weight: 800; letter-spacing: .03em; color: rgba(226,232,240,.55); }
         .side.win .sc { color: var(--ls); }
-        .divider { flex-shrink: 0; width: 1px; height: 32px; background: rgba(255,255,255,.2); }
+        .divider { flex-shrink: 0; width: 1px; height: 24px; background: rgba(255,255,255,.2); }
         .note { flex: 1; min-width: 0; overflow: hidden; }
-        .scroll { display: inline-block; white-space: nowrap; font-size: .9rem; font-weight: 500; color: rgba(238,242,247,.85); will-change: transform; }
+        .scroll { display: inline-block; white-space: nowrap; font-size: .84rem; font-weight: 500; color: rgba(238,242,247,.85); will-change: transform; }
         .line.game:hover .scroll, .news:hover .scroll { color: #fff; }
-        .headline { font-size: .98rem; color: #eef2f7; }
+        .headline { font-size: .9rem; color: #eef2f7; }
         .news { gap: 1rem; }
         .topicchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .45rem; font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); }
         .tbar { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }
