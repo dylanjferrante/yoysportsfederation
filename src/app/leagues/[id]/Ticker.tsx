@@ -208,7 +208,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .lg { width: 20px; height: 20px; object-fit: contain; border-radius: 3px; flex-shrink: 0; padding: 2px; margin-right: .55rem; }
         .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; padding: 0; }
         .ab { width: 3.2rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sc { width: 4.4ch; flex-shrink: 0; margin-left: 1.3rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; text-shadow: 0 0 6px rgba(251,191,36,.4); }
+        .sc { width: 5ch; flex-shrink: 0; margin-left: 1.1rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; }
         .main { flex: 1; min-width: 0; display: flex; align-items: stretch; border-right: 1px solid rgba(255,255,255,.14); }
         .pin { flex-shrink: 0; display: inline-flex; align-items: center; gap: .55rem; padding: 0 1.4rem; font-size: .86rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: rgba(2,6,23,.4); border-right: 1px solid rgba(255,255,255,.1); white-space: nowrap; animation: slidein .4s ease; }
         .pbar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
