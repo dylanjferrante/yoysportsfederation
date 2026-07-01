@@ -32,6 +32,7 @@ export async function buildWire(leagueId: string): Promise<Wire> {
   const divisionLogosAlt = safeParse<Record<string, string>>(league.divisionLogosAlt, {})
   const sn = (s: string) => sportAbbrLabel(s, sportAbbr)
   const spLogo = (s: string) => divisionLogosAlt[s] || divisionLogos[s] || null
+  const hashStr = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
 
   const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, division: teams.division, rivals: teams.rivals, logo: teams.logo, altLogo: teams.altLogo, primary: teams.primaryColor, secondary: teams.secondaryColor }).from(teams).where(eq(teams.leagueId, leagueId))
   const tById = new Map(teamRows.map(t => [t.id, t]))
@@ -244,7 +245,18 @@ export async function buildWire(leagueId: string): Promise<Wire> {
       const cb = comebackNote(winner, loser, sp, wk); if (cb) situ.push(cb)
       const climb = climbNote(winner, sp, wk, cut, sn(sp)); if (climb) situ.push(climb)
       const parts = [`${nm(winner)} ${verb}${situ.length ? `, ${situ.slice(0, 2).join(' and ')}` : ''}`]
-      const perf = topPerformers(winner, sp, wk); if (perf.length) parts.push(`led by ${perf.join(' and ')}`)
+      const perf = topPerformers(winner, sp, wk)
+      if (perf.length) {
+        const who = perf.join(' and ')
+        // Vary the credit so recaps don't all end "led by X and Y".
+        switch (hashStr(`${winner}-${wk}-perf`) % 5) {
+          case 0: parts.push(`led by ${who}`); break
+          case 1: parts.push(`behind ${who}`); break
+          case 2: parts.push(`powered by ${who}`); break
+          case 3: parts.push(`${who} pacing the win`); break
+          default: parts.push(`${who} doing the damage`)
+        }
+      }
       const inj = injuryNote(loser, sp); if (inj) parts.push(`${ab(loser)} played without ${inj}`)
       return parts.join(' — ')
     }
