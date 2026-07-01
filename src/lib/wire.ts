@@ -20,10 +20,13 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
   const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
   const sn = (s: string) => sportAbbrLabel(s, sportAbbr)
 
-  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation }).from(teams).where(eq(teams.leagueId, leagueId))
+  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, division: teams.division }).from(teams).where(eq(teams.leagueId, leagueId))
   const tById = new Map(teamRows.map(t => [t.id, t]))
   const nm = (id: string | null | undefined) => (id && tById.get(id)?.name) || 'A club'
   const ab = (id: string | null | undefined) => (id && tById.get(id)?.abbreviation) || '—'
+  const divisions = league.divisions ?? 0
+  const divOf = (id: string) => tById.get(id)?.division ?? null
+  const playoffTeams = league.playoffTeams ?? 6
 
   const recsAll = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, leagueId))
   const recs = recsAll.filter(r => r.season === season)
@@ -55,22 +58,58 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
     const complete = all.filter(m => m.isComplete)
     const week = incomplete.length ? Math.min(...incomplete.map(m => m.week)) : (complete.length ? Math.max(...complete.map(m => m.week)) : 0)
     const ranked = recs.filter(r => r.sport === sp).sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.pointsFor ?? 0) - (a.pointsFor ?? 0))
-    const topSet = new Set(ranked.slice(0, 2).map(r => r.teamId))
-    const items: WireItem[] = []
+    const rankOf = new Map(ranked.map((r, i) => [r.teamId, i]))
+    const pfRank = new Map([...ranked].sort((a, b) => (b.pointsFor ?? 0) - (a.pointsFor ?? 0)).map((r, i) => [r.teamId, i]))
+    const N = ranked.length
+    const maxWeek = all.length ? Math.max(...all.map(m => m.week)) : week
+    const weeksLeft = Math.max(0, maxWeek - week)
+    const cut = playoffTeams
 
+    // The single most compelling angle for an upcoming game.
+    const storyFor = (a: string, h: string): string => {
+      const ar = recOf(a, sp), hr = recOf(h, sp)
+      const ra = rankOf.get(a) ?? 99, rh = rankOf.get(h) ?? 99
+      const aStk = streakOf(a, sp), hStk = streakOf(h, sp)
+      const undA = (ar?.wins ?? 0) >= 2 && (ar?.losses ?? 1) === 0
+      const undH = (hr?.wins ?? 0) >= 2 && (hr?.losses ?? 1) === 0
+      const nearCut = (r: number) => cut > 0 && r >= cut - 2 && r <= cut          // straddling the playoff line
+      // Biggest prior blowout between them this season (revenge angle).
+      const priors = complete.filter(m => (m.homeTeamId === a && m.awayTeamId === h) || (m.homeTeamId === h && m.awayTeamId === a))
+      let revengeFor: string | null = null, revMargin = 0
+      for (const m of priors) {
+        const margin = Math.abs((m.homeScore ?? 0) - (m.awayScore ?? 0))
+        const winner = (m.homeScore ?? 0) >= (m.awayScore ?? 0) ? m.homeTeamId : m.awayTeamId
+        const loser = winner === a ? h : a
+        if (margin > revMargin) { revMargin = margin; revengeFor = loser }
+      }
+
+      if (undA && undH) return 'both unbeaten'
+      if ((ra === 0 && rh === 1) || (ra === 1 && rh === 0)) return '1-seed showdown'
+      if (undA) return `${ab(a)} unbeaten and rolling`
+      if (undH) return `${ab(h)} unbeaten and rolling`
+      if (divisions > 0 && divOf(a) != null && divOf(a) === divOf(h)) return 'division rivalry'
+      if (weeksLeft <= 3 && nearCut(ra) && nearCut(rh)) return 'win-and-in — a playoff spot on the line'
+      if (weeksLeft <= 3 && (nearCut(ra) || nearCut(rh))) return 'playoff seeding at stake'
+      if (aStk.win && aStk.n >= 3) return `${ab(a)} riding a ${aStk.n}-game win streak`
+      if (hStk.win && hStk.n >= 3) return `${ab(h)} riding a ${hStk.n}-game win streak`
+      if (aStk.win === false && aStk.n >= 3) return `${ab(a)} out to snap a ${aStk.n}-game slide`
+      if (hStk.win === false && hStk.n >= 3) return `${ab(h)} out to snap a ${hStk.n}-game slide`
+      if (revengeFor && revMargin >= 25) return `${ab(revengeFor)} out for revenge after a ${revMargin.toFixed(0)}-pt loss`
+      if (ra === 0 && rh === N - 1) return 'best vs worst'
+      if (rh === 0 && ra === N - 1) return 'best vs worst'
+      if (N >= 6 && ra >= N - 3 && rh >= N - 3) return 'cellar clash'
+      if ((pfRank.get(a) ?? 99) <= 1 && (pfRank.get(h) ?? 99) <= 1) return "shootout — the sport's two top scorers"
+      return ''
+    }
+
+    const items: WireItem[] = []
     for (const g of all.filter(m => m.week === week)) {
       const a = g.awayTeamId as string, h = g.homeTeamId
       const href = `${base}/matchup/${g.id}`
       if (g.isComplete) {
         items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) ${(g.awayScore ?? 0).toFixed(1)}, ${nm(h)} (${rc(h, sp)}) ${(g.homeScore ?? 0).toFixed(1)} — Final`, href })
       } else {
-        const ar = recOf(a, sp), hr = recOf(h, sp)
-        const aStk = streakOf(a, sp), hStk = streakOf(h, sp)
-        let story = ''
-        if ((ar?.wins ?? 0) >= 2 && (ar?.losses ?? 1) === 0 && (hr?.wins ?? 0) >= 2 && (hr?.losses ?? 1) === 0) story = 'both unbeaten'
-        else if (topSet.has(a) && topSet.has(h)) story = 'top-2 clash'
-        else if (aStk.win && aStk.n >= 3) story = `${ab(a)} on a ${aStk.n}-game run`
-        else if (hStk.win && hStk.n >= 3) story = `${ab(h)} on a ${hStk.n}-game run`
+        const story = storyFor(a, h)
         items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) vs ${nm(h)} (${rc(h, sp)})${story ? ` · ${story}` : ''}`, href })
       }
     }
