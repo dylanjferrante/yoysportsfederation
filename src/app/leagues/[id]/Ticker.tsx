@@ -196,7 +196,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       <button onClick={() => setHiddenPersist(true)} className="hide" aria-label="Hide wire">✕</button>
 
       <style jsx>{`
-        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 66px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); }
+        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 66px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
         .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1.05rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .scorecard { flex-shrink: 0; width: 196px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: .3rem 1rem; border-right: 1px solid rgba(255,255,255,.14); text-decoration: none; color: #e2e8f0; }
         .schead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
