@@ -11,3 +11,7 @@ prisma/dev.db-journal
 
 # Local scratch scripts (not part of the app)
 /scratch_*.ts
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+node_modules/.cache/
