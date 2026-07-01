@@ -6,6 +6,8 @@ import Navbar from '@/components/Navbar'
 import ServiceWorker from '@/components/ServiceWorker'
 
 const inter = Inter({ subsets: ['latin'] })
+// Fallback score face; the ticker prefers Bitcount Single (loaded via the
+// Google Fonts <link> below — next/font's catalog doesn't include it yet).
 const scoreFont = DotGothic16({ subsets: ['latin'], weight: '400', variable: '--font-score' })
 
 export const metadata: Metadata = {
@@ -28,6 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.className} ${scoreFont.variable}`}>
       <head>
         <link rel="stylesheet" href="https://use.typekit.net/gqo1xyn.css" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitcount+Single:wght@300;400&display=swap" />
       </head>
       <body className="min-h-screen flex flex-col">
         <Providers>
