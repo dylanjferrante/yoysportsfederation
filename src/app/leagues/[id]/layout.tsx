@@ -51,7 +51,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
         <div className="card overflow-hidden mb-5">
           <div className="p-4 flex items-center gap-4" style={{ background: primary, color: secondary }}>
             {league.logoUrl
-              ? <img src={league.logoUrl} alt="" className="w-14 h-14 object-contain rounded-xl flex-shrink-0 p-1.5" style={{ background: 'rgba(255,255,255,.14)' }} />
+              ? <img src={league.logoUrl} alt="" className="w-14 h-14 object-contain rounded-xl flex-shrink-0 p-1.5" />
               : <span className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(league.abbreviation || league.name || '?').slice(0, 3).toUpperCase()}</span>}
             <div className="min-w-0 flex-1">
               {league.wordmark
