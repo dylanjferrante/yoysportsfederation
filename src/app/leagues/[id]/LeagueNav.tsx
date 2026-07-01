@@ -56,6 +56,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
     { label: 'Trade Block', href: `${base}/marketplace`, emoji: '' },
     { label: 'Draft', href: `${base}/draft`, emoji: '' },
     { label: 'Mock Draft', href: `${base}/mock`, emoji: '' },
+    { label: 'Power', href: `${base}/power`, emoji: '' },
     { label: 'Playoffs', href: `${base}/playoffs`, emoji: '' },
     { label: 'Odds', href: `${base}/odds`, emoji: '' },
     { label: 'History', href: `${base}/history`, emoji: '' },
