@@ -73,7 +73,7 @@ export default function OddsPage() {
                     <tr key={t.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2">
                         <span className="text-slate-300 tabular-nums mr-2">{i + 1}</span>
-                        <Link href={`/teams/${t.id}`} className="font-medium text-slate-800 hover:text-blue-600">{t.name}</Link>
+                        <Link href={`/leagues/${id}/teams/${t.id}`} className="font-medium text-slate-800 hover:text-blue-600">{t.name}</Link>
                       </td>
                       <td className="px-4 py-2 text-right">
                         <div className="inline-flex items-center gap-2">
@@ -107,7 +107,7 @@ export default function OddsPage() {
                     <tr key={t.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2">
                         <span className="text-slate-300 tabular-nums mr-2">{i + 1}</span>
-                        <Link href={`/teams/${t.id}`} className="font-medium text-slate-800 hover:text-blue-600">{t.name}</Link>
+                        <Link href={`/leagues/${id}/teams/${t.id}`} className="font-medium text-slate-800 hover:text-blue-600">{t.name}</Link>
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums text-slate-600">{pct(po)}</td>
                       <td className="px-4 py-2 text-right font-bold tabular-nums text-slate-900">{pct(title)}</td>

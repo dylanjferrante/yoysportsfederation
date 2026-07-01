@@ -12,13 +12,14 @@ export type TeamLike = {
 }
 
 export default function TeamChip({
-  team, size = 'md', useAbbr = false, link = true, className = '',
+  team, size = 'md', useAbbr = false, link = true, className = '', leagueId,
 }: {
   team: TeamLike
   size?: 'sm' | 'md' | 'lg'
   useAbbr?: boolean
   link?: boolean
   className?: string
+  leagueId?: string
 }) {
   const primary = team.primaryColor || '#0f172a'
   const secondary = team.secondaryColor || '#e2e8f0'
@@ -36,6 +37,6 @@ export default function TeamChip({
     </span>
   )
 
-  if (link && team.id) return <Link href={`/teams/${team.id}`} className="inline-flex max-w-full hover:opacity-90">{inner}</Link>
+  if (link && team.id) return <Link href={leagueId ? `/leagues/${leagueId}/teams/${team.id}` : `/teams/${team.id}`} className="inline-flex max-w-full hover:opacity-90">{inner}</Link>
   return inner
 }

@@ -138,7 +138,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
             {allTime.map(({ team, wins, losses, sportTitles, fedTitles, fedPoints }) => (
               <tr key={team.id} className="hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <Link href={`/teams/${team.id}`} className="font-medium text-slate-900 hover:text-blue-600">{team.name}</Link>
+                  <Link href={`/leagues/${id}/teams/${team.id}`} className="font-medium text-slate-900 hover:text-blue-600">{team.name}</Link>
                 </td>
                 <td className="text-center px-3 py-2 text-slate-700">{wins}-{losses}</td>
                 <td className="text-center px-3 py-2 text-slate-700">{sportTitles}</td>
