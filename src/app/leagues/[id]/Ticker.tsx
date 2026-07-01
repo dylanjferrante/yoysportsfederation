@@ -50,11 +50,19 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   useEffect(() => {
     if (hidden || slides.length <= 1) return
     const advance = () => setIdx(i => (i + 1) % slides.length)
-    const wrap = scrollWrapRef.current, txt = scrollTxtRef.current
-    let raf = 0, timer = 0
-    if (txt) txt.style.transform = 'translateX(0)'
-    const overflow = wrap && txt ? txt.scrollWidth - wrap.clientWidth : 0
-    if (wrap && txt && overflow > 8) {
+    const txt0 = scrollTxtRef.current
+    if (txt0) txt0.style.transform = 'translateX(0)'
+    let raf = 0, timer = 0, measure = 0
+    const advanceFixed = () => {
+      const tick = () => { if (hoverRef.current) { timer = window.setTimeout(tick, 700); return } advance() }
+      timer = window.setTimeout(tick, 6000)
+    }
+    // Measure a frame later so the flex row has its final widths; only scroll
+    // when the copy genuinely overflows the space it's given.
+    measure = requestAnimationFrame(() => {
+      const wrap = scrollWrapRef.current, txt = scrollTxtRef.current
+      const overflow = wrap && txt ? txt.scrollWidth - wrap.clientWidth : 0
+      if (!wrap || !txt || overflow <= 16) { advanceFixed(); return }
       const SPEED = 60 // px/sec
       let last = 0, offset = 0, lead = 1000, done = false
       const step = (t: number) => {
@@ -68,11 +76,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         raf = requestAnimationFrame(step)
       }
       raf = requestAnimationFrame(step)
-    } else {
-      const tick = () => { if (hoverRef.current) { timer = window.setTimeout(tick, 700); return } advance() }
-      timer = window.setTimeout(tick, 6000)
-    }
-    return () => { cancelAnimationFrame(raf); clearTimeout(timer); if (txt) txt.style.transform = 'translateX(0)' }
+    })
+    return () => { cancelAnimationFrame(raf); cancelAnimationFrame(measure); clearTimeout(timer); const t = scrollTxtRef.current; if (t) t.style.transform = 'translateX(0)' }
   }, [idx, slides, hidden])
 
   // Each slide belongs to a topic (a sport, or a news category). "Up Next"
