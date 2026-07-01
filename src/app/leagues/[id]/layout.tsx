@@ -62,7 +62,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
                 {activeNow.length > 0 && <> · {activeNow.join(', ')} in season</>}
               </p>
             </div>
-            <span className="text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,.16)' }}>{league.status}</span>
+            <span className="text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-full flex-shrink-0" style={{ background: secondary, color: primary }}>{league.status}</span>
           </div>
         </div>
 
