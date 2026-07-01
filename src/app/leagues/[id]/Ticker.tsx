@@ -214,7 +214,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .pbar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
         .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; padding-left: 1.6rem; }
         .viewport:hover .track { animation-play-state: paused; }
-        .track { display: inline-flex; white-space: nowrap; will-change: transform; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .track { display: inline-flex; white-space: nowrap; will-change: transform; animation-name: ticker; animation-duration: 40s; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .track.static { animation: none; transform: none; }
         .row { display: inline-flex; align-items: center; }
         .item { display: inline-flex; align-items: center; flex-shrink: 0; font-size: .92rem; font-weight: 400; color: #eef2f7; text-decoration: none; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: .02em; }
         .item:hover .text { color: #fff; text-decoration: underline; }
