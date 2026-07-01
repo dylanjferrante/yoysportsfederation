@@ -208,9 +208,16 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   async function assign(rosterId: string, slot: string, displaceRosterId?: string) {
     const d = dayMap ? { date: lineupDate } : {}
     if (displaceRosterId && displaceRosterId !== rosterId) await post({ action: 'SET_SLOT', rosterId: displaceRosterId, slot: 'BN', ...d })
-    await post({ action: 'SET_SLOT', rosterId, slot, ...d })
+    const r = await post({ action: 'SET_SLOT', rosterId, slot, ...d })
+    if (!r.ok) { const e = await r.json().catch(() => ({})); if (e?.error) alert(e.error) }
     setSel(null); load()
   }
+  // Reserve slots (Bench / IR / Taxi) this league configures that the selected
+  // player can go to — shown as quick targets in the move banner.
+  const reserveTargets = selPlayer
+    ? Object.keys(cfg).filter(s => RESERVE.includes(s) && s !== selPlayer.slot && canPlace(selPlayer, s))
+    : []
+  const reserveLabel = (s: string) => s === 'BN' ? 'Bench' : s === 'TAXI' ? 'Taxi' : s
   // Tap a lineup slot (filled or empty).
   function tapSlot(slot: string, idx: number, occupant: P | null) {
     if (!canManage) return
@@ -463,10 +470,14 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
               {canManage && sel && (
                 <div className="sticky top-14 z-20 flex items-center gap-2 rounded-lg bg-slate-900 text-white px-3 py-2 text-xs shadow-lg">
                   {selPlayer
-                    ? <span className="min-w-0 truncate">Moving <b>{selPlayer.name}</b> — tap a highlighted slot</span>
-                    : <span className="min-w-0 truncate">Filling <b>{selSlot?.slot}</b> — tap a highlighted player</span>}
-                  {selPlayer && STARTER(selPlayer.slot) && <button onClick={() => assign(selPlayer.rosterId, 'BN')} className="ml-auto bg-white/15 hover:bg-white/25 px-2 py-1 rounded flex-shrink-0">Bench</button>}
-                  <button onClick={() => setSel(null)} className={`${selPlayer && STARTER(selPlayer.slot) ? '' : 'ml-auto'} bg-white/15 hover:bg-white/25 px-2 py-1 rounded flex-shrink-0`}>Cancel</button>
+                    ? <span className="min-w-0 truncate flex-shrink">Moving <b>{selPlayer.name}</b> — tap a slot</span>
+                    : <span className="min-w-0 truncate flex-shrink">Filling <b>{selSlot?.slot}</b> — tap a player</span>}
+                  <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                    {selPlayer && reserveTargets.map(s => (
+                      <button key={s} onClick={() => assign(selPlayer.rosterId, s)} className="bg-white/15 hover:bg-white/25 px-2 py-1 rounded">{reserveLabel(s)}</button>
+                    ))}
+                    <button onClick={() => setSel(null)} className="bg-white/10 hover:bg-white/25 px-2 py-1 rounded">Cancel</button>
+                  </span>
                 </div>
               )}
               {([
