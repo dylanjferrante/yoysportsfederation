@@ -11,6 +11,7 @@ import { weekGameStatus, type GameStatus } from '@/lib/schedule'
 import { playerKickoff } from '@/lib/locks'
 import { oppLabel } from '@/lib/realschedule'
 import MatchupChat from './MatchupChat'
+import BoxScores from './BoxScores'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
@@ -41,6 +42,8 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
 
   const season = m.season ?? league.season
   const now = Date.now()
+  const ymd = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+  const todayStr = ymd(now)
   const statusMap = await weekGameStatus(m.sport, season, m.week)
 
   async function lineup(teamId: string | null) {
@@ -57,6 +60,8 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       const eff = { kickoff, status: gs?.status ?? null }
       const bucket: Bucket = m.isComplete ? 'final' : gameBucket(r.points, eff, now)
       r.game = { bucket, label: gameLabel(bucket, eff), opp: gs ? oppLabel(gs) : null }
+      r.gameDate = eff.kickoff != null ? ymd(eff.kickoff) : null
+      r.isToday = r.gameDate === todayStr
     }
     const starters = rows.filter(r => isStarter(r.slot)).sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
     const bench = rows.filter(r => !isStarter(r.slot)).sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
@@ -98,49 +103,20 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
     h2h = { homeW, awayW, recent }
   }
 
-  function StatTable({ side, score }: { side: any; score: number }) {
-    const Row = ({ p, dim }: { p: any; dim?: boolean }) => {
-      const stats = safeParse<Record<string, number>>(p.stats ?? '{}', {})
-      return (
-        <tr className={dim ? 'text-slate-400' : 'hover:bg-slate-50'}>
-          <td className="px-2 py-1.5 text-[11px] font-semibold text-slate-400 tabular-nums">{p.slot}</td>
-          <td className="px-2 py-1.5 whitespace-nowrap">
-            <Link href={`/players/${p.playerId}`} className="font-medium text-slate-800 hover:text-blue-600">{p.name}</Link>
-            <span className="text-[11px] text-slate-400"> {p.position}</span>
-          </td>
-          {cols.map(c => <td key={c.label} className="px-2 py-1.5 text-center tabular-nums text-slate-600">{p.points == null ? '—' : (+c.get(stats).toFixed(1) || 0)}</td>)}
-          <td className="px-2 py-1.5 text-center whitespace-nowrap">
-            {p.game ? <span className={`text-[10px] font-semibold ${p.game.bucket === 'live' ? 'text-red-500' : p.game.bucket === 'final' ? 'text-slate-400' : 'text-blue-600'}`}>{p.game.label}</span> : '—'}
-          </td>
-          <td className="px-3 py-1.5 text-right font-bold tabular-nums" style={{ color: dim ? undefined : meta.hex }}>{p.points == null ? '—' : p.points.toFixed(1)}</td>
-        </tr>
-      )
+  const toPL = (p: any) => {
+    const stats = safeParse<Record<string, number>>(p.stats ?? '{}', {})
+    return {
+      slot: p.slot, name: p.name, position: p.position, playerId: p.playerId,
+      projected: +(p.projected ?? 0).toFixed(1),
+      points: p.points == null ? null : +p.points.toFixed(1),
+      colVals: cols.map(c => p.points == null ? null : (+c.get(stats).toFixed(1) || 0)),
+      isToday: !!p.isToday, gameLabel: p.game?.label ?? null, gameBucket: p.game?.bucket ?? null,
     }
-    return (
-      <div className="card overflow-x-auto">
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
-          <span className="flex items-center gap-2 font-bold text-slate-900 min-w-0"><TeamLogo team={side.team} size={26} /><span className="truncate">{side.team?.name ?? 'BYE'}</span></span>
-          <span className="text-2xl font-black tabular-nums flex-shrink-0" style={{ color: meta.hex }}>{(score ?? 0).toFixed(1)}</span>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
-              <th className="px-2 py-1.5 text-left font-semibold">Pos</th>
-              <th className="px-2 py-1.5 text-left font-semibold">Starter</th>
-              {cols.map(c => <th key={c.label} className="px-2 py-1.5 text-center font-semibold">{c.label}</th>)}
-              <th className="px-2 py-1.5 text-center font-semibold">Game</th>
-              <th className="px-3 py-1.5 text-right font-semibold">Pts</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {side.starters.map((p: any) => <Row key={p.playerId} p={p} />)}
-            <tr className="bg-slate-50"><td colSpan={cols.length + 4} className="px-2 py-1 text-[10px] uppercase font-bold text-slate-400">Bench</td></tr>
-            {side.bench.slice(0, 10).map((p: any) => <Row key={p.playerId} p={p} dim />)}
-          </tbody>
-        </table>
-      </div>
-    )
   }
+  const sideLite = (side: any) => ({
+    team: side.team ? { name: side.team.name, abbreviation: side.team.abbreviation, logo: side.team.logo, altLogo: side.team.altLogo, primaryColor: side.team.primaryColor, secondaryColor: side.team.secondaryColor, logoBg: !!side.team.logoBg } : null,
+    starters: side.starters.map(toPL), bench: side.bench.slice(0, 10).map(toPL),
+  })
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -194,10 +170,8 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Box scores — up front, no scrolling past hero cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        <StatTable side={home} score={m.homeScore ?? 0} />
-        <StatTable side={away} score={m.awayScore ?? 0} />
-      </div>
+      <BoxScores home={sideLite(home)} away={sideLite(away)} cols={cols.map(c => c.label)} accent={meta.hex}
+        weekScore={{ home: m.homeScore ?? 0, away: m.awayScore ?? 0 }} />
 
       {h2h && h2h.recent.length > 0 && (
         <details className="card mt-5">
