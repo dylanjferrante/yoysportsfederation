@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { sportMeta } from '@/lib/utils'
+import { useSportAbbr } from '@/components/SportNaming'
 
 type Side = { team: string; opp: string; score: number; oppScore: number; sport: string; season: string | null; week: number; playoff: boolean }
 type PGame = { player: string; position: string; sport: string; points: number; week: number; season: string; team: string | null }
@@ -20,7 +21,8 @@ type Data = {
 
 const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 function SportTag({ s }: { s: string }) {
-  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(s).light}`}>{s}</span>
+  const abbr = useSportAbbr()
+  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(s).light}`}>{abbr(s)}</span>
 }
 
 export default function RecordsPage() {

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
+import { useSportAbbr } from '@/components/SportNaming'
 import { eligibleSlots, SPORT_POSITIONS } from '@/lib/defaults'
 import { lineupAdvice } from '@/lib/lineup'
 import { boxScoreColumns } from '@/lib/scoring-categories'
@@ -31,6 +32,7 @@ const SLOT_ORDER: Record<string, string[]> = {
 
 export default function FranchiseView({ teamId }: { teamId: string }) {
   const id = teamId
+  const abbr = useSportAbbr()
   const [data, setData] = useState<any>(null)
   const [history, setHistory] = useState<any>(null)
   const [sport, setSport] = useState('NFL')
@@ -371,7 +373,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
           <div className="flex gap-2 mb-4 flex-wrap items-center">
             {sportsPresent.map(s => (
               <button key={s} onClick={() => setSport(s)} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${sport === s ? `${sportMeta(s).bg} text-white` : 'bg-slate-100 text-slate-600'}`}>
-                {sportMeta(s).emoji} {s} ({players.filter(p => p.sport === s).length})
+                {sportMeta(s).emoji} {abbr(s)} ({players.filter(p => p.sport === s).length})
               </button>
             ))}
             {canManage && <button onClick={() => setShowFA(!showFA)} className="ml-auto btn-secondary text-sm">{showFA ? 'Hide' : '+ Add'} Free Agents</button>}
@@ -461,7 +463,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
                   {picksForSport.length === 0 ? <p className="text-slate-400">No picks for {sport}.</p>
                     : picksForSport.map(pk => (
                       <div key={pk.id} className="flex items-center justify-between py-1 border-b border-slate-50">
-                        <span className="font-medium text-slate-800">{pk.year} {pk.sport ?? 'OVERALL'}</span>
+                        <span className="font-medium text-slate-800">{pk.year} {pk.sport ? abbr(pk.sport) : 'OVERALL'}</span>
                         <span className="text-slate-500">Round {pk.round}</span>
                       </div>
                     ))}

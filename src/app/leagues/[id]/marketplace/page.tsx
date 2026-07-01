@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta, crossSportValue } from '@/lib/utils'
+import { useSportAbbr } from '@/components/SportNaming'
 
 type Row = {
   rosterId: string; sport: string; slot: string; playerId: string; name: string; position: string
@@ -12,6 +13,7 @@ type Row = {
 
 export default function Marketplace() {
   const { id } = useParams<{ id: string }>()
+  const abbr = useSportAbbr()
   const [rows, setRows] = useState<Row[]>([])
   const [sport, setSport] = useState('ALL')
   const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
@@ -42,7 +44,7 @@ export default function Marketplace() {
           <ul className="divide-y divide-slate-50">
             {filtered.map(r => (
               <li key={r.rosterId} className="flex items-center gap-3 px-4 py-2.5">
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(r.sport).light}`}>{r.sport}</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(r.sport).light}`}>{abbr(r.sport)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-slate-900 truncate">{r.name} <span className="text-xs text-slate-400">{r.position} · {r.realTeam}</span></p>
                   <p className="text-xs text-slate-400">on <Link href={`/teams/${r.teamId}`} className="text-blue-600 hover:underline">{r.teamName}</Link></p>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SCORING_CATEGORIES } from '@/lib/scoring-categories'
+import { useSportAbbr } from '@/components/SportNaming'
 
 type Member = { userId: string; role: string; name: string | null; email: string | null }
 type Action = { id: string; action: string; details: string; createdAt: string; byName: string | null }
@@ -195,6 +196,7 @@ function ScoreRow({ m, teamName, post }: { m: Matchup; teamName: Record<string, 
 
 // ── Stat correction ──────────────────────────────────────────────────────────
 function StatFix({ leagueId, base, season, sportsEnabled, post }: { leagueId: string; base: string; season: string; sportsEnabled: string[]; post: any }) {
+  const abbr = useSportAbbr()
   const sports = sportsEnabled.length ? sportsEnabled : ['NFL', 'NHL', 'NBA', 'MLB']
   const [sport, setSport] = useState(sports[0] ?? 'NFL')
   const [week, setWeek] = useState('1')
@@ -244,7 +246,7 @@ function StatFix({ leagueId, base, season, sportsEnabled, post }: { leagueId: st
           <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
             {hits.map(p => (
               <button key={p.id} onClick={() => pick(p)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50">
-                {p.name} <span className="text-slate-400">{p.position} · {p.realTeamAbbr ?? p.sport}</span>
+                {p.name} <span className="text-slate-400">{p.position} · {p.realTeamAbbr ?? abbr(p.sport)}</span>
               </button>
             ))}
           </div>

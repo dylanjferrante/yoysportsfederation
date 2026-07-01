@@ -3,7 +3,7 @@ import { leagues, teams, teamRecords, drafts } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { sportMeta, safeParse, draftTypeLabel } from '@/lib/utils'
+import { sportMeta, safeParse, draftTypeLabel, sportAbbrLabel } from '@/lib/utils'
 import { computeFederationStandings } from '@/lib/federation'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +18,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   if (!league) notFound()
 
   const sports = safeParse<string[]>(league.sportsEnabled, [])
+  const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
   const fed = safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sports })
   const franchises = await db.select().from(teams).where(eq(teams.leagueId, id))
   const records = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, league.season)))
@@ -67,7 +68,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
           <div key={d.id} className="card">
             <div className="card-header flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-semibold text-slate-900">
-                {d.scope === 'OVERALL' ? 'Combined' : `${sportMeta(d.scope).emoji} ${d.scope}`} Rookie Draft · {d.season}
+                {d.scope === 'OVERALL' ? 'Combined' : `${sportMeta(d.scope).emoji} ${sportAbbrLabel(d.scope, sportAbbr)}`} Rookie Draft · {d.season}
               </h3>
               <div className="flex items-center gap-2">
                 {d.startsAt && <span className="text-xs text-slate-400">{new Date(d.startsAt).toLocaleDateString()}</span>}
