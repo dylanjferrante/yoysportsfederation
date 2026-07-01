@@ -1,6 +1,6 @@
 import { db } from '@/db'
-import { leagues, teams, teamRecords, matchups, leagueHistory } from '@/db/schema'
-import { and, eq } from 'drizzle-orm'
+import { leagues, teams, teamRecords, matchups, leagueHistory, playerGameStats, playerDayStats, players, rosters } from '@/db/schema'
+import { and, eq, inArray, ne } from 'drizzle-orm'
 import { safeParse, sportAbbrLabel, orderedSports } from '@/lib/utils'
 import { computeFederationStandings } from '@/lib/federation'
 import { buildHeadlines } from '@/lib/headlines'
@@ -10,7 +10,7 @@ export type WireTopic = { key: string; title: string; sport?: string; items: Wir
 
 // A SportsCenter-style slide: either a single game (two clubs with records,
 // scores, and a storyline "note" off to the side) or a news headline.
-export type SlideTeam = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; record: string; score: number; win: boolean }
+export type SlideTeam = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; record: string; standing: number; score: number; win: boolean }
 export type WireSlide =
   | { kind: 'game'; id: string; sport: string; sportName: string; sportLogo: string | null; status: 'Final' | 'LIVE' | 'PRE'; away: SlideTeam; home: SlideTeam; note: string; href: string }
   | { kind: 'news'; id: string; topic: string; sport?: string; text: string; href: string }
@@ -64,14 +64,94 @@ export async function buildWire(leagueId: string): Promise<Wire> {
     return { win, n }
   }
 
-  const slideTeam = (id: string | null, sp: string, score: number, other: number, complete: boolean): SlideTeam => {
+  // ── Recap ingredients: weekly star lines, daily box lines, injuries ──────────
+  const teamIds = teamRows.map(t => t.id)
+  const pgs = teamIds.length
+    ? await db.select({ teamId: playerGameStats.teamId, sport: playerGameStats.sport, week: playerGameStats.week, points: playerGameStats.points, name: players.name })
+        .from(playerGameStats).innerJoin(players, eq(playerGameStats.playerId, players.id))
+        .where(and(eq(playerGameStats.leagueId, leagueId), eq(playerGameStats.season, season)))
+    : []
+  const pds = teamIds.length
+    ? await db.select({ teamId: playerDayStats.teamId, sport: playerDayStats.sport, week: playerDayStats.week, date: playerDayStats.date, points: playerDayStats.points })
+        .from(playerDayStats).where(and(eq(playerDayStats.leagueId, leagueId), eq(playerDayStats.season, season)))
+    : []
+  const injured = teamIds.length
+    ? await db.select({ teamId: rosters.teamId, sport: rosters.sport, name: players.name, status: players.status })
+        .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
+        .where(and(inArray(rosters.teamId, teamIds), ne(players.status, 'ACTIVE')))
+    : []
+
+  const shortName = (full: string) => { const p = full.trim().split(/\s+/); return p.length > 1 ? `${p[0][0]}. ${p[p.length - 1]}` : full }
+
+  // The winner's top scorers that week (the players who carried the club).
+  const topPerformers = (teamId: string, sp: string, wk: number) => {
+    const rows = pgs.filter(r => r.teamId === teamId && r.sport === sp && r.week === wk).sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+    return rows.slice(0, 2).filter(r => (r.points ?? 0) > 0).map(r => `${shortName(r.name)} (${(r.points ?? 0).toFixed(1)})`)
+  }
+
+  // A finished game that snapped a losing skid, and how long.
+  const skidSnapped = (teamId: string, sp: string, wk: number) => {
+    const prior = ms.filter(m => m.sport === sp && m.isComplete && m.awayTeamId && m.week < wk && (m.homeTeamId === teamId || m.awayTeamId === teamId)).sort((a, b) => b.week - a.week)
+    let n = 0
+    for (const g of prior) {
+      const my = g.homeTeamId === teamId ? (g.homeScore ?? 0) : (g.awayScore ?? 0)
+      const op = g.homeTeamId === teamId ? (g.awayScore ?? 0) : (g.homeScore ?? 0)
+      if (my > op) break
+      n++
+    }
+    return n
+  }
+
+  // Standings order (by wins, then points) through a given week for a sport.
+  const rankThrough = (sp: string, upto: number, teamId: string) => {
+    const w: Record<string, number> = {}, pf: Record<string, number> = {}
+    for (const m of ms) {
+      if (m.sport !== sp || !m.isComplete || !m.awayTeamId || m.week > upto) continue
+      const hs = m.homeScore ?? 0, as = m.awayScore ?? 0, hw = hs >= as
+      const hid = m.homeTeamId as string, aid = m.awayTeamId as string
+      w[hid] = (w[hid] ?? 0) + (hw ? 1 : 0); w[aid] = (w[aid] ?? 0) + (hw ? 0 : 1)
+      pf[hid] = (pf[hid] ?? 0) + hs; pf[aid] = (pf[aid] ?? 0) + as
+    }
+    return teamIds.slice().sort((a, b) => (w[b] ?? 0) - (w[a] ?? 0) || (pf[b] ?? 0) - (pf[a] ?? 0)).indexOf(teamId)
+  }
+
+  // Whether the winner climbed the playoff race with this result.
+  const climbNote = (teamId: string, sp: string, wk: number, cut: number, snName: string) => {
+    if (wk <= 1) return null
+    const now = rankThrough(sp, wk, teamId), before = rankThrough(sp, wk - 1, teamId)
+    if (now >= before) return null
+    if (cut > 0 && before >= cut && now < cut) return 'climbing into the playoff picture'
+    if (now < before) return `up to #${now + 1} in the ${snName} race`
+    return null
+  }
+
+  // For daily sports, whether the winner trailed on cumulative day totals before
+  // pulling ahead by week's end.
+  const comebackNote = (winner: string, loser: string, sp: string, wk: number) => {
+    const dates = [...new Set(pds.filter(r => r.sport === sp && r.week === wk && (r.teamId === winner || r.teamId === loser)).map(r => r.date))].sort()
+    if (dates.length < 2) return null
+    let cw = 0, cl = 0, trailed = false
+    for (let i = 0; i < dates.length; i++) {
+      cw += pds.filter(r => r.teamId === winner && r.sport === sp && r.week === wk && r.date === dates[i]).reduce((s, r) => s + (r.points ?? 0), 0)
+      cl += pds.filter(r => r.teamId === loser && r.sport === sp && r.week === wk && r.date === dates[i]).reduce((s, r) => s + (r.points ?? 0), 0)
+      if (i < dates.length - 1 && cl - cw >= 3) trailed = true
+    }
+    return trailed && cw >= cl ? 'rallying from an early-week deficit' : null
+  }
+
+  const injuryNote = (teamId: string, sp: string) => {
+    const hit = injured.find(r => r.teamId === teamId && r.sport === sp)
+    return hit ? shortName(hit.name) : null
+  }
+
+  const slideTeam = (id: string | null, sp: string, score: number, other: number, complete: boolean, standing: number): SlideTeam => {
     const tm = id ? tById.get(id) : undefined
     return {
       name: tm?.name ?? '—',
       abbr: (tm?.abbreviation || tm?.name || '?').slice(0, 4).toUpperCase(),
       logo: tm?.altLogo || tm?.logo || null,
       primary: tm?.primary ?? '#0f172a', secondary: tm?.secondary ?? '#ffffff',
-      record: id ? rc(id, sp) : '', score: +score.toFixed(1), win: complete && score >= other,
+      record: id ? rc(id, sp) : '', standing, score: +score.toFixed(1), win: complete && score >= other,
     }
   }
 
@@ -151,17 +231,25 @@ export async function buildWire(leagueId: string): Promise<Wire> {
       return ''
     }
 
-    // A finished game's recap note, keyed off the flavor.
-    const recapNote = (a: string, h: string, as: number, hs: number): string => {
-      const winner = as >= hs ? a : h
-      const w = ab(winner)
-      switch (flavorDone(a, h, as, hs)) {
-        case 'upset': return `${w} pull off the upset`
-        case 'in a rout': return `${w} roll in a rout`
-        case 'a nail-biter': return `${w} survive a nail-biter`
-        default: return `${w} take it`
-      }
+    // A finished game's recap: the result, the situational story (skid snapped,
+    // week-long comeback, playoff climb), the players who carried it, and any
+    // notable injury the loser played through.
+    const recapNote = (a: string, h: string, as: number, hs: number, wk: number): string => {
+      const winner = as >= hs ? a : h, loser = winner === a ? h : a
+      const flav = flavorDone(a, h, as, hs)
+      const verb = flav === 'upset' ? 'pull off the upset' : flav === 'in a rout' ? 'roll in a rout' : flav === 'a nail-biter' ? 'survive a nail-biter' : 'take it'
+      const situ: string[] = []
+      const skid = skidSnapped(winner, sp, wk)
+      if (skid >= 3) situ.push(`snapping a ${skid}-game skid`)
+      const cb = comebackNote(winner, loser, sp, wk); if (cb) situ.push(cb)
+      const climb = climbNote(winner, sp, wk, cut, sn(sp)); if (climb) situ.push(climb)
+      const parts = [`${nm(winner)} ${verb}${situ.length ? `, ${situ.slice(0, 2).join(' and ')}` : ''}`]
+      const perf = topPerformers(winner, sp, wk); if (perf.length) parts.push(`led by ${perf.join(' and ')}`)
+      const inj = injuryNote(loser, sp); if (inj) parts.push(`${ab(loser)} played without ${inj}`)
+      return parts.join(' — ')
     }
+
+    const stand = (id: string) => (rankOf.get(id) ?? -1) + 1
 
     const items: WireItem[] = []
     for (const g of all.filter(m => m.week === week)) {
@@ -172,13 +260,13 @@ export async function buildWire(leagueId: string): Promise<Wire> {
       if (g.isComplete) {
         const flav = flavorDone(a, h, g.awayScore ?? 0, g.homeScore ?? 0)
         items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) ${(g.awayScore ?? 0).toFixed(1)}, ${nm(h)} (${rc(h, sp)}) ${(g.homeScore ?? 0).toFixed(1)} — Final${flav ? ` · ${flav}` : ''}`, href })
-        slides.push({ kind: 'game', id: `g-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status, href, note: recapNote(a, h, g.awayScore ?? 0, g.homeScore ?? 0),
-          away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, true), home: slideTeam(h, sp, g.homeScore ?? 0, g.awayScore ?? 0, true) })
+        slides.push({ kind: 'game', id: `g-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status, href, note: recapNote(a, h, g.awayScore ?? 0, g.homeScore ?? 0, g.week),
+          away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, true, stand(a)), home: slideTeam(h as string, sp, g.homeScore ?? 0, g.awayScore ?? 0, true, stand(h as string)) })
       } else {
         const story = storyFor(a, h)
         items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) vs ${nm(h)} (${rc(h, sp)})${story ? ` · ${story}` : ''}`, href })
         slides.push({ kind: 'game', id: `g-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status, href, note: story || `${sn(sp)} action`,
-          away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, false), home: slideTeam(h, sp, g.homeScore ?? 0, g.awayScore ?? 0, false) })
+          away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, false, stand(a)), home: slideTeam(h as string, sp, g.homeScore ?? 0, g.awayScore ?? 0, false, stand(h as string)) })
       }
     }
     if (!items.length) {
@@ -220,7 +308,8 @@ export async function buildWire(leagueId: string): Promise<Wire> {
     for (const row of standings) allTime[row.team.id] = (allTime[row.team.id] ?? 0) + (row.total ?? 0)
   }
   const rankedAt = Object.entries(allTime).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
-  for (let i = 1; i < Math.min(rankedAt.length, 8); i++) {
+  // Only the very top of the all-time race is newsworthy — passing for #1–#3.
+  for (let i = 1; i < Math.min(rankedAt.length, 4); i++) {
     const gap = rankedAt[i - 1][1] - rankedAt[i][1]
     if (gap > 0 && gap <= 3) breaking.push({ id: `alltime-${i}`, text: `${nm(rankedAt[i][0])} is ${gap.toFixed(0)} all-time Cup point${gap === 1 ? '' : 's'} from passing ${nm(rankedAt[i - 1][0])} for #${i}`, href: `${base}/history` })
   }
