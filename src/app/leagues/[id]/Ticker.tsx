@@ -244,7 +244,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .item { display: inline-flex; align-items: center; flex-shrink: 0; font-size: .92rem; font-weight: 400; color: #eef2f7; text-decoration: none; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: .02em; }
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
-        .sep { display: inline-block; width: 3.4rem; text-align: center; color: rgba(255,255,255,.45); font-size: .7rem; }
+        .sep { display: inline-block; padding: 0 12px; color: rgba(255,255,255,.45); font-size: .7rem; }
         .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.4rem; padding: 0 1.5rem; border-left: 1px solid rgba(255,255,255,.14); }
         .queue > .qtile { animation: qslide .5s ease; }
         .upnext { font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); white-space: nowrap; }

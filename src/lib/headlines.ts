@@ -25,6 +25,12 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
   const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
   const schedule = safeParse<{ sport: string; startWeek: number; endWeek: number }[]>(league.sportSchedule, [])
   const playoffTeams = league.playoffTeams ?? 4
+  const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
+  // Swap raw sport codes in headline copy for the league's configured abbreviation.
+  const abbrText = (h: Headline): string => {
+    const a = h.sport ? sportAbbr[h.sport] : undefined
+    return a && a.trim() ? h.text.replace(new RegExp(`\\b${h.sport}\\b`, 'g'), a) : h.text
+  }
 
   const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation }).from(teams).where(eq(teams.leagueId, leagueId))
   const teamsById = new Map(teamRows.map(t => [t.id, t]))
@@ -538,6 +544,7 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
     .filter(h => { const n = (perCat[h.category] = (perCat[h.category] ?? 0) + 1); return n <= (CAP[h.category] ?? 4) })
     .sort((a, b) => b.priority - a.priority || b.ts - a.ts)
     .slice(0, 40)
+    .map(h => ({ ...h, text: abbrText(h) }))
 }
 
 export type ScoreSide = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; score: number; win: boolean }
