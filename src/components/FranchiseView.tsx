@@ -6,7 +6,6 @@ import { sportMeta } from '@/lib/utils'
 import { useSportAbbr } from '@/components/SportNaming'
 import { eligibleSlots, SPORT_POSITIONS } from '@/lib/defaults'
 import { lineupAdvice } from '@/lib/lineup'
-import { boxScoreColumns } from '@/lib/scoring-categories'
 import { oppLabel } from '@/lib/realschedule'
 
 type P = {
@@ -43,7 +42,8 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [brand, setBrand] = useState<any>({})
-  const [openSlot, setOpenSlot] = useState<string | null>(null)
+  // Tap-to-assign selection: either a player being moved, or an open slot being filled.
+  const [sel, setSel] = useState<{ k: 'player'; id: string } | { k: 'slot'; slot: string; idx: number } | null>(null)
   const [showMgr, setShowMgr] = useState(false)
   const [mgrEmail, setMgrEmail] = useState('')
   const [mgrErr, setMgrErr] = useState('')
@@ -148,7 +148,6 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   const totalSalary = players.reduce((s, p) => s + (p.salary ?? 0), 0)
   const overCap = capEnabled && cap > 0 && totalSalary > cap
 
-  const cols = boxScoreColumns(sport)
   const cfg: Record<string, number> = (data.rosterSettings ?? {})[sport] ?? {}
   const RESERVE = ['BN', 'IR', 'IL', 'DL', 'TAXI']
   const order = SLOT_ORDER[sport] ?? []
@@ -196,84 +195,110 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
     }
   })()
 
-  const renderHead = () => (
-    <thead className="sticky top-0 z-10 bg-slate-50">
-      <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
-        <th className="text-left px-2 py-2 font-semibold">Slot</th>
-        <th className="text-left px-2 py-2 font-semibold">Player</th>
-        <th className="text-center px-1.5 py-2 font-semibold">Opp</th>
-        <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Proj</th>
-        <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Last</th>
-        <th className="text-right px-1.5 py-2 font-semibold hidden sm:table-cell">Avg</th>
-        <th className="text-right px-1.5 py-2 font-semibold hidden md:table-cell">GP</th>
-        <th className="text-right px-2 py-2 font-semibold">Pts</th>
-        {cols.map(c => <th key={c.label} className="text-right px-1.5 py-2 font-semibold whitespace-nowrap hidden lg:table-cell">{c.label}</th>)}
-        {canManage && <th className="text-right px-3 py-2 font-semibold sticky right-0 bg-slate-50">Actions</th>}
-      </tr>
-    </thead>
+  // ── Tap-to-assign lineup ────────────────────────────────────────────────────
+  // Positions stay put; you tap a player then tap a slot (or a slot then a
+  // player) to move them in. No dropdowns — friendlier on touch.
+  const elig = (p: P) => eligibleSlots(p.position, cfg)
+  const selPlayer = sel?.k === 'player' ? rosterForSport.find(p => p.rosterId === sel.id) ?? null : null
+  const selSlot = sel?.k === 'slot' ? sel : null
+  const canPlace = (p: P, slot: string) => elig(p).includes(slot)
+  const isLocked = (p: P) => !!p.locked && !data.isCommish
+
+  const post = (payload: any) => fetch(`/api/teams/${id}/roster`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+  async function assign(rosterId: string, slot: string, displaceRosterId?: string) {
+    const d = dayMap ? { date: lineupDate } : {}
+    if (displaceRosterId && displaceRosterId !== rosterId) await post({ action: 'SET_SLOT', rosterId: displaceRosterId, slot: 'BN', ...d })
+    await post({ action: 'SET_SLOT', rosterId, slot, ...d })
+    setSel(null); load()
+  }
+  // Tap a lineup slot (filled or empty).
+  function tapSlot(slot: string, idx: number, occupant: P | null) {
+    if (!canManage) return
+    if (selPlayer) {
+      if (isLocked(selPlayer) || !canPlace(selPlayer, slot)) return
+      if (occupant && occupant.rosterId === selPlayer.rosterId) { setSel(null); return }
+      assign(selPlayer.rosterId, slot, occupant?.rosterId); return
+    }
+    if (occupant) { if (isLocked(occupant)) return; setSel({ k: 'player', id: occupant.rosterId }); return }
+    setSel(selSlot && selSlot.slot === slot && selSlot.idx === idx ? null : { k: 'slot', slot, idx })
+  }
+  // Tap a bench/reserve player.
+  function tapPlayer(p: P) {
+    if (!canManage || isLocked(p)) return
+    if (selSlot) {
+      if (!canPlace(p, selSlot.slot)) return
+      assign(p.rosterId, selSlot.slot, lineup[selSlot.idx]?.player?.rosterId); return
+    }
+    setSel(selPlayer && selPlayer.rosterId === p.rosterId ? null : { k: 'player', id: p.rosterId })
+  }
+
+  // The player's identity + key numbers, shared by slot and reserve cards.
+  const playerBits = (p: P) => (
+    <>
+      <span className="flex-1 min-w-0">
+        <span className="font-medium text-sm text-slate-900 truncate block">{p.name}</span>
+        <span className="text-[11px] text-slate-400">
+          {p.position} · {p.realTeamAbbr ?? p.realTeam}
+          {p.opp ? <> · {oppLabel(p.opp)}</> : null}
+          {p.status !== 'ACTIVE' && <span className="ml-1 font-bold text-red-500">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
+          {p.byeWeek ? <span className="ml-1 text-slate-300">BYE {p.byeWeek}</span> : null}
+          {dayMap && p.gameDate === lineupDate && <span className="ml-1 font-bold text-emerald-500">PLAYS</span>}
+          {dayMap && p.gameDate && p.gameDate !== lineupDate && <span className="ml-1 text-slate-300">off</span>}
+          {capEnabled && (p.salary ?? 0) > 0 && <span className="ml-1 text-emerald-600 font-semibold tabular-nums">${(p.salary ?? 0).toLocaleString()}</span>}
+        </span>
+      </span>
+      <span className="text-right flex-shrink-0 leading-tight">
+        <span className="block text-sm font-bold tabular-nums text-slate-900">{(p.seasonPoints ?? 0).toFixed(1)}</span>
+        <span className="block text-[10px] text-slate-400 tabular-nums">proj {(p.projectedPoints ?? 0).toFixed(1)}</span>
+      </span>
+    </>
   )
 
-  const renderRow = (p: P) => {
-    const slots = eligibleSlots(p.position, (data.rosterSettings ?? {})[sport] ?? {})
-    const open = openSlot === p.rosterId
-    const locked = !!p.locked && !data.isCommish
-    const slotEditable = canManage && !locked
+  const cardActions = (p: P) => canManage ? (
+    <span className="flex items-center gap-1 flex-shrink-0 pr-2">
+      {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} title="Salary / contract" className="text-[11px] w-6 h-6 rounded text-slate-400 hover:text-emerald-600">$</button>}
+      <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} title="Trade block" className={`text-[13px] w-6 h-6 rounded ${p.onBlock ? 'text-amber-600' : 'text-slate-300 hover:text-amber-600'}`}>{p.onBlock ? '◉' : '◎'}</button>
+      <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} title="Drop" className="text-[10px] font-semibold text-red-500 px-1.5 py-1 rounded border border-red-200 hover:bg-red-50">Drop</button>
+    </span>
+  ) : null
+
+  // A starting-lineup slot: static position on the left, tap target on the right.
+  const slotCard = (e: { slot: string; player: P | null }, idx: number) => {
+    const p = e.player
+    const targetable = !!selPlayer && !isLocked(selPlayer) && canPlace(selPlayer, e.slot) && selPlayer.rosterId !== p?.rosterId
+    const picked = p && selPlayer?.rosterId === p.rosterId
+    const dim = (selPlayer && !targetable && !picked) || (selSlot && selSlot.slot !== e.slot)
     return (
-      <tr key={p.rosterId} className="hover:bg-slate-50">
-        <td className="px-2 py-1.5 relative">
-          <button onClick={() => slotEditable && setOpenSlot(open ? null : p.rosterId)} disabled={!slotEditable}
-            title={locked ? 'Locked — game has started' : undefined}
-            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STARTER(p.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'} ${slotEditable ? 'hover:ring-2 hover:ring-blue-200 cursor-pointer' : ''} ${locked ? 'opacity-70' : ''}`}>
-            {p.slot}{slotEditable && ' ▾'}
-          </button>
-          {open && (
-            <div className="absolute z-20 left-2 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 w-28">
-              <p className="text-[10px] text-slate-400 px-1 pb-1">Move to…</p>
-              {slots.map(slot => (
-                <button key={slot} onClick={() => { act({ action: 'SET_SLOT', rosterId: p.rosterId, slot, ...(dayMap ? { date: lineupDate } : {}) }); setOpenSlot(null) }}
-                  className={`block w-full text-left text-xs px-2 py-1 rounded hover:bg-slate-100 ${slot === p.slot ? 'font-bold text-blue-600' : 'text-slate-700'}`}>
-                  {slot}{slot === p.slot ? ' ✓' : ''}
-                </button>
-              ))}
-            </div>
-          )}
-        </td>
-        <td className="px-2 py-1.5 bg-inherit sm:whitespace-nowrap">
-          <Link href={`/players/${p.id}`} className="font-medium text-slate-900 hover:text-blue-600">{p.name}</Link>
-          <span className="text-[11px] text-slate-400"> {p.position} · {p.realTeamAbbr ?? p.realTeam}</span>
-          {p.status !== 'ACTIVE' && <span className="ml-1 text-[9px] font-bold text-red-500 align-top">{p.status === 'INJURED' ? 'INJ' : p.status}</span>}
-          {p.byeWeek ? <span className="ml-1 text-[9px] text-slate-300">BYE {p.byeWeek}</span> : null}
-          {dayMap && p.gameDate === lineupDate && <span className="ml-1 text-[9px] font-bold text-emerald-500 align-top">PLAYS</span>}
-          {dayMap && p.gameDate && p.gameDate !== lineupDate && <span className="ml-1 text-[9px] text-slate-300 align-top">off · {dayLabel(p.gameDate)}</span>}
-          {capEnabled && (p.salary ?? 0) > 0 && <span className="ml-1 text-[10px] text-emerald-600 font-semibold tabular-nums">${(p.salary ?? 0).toLocaleString()}{p.contractYears ? ` · ${p.contractYears}yr` : ''}</span>}
-        </td>
-        <td className="px-1.5 py-1.5 text-center text-[11px] text-slate-500 tabular-nums whitespace-nowrap">{oppLabel(p.opp ?? undefined)}</td>
-        <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden sm:table-cell">{(p.projectedPoints ?? 0).toFixed(1)}</td>
-        <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500 hidden sm:table-cell">{p.lastPts == null ? '—' : p.lastPts.toFixed(1)}</td>
-        <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-500 hidden sm:table-cell">{(p.weeklyAvg ?? 0).toFixed(1)}</td>
-        <td className="px-1.5 py-1.5 text-right tabular-nums text-slate-400 hidden md:table-cell">{p.gp ?? 0}</td>
-        <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-900">{(p.seasonPoints ?? 0).toFixed(1)}</td>
-        {cols.map(c => {
-          const v = +c.get(p.seasonStats ?? {}).toFixed(0)
-          return <td key={c.label} className="px-1.5 py-1.5 text-right tabular-nums text-slate-600 hidden lg:table-cell">{v || '—'}</td>
-        })}
-        {canManage && <td className="px-3 py-1.5 text-right whitespace-nowrap sticky right-0 bg-white shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)]">
-          {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} title="Set salary / contract" className="text-[11px] mr-2 text-slate-400 hover:text-emerald-600">$</button>}
-          <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} title="Trade block — flag this player as available to trade" className={`text-[11px] mr-2 ${p.onBlock ? 'text-amber-600 font-semibold' : 'text-slate-400 hover:text-amber-600'}`}>{p.onBlock ? '◉ On block' : 'Trade block'}</button>
-          <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} className="text-[11px] font-semibold text-red-600 hover:text-white hover:bg-red-600 px-1.5 py-0.5 rounded border border-red-200">Drop</button>
-        </td>}
-      </tr>
+      <div key={`slot-${e.slot}-${idx}`}
+        className={`flex items-center border-b border-slate-50 transition ${targetable ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : ''} ${picked ? 'bg-amber-50 ring-1 ring-inset ring-amber-300' : ''} ${dim ? 'opacity-45' : ''}`}>
+        <button onClick={() => tapSlot(e.slot, idx, p)} disabled={!canManage || (!!p && isLocked(p))}
+          className="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2.5 text-left">
+          <span className={`w-11 flex-shrink-0 text-center text-[11px] font-black rounded py-1 ${STARTER(e.slot) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{e.slot}</span>
+          {p ? playerBits(p)
+            : <span className="flex-1 text-xs italic text-slate-400">{targetable ? 'Tap to place here' : selSlot?.slot === e.slot ? 'Pick a highlighted player' : 'Empty'}</span>}
+        </button>
+        {p && cardActions(p)}
+      </div>
     )
   }
 
-  // An empty, unfilled starter slot (e.g. an open K) — always shown so the lineup is complete.
-  const emptyRow = (slot: string, i: number) => (
-    <tr key={`empty-${slot}-${i}`} className="bg-slate-50/40">
-      <td className="px-2 py-1.5"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{slot}</span></td>
-      <td className="px-2 py-1.5 text-slate-400 italic text-xs" colSpan={7 + cols.length}>Empty slot{canManage && showFA ? ' — add a free agent →' : ''}</td>
-      {canManage && <td className="sticky right-0 bg-white" />}
-    </tr>
-  )
+  // A reserve player (bench / taxi / IR): the whole card is a tap target.
+  const reserveCard = (p: P) => {
+    const targetable = !!selSlot && canPlace(p, selSlot.slot) && !isLocked(p)
+    const picked = selPlayer?.rosterId === p.rosterId
+    const dim = (selSlot && !targetable) || (selPlayer && !picked)
+    return (
+      <div key={p.rosterId}
+        className={`flex items-center border-b border-slate-50 transition ${targetable ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : ''} ${picked ? 'bg-amber-50 ring-1 ring-inset ring-amber-300' : ''} ${dim ? 'opacity-45' : ''}`}>
+        <button onClick={() => tapPlayer(p)} disabled={!canManage || isLocked(p)}
+          className="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2.5 text-left">
+          <span className="w-11 flex-shrink-0 text-center text-[10px] font-bold text-slate-400">{p.slot}</span>
+          {playerBits(p)}
+        </button>
+        {cardActions(p)}
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -434,23 +459,28 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
                   )}
                 </div>
               )}
+              {/* Tap-to-assign guidance banner while a move is in progress. */}
+              {canManage && sel && (
+                <div className="sticky top-14 z-20 flex items-center gap-2 rounded-lg bg-slate-900 text-white px-3 py-2 text-xs shadow-lg">
+                  {selPlayer
+                    ? <span className="min-w-0 truncate">Moving <b>{selPlayer.name}</b> — tap a highlighted slot</span>
+                    : <span className="min-w-0 truncate">Filling <b>{selSlot?.slot}</b> — tap a highlighted player</span>}
+                  {selPlayer && STARTER(selPlayer.slot) && <button onClick={() => assign(selPlayer.rosterId, 'BN')} className="ml-auto bg-white/15 hover:bg-white/25 px-2 py-1 rounded flex-shrink-0">Bench</button>}
+                  <button onClick={() => setSel(null)} className={`${selPlayer && STARTER(selPlayer.slot) ? '' : 'ml-auto'} bg-white/15 hover:bg-white/25 px-2 py-1 rounded flex-shrink-0`}>Cancel</button>
+                </div>
+              )}
               {([
-                { key: 'Starting Lineup', count: lineup.length, body: lineup.map((e, i) => e.player ? renderRow(e.player) : emptyRow(e.slot, i)) },
-                { key: 'Bench', count: bench.length, body: bench.map(renderRow) },
-                { key: 'Taxi Squad', count: taxi.length, body: taxi.map(renderRow) },
-                { key: 'Injured Reserve', count: ir.length, body: ir.map(renderRow) },
+                { key: 'Starting Lineup', count: lineup.length, body: lineup.map((e, i) => slotCard(e, i)) },
+                { key: 'Bench', count: bench.length, body: bench.map(reserveCard) },
+                { key: 'Taxi Squad', count: taxi.length, body: taxi.map(reserveCard) },
+                { key: 'Injured Reserve', count: ir.length, body: ir.map(reserveCard) },
               ] as const).filter(s => s.count > 0).map(section => (
                 <div key={section.key} className="card overflow-hidden">
                   <div className="card-header flex items-center justify-between">
                     <h2 className="font-semibold text-slate-900">{section.key}</h2>
                     <span className="text-xs text-slate-400">{section.count} {section.count === 1 ? 'spot' : 'spots'}</span>
                   </div>
-                  <div className="overflow-auto">
-                    <table className="w-full text-sm">
-                      {renderHead()}
-                      <tbody className="divide-y divide-slate-50">{section.body}</tbody>
-                    </table>
-                  </div>
+                  <div>{section.body}</div>
                 </div>
               ))}
               {lineup.length === 0 && bench.length === 0 && taxi.length === 0 && ir.length === 0 && <div className="card p-8 text-center text-slate-400 text-sm">No {sport} players rostered.</div>}
