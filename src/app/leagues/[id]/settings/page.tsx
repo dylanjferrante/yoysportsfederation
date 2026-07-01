@@ -1028,6 +1028,8 @@ function SettingsInner() {
                 })}
               </div>
             </div>
+
+            {form.waiverType !== 'FREE_AGENT' && <ForceWaiversPanel leagueId={params.id as string} />}
           </>
         )}
 
@@ -1343,6 +1345,35 @@ function ImportHistoryPanel({ leagueId, onImported }: { leagueId: string; onImpo
               <button onClick={() => run(true)} disabled={!doc || busy} className="btn-secondary text-sm disabled:opacity-40">{busy ? 'Checking…' : 'Preview'}</button>
               <button onClick={() => run(false)} disabled={!doc || busy} className="btn-primary text-sm disabled:opacity-40">{busy ? 'Importing…' : 'Import history'}</button>
             </div>
+          </div>
+        )}
+    </div>
+  )
+}
+
+function ForceWaiversPanel({ leagueId }: { leagueId: string }) {
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [confirm, setConfirm] = useState(false)
+  async function run() {
+    setBusy(true); setMsg('')
+    const res = await fetch(`/api/leagues/${leagueId}/waivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'PROCESS' }) })
+    const d = await res.json().catch(() => ({}))
+    setBusy(false); setConfirm(false)
+    setMsg(res.ok ? `Processed ${d.processed ?? 0} claim(s) — ${d.awarded ?? 0} awarded.` : (typeof d.error === 'string' ? d.error : 'Could not process waivers'))
+  }
+  return (
+    <div className="border-t border-slate-100 pt-4">
+      <h4 className="font-semibold text-slate-900 text-sm">Force process waivers</h4>
+      <p className="text-xs text-slate-500 mt-1">Immediately award every pending waiver claim now, outside the scheduled run. Kept here in settings on purpose — it settles all pending claims at once.</p>
+      {msg && <p className="text-sm text-slate-700 mt-2">{msg}</p>}
+      {!confirm
+        ? <button onClick={() => setConfirm(true)} className="btn-secondary text-sm mt-2">Process pending waivers now…</button>
+        : (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-slate-600">Award all pending claims immediately?</span>
+            <button onClick={() => setConfirm(false)} className="btn-secondary text-xs">Cancel</button>
+            <button onClick={run} disabled={busy} className="btn-primary text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50">{busy ? 'Processing…' : 'Yes, process now'}</button>
           </div>
         )}
     </div>
