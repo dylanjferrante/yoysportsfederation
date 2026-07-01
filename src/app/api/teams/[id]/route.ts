@@ -7,7 +7,7 @@ import {
   tradeApprovals, waiverClaims, playoffGames, leagueHistory, activity, leagueMembers,
   auctionBudgets, draftQueues, draftAutopick, playerGameStats,
 } from '@/db/schema'
-import { eq, and, or, ne, sql } from 'drizzle-orm'
+import { eq, and, or, ne, sql, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -20,6 +20,7 @@ const schema = z.object({
   secondaryColor: z.string().max(20).optional(),
   logoBg: z.boolean().optional(),
   division: z.number().int().min(0).max(8).nullable().optional(),
+  rivals: z.array(z.string()).max(2).optional(), // commissioner-only
   // Commissioner-only owner edits.
   ownerName: z.string().min(1).max(80).optional(),
   ownerEmail: z.string().email().max(160).optional(),
@@ -39,7 +40,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const isCommish = league?.commissionerId === session.user.id
 
   try {
-    const { ownerName, ownerEmail, ...teamFields } = schema.parse(await req.json())
+    const { ownerName, ownerEmail, rivals, ...teamFields } = schema.parse(await req.json())
+    const patch: Record<string, unknown> = { ...teamFields }
+
+    // Rivals are commissioner-only; validate they're distinct clubs in this league.
+    if (rivals !== undefined) {
+      if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
+      const wanted = [...new Set(rivals.filter(rid => rid && rid !== id))].slice(0, 2)
+      if (wanted.length) {
+        const rows = await db.select({ id: teams.id }).from(teams).where(and(eq(teams.leagueId, team.leagueId), inArray(teams.id, wanted)))
+        const ok = new Set(rows.map(r => r.id))
+        patch.rivals = JSON.stringify(wanted.filter(w => ok.has(w)))
+      } else patch.rivals = '[]'
+    }
 
     // Owner identity can only be changed by the commissioner.
     if ((ownerName !== undefined || ownerEmail !== undefined)) {
@@ -56,8 +69,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     let updated = team
-    if (Object.keys(teamFields).length) {
-      ;[updated] = await db.update(teams).set(teamFields).where(eq(teams.id, id)).returning()
+    if (Object.keys(patch).length) {
+      ;[updated] = await db.update(teams).set(patch).where(eq(teams.id, id)).returning()
     }
     return NextResponse.json(updated)
   } catch (e) {

@@ -20,12 +20,14 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
   const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
   const sn = (s: string) => sportAbbrLabel(s, sportAbbr)
 
-  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, division: teams.division }).from(teams).where(eq(teams.leagueId, leagueId))
+  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, division: teams.division, rivals: teams.rivals }).from(teams).where(eq(teams.leagueId, leagueId))
   const tById = new Map(teamRows.map(t => [t.id, t]))
   const nm = (id: string | null | undefined) => (id && tById.get(id)?.name) || 'A club'
   const ab = (id: string | null | undefined) => (id && tById.get(id)?.abbreviation) || '—'
   const divisions = league.divisions ?? 0
   const divOf = (id: string) => tById.get(id)?.division ?? null
+  const rivalsOf = (id: string) => safeParse<string[]>(tById.get(id)?.rivals ?? '[]', [])
+  const areRivals = (a: string, h: string) => rivalsOf(a).includes(h) || rivalsOf(h).includes(a)
   const playoffTeams = league.playoffTeams ?? 6
 
   const recsAll = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, leagueId))
@@ -92,6 +94,7 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
       if ((ra === 0 && rh === 1) || (ra === 1 && rh === 0)) return '1-seed showdown'
       if (undA) return `${ab(a)} unbeaten and rolling`
       if (undH) return `${ab(h)} unbeaten and rolling`
+      if (areRivals(a, h)) return 'rivalry renewed'
       if (divisions > 0 && divOf(a) != null && divOf(a) === divOf(h)) return 'division rivalry'
       if (weeksLeft <= 3 && nearCut(ra) && nearCut(rh)) return 'win-and-in — a playoff spot on the line'
       if (weeksLeft <= 3 && (nearCut(ra) || nearCut(rh))) return 'playoff seeding at stake'
