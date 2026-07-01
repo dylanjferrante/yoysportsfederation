@@ -118,9 +118,9 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
     }
     return (
       <div className="card overflow-x-auto">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-          <span className="font-bold text-slate-900">{side.team?.name ?? 'BYE'}</span>
-          <span className="text-2xl font-black tabular-nums" style={{ color: meta.hex }}>{(score ?? 0).toFixed(1)}</span>
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
+          <span className="flex items-center gap-2 font-bold text-slate-900 min-w-0"><TeamLogo team={side.team} size={26} /><span className="truncate">{side.team?.name ?? 'BYE'}</span></span>
+          <span className="text-2xl font-black tabular-nums flex-shrink-0" style={{ color: meta.hex }}>{(score ?? 0).toFixed(1)}</span>
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -142,87 +142,70 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
     )
   }
 
-  const Fact = ({ label, h, a, fmt }: { label: string; h: number; a: number; fmt?: (n: number) => string }) => (
-    <div className="grid grid-cols-3 items-center py-1.5 text-sm">
-      <span className="text-right font-semibold tabular-nums text-slate-700">{fmt ? fmt(h) : h}</span>
-      <span className="text-center text-[11px] uppercase tracking-wide text-slate-400">{label}</span>
-      <span className="text-left font-semibold tabular-nums text-slate-700">{fmt ? fmt(a) : a}</span>
-    </div>
-  )
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-5">
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="flex items-center gap-3 mb-3">
         <Link href={`/leagues/${id}/scores`} className="btn-ghost text-slate-500">← Scores</Link>
-        <div>
-          {(() => {
-            const sw = sportWeekOf(safeParse<ScheduleEntry[]>(league.sportSchedule, []), m.sport, m.week)
-            return <h1 className="text-xl font-bold text-slate-900">{meta.emoji} {m.sport} · {sw ? `Week ${sw}` : `Week ${m.week}`}{sw ? <span className="text-sm font-normal text-slate-400"> · Federation Wk {m.week}</span> : null}</h1>
-          })()}
-          <p className="text-sm text-slate-500">{league.name} · {m.isComplete ? 'Final' : 'Live'}</p>
-        </div>
+        {(() => {
+          const sw = sportWeekOf(safeParse<ScheduleEntry[]>(league.sportSchedule, []), m.sport, m.week)
+          return (
+            <p className="text-sm font-semibold text-slate-700">
+              {m.sport} · {sw ? `Week ${sw}` : `Week ${m.week}`}
+              <span className="font-normal text-slate-400"> · {league.name} · {m.isComplete ? 'Final' : 'Live'}</span>
+            </p>
+          )
+        })()}
       </div>
 
-      <div className="card p-5 mb-6">
-        <div className="grid grid-cols-3 items-center mb-4">
-          <div className="text-center">
-            <p className="font-bold text-slate-900 truncate">{home.team?.name ?? 'BYE'}</p>
-            <p className="text-4xl font-black tabular-nums" style={{ color: meta.hex }}>{(m.homeScore ?? 0).toFixed(1)}</p>
-            <p className="text-xs text-slate-400">proj {home.proj.toFixed(1)}</p>
-          </div>
-          <div className="text-center text-slate-300 text-sm font-bold">{m.isComplete ? 'FINAL' : 'VS'}</div>
-          <div className="text-center">
-            <p className="font-bold text-slate-900 truncate">{away.team?.name ?? 'BYE'}</p>
-            <p className="text-4xl font-black tabular-nums" style={{ color: meta.hex }}>{(m.awayScore ?? 0).toFixed(1)}</p>
-            <p className="text-xs text-slate-400">proj {away.proj.toFixed(1)}</p>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <div className="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
-            <span>{homeWinPct}%</span>
-            <span className="uppercase tracking-wide text-slate-400">Pregame Win Prob</span>
-            <span>{100 - homeWinPct}%</span>
-          </div>
-          <div className="h-2 rounded-full overflow-hidden bg-slate-100 flex">
-            <div style={{ width: `${homeWinPct}%`, background: meta.hex }} />
-            <div style={{ width: `${100 - homeWinPct}%` }} className="bg-slate-300" />
-          </div>
-        </div>
-
-        <div className="border-t border-slate-100 pt-2 divide-y divide-slate-50">
-          <Fact label="Projected" h={home.proj} a={away.proj} fmt={n => n.toFixed(1)} />
-          <Fact label="Optimal" h={home.optimal} a={away.optimal} fmt={n => n.toFixed(1)} />
-          <Fact label="Bench Pts" h={home.benchPts} a={away.benchPts} fmt={n => n.toFixed(1)} />
-        </div>
-      </div>
-
-      <div className="card p-5 mb-6">
-        <h2 className="font-semibold text-slate-900 mb-3">Game Tracker</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-          {[home, away].map((side, i) => side.team && (
-            <div key={i}>
-              <div className="flex items-baseline justify-between mb-2">
-                <span className="font-semibold text-slate-800 truncate">{side.team.name}</span>
-                <span className="text-sm text-slate-500 tabular-nums"><b className="text-slate-800">{side.ptsIn.toFixed(1)}</b> in · ~{side.projLeft.toFixed(0)} to come</span>
-              </div>
-              <div className="flex gap-2 text-xs font-semibold">
-                <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-500">✓ {side.final} played</span>
-                <span className={`px-2 py-1 rounded-lg ${side.live ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'}`}>{side.live} playing</span>
-                <span className={`px-2 py-1 rounded-lg ${side.pending ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>{side.pending} yet to play</span>
-              </div>
+      {/* Compact header — logos, scores, win prob and key numbers in one card */}
+      <div className="card p-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <TeamLogo team={home.team} size={42} />
+            <div className="min-w-0">
+              <p className="font-bold text-slate-900 truncate">{home.team?.name ?? 'BYE'}</p>
+              <p className="text-[11px] text-slate-400 tabular-nums">proj {home.proj.toFixed(1)} · {home.final}✓{home.live ? <span className="text-red-500"> · {home.live} live</span> : null}{home.pending ? ` · ${home.pending} left` : ''}</p>
             </div>
-          ))}
+          </div>
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <span className="text-3xl font-black tabular-nums" style={{ color: meta.hex }}>{(m.homeScore ?? 0).toFixed(1)}</span>
+            <span className="text-[11px] font-bold text-slate-300">{m.isComplete ? 'FINAL' : 'VS'}</span>
+            <span className="text-3xl font-black tabular-nums" style={{ color: meta.hex }}>{(m.awayScore ?? 0).toFixed(1)}</span>
+          </div>
+          <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end text-right">
+            <div className="min-w-0">
+              <p className="font-bold text-slate-900 truncate">{away.team?.name ?? 'BYE'}</p>
+              <p className="text-[11px] text-slate-400 tabular-nums">proj {away.proj.toFixed(1)} · {away.final}✓{away.live ? <span className="text-red-500"> · {away.live} live</span> : null}{away.pending ? ` · ${away.pending} left` : ''}</p>
+            </div>
+            <TeamLogo team={away.team} size={42} />
+          </div>
+        </div>
+
+        <div className="mt-3 h-1.5 rounded-full overflow-hidden bg-slate-100 flex">
+          <div style={{ width: `${homeWinPct}%`, background: meta.hex }} />
+          <div style={{ width: `${100 - homeWinPct}%` }} className="bg-slate-300" />
+        </div>
+
+        <div className="mt-2 flex items-center justify-center flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-500">
+          <span><b className="text-slate-700 tabular-nums">{home.optimal.toFixed(1)}</b> Optimal <b className="text-slate-700 tabular-nums">{away.optimal.toFixed(1)}</b></span>
+          <span><b className="text-slate-700 tabular-nums">{home.benchPts.toFixed(1)}</b> Bench <b className="text-slate-700 tabular-nums">{away.benchPts.toFixed(1)}</b></span>
+          {h2h && (h2h.homeW + h2h.awayW > 0) && <span><b className="text-slate-700 tabular-nums">{h2h.homeW}</b> Series <b className="text-slate-700 tabular-nums">{h2h.awayW}</b></span>}
         </div>
       </div>
 
-      {h2h && (h2h.homeW + h2h.awayW > 0) && (
-        <div className="card p-5 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-slate-900">All-Time Series</h2>
+      {/* Box scores — up front, no scrolling past hero cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <StatTable side={home} score={m.homeScore ?? 0} />
+        <StatTable side={away} score={m.awayScore ?? 0} />
+      </div>
+
+      {h2h && h2h.recent.length > 0 && (
+        <details className="card mt-5">
+          <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none">
+            <span className="font-semibold text-slate-900">All-Time Series</span>
             <span className="text-sm font-bold tabular-nums text-slate-700">{h2h.homeW}<span className="text-slate-300"> – </span>{h2h.awayW}</span>
-          </div>
-          <div className="flex gap-2 flex-wrap">
+          </summary>
+          <div className="flex gap-2 flex-wrap px-4 pb-4">
             {h2h.recent.map((g, i) => {
               const homeWon = g.hs > g.as
               return (
@@ -235,15 +218,20 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
               )
             })}
           </div>
-        </div>
+        </details>
       )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        <StatTable side={home} score={m.homeScore ?? 0} />
-        <StatTable side={away} score={m.awayScore ?? 0} />
-      </div>
 
       {home.team && away.team && <MatchupChat leagueId={id} matchupId={matchupId} accent={meta.hex} />}
     </div>
   )
+}
+
+function TeamLogo({ team, size }: { team: any; size: number }) {
+  if (!team) return <span className="rounded-lg bg-slate-100 flex-shrink-0" style={{ width: size, height: size }} />
+  const primary = team.primaryColor || '#0f172a'
+  const secondary = team.secondaryColor || '#ffffff'
+  const src = team.altLogo || team.logo
+  return src
+    ? <span className="rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ width: size, height: size, background: team.logoBg ? primary : '#f1f5f9' }}><img src={src} alt="" style={{ width: '80%', height: '80%', objectFit: 'contain' }} /></span>
+    : <span className="rounded-lg flex items-center justify-center flex-shrink-0 font-bold" style={{ width: size, height: size, background: primary, color: secondary, fontSize: Math.round(size * 0.34) }}>{(team.abbreviation || team.name || '?').slice(0, 3).toUpperCase()}</span>
 }
