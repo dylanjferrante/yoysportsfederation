@@ -1,0 +1,10 @@
+.env
+node_modules/
+.next/
+# SQLite database files
+data/
+*.db
+*.db-shm
+*.db-wal
+prisma/dev.db
+prisma/dev.db-journal
