@@ -80,33 +80,11 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
   useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
 
-  // The wire is one continuous train: [topic card][its headlines][next topic card]…
-  // A fixed label names the topic currently at the pin; as each topic card slides
-  // left and reaches the pin it hands off (the label updates to it).
+  // One long train: for each topic, a sticky topic tile then its (de-duped) headlines.
   const [curIdx, setCurIdx] = useState(0)
-  const pinRef = useRef<HTMLSpanElement>(null)
   const streamRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (hidden || topics.length === 0) return
-    let raf = 0
-    const tick = () => {
-      const pin = pinRef.current, stream = streamRef.current
-      if (pin && stream) {
-        const pinX = pin.getBoundingClientRect().right
-        let best = -Infinity, bestIdx = 0
-        stream.querySelectorAll<HTMLElement>('.tcard').forEach(n => {
-          const l = n.getBoundingClientRect().left
-          if (l <= pinX + 2 && l > best) { best = l; bestIdx = +(n.dataset.idx ?? '0') }
-        })
-        setCurIdx(prev => (prev === bestIdx ? prev : bestIdx))
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [hidden, topics.length])
-
-  // One long train: for each topic, a topic card then its (de-duped) headlines.
+  const trainRef = useRef<HTMLDivElement>(null)
+  const hoverRef = useRef(false)
   const train = useMemo(() => {
     const segs: Array<{ kind: 'topic'; idx: number; topic: Topic } | { kind: 'news'; h: News; key: string }> = []
     topics.forEach((t, ti) => {
@@ -116,7 +94,43 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     })
     return segs
   }, [topics])
-  const trainChars = useMemo(() => topics.reduce((n, t) => n + t.title.length + 8 + t.items.reduce((m, h) => m + h.text.length + 4, 0), 0), [topics])
+
+  // Drive the wire at ONE constant speed by scrolling the stream. Topic tiles are
+  // horizontally sticky: the current tile holds at the left while its headlines
+  // pass, and the next tile only pushes it off once the last headline has cleared —
+  // the scroll velocity never changes.
+  useEffect(() => {
+    if (hidden || topics.length === 0) return
+    const stream = streamRef.current, trainEl = trainRef.current
+    if (!stream || !trainEl) return
+    const SPEED = 55 // px/sec
+    let halfW = 0
+    let offsets: { idx: number; off: number }[] = []
+    const measure = () => {
+      halfW = trainEl.scrollWidth / 2
+      offsets = Array.from(trainEl.querySelectorAll<HTMLElement>('.tcard[data-copy="0"]')).map(el => ({ idx: +(el.dataset.idx ?? '0'), off: el.offsetLeft }))
+    }
+    measure()
+    let last = 0, raf = 0
+    const step = (t: number) => {
+      if (!last) last = t
+      const dt = Math.min(0.05, (t - last) / 1000); last = t
+      if (!hoverRef.current && halfW > 0) {
+        let x = stream.scrollLeft + SPEED * dt
+        if (x >= halfW) x -= halfW
+        stream.scrollLeft = x
+      }
+      const x = stream.scrollLeft
+      let idx = 0
+      for (const o of offsets) { if (o.off <= x + 1) idx = o.idx; else break }
+      setCurIdx(prev => (prev === idx ? prev : idx))
+      raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    const ro = new ResizeObserver(() => measure())
+    ro.observe(trainEl)
+    return () => { cancelAnimationFrame(raf); ro.disconnect() }
+  }, [hidden, topics.length])
 
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
 
@@ -140,14 +154,12 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const card = scores.length ? scores[cardIdx % scores.length] : null
   const sides = card ? [card.away, card.home] : []
   const pre = card?.status === 'PRE'
-  const duration = Math.max(40, Math.round(trainChars / 6))
-  const current = topics[curIdx] ?? topics[0]
   const upNext = topics.length > 1
     ? Array.from({ length: Math.min(3, topics.length - 1) }, (_, k) => topics[(curIdx + 1 + k) % topics.length])
     : []
 
   const seg = (s: typeof train[number], copy: number) => s.kind === 'topic'
-    ? <span className="tcard" data-idx={s.idx} key={`t${copy}-${s.idx}`}>
+    ? <span className="tcard" data-copy={copy} data-idx={s.idx} key={`t${copy}-${s.idx}`}>
         {s.topic.sport && <span className="pbar" style={{ background: sportMeta(s.topic.sport).hex }} />}{s.topic.title}
       </span>
     : <Link className="item" href={s.h.href} key={`n${copy}-${s.key}`}><span className="text">{s.h.text}</span><span className="sep">•</span></Link>
@@ -178,18 +190,14 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       )}
 
       {topics.length > 0 && (
-        <>
-          <span className="pin" ref={pinRef}>
-            {current?.sport && <span className="pbar" style={{ background: sportMeta(current.sport).hex }} />}
-            {current?.title}
-          </span>
-          <div className="stream" ref={streamRef}>
-            <div className="train" style={{ animationDuration: `${duration}s` }}>
-              {train.map(s => seg(s, 0))}
-              {train.map(s => seg(s, 1))}
-            </div>
+        <div className="stream" ref={streamRef}
+          onMouseEnter={() => { hoverRef.current = true }}
+          onMouseLeave={() => { hoverRef.current = false }}>
+          <div className="train" ref={trainRef}>
+            {train.map(s => seg(s, 0))}
+            {train.map(s => seg(s, 1))}
           </div>
-        </>
+        </div>
       )}
 
       {upNext.length > 0 && (
@@ -221,16 +229,15 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; padding: 0; }
         .ab { width: 3.2rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sc { width: 5ch; flex-shrink: 0; margin-left: 1.1rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; }
-        .pin { flex-shrink: 0; display: inline-flex; align-items: center; gap: .55rem; padding: 0 1.4rem; font-size: .86rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: rgba(2,6,23,.55); border-right: 1px solid rgba(255,255,255,.12); white-space: nowrap; z-index: 2; }
         .pbar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
-        .stream { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; border-right: 1px solid rgba(255,255,255,.14); }
-        .stream:hover .train { animation-play-state: paused; }
-        .train { display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .tcard { flex-shrink: 0; display: inline-flex; align-items: center; gap: .5rem; margin: 0 1.1rem 0 1.5rem; padding: .28rem .95rem; border-radius: .4rem; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: rgba(2,6,23,.5); white-space: nowrap; }
-        .item { display: inline-flex; align-items: center; flex-shrink: 0; font-size: .92rem; font-weight: 400; color: #eef2f7; text-decoration: none; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: .02em; }
+        .stream { position: relative; flex: 1; min-width: 0; height: 100%; overflow-x: auto; overflow-y: hidden; border-right: 1px solid rgba(255,255,255,.14); scrollbar-width: none; }
+        .stream::-webkit-scrollbar { display: none; }
+        .train { display: inline-flex; align-items: center; height: 100%; white-space: nowrap; }
+        .tcard { position: sticky; left: 0; z-index: 2; flex-shrink: 0; align-self: stretch; display: inline-flex; align-items: center; gap: .5rem; padding: 0 1.25rem; font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); box-shadow: 8px 0 12px -4px rgba(2,6,23,.7); white-space: nowrap; }
+        .item { position: relative; z-index: 1; display: inline-flex; align-items: center; flex-shrink: 0; font-size: .92rem; font-weight: 400; color: #eef2f7; text-decoration: none; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: .02em; }
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
-        .sep { color: rgba(255,255,255,.4); margin: 0 1.9rem; font-size: .72rem; }
+        .sep { color: rgba(255,255,255,.45); margin: 0 2.6rem; font-size: .7rem; }
         .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.4rem; padding: 0 1.5rem; border-left: 1px solid rgba(255,255,255,.14); }
         .queue > .qtile { animation: qslide .5s ease; }
         .upnext { font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); white-space: nowrap; }
@@ -238,15 +245,13 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .qbar { width: 3px; height: 14px; border-radius: 2px; flex-shrink: 0; }
         .hide { flex-shrink: 0; padding: 0 .85rem; color: rgba(255,255,255,.35); font-size: .8rem; }
         .hide:hover { color: #fff; }
-        @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        @keyframes slidein { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes qslide { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
         @media (max-width: 1024px) { .queue { display: none; } }
         @media (max-width: 640px) {
           .label { padding: 0 .6rem; font-size: .6rem; }
           .scorecard { width: 178px; padding: .3rem .65rem; }
-          .pin { padding: 0 .9rem; font-size: .76rem; }
-          .sep { margin: 0 1.3rem; }
+          .tcard { padding: 0 .9rem; font-size: .76rem; }
+          .sep { margin: 0 1.8rem; }
         }
       `}</style>
     </div>

@@ -132,15 +132,6 @@ export default function WaiversView({
     await fetch(`/api/leagues/${leagueId}/waivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'CANCEL', claimId }) })
     loadClaims()
   }
-  async function process() {
-    setBusy(true); setMsg(null)
-    const res = await fetch(`/api/leagues/${leagueId}/waivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'PROCESS' }) })
-    const data = await res.json().catch(() => ({}))
-    setBusy(false)
-    setMsg(res.ok ? `Processed ${data.processed} claim(s) — ${data.awarded} awarded.` : (data.error ?? 'Failed'))
-    loadClaims(); loadPlayers()
-  }
-
   const pending = claims.filter(c => c.status === 'PENDING')
   const settled = claims.filter(c => c.status !== 'PENDING')
   const dropOptions = selAdd ? roster.filter(p => p.sport === selAdd.sport) : []
@@ -158,11 +149,6 @@ export default function WaiversView({
           <button onClick={() => setShowClaims(s => !s)} className="btn-secondary text-sm">
             Claims{pendingCount ? ` (${pendingCount})` : ''}
           </button>
-          {isCommissioner && (
-            <button onClick={process} disabled={busy || pendingCount === 0} className="btn-primary text-sm disabled:opacity-40">
-              {busy ? 'Processing…' : `Process (${pendingCount})`}
-            </button>
-          )}
         </div>
       </div>
 
