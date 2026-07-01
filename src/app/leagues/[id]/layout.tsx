@@ -46,23 +46,23 @@ export default async function LeagueLayout({ children, params }: { children: Rea
   return (
     <SportNamingProvider value={{ sportAbbr, sportNames }}>
       <Ticker leagueId={id} primary={primary} secondary={secondary} sportAbbr={sportAbbr} />
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-5 sm:py-8">
         {/* League header — styled like a club tile: primary fill, secondary ink. */}
         <div className="card overflow-hidden mb-5">
-          <div className="p-4 flex items-center gap-4" style={{ background: primary, color: secondary }}>
+          <div className="p-3 sm:p-4 flex items-center gap-3 sm:gap-4" style={{ background: primary, color: secondary }}>
             {league.logoUrl
-              ? <img src={league.logoUrl} alt="" className="w-14 h-14 object-contain rounded-xl flex-shrink-0 p-1.5" />
-              : <span className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(league.abbreviation || league.name || '?').slice(0, 3).toUpperCase()}</span>}
+              ? <img src={league.logoUrl} alt="" className="w-12 h-12 sm:w-14 sm:h-14 object-contain rounded-xl flex-shrink-0 p-1.5" />
+              : <span className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center text-lg sm:text-xl font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(league.abbreviation || league.name || '?').slice(0, 3).toUpperCase()}</span>}
             <div className="min-w-0 flex-1">
               {league.wordmark && league.wordmark.startsWith('http')
-                ? <img src={league.wordmark} alt={league.name} className="h-9 w-auto max-w-[280px] object-contain object-left" />
-                : <h1 className="text-2xl font-bold leading-tight truncate">{league.wordmark || league.name}</h1>}
-              <p className="text-sm font-medium opacity-95 mt-0.5">
+                ? <img src={league.wordmark} alt={league.name} className="h-7 sm:h-9 w-auto max-w-[200px] sm:max-w-[280px] object-contain object-left" />
+                : <h1 className="text-lg sm:text-2xl font-bold leading-tight truncate">{league.wordmark || league.name}</h1>}
+              <p className="text-xs sm:text-sm font-medium opacity-95 mt-0.5 truncate">
                 {league.season} · {franchises.length} clubs
                 {activeNow.length > 0 && <> · {activeNow.join(', ')} in season</>}
               </p>
             </div>
-            <span className="text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-full flex-shrink-0" style={{ background: secondary, color: primary }}>{league.status}</span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2 sm:px-2.5 py-1 rounded-full flex-shrink-0" style={{ background: secondary, color: primary }}>{league.status}</span>
           </div>
         </div>
 
