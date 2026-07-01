@@ -84,6 +84,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const [curIdx, setCurIdx] = useState(0)
   const streamRef = useRef<HTMLDivElement>(null)
   const trainRef = useRef<HTMLDivElement>(null)
+  const pinRef = useRef<HTMLSpanElement>(null)
   const hoverRef = useRef(false)
   const train = useMemo(() => {
     const segs: Array<{ kind: 'topic'; idx: number; topic: Topic } | { kind: 'news'; h: News; key: string }> = []
@@ -95,34 +96,35 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     return segs
   }, [topics])
 
-  // Drive the wire at ONE constant speed by scrolling the stream. Topic tiles are
-  // horizontally sticky: the current tile holds at the left while its headlines
-  // pass, and the next tile only pushes it off once the last headline has cleared —
-  // the scroll velocity never changes.
+  // Drive the whole train at ONE constant velocity with a transform. A separate
+  // label is locked over the stream's left edge (right of the scorebug) showing
+  // the current topic; headlines and the next topic tile scroll behind it, and
+  // the locked label switches to the next topic once its tile reaches the pin.
   useEffect(() => {
     if (hidden || topics.length === 0) return
-    const stream = streamRef.current, trainEl = trainRef.current
-    if (!stream || !trainEl) return
-    const SPEED = 55 // px/sec
-    let halfW = 0
+    const trainEl = trainRef.current, pin = pinRef.current
+    if (!trainEl || !pin) return
+    const SPEED = 55 // px/sec, constant
+    let halfW = 0, pinW = 0
     let offsets: { idx: number; off: number }[] = []
     const measure = () => {
       halfW = trainEl.scrollWidth / 2
+      pinW = pin.getBoundingClientRect().width
       offsets = Array.from(trainEl.querySelectorAll<HTMLElement>('.tcard[data-copy="0"]')).map(el => ({ idx: +(el.dataset.idx ?? '0'), off: el.offsetLeft }))
     }
     measure()
-    let last = 0, raf = 0
+    let offset = 0, last = 0, raf = 0
     const step = (t: number) => {
       if (!last) last = t
       const dt = Math.min(0.05, (t - last) / 1000); last = t
       if (!hoverRef.current && halfW > 0) {
-        let x = stream.scrollLeft + SPEED * dt
-        if (x >= halfW) x -= halfW
-        stream.scrollLeft = x
+        offset += SPEED * dt
+        if (offset >= halfW) offset -= halfW
+        trainEl.style.transform = `translateX(${-offset}px)`
       }
-      const x = stream.scrollLeft
+      // Current topic = the last tile whose left edge has reached the locked pin.
       let idx = 0
-      for (const o of offsets) { if (o.off <= x + 1) idx = o.idx; else break }
+      for (const o of offsets) { if (o.off <= offset + pinW + 1) idx = o.idx; else break }
       setCurIdx(prev => (prev === idx ? prev : idx))
       raf = requestAnimationFrame(step)
     }
@@ -154,6 +156,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const card = scores.length ? scores[cardIdx % scores.length] : null
   const sides = card ? [card.away, card.home] : []
   const pre = card?.status === 'PRE'
+  const current = topics[curIdx] ?? topics[0]
   const upNext = topics.length > 1
     ? Array.from({ length: Math.min(3, topics.length - 1) }, (_, k) => topics[(curIdx + 1 + k) % topics.length])
     : []
@@ -193,6 +196,10 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         <div className="stream" ref={streamRef}
           onMouseEnter={() => { hoverRef.current = true }}
           onMouseLeave={() => { hoverRef.current = false }}>
+          <span className="pin" ref={pinRef}>
+            {current?.sport && <span className="pbar" style={{ background: sportMeta(current.sport).hex }} />}
+            {current?.title}
+          </span>
           <div className="train" ref={trainRef}>
             {train.map(s => seg(s, 0))}
             {train.map(s => seg(s, 1))}
@@ -230,14 +237,14 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .ab { width: 3.2rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sc { width: 5ch; flex-shrink: 0; margin-left: 1.1rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; }
         .pbar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
-        .stream { position: relative; flex: 1; min-width: 0; height: 100%; overflow-x: auto; overflow-y: hidden; border-right: 1px solid rgba(255,255,255,.14); scrollbar-width: none; }
-        .stream::-webkit-scrollbar { display: none; }
-        .train { display: inline-flex; align-items: center; height: 100%; white-space: nowrap; }
-        .tcard { position: sticky; left: 0; z-index: 2; flex-shrink: 0; align-self: stretch; display: inline-flex; align-items: center; gap: .5rem; padding: 0 1.25rem; font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); box-shadow: 8px 0 12px -4px rgba(2,6,23,.7); white-space: nowrap; }
-        .item { position: relative; z-index: 1; display: inline-flex; align-items: center; flex-shrink: 0; font-size: .92rem; font-weight: 400; color: #eef2f7; text-decoration: none; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: .02em; }
+        .stream { position: relative; flex: 1; min-width: 0; height: 100%; overflow: hidden; border-right: 1px solid rgba(255,255,255,.14); }
+        .pin { position: absolute; left: 0; top: 0; bottom: 0; z-index: 3; display: inline-flex; align-items: center; gap: .5rem; padding: 0 1.3rem; font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); box-shadow: 10px 0 14px -4px rgba(2,6,23,.75); white-space: nowrap; }
+        .train { position: absolute; left: 0; top: 0; height: 100%; display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; }
+        .tcard { z-index: 1; flex-shrink: 0; display: inline-flex; align-items: center; gap: .5rem; height: 100%; padding: 0 1.25rem; font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); white-space: nowrap; }
+        .item { display: inline-flex; align-items: center; flex-shrink: 0; font-size: .92rem; font-weight: 400; color: #eef2f7; text-decoration: none; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: .02em; }
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
-        .sep { color: rgba(255,255,255,.45); margin: 0 2.6rem; font-size: .7rem; }
+        .sep { display: inline-block; width: 3.4rem; text-align: center; color: rgba(255,255,255,.45); font-size: .7rem; }
         .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.4rem; padding: 0 1.5rem; border-left: 1px solid rgba(255,255,255,.14); }
         .queue > .qtile { animation: qslide .5s ease; }
         .upnext { font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); white-space: nowrap; }
