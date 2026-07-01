@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
-type SlideTeam = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; record: string; score: number; win: boolean }
+type SlideTeam = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; record: string; standing: number; score: number; win: boolean }
 type GameSlide = { kind: 'game'; id: string; sport: string; sportName: string; sportLogo: string | null; status: 'Final' | 'LIVE' | 'PRE'; away: SlideTeam; home: SlideTeam; note: string; href: string }
 type NewsSlide = { kind: 'news'; id: string; topic: string; sport?: string; text: string; href: string }
 type Slide = GameSlide | NewsSlide
@@ -18,6 +18,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const [hidden, setHidden] = useState(false)
   const [ready, setReady] = useState(false)
   const hoverRef = useRef(false)
+  const scrollWrapRef = useRef<HTMLSpanElement>(null)
+  const scrollTxtRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
     setHidden(typeof window !== 'undefined' && localStorage.getItem('nf_wire_hidden') === '1')
@@ -40,24 +42,62 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   }, [leagueId])
 
   useEffect(() => { const c = tickerCache.get(leagueId); if (c) tickerCache.set(leagueId, { ...c, idx }) }, [leagueId, idx])
+  useEffect(() => { if (slides.length && idx >= slides.length) setIdx(0) }, [slides.length]) // eslint-disable-line
 
-  // Auto-advance one slide at a time; pause on hover. Clamp the index if the
-  // deck shrank on a refetch.
+  // Advance one slide at a time. If the slide's copy is too long to fit, scroll
+  // it like a ticker and only advance once it has read all the way through;
+  // otherwise hold for a fixed beat. Pause on hover throughout.
   useEffect(() => {
     if (hidden || slides.length <= 1) return
-    setIdx(i => (i >= slides.length ? 0 : i))
-    const iv = setInterval(() => { if (!hoverRef.current && document.visibilityState === 'visible') setIdx(i => (i + 1) % slides.length) }, 6000)
-    return () => clearInterval(iv)
-  }, [hidden, slides.length])
+    const advance = () => setIdx(i => (i + 1) % slides.length)
+    const wrap = scrollWrapRef.current, txt = scrollTxtRef.current
+    let raf = 0, timer = 0
+    if (txt) txt.style.transform = 'translateX(0)'
+    const overflow = wrap && txt ? txt.scrollWidth - wrap.clientWidth : 0
+    if (wrap && txt && overflow > 8) {
+      const SPEED = 60 // px/sec
+      let last = 0, offset = 0, lead = 1000, done = false
+      const step = (t: number) => {
+        if (!last) last = t
+        const dt = t - last; last = t
+        if (hoverRef.current) { raf = requestAnimationFrame(step); return }
+        if (lead > 0) { lead -= dt; raf = requestAnimationFrame(step); return }
+        offset += SPEED * dt / 1000
+        if (offset >= overflow) { txt.style.transform = `translateX(${-overflow}px)`; if (!done) { done = true; timer = window.setTimeout(advance, 1400) } return }
+        txt.style.transform = `translateX(${-offset}px)`
+        raf = requestAnimationFrame(step)
+      }
+      raf = requestAnimationFrame(step)
+    } else {
+      const tick = () => { if (hoverRef.current) { timer = window.setTimeout(tick, 700); return } advance() }
+      timer = window.setTimeout(tick, 6000)
+    }
+    return () => { cancelAnimationFrame(raf); clearTimeout(timer); if (txt) txt.style.transform = 'translateX(0)' }
+  }, [idx, slides, hidden])
+
+  // Each slide belongs to a topic (a sport, or a news category). "Up Next"
+  // shows the next distinct topics coming down the deck.
+  const topicMeta = (s: Slide) => s.kind === 'game'
+    ? { label: s.sportName, hex: sportMeta(s.sport).hex }
+    : { label: s.topic, hex: s.sport ? sportMeta(s.sport).hex : secondary }
+
+  const upNext = useMemo(() => {
+    if (slides.length <= 1) return [] as { label: string; hex: string }[]
+    const cur = topicMeta(slides[idx % slides.length]).label
+    const out: { label: string; hex: string }[] = []
+    const seen = new Set([cur])
+    for (let k = 1; k <= slides.length && out.length < 3; k++) {
+      const m = topicMeta(slides[(idx + k) % slides.length])
+      if (seen.has(m.label)) continue
+      seen.add(m.label); out.push(m)
+    }
+    return out
+  }, [slides, idx, secondary]) // eslint-disable-line
 
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
   const go = (delta: number) => setIdx(i => (i + delta + slides.length) % slides.length)
 
   const slide = slides.length ? slides[idx % slides.length] : null
-  const barHex = useMemo(() => {
-    const s = slide && (slide.kind === 'game' ? slide.sport : slide.sport)
-    return s ? sportMeta(s).hex : secondary
-  }, [slide, secondary])
 
   if (!ready) return null
 
@@ -80,48 +120,62 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     <div className="wrap" style={{ '--lp': primary, '--ls': secondary } as React.CSSProperties}
       onMouseEnter={() => { hoverRef.current = true }}
       onMouseLeave={() => { hoverRef.current = false }}>
-      <span className="label" style={{ background: barHex }}>Wire</span>
+      <span className="label">Wire</span>
 
       <div className="stage">
         {slide.kind === 'game' ? (
-          <Link href={slide.href} className="slide game" key={slide.id}>
-            <div className="ghead">
-              <span className="spchip" style={{ background: sportMeta(slide.sport).hex }}>
-                {slide.sportLogo && <img src={slide.sportLogo} alt="" className="splogo" />}
-                {slide.sportName}
+          <Link href={slide.href} className="line game" key={slide.id}>
+            <span className="spchip" style={{ background: sportMeta(slide.sport).hex }}>
+              {slide.sportLogo && <img src={slide.sportLogo} alt="" className="splogo" />}
+              {slide.sportName}
+            </span>
+            <span className={`status ${slide.status === 'LIVE' ? 'live' : ''}`}>{slide.status === 'LIVE' ? 'LIVE' : slide.status === 'PRE' ? 'Upcoming' : 'Final'}</span>
+            <span className={`side ${slide.away.win ? 'win' : ''}`}>
+              {slide.away.logo
+                ? <img src={slide.away.logo} alt="" className="tlogo" style={{ background: slide.away.primary }} />
+                : <span className="tlogo tbadge" style={{ background: slide.away.primary, color: slide.away.secondary }}>{slide.away.abbr.slice(0, 3)}</span>}
+              <span className="tcol">
+                <span className="nm">{slide.away.name}</span>
+                <span className="sub">{slide.away.record}{slide.away.standing > 0 ? ` | #${slide.away.standing}` : ''}</span>
               </span>
-              <span className={`status ${slide.status === 'LIVE' ? 'live' : ''}`}>{slide.status === 'LIVE' ? 'LIVE' : slide.status === 'PRE' ? 'Upcoming' : 'Final'}</span>
-            </div>
-            <div className="gbody">
-              <div className="teams">
-                <div className={`trow ${slide.away.win ? 'win' : ''}`}>
-                  {slide.away.logo
-                    ? <img src={slide.away.logo} alt="" className="tlogo" style={{ background: slide.away.primary }} />
-                    : <span className="tlogo tbadge" style={{ background: slide.away.primary, color: slide.away.secondary }}>{slide.away.abbr.slice(0, 3)}</span>}
-                  <span className="tinfo"><span className="tname">{slide.away.name}</span><span className="trec">{slide.away.record}</span></span>
-                  <span className="tscore">{slide.status === 'PRE' ? '—' : slide.away.score}</span>
-                </div>
-                <div className={`trow ${slide.home.win ? 'win' : ''}`}>
-                  {slide.home.logo
-                    ? <img src={slide.home.logo} alt="" className="tlogo" style={{ background: slide.home.primary }} />
-                    : <span className="tlogo tbadge" style={{ background: slide.home.primary, color: slide.home.secondary }}>{slide.home.abbr.slice(0, 3)}</span>}
-                  <span className="tinfo"><span className="tname">{slide.home.name}</span><span className="trec">{slide.home.record}</span></span>
-                  <span className="tscore">{slide.status === 'PRE' ? '—' : slide.home.score}</span>
-                </div>
-              </div>
-              {slide.note && <div className="note"><span className="notekick">{slide.status === 'Final' ? 'Recap' : slide.status === 'LIVE' ? 'Live' : 'Storyline'}</span><span className="notetext">{slide.note}</span></div>}
-            </div>
+              <span className="sc">{slide.status === 'PRE' ? '—' : slide.away.score}</span>
+            </span>
+            <span className={`side ${slide.home.win ? 'win' : ''}`}>
+              {slide.home.logo
+                ? <img src={slide.home.logo} alt="" className="tlogo" style={{ background: slide.home.primary }} />
+                : <span className="tlogo tbadge" style={{ background: slide.home.primary, color: slide.home.secondary }}>{slide.home.abbr.slice(0, 3)}</span>}
+              <span className="tcol">
+                <span className="nm">{slide.home.name}</span>
+                <span className="sub">{slide.home.record}{slide.home.standing > 0 ? ` | #${slide.home.standing}` : ''}</span>
+              </span>
+              <span className="sc">{slide.status === 'PRE' ? '—' : slide.home.score}</span>
+            </span>
+            {slide.note && <span className="divider" />}
+            {slide.note && <span className="note" ref={scrollWrapRef}><span className="scroll" ref={scrollTxtRef}>{slide.note}</span></span>}
           </Link>
         ) : (
-          <Link href={slide.href} className="slide news" key={slide.id}>
+          <Link href={slide.href} className="line news" key={slide.id}>
             <span className="topicchip">
               <span className="tbar" style={{ background: slide.sport ? sportMeta(slide.sport).hex : secondary }} />
               {slide.topic}
             </span>
-            <span className="headline">{slide.text}</span>
+            <span className="divider" />
+            <span className="note" ref={scrollWrapRef}><span className="scroll headline" ref={scrollTxtRef}>{slide.text}</span></span>
           </Link>
         )}
       </div>
+
+      {upNext.length > 0 && (
+        <div className="queue">
+          <span className="upnext">Up Next</span>
+          {upNext.map((t, i) => (
+            <span className="qtile" key={`${t.label}-${i}`}>
+              <span className="qbar" style={{ background: t.hex }} />
+              {t.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="nav">
         <button onClick={() => go(-1)} className="arrow" aria-label="Previous">‹</button>
@@ -131,46 +185,49 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       </div>
 
       <style jsx>{`
-        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 96px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
-        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1.05rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--lp); }
-        .stage { flex: 1; min-width: 0; position: relative; overflow: hidden; }
-        .slide { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: .3rem; padding: .5rem 1.4rem; text-decoration: none; color: #e2e8f0; animation: fade .45s ease; }
-        .ghead { display: flex; align-items: center; gap: .6rem; }
-        .spchip { display: inline-flex; align-items: center; gap: .3rem; font-size: .62rem; font-weight: 800; padding: .1rem .45rem; border-radius: .3rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
-        .splogo { width: .9rem; height: .9rem; object-fit: contain; border-radius: 2px; }
-        .status { font-size: .6rem; font-weight: 800; color: #cbd5e1; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
+        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 60px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
+        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1.05rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
+        .stage { flex: 1; min-width: 0; position: relative; overflow: hidden; display: flex; align-items: center; }
+        .line { display: flex; align-items: center; gap: .7rem; width: 100%; min-width: 0; padding: 0 1.1rem; text-decoration: none; color: #e2e8f0; animation: fade .4s ease; white-space: nowrap; }
+        .spchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .28rem; font-size: .6rem; font-weight: 800; padding: .1rem .42rem; border-radius: .3rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
+        .splogo { width: .85rem; height: .85rem; object-fit: contain; border-radius: 2px; }
+        .status { flex-shrink: 0; font-size: .58rem; font-weight: 800; color: #cbd5e1; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
         .status.live { color: #f87171; opacity: 1; }
-        .gbody { display: flex; align-items: stretch; gap: 1.4rem; min-width: 0; }
-        .teams { display: flex; flex-direction: column; gap: .25rem; flex-shrink: 0; min-width: 15rem; }
-        .trow { display: flex; align-items: center; gap: .7rem; }
-        .tlogo { width: 26px; height: 26px; object-fit: contain; border-radius: 4px; flex-shrink: 0; padding: 2px; }
-        .tbadge { display: inline-flex; align-items: center; justify-content: center; font-size: .56rem; font-weight: 800; padding: 0; }
-        .tinfo { display: flex; flex-direction: column; line-height: 1.05; min-width: 0; flex: 1; }
-        .tname { font-size: .95rem; font-weight: 600; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .trow.win .tname { font-weight: 800; color: #fff; }
-        .trec { font-size: .62rem; font-weight: 600; color: rgba(226,232,240,.5); letter-spacing: .02em; margin-top: 1px; }
-        .tscore { margin-left: auto; padding-left: 1rem; font-variant-numeric: tabular-nums; font-size: 1.25rem; font-weight: 800; letter-spacing: .03em; color: rgba(226,232,240,.55); }
-        .trow.win .tscore { color: var(--ls); }
-        .note { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: .18rem; padding-left: 1.4rem; border-left: 1px solid rgba(255,255,255,.14); }
-        .notekick { font-size: .58rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--ls); opacity: .9; }
-        .notetext { font-size: .95rem; font-weight: 500; color: #eef2f7; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        .news { flex-direction: row; align-items: center; gap: 1.2rem; }
-        .topicchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .5rem; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); }
-        .tbar { width: 4px; height: 20px; border-radius: 2px; flex-shrink: 0; }
-        .headline { font-size: 1.05rem; font-weight: 500; color: #eef2f7; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        .news:hover .headline { color: #fff; }
-        .nav { flex-shrink: 0; display: flex; align-items: center; gap: .35rem; padding: 0 .8rem; border-left: 1px solid rgba(255,255,255,.14); }
-        .arrow { color: rgba(255,255,255,.55); font-size: 1.3rem; line-height: 1; padding: 0 .3rem; }
+        .side { flex-shrink: 0; display: inline-flex; align-items: center; gap: .45rem; }
+        .tlogo { width: 24px; height: 24px; object-fit: contain; border-radius: 4px; flex-shrink: 0; padding: 2px; }
+        .tbadge { display: inline-flex; align-items: center; justify-content: center; font-size: .52rem; font-weight: 800; padding: 0; }
+        .tcol { display: flex; flex-direction: column; line-height: 1.08; }
+        .nm { font-size: .9rem; font-weight: 600; color: #cbd5e1; white-space: nowrap; }
+        .side.win .nm { font-weight: 800; color: #fff; }
+        .sub { font-size: .6rem; font-weight: 600; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 1px; }
+        .sc { flex-shrink: 0; margin-left: .2rem; font-variant-numeric: tabular-nums; font-size: 1.05rem; font-weight: 800; letter-spacing: .03em; color: rgba(226,232,240,.55); }
+        .side.win .sc { color: var(--ls); }
+        .divider { flex-shrink: 0; width: 1px; height: 32px; background: rgba(255,255,255,.2); }
+        .note { flex: 1; min-width: 0; overflow: hidden; }
+        .scroll { display: inline-block; white-space: nowrap; font-size: .9rem; font-weight: 500; color: rgba(238,242,247,.85); will-change: transform; }
+        .line.game:hover .scroll, .news:hover .scroll { color: #fff; }
+        .headline { font-size: .98rem; color: #eef2f7; }
+        .news { gap: 1rem; }
+        .topicchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .45rem; font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); }
+        .tbar { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+        .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.1rem; padding: 0 1.3rem; border-left: 1px solid rgba(255,255,255,.14); }
+        .queue > .qtile { animation: qslide .5s ease; }
+        .upnext { font-size: .55rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.42); white-space: nowrap; }
+        .qtile { display: inline-flex; align-items: center; gap: .42rem; font-size: .76rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: rgba(238,242,247,.8); white-space: nowrap; }
+        .qbar { width: 3px; height: 13px; border-radius: 2px; flex-shrink: 0; }
+        .nav { flex-shrink: 0; display: flex; align-items: center; gap: .3rem; padding: 0 .7rem; border-left: 1px solid rgba(255,255,255,.14); }
+        .arrow { color: rgba(255,255,255,.55); font-size: 1.25rem; line-height: 1; padding: 0 .25rem; }
         .arrow:hover { color: #fff; }
-        .count { font-size: .66rem; font-weight: 700; color: rgba(255,255,255,.6); font-variant-numeric: tabular-nums; min-width: 2.6rem; text-align: center; }
+        .count { font-size: .64rem; font-weight: 700; color: rgba(255,255,255,.6); font-variant-numeric: tabular-nums; min-width: 2.6rem; text-align: center; }
         .of { color: rgba(255,255,255,.35); }
-        .hide { color: rgba(255,255,255,.35); font-size: .8rem; padding: 0 .3rem .1rem; margin-left: .3rem; }
+        .hide { color: rgba(255,255,255,.35); font-size: .78rem; padding: 0 .25rem .1rem; margin-left: .25rem; }
         .hide:hover { color: #fff; }
-        @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-        @media (max-width: 700px) {
-          .note { display: none; }
-          .teams { min-width: 0; flex: 1; }
-          .headline { font-size: .92rem; }
+        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes qslide { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+        @media (max-width: 1024px) { .queue { display: none; } }
+        @media (max-width: 640px) {
+          .label { padding: 0 .6rem; font-size: .6rem; }
+          .nm { max-width: 6rem; overflow: hidden; text-overflow: ellipsis; }
         }
       `}</style>
     </div>
