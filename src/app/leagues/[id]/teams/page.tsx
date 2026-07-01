@@ -47,7 +47,7 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
           const secondary = t.secondaryColor || '#ffffff'
           const recBySport = Object.fromEntries(recs.filter(r => r.teamId === t.id).map(r => [r.sport, r]))
           return (
-            <Link key={t.id} href={`/teams/${t.id}${isPast ? `?season=${viewSeason}` : ''}`} className="card overflow-hidden hover:shadow-md transition">
+            <Link key={t.id} href={`/leagues/${id}/teams/${t.id}${isPast ? `?season=${viewSeason}` : ''}`} className="card overflow-hidden hover:shadow-md transition">
               <div className="p-3 flex items-center gap-3" style={{ background: primary, color: secondary }}>
                 {t.logo
                   ? <img src={t.logo} alt="" className="w-12 h-12 object-contain flex-shrink-0 rounded-md p-1.5" style={{ background: t.logoBg ? primary : 'rgba(255,255,255,.12)' }} />
