@@ -47,6 +47,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   const [showMgr, setShowMgr] = useState(false)
   const [mgrEmail, setMgrEmail] = useState('')
   const [mgrErr, setMgrErr] = useState('')
+  const [contract, setContract] = useState<{ p: P; salary: string; years: string } | null>(null)
 
   const load = useCallback(() => {
     fetch(`/api/teams/${id}/roster`).then(r => r.json()).then(d => {
@@ -108,12 +109,10 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
     load()
   }
 
-  function editContract(p: P) {
-    const salStr = window.prompt(`Salary for ${p.name}`, String(p.salary ?? 0))
-    if (salStr == null) return
-    const yrStr = window.prompt(`Contract years remaining for ${p.name} (blank = none)`, p.contractYears == null ? '' : String(p.contractYears))
-    if (yrStr == null) return
-    act({ action: 'SET_CONTRACT', rosterId: p.rosterId, salary: Number(salStr) || 0, contractYears: yrStr.trim() === '' ? null : Number(yrStr) })
+  async function saveContract() {
+    if (!contract) return
+    await act({ action: 'SET_CONTRACT', rosterId: contract.p.rosterId, salary: Number(contract.salary) || 0, contractYears: contract.years.trim() === '' ? null : Number(contract.years) })
+    setContract(null)
   }
 
   if (loading) return (
@@ -263,7 +262,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
 
   const cardActions = (p: P) => canManage ? (
     <span className="flex items-center gap-1 flex-shrink-0 pr-2">
-      {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => editContract(p)} title="Salary / contract" className="text-[11px] w-6 h-6 rounded text-slate-400 hover:text-emerald-600">$</button>}
+      {capEnabled && (data.isOwner || data.isCommish) && <button onClick={() => setContract({ p, salary: String(p.salary ?? 0), years: p.contractYears == null ? '' : String(p.contractYears) })} title="Salary / contract" className="text-[11px] w-6 h-6 rounded text-slate-400 hover:text-emerald-600">$</button>}
       <button onClick={() => act({ action: 'SET_BLOCK', rosterId: p.rosterId, onBlock: !p.onBlock })} title="Trade block" className={`text-[13px] w-6 h-6 rounded ${p.onBlock ? 'text-amber-600' : 'text-slate-300 hover:text-amber-600'}`}>{p.onBlock ? '◉' : '◎'}</button>
       <button onClick={() => act({ action: 'DROP', rosterId: p.rosterId })} title="Drop" className="text-[10px] font-semibold text-red-500 px-1.5 py-1 rounded border border-red-200 hover:bg-red-50">Drop</button>
     </span>
@@ -534,6 +533,35 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
       )}
 
       {view === 'history' && <FranchiseHistory history={history} />}
+
+      {/* Contract editor (salary-cap leagues). */}
+      {contract && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setContract(null)}>
+          <div className="card p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="font-semibold text-slate-900">Contract</h3>
+            <p className="text-sm text-slate-500 mb-4">{contract.p.name} · {contract.p.position} · {contract.p.realTeamAbbr ?? contract.p.realTeam}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Salary</label>
+                <input className="input" type="number" min={0} inputMode="numeric" value={contract.salary} onChange={e => setContract({ ...contract, salary: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Years left</label>
+                <input className="input" type="number" min={0} inputMode="numeric" placeholder="none" value={contract.years} onChange={e => setContract({ ...contract, years: e.target.value })} />
+              </div>
+            </div>
+            {capEnabled && cap > 0 && (
+              <p className="text-xs text-slate-400 mt-2 tabular-nums">
+                Cap space now: {(cap - totalSalary).toLocaleString()} · after change: {(cap - totalSalary + (contract.p.salary ?? 0) - (Number(contract.salary) || 0)).toLocaleString()}
+              </p>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button onClick={saveContract} className="btn-primary flex-1">Save</button>
+              <button onClick={() => setContract(null)} className="btn-secondary">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
