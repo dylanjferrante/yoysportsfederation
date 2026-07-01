@@ -44,7 +44,7 @@ export default function LeagueTradeCenter() {
           <h1 className="text-xl font-bold text-slate-900">Trade Center</h1>
           <p className="text-slate-500 text-sm">Propose and manage trades in this league</p>
         </div>
-        <Link href={`/trade/new?league=${id}`} className="btn-primary">+ Propose Trade</Link>
+        <Link href={`/leagues/${id}/trade/new`} className="btn-primary">+ Propose Trade</Link>
       </div>
 
       {loading ? (
@@ -56,7 +56,7 @@ export default function LeagueTradeCenter() {
             {pending.length === 0 ? (
               <div className="card p-8 text-center text-slate-400">
                 No pending trades.
-                <br /><Link href={`/trade/new?league=${id}`} className="text-blue-600 hover:underline text-sm mt-2 inline-block">Propose one →</Link>
+                <br /><Link href={`/leagues/${id}/trade/new`} className="text-blue-600 hover:underline text-sm mt-2 inline-block">Propose one →</Link>
               </div>
             ) : pending.map(trade => <TradeCard key={trade.id} trade={trade} onAction={respond} />)}
           </div>

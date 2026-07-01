@@ -8,19 +8,32 @@ import { buildHeadlines } from '@/lib/headlines'
 export type WireItem = { id: string; text: string; href: string }
 export type WireTopic = { key: string; title: string; sport?: string; items: WireItem[] }
 
-// The wire's topic model: one topic per sport (this week's games with each club's
-// sport record and a storyline), then the Federation Cup race, Breaking News, and
-// Trades & Transactions. Sports always appear even in a quiet week.
-export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
+// A SportsCenter-style slide: either a single game (two clubs with records,
+// scores, and a storyline "note" off to the side) or a news headline.
+export type SlideTeam = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; record: string; score: number; win: boolean }
+export type WireSlide =
+  | { kind: 'game'; id: string; sport: string; sportName: string; sportLogo: string | null; status: 'Final' | 'LIVE' | 'PRE'; away: SlideTeam; home: SlideTeam; note: string; href: string }
+  | { kind: 'news'; id: string; topic: string; sport?: string; text: string; href: string }
+
+export type Wire = { topics: WireTopic[]; slides: WireSlide[] }
+
+// The wire's topic/slide model: one topic per sport (this week's games with each
+// club's sport record and a storyline), then the Federation Cup race, Breaking
+// News, and Trades & Transactions. Sports always appear even in a quiet week.
+export async function buildWire(leagueId: string): Promise<Wire> {
   const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId)).limit(1)
-  if (!league) return []
+  if (!league) return { topics: [], slides: [] }
   const season = league.season
   const base = `/leagues/${leagueId}`
   const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
+  const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
+  const divisionLogos = safeParse<Record<string, string>>(league.divisionLogos, {})
+  const divisionLogosAlt = safeParse<Record<string, string>>(league.divisionLogosAlt, {})
   const sn = (s: string) => sportAbbrLabel(s, sportAbbr)
+  const spLogo = (s: string) => divisionLogosAlt[s] || divisionLogos[s] || null
 
-  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, division: teams.division, rivals: teams.rivals }).from(teams).where(eq(teams.leagueId, leagueId))
+  const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, division: teams.division, rivals: teams.rivals, logo: teams.logo, altLogo: teams.altLogo, primary: teams.primaryColor, secondary: teams.secondaryColor }).from(teams).where(eq(teams.leagueId, leagueId))
   const tById = new Map(teamRows.map(t => [t.id, t]))
   const nm = (id: string | null | undefined) => (id && tById.get(id)?.name) || 'A club'
   const ab = (id: string | null | undefined) => (id && tById.get(id)?.abbreviation) || '—'
@@ -51,7 +64,19 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
     return { win, n }
   }
 
+  const slideTeam = (id: string | null, sp: string, score: number, other: number, complete: boolean): SlideTeam => {
+    const tm = id ? tById.get(id) : undefined
+    return {
+      name: tm?.name ?? '—',
+      abbr: (tm?.abbreviation || tm?.name || '?').slice(0, 4).toUpperCase(),
+      logo: tm?.altLogo || tm?.logo || null,
+      primary: tm?.primary ?? '#0f172a', secondary: tm?.secondary ?? '#ffffff',
+      record: id ? rc(id, sp) : '', score: +score.toFixed(1), win: complete && score >= other,
+    }
+  }
+
   const topics: WireTopic[] = []
+  const slides: WireSlide[] = []
 
   // ── One topic per sport: this week's games, records, storylines ─────────────
   for (const sp of sportsEnabled) {
@@ -126,16 +151,34 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
       return ''
     }
 
+    // A finished game's recap note, keyed off the flavor.
+    const recapNote = (a: string, h: string, as: number, hs: number): string => {
+      const winner = as >= hs ? a : h
+      const w = ab(winner)
+      switch (flavorDone(a, h, as, hs)) {
+        case 'upset': return `${w} pull off the upset`
+        case 'in a rout': return `${w} roll in a rout`
+        case 'a nail-biter': return `${w} survive a nail-biter`
+        default: return `${w} take it`
+      }
+    }
+
     const items: WireItem[] = []
     for (const g of all.filter(m => m.week === week)) {
       const a = g.awayTeamId as string, h = g.homeTeamId
       const href = `${base}/matchup/${g.id}`
+      const live = !g.isComplete && league.liveScoring && ((g.homeScore ?? 0) > 0 || (g.awayScore ?? 0) > 0)
+      const status: 'Final' | 'LIVE' | 'PRE' = g.isComplete ? 'Final' : live ? 'LIVE' : 'PRE'
       if (g.isComplete) {
         const flav = flavorDone(a, h, g.awayScore ?? 0, g.homeScore ?? 0)
         items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) ${(g.awayScore ?? 0).toFixed(1)}, ${nm(h)} (${rc(h, sp)}) ${(g.homeScore ?? 0).toFixed(1)} — Final${flav ? ` · ${flav}` : ''}`, href })
+        slides.push({ kind: 'game', id: `g-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status, href, note: recapNote(a, h, g.awayScore ?? 0, g.homeScore ?? 0),
+          away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, true), home: slideTeam(h, sp, g.homeScore ?? 0, g.awayScore ?? 0, true) })
       } else {
         const story = storyFor(a, h)
         items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) vs ${nm(h)} (${rc(h, sp)})${story ? ` · ${story}` : ''}`, href })
+        slides.push({ kind: 'game', id: `g-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status, href, note: story || `${sn(sp)} action`,
+          away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, false), home: slideTeam(h, sp, g.homeScore ?? 0, g.awayScore ?? 0, false) })
       }
     }
     if (!items.length) {
@@ -150,15 +193,19 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
   // Reuse the rich headline generators for the non-game topics.
   const headlines = await buildHeadlines(leagueId)
   const toItems = (arr: typeof headlines) => arr.map(h => ({ id: h.id, text: h.text, href: h.href }))
+  const toSlides = (topic: string, arr: WireItem[], sport?: string) => arr.map(i => ({ kind: 'news' as const, id: i.id, topic, sport, text: i.text, href: i.href }))
 
   // ── Federation Cup Race ─────────────────────────────────────────────────────
   const fedItems = toItems(headlines.filter(h => h.category === 'FEDERATION')).slice(0, 6)
-  if (fedItems.length) topics.push({ key: 'FEDCUP', title: 'Federation Cup Race', items: fedItems })
+  if (fedItems.length) { topics.push({ key: 'FEDCUP', title: 'Federation Cup Race', items: fedItems }); slides.push(...toSlides('Federation Cup Race', fedItems)) }
 
   // ── Breaking News ───────────────────────────────────────────────────────────
   const breaking: WireItem[] = []
   breaking.push(...toItems(headlines.filter(h =>
-    h.category === 'CHAMPION' || h.category === 'PLAYOFF' || h.category === 'MILESTONE'
+    h.category === 'CHAMPION' || h.category === 'PLAYOFF'
+    // Only elite, rare feats reach Breaking News — routine milestones (a 4-hit
+    // night, a double-double, 300 passing yards) stay in their sport topic.
+    || (h.category === 'MILESTONE' && (h.priority ?? 0) >= 60)
     || (h.category === 'STANDINGS' && /clinch|eliminat/i.test(h.text))
     || (h.category === 'SUPERLATIVE' && /season high/i.test(h.text)))))
   // All-time Federation Cup points — tightest gap (teams passing each other).
@@ -172,16 +219,22 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
     )
     for (const row of standings) allTime[row.team.id] = (allTime[row.team.id] ?? 0) + (row.total ?? 0)
   }
-  const ranked = Object.entries(allTime).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
-  for (let i = 1; i < Math.min(ranked.length, 8); i++) {
-    const gap = ranked[i - 1][1] - ranked[i][1]
-    if (gap > 0 && gap <= 3) breaking.push({ id: `alltime-${i}`, text: `${nm(ranked[i][0])} is ${gap.toFixed(0)} all-time Cup point${gap === 1 ? '' : 's'} from passing ${nm(ranked[i - 1][0])} for #${i}`, href: `${base}/history` })
+  const rankedAt = Object.entries(allTime).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
+  for (let i = 1; i < Math.min(rankedAt.length, 8); i++) {
+    const gap = rankedAt[i - 1][1] - rankedAt[i][1]
+    if (gap > 0 && gap <= 3) breaking.push({ id: `alltime-${i}`, text: `${nm(rankedAt[i][0])} is ${gap.toFixed(0)} all-time Cup point${gap === 1 ? '' : 's'} from passing ${nm(rankedAt[i - 1][0])} for #${i}`, href: `${base}/history` })
   }
-  if (breaking.length) topics.push({ key: 'BREAKING', title: 'Breaking News', items: breaking.slice(0, 8) })
+  const breakingTop = breaking.slice(0, 8)
+  if (breakingTop.length) { topics.push({ key: 'BREAKING', title: 'Breaking News', items: breakingTop }); slides.push(...toSlides('Breaking News', breakingTop)) }
 
   // ── Trades & Transactions ───────────────────────────────────────────────────
   const txItems = toItems(headlines.filter(h => h.category === 'TRANSACTION')).slice(0, 8)
-  if (txItems.length) topics.push({ key: 'MOVES', title: 'Trades & Transactions', items: txItems })
+  if (txItems.length) { topics.push({ key: 'MOVES', title: 'Trades & Transactions', items: txItems }); slides.push(...toSlides('Trades & Transactions', txItems)) }
 
-  return topics.filter(t => t.items.length)
+  return { topics: topics.filter(t => t.items.length), slides }
+}
+
+// Back-compat: existing callers that only need topics.
+export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
+  return (await buildWire(leagueId)).topics
 }

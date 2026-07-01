@@ -363,32 +363,32 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
         const add = (txt: string, pr = 56) => found.push({ id: `mile-${sp}-${r.pid}-${wk}`, category: 'MILESTONE', sport: sp, priority: pr, ts: tsOfWeek(wk), text: `${who} ${txt}`, href: `${base}/scores` })
         if (sp === 'NHL') {
           const g = s.goals ?? 0, a = s.assists ?? 0, sv = s.saves ?? 0, ga = s.goalsAllowed ?? 0
-          if (g >= 3) add(vary(r.pid, 'nets a hat trick', 'records a natural hat trick'), 62)
-          else if (g + a >= 4) add(`piles up ${g + a} points (${g}G ${a}A)`, 58)
-          else if (g === 2) add('bags a pair of goals')
-          if (sv >= 28 && ga === 0) add(`slams the door — ${sv}-save shutout`, 60)
+          if (g >= 3) add(vary(r.pid, 'nets a hat trick', 'records a natural hat trick', `lights the lamp ${g} times`), 62)
+          else if (g + a >= 4) add(vary(r.pid, `piles up ${g + a} points (${g}G ${a}A)`, `posts a ${g + a}-point night (${g}G ${a}A)`, `racks up ${g + a} points (${g}G ${a}A)`), 58)
+          else if (g === 2) add(vary(r.pid, 'bags a pair of goals', 'scores twice', 'nets a brace'))
+          if (sv >= 28 && ga === 0) add(vary(r.pid + 'sv', `slams the door — ${sv}-save shutout`, `turns aside all ${sv} shots for the shutout`, `stones all ${sv} for a clean sheet`), 60)
         } else if (sp === 'MLB') {
           const hr = s.homeRuns ?? 0, rbi = s.rbi ?? 0, kP = s.strikeoutsAsPitcher ?? 0
           const h = (s.singles ?? 0) + (s.doubles ?? 0) + (s.triples ?? 0) + hr
-          if (hr >= 3) add(`goes deep ${hr} times`, 62)
-          else if (hr === 2) add('launches a pair of homers', 58)
-          if (rbi >= 5) add(`drives in ${rbi}`, 58)
-          else if (kP >= 10) add(`fans ${kP} on the mound`, 60)
-          else if (h >= 4) add(`collects ${h} hits`)
+          if (hr >= 3) add(vary(r.pid, `goes deep ${hr} times`, `crushes ${hr} home runs`, `launches ${hr} bombs`), 62)
+          else if (hr === 2) add(vary(r.pid, 'launches a pair of homers', 'goes yard twice', 'cranks two out'), 58)
+          if (rbi >= 5) add(vary(r.pid + 'rbi', `drives in ${rbi}`, `plates ${rbi} runs`, `knocks in ${rbi}`), 58)
+          else if (kP >= 10) add(vary(r.pid + 'k', `fans ${kP} on the mound`, `strikes out ${kP}`, `punches out ${kP}`), 60)
+          else if (h >= 4) add(vary(r.pid + 'h', `collects ${h} hits`, `rakes ${h} knocks`, `records a ${h}-hit night`, `stays hot with ${h} hits`))
         } else if (sp === 'NBA') {
           const pts = s.points ?? 0, reb = (s.offRebounds ?? 0) + (s.defRebounds ?? 0), ast = s.assists ?? 0, stl = s.steals ?? 0, blk = s.blocks ?? 0, tpm = s.threesMade ?? 0
           const dd = [pts >= 10, reb >= 10, ast >= 10, stl >= 10, blk >= 10].filter(Boolean).length
-          if (pts >= 10 && reb >= 10 && ast >= 10) add('posts a triple-double', 62)
-          else if (dd >= 2) add(`logs a double-double (${pts}/${reb}/${ast})`, 56)
-          else if (pts >= 40) add(`erupts for ${pts}`, 60)
-          else if (tpm >= 7) add(`splashes ${tpm} threes`)
+          if (pts >= 10 && reb >= 10 && ast >= 10) add(vary(r.pid, 'posts a triple-double', 'stuffs the sheet with a triple-double'), 62)
+          else if (dd >= 2) add(vary(r.pid, `logs a double-double (${pts}/${reb}/${ast})`, `notches a double-double (${pts}/${reb}/${ast})`, `goes for a double-double (${pts}/${reb}/${ast})`), 56)
+          else if (pts >= 40) add(vary(r.pid, `erupts for ${pts}`, `drops ${pts}`, `pours in ${pts}`), 60)
+          else if (tpm >= 7) add(vary(r.pid, `splashes ${tpm} threes`, `drills ${tpm} triples`, `buries ${tpm} from deep`))
         } else if (sp === 'NFL') {
           const pY = s.passingYards ?? 0, pTD = s.passingTD ?? 0, rY = s.rushingYards ?? 0, reY = s.receivingYards ?? 0, rTD = s.rushingTD ?? 0, reTD = s.receivingTD ?? 0, rec = s.receptions ?? 0
           const td = pTD + rTD + reTD
-          if (td >= 3) add(`accounts for ${td} touchdowns`, 60)
-          else if (pY >= 300) add(`throws for ${pY} yards`)
-          else if (rY >= 125) add(`runs for ${rY} yards`)
-          else if (reY >= 110) add(`goes for ${reY} receiving yards${rec ? ` on ${rec} catches` : ''}`)
+          if (td >= 3) add(vary(r.pid, `accounts for ${td} touchdowns`, `racks up ${td} touchdowns`, `piles up ${td} scores`), 60)
+          else if (pY >= 300) add(vary(r.pid, `throws for ${pY} yards`, `airs it out for ${pY} yards`, `passes for ${pY} yards`))
+          else if (rY >= 125) add(vary(r.pid, `runs for ${rY} yards`, `rushes for ${rY} yards`, `pounds out ${rY} on the ground`))
+          else if (reY >= 110) add(vary(r.pid, `goes for ${reY} receiving yards${rec ? ` on ${rec} catches` : ''}`, `hauls in ${reY} yards${rec ? ` on ${rec} grabs` : ''}`, `racks up ${reY} receiving yards${rec ? ` on ${rec} catches` : ''}`))
         }
       }
       res.push(...found.slice(0, 4))

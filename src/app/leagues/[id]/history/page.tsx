@@ -86,9 +86,9 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
                       ? <span className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: t?.logoBg ? primary : 'rgba(255,255,255,.14)' }}><img src={src} alt="" className="w-[80%] h-[80%] object-contain" /></span>
                       : <span className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(t?.abbreviation || t?.name || '?').slice(0, 3).toUpperCase()}</span>}
                     <div className="min-w-0 flex-1">
-                      {t?.wordmark
+                      {t?.wordmark && t.wordmark.startsWith('http')
                         ? <img src={t.wordmark} alt={t?.name ?? ''} className="h-7 w-auto max-w-[220px] object-contain object-left" />
-                        : <span className="font-bold truncate">{t?.name ?? '—'}</span>}
+                        : <span className="font-bold truncate">{t?.wordmark || t?.name || '—'}</span>}
                     </div>
                     <span className="font-black tabular-nums flex-shrink-0" style={{ color: secondary, opacity: .92 }}>{season}</span>
                   </div>

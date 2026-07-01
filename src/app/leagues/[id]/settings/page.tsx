@@ -330,7 +330,7 @@ function SettingsInner() {
                 <label className="label">Wordmark (optional)</label>
                 <div className="flex items-center gap-3">
                   <input className="input flex-1" placeholder="https://…/wordmark.png" value={form.wordmark ?? ''} onChange={e => set('wordmark', e.target.value)} />
-                  {form.wordmark && <img src={form.wordmark} alt="" className="h-10 object-contain bg-slate-100 flex-shrink-0 px-1" />}
+                  {form.wordmark && form.wordmark.startsWith('http') && <img src={form.wordmark} alt="" className="h-10 object-contain bg-slate-100 flex-shrink-0 px-1" />}
                 </div>
               </div>
               <div className="flex gap-4 items-end sm:col-span-2">
