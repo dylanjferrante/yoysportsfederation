@@ -119,11 +119,11 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     <div className="wrap" style={{ '--lp': primary, '--ls': secondary } as React.CSSProperties}
       onMouseEnter={() => { hoverRef.current = true }}
       onMouseLeave={() => { hoverRef.current = false }}>
-      <span className="label">Wire</span>
+      <span className="wlabel">Wire</span>
 
       <div className="stage">
         {slide.kind === 'game' ? (
-          <Link href={slide.href} className="card game" key={slide.id}>
+          <Link href={slide.href} className="slide game" key={slide.id}>
             <div className="scoreline">
               <span className="spchip" style={{ background: sportMeta(slide.sport).hex }}>
                 {slide.sportLogo && <img src={slide.sportLogo} alt="" className="splogo" />}
@@ -154,7 +154,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
             {slide.note && <div className="recapline"><span className="note" ref={scrollWrapRef}><span className="scroll" ref={scrollTxtRef}>{slide.note}</span></span></div>}
           </Link>
         ) : (
-          <Link href={slide.href} className="card news" key={slide.id}>
+          <Link href={slide.href} className="slide news" key={slide.id}>
             <div className="scoreline">
               <span className="topicchip">
                 <span className="tbar" style={{ background: slide.sport ? sportMeta(slide.sport).hex : secondary }} />
@@ -182,9 +182,9 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
       <style jsx>{`
         .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 58px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
-        .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 .95rem; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
+        .wlabel { flex-shrink: 0; display: flex; align-items: center; padding: 0 .95rem; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .stage { flex: 1; min-width: 0; position: relative; overflow: hidden; display: flex; align-items: stretch; }
-        .card { display: flex; flex-direction: column; justify-content: center; gap: .2rem; width: 100%; min-width: 0; padding: .3rem 1.2rem; text-decoration: none; color: #e2e8f0; animation: fade .4s ease; }
+        .slide { display: flex; flex-direction: column; justify-content: center; gap: .2rem; width: 100%; min-width: 0; padding: .3rem 1.2rem; text-decoration: none; color: #e2e8f0; animation: fade .4s ease; }
         .scoreline { display: flex; align-items: center; gap: 1.6rem; min-width: 0; white-space: nowrap; }
         .spchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .3rem; font-size: .58rem; font-weight: 800; padding: .1rem .42rem; border-radius: .28rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
         .splogo { width: .82rem; height: .82rem; object-fit: contain; border-radius: 2px; }
@@ -202,7 +202,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .recapline { min-width: 0; overflow: hidden; }
         .note { display: block; min-width: 0; overflow: hidden; }
         .scroll { display: inline-block; white-space: nowrap; font-size: .82rem; font-weight: 500; color: rgba(238,242,247,.82); will-change: transform; }
-        .card:hover .scroll { color: #fff; }
+        .slide:hover .scroll { color: #fff; }
         .headline { font-size: .9rem; color: #eef2f7; }
         .topicchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .45rem; font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); }
         .tbar { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }
@@ -217,7 +217,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         @keyframes qslide { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
         @media (max-width: 1024px) { .queue { display: none; } }
         @media (max-width: 640px) {
-          .label { padding: 0 .6rem; font-size: .6rem; }
+          .wlabel { padding: 0 .6rem; font-size: .6rem; }
           .scoreline { gap: 1rem; }
           .nm { max-width: 6rem; overflow: hidden; text-overflow: ellipsis; }
         }
