@@ -280,6 +280,7 @@ export const teams = sqliteTable('teams', {
   archivedAt: text('archived_at'),
   archivedSports: text('archived_sports').default('[]'),
   replacedBy: text('replaced_by'),
+  rivals: text('rivals').default('[]'), // commissioner-set rival team ids (up to 2)
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 }, (t) => ({
   uniq: uniqueIndex('team_user_league_uniq').on(t.leagueId, t.userId),

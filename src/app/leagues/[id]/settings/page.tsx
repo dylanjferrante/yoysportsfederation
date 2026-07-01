@@ -79,6 +79,7 @@ function SettingsInner() {
         primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6', logoBg: t.team.logoBg ?? false,
         ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '', division: t.team.division ?? null,
         archivedSports: parse(t.team.archivedSports, []), replacedBy: t.team.replacedBy ?? null,
+        rivals: parse(t.team.rivals, []),
       })))
       const se = parse(l.sportsEnabled, ALL_SPORTS)
       setSportsEnabled(se)
@@ -175,7 +176,7 @@ function SettingsInner() {
       body: JSON.stringify({
         name: f.name, abbreviation: f.abbreviation, logo: f.logo, altLogo: f.altLogo, wordmark: f.wordmark,
         primaryColor: f.primaryColor, secondaryColor: f.secondaryColor, logoBg: !!f.logoBg,
-        ownerName: f.ownerName, ownerEmail: f.ownerEmail, division: f.division,
+        ownerName: f.ownerName, ownerEmail: f.ownerEmail, division: f.division, rivals: f.rivals ?? [],
       }),
     })
     setTeamSaving(null)
@@ -195,6 +196,7 @@ function SettingsInner() {
       primaryColor: t.team.primaryColor ?? '#0f172a', secondaryColor: t.team.secondaryColor ?? '#3b82f6', logoBg: t.team.logoBg ?? false,
       ownerName: t.user?.name ?? '', ownerEmail: t.user?.email ?? '', division: t.team.division ?? null,
       archivedSports: parse(t.team.archivedSports, []), replacedBy: t.team.replacedBy ?? null,
+      rivals: parse(t.team.rivals, []),
     })))
   }
 
@@ -430,6 +432,19 @@ function SettingsInner() {
                         </select>
                       </div>
                     )}
+                    <div className="sm:col-span-2">
+                      <label className="label">Rivals (up to 2)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[0, 1].map(slot => (
+                          <select key={slot} className="select" value={(f.rivals ?? [])[slot] ?? ''}
+                            onChange={e => { const next = [...(f.rivals ?? [])]; next[slot] = e.target.value; setFranchise(f.id, { rivals: [...new Set(next.filter(Boolean))].slice(0, 2) }) }}>
+                            <option value="">— none —</option>
+                            {franchises.filter(o => o.id !== f.id).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                          </select>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">Rival matchups get a rivalry storyline in the wire — great for leagues without divisions.</p>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between gap-3 mt-3">
                     <div className="flex items-center gap-4">

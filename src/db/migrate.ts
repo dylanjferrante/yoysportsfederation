@@ -273,6 +273,7 @@ CREATE TABLE teams (
   archived_at TEXT,
   archived_sports TEXT DEFAULT '[]',
   replaced_by TEXT,
+  rivals TEXT DEFAULT '[]',
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE(league_id, user_id)
 );
