@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { sportMeta } from '@/lib/utils'
 
-type Team = { id: string; name: string; abbreviation: string; primaryColor: string; secondaryColor: string; logo: string | null }
+type Team = { id: string; name: string; abbreviation: string; primaryColor: string; secondaryColor: string; logo: string | null; altLogo?: string | null; logoBg?: boolean }
 type Player = { id: string; name: string; position: string; sport: string; realTeamAbbr: string | null; adp: number | null; projectedPoints: number | null }
 type Pick = { overall: number; round: number; slot: number; player: Player }
 
@@ -19,6 +19,8 @@ export default function MockDraft() {
   // Setup
   const [mockSport, setMockSport] = useState<string>('ALL')
   const [rounds, setRounds] = useState(5)
+  const [rosterSlots, setRosterSlots] = useState<Record<string, number>>({})
+  const [dynastyRounds, setDynastyRounds] = useState(0)
   const [snake, setSnake] = useState(true)
   const [order, setOrder] = useState<Team[]>([])      // draft order (editable in setup)
   const [mySlot, setMySlot] = useState(0)
@@ -36,8 +38,17 @@ export default function MockDraft() {
       setOrder(d.teams ?? [])
       setPool(d.available ?? [])
       if (Array.isArray(d.sportsEnabled) && d.sportsEnabled.length) setEnabledSports(d.sportsEnabled)
+      setRosterSlots(d.rosterSlots ?? {})
+      setDynastyRounds(d.dynastyRounds ?? 0)
     })
   }, [id])
+
+  // A mock covers every roster spot: all-sports runs the full dynasty length,
+  // a single-sport mock runs that sport's roster size (starters + bench + taxi).
+  const targetRounds = mockSport === 'ALL' ? (dynastyRounds || 15) : (rosterSlots[mockSport] || 15)
+  // Default the round count to a full roster whenever the mock scope changes.
+  useEffect(() => { setRounds(targetRounds) }, [targetRounds])
+  const roundOptions = useMemo(() => [...new Set([...[3, 4, 5, 6, 8, 10, 12, 15].filter(n => n < targetRounds), targetRounds])], [targetRounds])
 
   const taken = useMemo(() => new Set(picks.map(p => p.player.id)), [picks])
   const scopedPool = useMemo(() => mockSport === 'ALL' ? pool : pool.filter(p => p.sport === mockSport), [pool, mockSport])
@@ -114,7 +125,7 @@ export default function MockDraft() {
             <div>
               <label className="label">Rounds</label>
               <select className="select" value={rounds} onChange={e => setRounds(+e.target.value)}>
-                {[3, 4, 5, 6, 8, 10, 12, 15].map(n => <option key={n} value={n}>{n} rounds</option>)}
+                {roundOptions.map(n => <option key={n} value={n}>{n} rounds{n === targetRounds ? ' (full roster)' : ''}</option>)}
               </select>
             </div>
             <div>
@@ -145,7 +156,9 @@ export default function MockDraft() {
                   <select value={i} onChange={e => moveOrder(i, +e.target.value)} onClick={e => e.stopPropagation()} className="text-xs tabular-nums border border-slate-200 rounded px-1 py-0.5 bg-white">
                     {order.map((_, n) => <option key={n} value={n}>{n + 1}</option>)}
                   </select>
-                  <span className="w-5 h-5 rounded text-white text-[9px] font-bold flex items-center justify-center" style={{ background: t.primaryColor }}>{t.abbreviation?.slice(0, 2)}</span>
+                  {(t.altLogo || t.logo)
+                    ? <span className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? t.primaryColor : '#f1f5f9' }}><img src={(t.altLogo || t.logo) as string} alt="" className="w-[80%] h-[80%] object-contain" /></span>
+                    : <span className="w-5 h-5 rounded text-white text-[9px] font-bold flex items-center justify-center" style={{ background: t.primaryColor }}>{t.abbreviation?.slice(0, 2)}</span>}
                   <span className="text-sm text-slate-800 flex-1 truncate">{t.name}</span>
                   <button onClick={() => setMySlot(i)} className={`text-[11px] px-2 py-0.5 rounded ${mySlot === i ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>{mySlot === i ? 'You' : 'Take slot'}</button>
                 </li>
@@ -175,6 +188,7 @@ export default function MockDraft() {
                   {order.map((t, i) => (
                     <th key={t.id} className="px-2 py-2 min-w-[8rem]" style={{ background: t.primaryColor, color: '#fff' }}>
                       <div className="flex items-center gap-1 justify-center">
+                        {(t.altLogo || t.logo) && <span className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 overflow-hidden bg-white/20"><img src={(t.altLogo || t.logo) as string} alt="" className="w-[85%] h-[85%] object-contain" /></span>}
                         <span className="font-bold">{t.abbreviation}</span>
                         {i === mySlot && <span className="text-[9px] bg-white/25 px-1 rounded">YOU</span>}
                       </div>
