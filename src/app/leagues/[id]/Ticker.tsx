@@ -63,7 +63,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       const wrap = scrollWrapRef.current, txt = scrollTxtRef.current
       const overflow = wrap && txt ? txt.scrollWidth - wrap.clientWidth : 0
       if (!wrap || !txt || overflow <= 16) { advanceFixed(); return }
-      const SPEED = 60 // px/sec
+      const SPEED = 46 // px/sec
       let last = 0, offset = 0, lead = 1000, done = false
       const step = (t: number) => {
         if (!last) last = t
@@ -142,6 +142,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
                   : <span className="tlogo tbadge" style={{ background: slide.away.primary, color: slide.away.secondary }}>{slide.away.abbr.slice(0, 3)}</span>}
                 <span className="tcol">
                   <span className="nm">{slide.away.name}</span>
+                  {slide.away.logo && <span className="nmab">{slide.away.abbr}</span>}
                   <span className="sub">{slide.away.record}{slide.away.standing > 0 ? ` | #${slide.away.standing}` : ''}</span>
                 </span>
                 <span className="sc">{slide.status === 'PRE' ? '—' : slide.away.score}</span>
@@ -152,6 +153,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
                   : <span className="tlogo tbadge" style={{ background: slide.home.primary, color: slide.home.secondary }}>{slide.home.abbr.slice(0, 3)}</span>}
                 <span className="tcol">
                   <span className="nm">{slide.home.name}</span>
+                  {slide.home.logo && <span className="nmab">{slide.home.abbr}</span>}
                   <span className="sub">{slide.home.record}{slide.home.standing > 0 ? ` | #${slide.home.standing}` : ''}</span>
                 </span>
                 <span className="sc">{slide.status === 'PRE' ? '—' : slide.home.score}</span>
@@ -192,10 +194,10 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       <button onClick={() => setHiddenPersist(true)} className="hide" aria-label="Hide wire">✕</button>
 
       <style jsx>{`
-        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 50px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
+        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 50px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "Bitcount Single", var(--font-score), "punto", ui-monospace, "SFMono-Regular", Menlo, monospace; font-weight: 400; }
         .wlabel { flex-shrink: 0; display: flex; align-items: center; padding: 0 .95rem; margin-right: 1rem; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .stage { flex: 1; min-width: 0; position: relative; overflow: hidden; display: flex; align-items: stretch; }
-        .slide { display: flex; flex-direction: row; align-items: center; gap: 1.3rem; width: 100%; min-width: 0; padding: 0 1.2rem; text-decoration: none; color: #e2e8f0; animation: fade .4s ease; }
+        .slide { display: flex; flex-direction: row; align-items: center; gap: 1.3rem; width: 100%; min-width: 0; padding: 0 1.2rem; text-decoration: none; color: #e2e8f0; animation: ledOn .5s ease both; }
         .scoreline { flex-shrink: 0; display: flex; align-items: center; gap: 1.6rem; min-width: 0; white-space: nowrap; }
         .divider { flex-shrink: 0; width: 1px; height: 26px; background: rgba(255,255,255,.2); }
         .spchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .3rem; font-size: .58rem; font-weight: 800; padding: .1rem .42rem; border-radius: .28rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
@@ -207,7 +209,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .tbadge { display: inline-flex; align-items: center; justify-content: center; font-size: .52rem; font-weight: 800; padding: 0; }
         .tcol { display: flex; flex-direction: column; line-height: 1; }
         .nm { font-size: .86rem; font-weight: 600; color: #cbd5e1; white-space: nowrap; }
-        .side.win .nm { font-weight: 800; color: #fff; }
+        .nmab { display: none; font-size: .84rem; font-weight: 700; color: #cbd5e1; white-space: nowrap; }
+        .side.win .nm, .side.win .nmab { font-weight: 800; color: #fff; }
         .sub { font-size: .56rem; font-weight: 600; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 2px; }
         .sc { flex-shrink: 0; margin-left: .6rem; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 800; letter-spacing: .03em; color: rgba(226,232,240,.55); }
         .side.win .sc { color: var(--ls); }
@@ -224,13 +227,31 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .qbar { width: 3px; height: 13px; border-radius: 2px; flex-shrink: 0; }
         .hide { flex-shrink: 0; color: rgba(255,255,255,.35); font-size: .8rem; padding: 0 .85rem; border-left: 1px solid rgba(255,255,255,.14); }
         .hide:hover { color: #fff; }
-        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes ledOn {
+          0% { opacity: .25; } 35% { opacity: .9; } 50% { opacity: .72; } 100% { opacity: 1; }
+        }
         @keyframes qslide { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
         @media (max-width: 1024px) { .queue { display: none; } }
         @media (max-width: 640px) {
-          .wlabel { padding: 0 .6rem; font-size: .6rem; }
-          .scoreline { gap: 1rem; }
-          .nm { max-width: 6rem; overflow: hidden; text-overflow: ellipsis; }
+          .wlabel { padding: 0 .7rem; font-size: .58rem; margin-right: .5rem; }
+          .slide { gap: .7rem; padding: 0 .7rem; }
+          .scoreline { gap: .7rem; }
+          .spchip { font-size: .5rem; padding: .08rem .3rem; }
+          .splogo { width: .72rem; height: .72rem; }
+          .status { font-size: .48rem; }
+          .side { gap: .32rem; }
+          .tlogo { width: 18px; height: 18px; }
+          .nm { display: none; }
+          .nmab { display: inline; }
+          .sub { font-size: .5rem; }
+          .sc { margin-left: .3rem; font-size: .84rem; }
+          .divider { height: 20px; }
+          .scroll { font-size: .76rem; }
+          .headline { font-size: .82rem; }
+          .hide { padding: 0 .5rem; }
+          /* No room for scores + recap on a phone — show the scoreboard clean;
+             news slides still scroll their headline. */
+          .slide.game .divider, .slide.game .note { display: none; }
         }
       `}</style>
     </div>
