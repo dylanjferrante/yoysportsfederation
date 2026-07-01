@@ -5,7 +5,6 @@ import { notFound } from 'next/navigation'
 import { sportMeta, safeParse, sportLabel, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
-import TeamChip from '@/components/TeamChip'
 import SportIcon from '@/components/SportIcon'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -56,15 +55,7 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
   const fedChamp = champOf('OVERALL')
 
   function Slot({ teamId, seed, score, winner, done }: { teamId: string | null; seed: number | null; score?: number; winner?: boolean; done?: boolean }) {
-    const t = teamId ? teamById[teamId] : null
-    return (
-      <div className={`flex items-center gap-1.5 px-2 py-1.5 text-sm ${winner ? 'font-bold' : done && !winner ? 'opacity-60' : ''}`}>
-        <span className="text-[10px] font-bold text-slate-400 w-4">{seed ?? ''}</span>
-        <span className="flex-1 min-w-0">{t ? <TeamChip team={t} size="sm" useAbbr link={false} /> : <span className="text-slate-400 text-xs">{teamId === null && done ? 'BYE' : 'TBD'}</span>}</span>
-        {score != null && done && <span className="tabular-nums text-xs">{score.toFixed(0)}</span>}
-        {winner && done && <span className="text-amber-500"></span>}
-      </div>
-    )
+    return <PlayoffSlot t={teamId ? teamById[teamId] : null} teamId={teamId} seed={seed} score={score} winner={winner} done={done} />
   }
 
   return (
@@ -119,13 +110,13 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
                       <p className="text-xs font-bold text-slate-400 uppercase mb-2 text-center">{roundName(ri, totalRounds)}</p>
                       <div className="space-y-3">
                         {existing.map(g => (
-                          <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
+                          <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white overflow-hidden">
                             <Slot teamId={g.homeTeamId} seed={g.homeSeed} score={g.homeScore ?? undefined} winner={g.winnerTeamId === g.homeTeamId} done={g.isComplete ?? false} />
                             <Slot teamId={g.awayTeamId} seed={g.awaySeed} score={g.awayScore ?? undefined} winner={g.winnerTeamId === g.awayTeamId} done={g.isComplete ?? false} />
                           </div>
                         ))}
                         {Array.from({ length: placeholders }, (_, i) => (
-                          <div key={`tbd-${i}`} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
+                          <div key={`tbd-${i}`} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white overflow-hidden">
                             <Slot teamId={null} seed={null} />
                             <Slot teamId={null} seed={null} />
                           </div>
@@ -168,6 +159,30 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
   )
 }
 
+function PlayoffSlot({ t, teamId, seed, score, winner, done }: { t: any; teamId: string | null; seed: number | null; score?: number; winner?: boolean; done?: boolean }) {
+  if (!t) {
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-2 text-sm bg-white">
+        <span className="text-[10px] font-bold text-slate-400 w-4 text-center">{seed ?? ''}</span>
+        <span className="text-slate-400 text-xs">{teamId === null && done ? 'BYE' : 'TBD'}</span>
+      </div>
+    )
+  }
+  const primary = t.primaryColor || '#0f172a'
+  const secondary = t.secondaryColor || '#ffffff'
+  const src = t.altLogo || t.logo
+  return (
+    <div className={`flex items-center gap-2 px-2 py-2 text-sm ${done && !winner ? 'opacity-60' : ''}`} style={{ background: primary, color: secondary }}>
+      <span className="text-[10px] font-bold w-4 text-center flex-shrink-0" style={{ color: secondary, opacity: 0.75 }}>{seed ?? ''}</span>
+      {src
+        ? <span className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? primary : 'rgba(255,255,255,.16)' }}><img src={src} alt="" className="w-[80%] h-[80%] object-contain" /></span>
+        : <span className="w-6 h-6 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 3).toUpperCase()}</span>}
+      <span className={`flex-1 min-w-0 truncate ${winner ? 'font-extrabold' : 'font-semibold'}`}>{t.abbreviation}</span>
+      {score != null && done && <span className="tabular-nums text-xs font-bold flex-shrink-0" style={{ color: secondary }}>{(score as number).toFixed(0)}</span>}
+    </div>
+  )
+}
+
 function SideBracket({ title, games, teamById, placement }: { title: string; games: any[]; teamById: Record<string, any>; placement?: boolean }) {
   if (!games.length) return null
   const rounds = [...new Set(games.map(g => g.round))].sort((a, b) => placement ? b - a : a - b)
@@ -178,15 +193,7 @@ function SideBracket({ title, games, teamById, placement }: { title: string; gam
     const seed = home ? g.homeSeed : g.awaySeed
     const score = home ? g.homeScore : g.awayScore
     const winner = g.winnerTeamId === teamId
-    const t = teamId ? teamById[teamId] : null
-    return (
-      <div className={`flex items-center gap-1.5 px-2 py-1.5 text-sm ${winner ? 'font-bold' : g.isComplete && !winner ? 'opacity-60' : ''}`}>
-        <span className="text-[10px] font-bold text-slate-400 w-4">{seed ?? ''}</span>
-        <span className="flex-1 min-w-0">{t ? <TeamChip team={t} size="sm" useAbbr link={false} /> : <span className="text-slate-400 text-xs">{teamId === null && g.isComplete ? 'BYE' : 'TBD'}</span>}</span>
-        {score != null && g.isComplete && <span className="tabular-nums text-xs">{(score as number).toFixed(0)}</span>}
-        {winner && g.isComplete && <span className="text-slate-400"></span>}
-      </div>
-    )
+    return <PlayoffSlot t={teamId ? teamById[teamId] : null} teamId={teamId} seed={seed} score={score} winner={winner} done={g.isComplete} />
   }
   return (
     <div className="mt-5 border-t border-slate-100 pt-4">
@@ -197,7 +204,7 @@ function SideBracket({ title, games, teamById, placement }: { title: string; gam
             <p className="text-[11px] font-bold text-slate-400 uppercase mb-2 text-center">{colLabel(ri)}</p>
             <div className="space-y-3">
               {games.filter(g => g.round === rnd).sort((a, b) => a.matchIndex - b.matchIndex).map(g => (
-                <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
+                <div key={g.id} className="border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white overflow-hidden">
                   {slot(g, true)}
                   {slot(g, false)}
                 </div>
