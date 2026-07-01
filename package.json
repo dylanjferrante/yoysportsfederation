@@ -12,7 +12,7 @@
     "db:seed": "tsx src/db/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:reset": "tsx src/db/migrate.ts && tsx src/db/seed.ts",
+    "db:reset": "tsx src/db/migrate.ts && tsx src/db/seed.ts && tsx scripts/backfill-playoffs.ts",
     "setup": "npm install && npm run db:reset",
     "stats:pull": "tsx scripts/stats-pull.ts",
     "stats:project": "tsx scripts/derive-projections.ts",
