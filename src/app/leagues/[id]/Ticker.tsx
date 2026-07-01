@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
@@ -80,10 +80,30 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
   useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
 
+  // The wire is one continuous train: [topic card][its headlines][next topic card]…
+  // A fixed label names the topic currently at the pin; as each topic card slides
+  // left and reaches the pin it hands off (the label updates to it).
+  const [curIdx, setCurIdx] = useState(0)
+  const pinRef = useRef<HTMLSpanElement>(null)
+  const streamRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (hidden || topics.length <= 1) return
-    const iv = setInterval(() => setTopicIdx(i => (i + 1) % topics.length), 13_000)
-    return () => clearInterval(iv)
+    if (hidden || topics.length === 0) return
+    let raf = 0
+    const tick = () => {
+      const pin = pinRef.current, stream = streamRef.current
+      if (pin && stream) {
+        const pinX = pin.getBoundingClientRect().right
+        let best = -Infinity, bestIdx = 0
+        stream.querySelectorAll<HTMLElement>('.tcard').forEach(n => {
+          const l = n.getBoundingClientRect().left
+          if (l <= pinX + 2 && l > best) { best = l; bestIdx = +(n.dataset.idx ?? '0') }
+        })
+        setCurIdx(prev => (prev === bestIdx ? prev : bestIdx))
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
   }, [hidden, topics.length])
 
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
@@ -108,21 +128,28 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const card = scores.length ? scores[cardIdx % scores.length] : null
   const sides = card ? [card.away, card.home] : []
   const pre = card?.status === 'PRE'
-  const topic = topics.length ? topics[topicIdx % topics.length] : null
-  // Distinct headlines only — never repeat the same text within a topic.
-  const items = (() => {
-    const seen = new Set<string>()
-    return (topic?.items ?? []).filter(h => { const k = h.text.trim().toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
-  })()
-  const textLen = items.reduce((n, h) => n + h.text.length + 3, 0)
-  // Only scroll when there are at least two distinct headlines and enough text
-  // to overflow; otherwise show the headline once, statically. The marquee then
-  // duplicates the distinct row exactly once for a seamless wrap (no adjacent repeats).
-  const scroll = items.length > 1 && textLen > 60
-  const duration = Math.max(18, Math.round(textLen * 0.32))
+  // One long train: for each topic, a topic card then its (de-duped) headlines.
+  const train = useMemo(() => {
+    const segs: Array<{ kind: 'topic'; idx: number; topic: Topic } | { kind: 'news'; h: News; key: string }> = []
+    topics.forEach((t, ti) => {
+      segs.push({ kind: 'topic', idx: ti, topic: t })
+      const seen = new Set<string>()
+      t.items.forEach((h, hi) => { const k = h.text.trim().toLowerCase(); if (seen.has(k)) return; seen.add(k); segs.push({ kind: 'news', h, key: `${ti}-${hi}` }) })
+    })
+    return segs
+  }, [topics])
+  const trainChars = useMemo(() => topics.reduce((n, t) => n + t.title.length + 8 + t.items.reduce((m, h) => m + h.text.length + 4, 0), 0), [topics])
+  const duration = Math.max(40, Math.round(trainChars / 6))
+  const current = topics[curIdx] ?? topics[0]
   const upNext = topics.length > 1
-    ? Array.from({ length: Math.min(3, topics.length - 1) }, (_, k) => topics[(topicIdx + 1 + k) % topics.length])
+    ? Array.from({ length: Math.min(3, topics.length - 1) }, (_, k) => topics[(curIdx + 1 + k) % topics.length])
     : []
+
+  const seg = (s: typeof train[number], copy: number) => s.kind === 'topic'
+    ? <span className="tcard" data-idx={s.idx} key={`t${copy}-${s.idx}`}>
+        {s.topic.sport && <span className="pbar" style={{ background: sportMeta(s.topic.sport).hex }} />}{s.topic.title}
+      </span>
+    : <Link className="item" href={s.h.href} key={`n${copy}-${s.key}`}><span className="text">{s.h.text}</span><span className="sep">•</span></Link>
 
   return (
     <div className="wrap" style={{ '--lp': primary, '--ls': secondary } as React.CSSProperties}>
@@ -146,50 +173,23 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         </Link>
       )}
 
-      {topic && (
-        <div className="main">
-          <span className="pin" key={`pin-${topicIdx}`}>
-            {topic.sport && <span className="pbar" style={{ background: sportMeta(topic.sport).hex }} />}
-            {topic.title}
+      {topics.length > 0 && (
+        <>
+          <span className="pin" ref={pinRef}>
+            {current?.sport && <span className="pbar" style={{ background: sportMeta(current.sport).hex }} />}
+            {current?.title}
           </span>
-          <div className="viewport">
-            {scroll ? (
-              <div className="track" key={topicIdx} style={{ animationDuration: `${duration}s` }}>
-                <div className="row">
-                  {items.map((h, i) => (
-                    <Link key={`a-${h.id}-${i}`} href={h.href} className="item">
-                      <span className="text">{h.text}</span>
-                      <span className="sep">•</span>
-                    </Link>
-                  ))}
-                </div>
-                <div className="row" aria-hidden>
-                  {items.map((h, i) => (
-                    <span key={`b-${h.id}-${i}`} className="item">
-                      <span className="text">{h.text}</span>
-                      <span className="sep">•</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="track static" key={topicIdx}>
-                <div className="row">
-                  {items.map((h, i) => (
-                    <Link key={`s-${h.id}-${i}`} href={h.href} className="item">
-                      {i > 0 && <span className="sep">•</span>}
-                      <span className="text">{h.text}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="stream" ref={streamRef}>
+            <div className="train" style={{ animationDuration: `${duration}s` }}>
+              {train.map(s => seg(s, 0))}
+              {train.map(s => seg(s, 1))}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {upNext.length > 0 && (
-        <div className="queue" key={topicIdx}>
+        <div className="queue">
           <span className="upnext">Up Next</span>
           {upNext.map((t, i) => (
             <span className="qtile" key={`${t.key}-${i}`}>
@@ -216,14 +216,12 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .badge { display: inline-flex; align-items: center; justify-content: center; font-size: .5rem; font-weight: 800; padding: 0; }
         .ab { width: 3.2rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sc { width: 5ch; flex-shrink: 0; margin-left: 1.1rem; text-align: right; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 1rem; letter-spacing: .06em; color: #fbbf24; }
-        .main { flex: 1; min-width: 0; display: flex; align-items: stretch; border-right: 1px solid rgba(255,255,255,.14); }
-        .pin { flex-shrink: 0; display: inline-flex; align-items: center; gap: .55rem; padding: 0 1.4rem; font-size: .86rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: rgba(2,6,23,.4); border-right: 1px solid rgba(255,255,255,.1); white-space: nowrap; animation: slidein .4s ease; }
+        .pin { flex-shrink: 0; display: inline-flex; align-items: center; gap: .55rem; padding: 0 1.4rem; font-size: .86rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: rgba(2,6,23,.55); border-right: 1px solid rgba(255,255,255,.12); white-space: nowrap; z-index: 2; }
         .pbar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
-        .viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; padding-left: 1.6rem; }
-        .viewport:hover .track { animation-play-state: paused; }
-        .track { display: inline-flex; white-space: nowrap; will-change: transform; animation-name: ticker; animation-duration: 40s; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .track.static { animation: none; transform: none; }
-        .row { display: inline-flex; align-items: center; }
+        .stream { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; border-right: 1px solid rgba(255,255,255,.14); }
+        .stream:hover .train { animation-play-state: paused; }
+        .train { display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; animation-name: ticker; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .tcard { flex-shrink: 0; display: inline-flex; align-items: center; gap: .5rem; margin: 0 1.1rem 0 1.5rem; padding: .28rem .95rem; border-radius: .4rem; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); background: rgba(2,6,23,.5); white-space: nowrap; }
         .item { display: inline-flex; align-items: center; flex-shrink: 0; font-size: .92rem; font-weight: 400; color: #eef2f7; text-decoration: none; font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: .02em; }
         .item:hover .text { color: #fff; text-decoration: underline; }
         .text { white-space: nowrap; }
