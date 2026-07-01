@@ -151,7 +151,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
                 <span className="sc">{slide.status === 'PRE' ? '—' : slide.home.score}</span>
               </span>
             </div>
-            {slide.note && <div className="recapline"><span className="note" ref={scrollWrapRef}><span className="scroll" ref={scrollTxtRef}>{slide.note}</span></span></div>}
+            {slide.note && <span className="divider" />}
+            {slide.note && <span className="note" ref={scrollWrapRef}><span className="scroll" ref={scrollTxtRef}>{slide.note}</span></span>}
           </Link>
         ) : (
           <Link href={slide.href} className="slide news" key={slide.id}>
@@ -161,7 +162,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
                 {slide.topic}
               </span>
             </div>
-            <div className="recapline"><span className="note" ref={scrollWrapRef}><span className="scroll headline" ref={scrollTxtRef}>{slide.text}</span></span></div>
+            <span className="divider" />
+            <span className="note" ref={scrollWrapRef}><span className="scroll headline" ref={scrollTxtRef}>{slide.text}</span></span>
           </Link>
         )}
       </div>
@@ -181,11 +183,12 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       <button onClick={() => setHiddenPersist(true)} className="hide" aria-label="Hide wire">✕</button>
 
       <style jsx>{`
-        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 58px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
-        .wlabel { flex-shrink: 0; display: flex; align-items: center; padding: 0 .95rem; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
+        .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 50px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "punto", var(--font-score), ui-monospace, "SFMono-Regular", Menlo, monospace; }
+        .wlabel { flex-shrink: 0; display: flex; align-items: center; padding: 0 .95rem; margin-right: 1rem; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .stage { flex: 1; min-width: 0; position: relative; overflow: hidden; display: flex; align-items: stretch; }
-        .slide { display: flex; flex-direction: column; justify-content: center; gap: .2rem; width: 100%; min-width: 0; padding: .3rem 1.2rem; text-decoration: none; color: #e2e8f0; animation: fade .4s ease; }
-        .scoreline { display: flex; align-items: center; gap: 1.6rem; min-width: 0; white-space: nowrap; }
+        .slide { display: flex; flex-direction: row; align-items: center; gap: 1.3rem; width: 100%; min-width: 0; padding: 0 1.2rem; text-decoration: none; color: #e2e8f0; animation: fade .4s ease; }
+        .scoreline { flex-shrink: 0; display: flex; align-items: center; gap: 1.6rem; min-width: 0; white-space: nowrap; }
+        .divider { flex-shrink: 0; width: 1px; height: 26px; background: rgba(255,255,255,.2); }
         .spchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .3rem; font-size: .58rem; font-weight: 800; padding: .1rem .42rem; border-radius: .28rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
         .splogo { width: .82rem; height: .82rem; object-fit: contain; border-radius: 2px; }
         .status { flex-shrink: 0; font-size: .56rem; font-weight: 800; color: #cbd5e1; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
@@ -199,8 +202,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .sub { font-size: .56rem; font-weight: 600; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 2px; }
         .sc { flex-shrink: 0; margin-left: .6rem; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 800; letter-spacing: .03em; color: rgba(226,232,240,.55); }
         .side.win .sc { color: var(--ls); }
-        .recapline { min-width: 0; overflow: hidden; }
-        .note { display: block; min-width: 0; overflow: hidden; }
+        .note { flex: 1; min-width: 0; overflow: hidden; }
         .scroll { display: inline-block; white-space: nowrap; font-size: .82rem; font-weight: 500; color: rgba(238,242,247,.82); will-change: transform; }
         .slide:hover .scroll { color: #fff; }
         .headline { font-size: .9rem; color: #eef2f7; }
