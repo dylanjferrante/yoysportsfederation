@@ -128,7 +128,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
       <div className="stage">
         {slide.kind === 'game' ? (
-          <Link href={slide.href} className="slide game" key={slide.id}>
+          <Link href={slide.href} key={slide.id} style={{ display: 'flex', flex: 1, minWidth: 0, alignItems: 'stretch', textDecoration: 'none' }}>
+          <div className="slide game">
             <div className="scoreline">
               <span className="spchip" style={{ background: sportMeta(slide.sport).hex }}>
                 {slide.sportLogo && <img src={slide.sportLogo} alt="" className="splogo" />}
@@ -158,9 +159,11 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
             </div>
             {slide.note && <span className="divider" />}
             {slide.note && <span className="note" ref={scrollWrapRef}><span className="scroll" ref={scrollTxtRef}>{slide.note}</span></span>}
+          </div>
           </Link>
         ) : (
-          <Link href={slide.href} className="slide news" key={slide.id}>
+          <Link href={slide.href} key={slide.id} style={{ display: 'flex', flex: 1, minWidth: 0, alignItems: 'stretch', textDecoration: 'none' }}>
+          <div className="slide news">
             <div className="scoreline">
               <span className="topicchip">
                 <span className="tbar" style={{ background: slide.sport ? sportMeta(slide.sport).hex : secondary }} />
@@ -169,6 +172,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
             </div>
             <span className="divider" />
             <span className="note" ref={scrollWrapRef}><span className="scroll headline" ref={scrollTxtRef}>{slide.text}</span></span>
+          </div>
           </Link>
         )}
       </div>
