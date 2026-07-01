@@ -73,16 +73,21 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
       const undA = (ar?.wins ?? 0) >= 2 && (ar?.losses ?? 1) === 0
       const undH = (hr?.wins ?? 0) >= 2 && (hr?.losses ?? 1) === 0
       const nearCut = (r: number) => cut > 0 && r >= cut - 2 && r <= cut          // straddling the playoff line
-      // Biggest prior blowout between them this season (revenge angle).
+      // Prior meetings this season → revenge (biggest loss) and sweep watch.
       const priors = complete.filter(m => (m.homeTeamId === a && m.awayTeamId === h) || (m.homeTeamId === h && m.awayTeamId === a))
       let revengeFor: string | null = null, revMargin = 0
+      const priorWinners = priors.map(m => (m.homeScore ?? 0) >= (m.awayScore ?? 0) ? m.homeTeamId : m.awayTeamId)
       for (const m of priors) {
         const margin = Math.abs((m.homeScore ?? 0) - (m.awayScore ?? 0))
         const winner = (m.homeScore ?? 0) >= (m.awayScore ?? 0) ? m.homeTeamId : m.awayTeamId
-        const loser = winner === a ? h : a
-        if (margin > revMargin) { revMargin = margin; revengeFor = loser }
+        if (margin > revMargin) { revMargin = margin; revengeFor = winner === a ? h : a }
       }
+      const sweeper = priors.length >= 1 && priorWinners.every(w => w === priorWinners[0]) ? priorWinners[0] : null
+      const winsA = ar?.wins ?? 0, winsH = hr?.wins ?? 0
+      const milestone = (id: string, w: number, l: number) =>
+        w === 9 ? `${ab(id)} a win from double digits` : (w === 0 && l >= 4 ? `${ab(id)} still chasing win #1` : null)
 
+      // Current-form angles first — the freshest hook wins.
       if (undA && undH) return 'both unbeaten'
       if ((ra === 0 && rh === 1) || (ra === 1 && rh === 0)) return '1-seed showdown'
       if (undA) return `${ab(a)} unbeaten and rolling`
@@ -94,11 +99,27 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
       if (hStk.win && hStk.n >= 3) return `${ab(h)} riding a ${hStk.n}-game win streak`
       if (aStk.win === false && aStk.n >= 3) return `${ab(a)} out to snap a ${aStk.n}-game slide`
       if (hStk.win === false && hStk.n >= 3) return `${ab(h)} out to snap a ${hStk.n}-game slide`
-      if (revengeFor && revMargin >= 25) return `${ab(revengeFor)} out for revenge after a ${revMargin.toFixed(0)}-pt loss`
       if (ra === 0 && rh === N - 1) return 'best vs worst'
       if (rh === 0 && ra === N - 1) return 'best vs worst'
-      if (N >= 6 && ra >= N - 3 && rh >= N - 3) return 'cellar clash'
       if ((pfRank.get(a) ?? 99) <= 1 && (pfRank.get(h) ?? 99) <= 1) return "shootout — the sport's two top scorers"
+      // History-based angles only when nothing fresher applies.
+      if (revengeFor && revMargin >= 25) return `${ab(revengeFor)} out for revenge after a ${revMargin.toFixed(0)}-pt loss`
+      if (sweeper && priors.length >= 2 && (sweeper === a || sweeper === h)) return `${ab(sweeper)} going for the season sweep`
+      const mile = milestone(a, winsA, ar?.losses ?? 0) ?? milestone(h, winsH, hr?.losses ?? 0)
+      if (mile) return mile
+      if (N >= 6 && ra >= N - 3 && rh >= N - 3) return 'cellar clash'
+      if (priors.length === 0) return 'first meeting of the season'
+      return ''
+    }
+
+    // Recap flavor for a finished game: an upset, a rout, or a nail-biter.
+    const flavorDone = (a: string, h: string, as: number, hs: number): string => {
+      const total = as + hs, margin = Math.abs(as - hs)
+      const winner = as >= hs ? a : h, loser = winner === a ? h : a
+      const rw = rankOf.get(winner) ?? 99, rl = rankOf.get(loser) ?? 99
+      if (rw - rl >= 3) return 'upset'
+      if (total > 0 && margin / total >= 0.22) return 'in a rout'
+      if (total > 0 && margin / total <= 0.03) return 'a nail-biter'
       return ''
     }
 
@@ -107,7 +128,8 @@ export async function buildWireTopics(leagueId: string): Promise<WireTopic[]> {
       const a = g.awayTeamId as string, h = g.homeTeamId
       const href = `${base}/matchup/${g.id}`
       if (g.isComplete) {
-        items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) ${(g.awayScore ?? 0).toFixed(1)}, ${nm(h)} (${rc(h, sp)}) ${(g.homeScore ?? 0).toFixed(1)} — Final`, href })
+        const flav = flavorDone(a, h, g.awayScore ?? 0, g.homeScore ?? 0)
+        items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) ${(g.awayScore ?? 0).toFixed(1)}, ${nm(h)} (${rc(h, sp)}) ${(g.homeScore ?? 0).toFixed(1)} — Final${flav ? ` · ${flav}` : ''}`, href })
       } else {
         const story = storyFor(a, h)
         items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) vs ${nm(h)} (${rc(h, sp)})${story ? ` · ${story}` : ''}`, href })
