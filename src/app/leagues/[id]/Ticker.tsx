@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 
 type Side = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; score: number; win: boolean }
-type Card = { id: string; sport: string; status: 'Final' | 'LIVE' | 'PRE'; home: Side; away: Side }
+type Card = { id: string; sport: string; sportName?: string; sportLogo?: string | null; status: 'Final' | 'LIVE' | 'PRE'; home: Side; away: Side }
 type News = { id: string; category: string; sport?: string; text: string; href: string }
 type Topic = { key: string; title: string; sport?: string; items: News[] }
 
@@ -106,6 +106,18 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     return () => cancelAnimationFrame(raf)
   }, [hidden, topics.length])
 
+  // One long train: for each topic, a topic card then its (de-duped) headlines.
+  const train = useMemo(() => {
+    const segs: Array<{ kind: 'topic'; idx: number; topic: Topic } | { kind: 'news'; h: News; key: string }> = []
+    topics.forEach((t, ti) => {
+      segs.push({ kind: 'topic', idx: ti, topic: t })
+      const seen = new Set<string>()
+      t.items.forEach((h, hi) => { const k = h.text.trim().toLowerCase(); if (seen.has(k)) return; seen.add(k); segs.push({ kind: 'news', h, key: `${ti}-${hi}` }) })
+    })
+    return segs
+  }, [topics])
+  const trainChars = useMemo(() => topics.reduce((n, t) => n + t.title.length + 8 + t.items.reduce((m, h) => m + h.text.length + 4, 0), 0), [topics])
+
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
 
   if (!ready) return null
@@ -128,17 +140,6 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const card = scores.length ? scores[cardIdx % scores.length] : null
   const sides = card ? [card.away, card.home] : []
   const pre = card?.status === 'PRE'
-  // One long train: for each topic, a topic card then its (de-duped) headlines.
-  const train = useMemo(() => {
-    const segs: Array<{ kind: 'topic'; idx: number; topic: Topic } | { kind: 'news'; h: News; key: string }> = []
-    topics.forEach((t, ti) => {
-      segs.push({ kind: 'topic', idx: ti, topic: t })
-      const seen = new Set<string>()
-      t.items.forEach((h, hi) => { const k = h.text.trim().toLowerCase(); if (seen.has(k)) return; seen.add(k); segs.push({ kind: 'news', h, key: `${ti}-${hi}` }) })
-    })
-    return segs
-  }, [topics])
-  const trainChars = useMemo(() => topics.reduce((n, t) => n + t.title.length + 8 + t.items.reduce((m, h) => m + h.text.length + 4, 0), 0), [topics])
   const duration = Math.max(40, Math.round(trainChars / 6))
   const current = topics[curIdx] ?? topics[0]
   const upNext = topics.length > 1
@@ -158,7 +159,10 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
       {card && (
         <Link href={`/leagues/${leagueId}/matchup/${card.id}`} className="scorecard" key={card.id}>
           <div className="schead">
-            <span className="spchip" style={{ background: sportMeta(card.sport).hex }}>{card.sport}</span>
+            <span className="spchip" style={{ background: sportMeta(card.sport).hex }}>
+              {card.sportLogo && <img src={card.sportLogo} alt="" className="splogo" />}
+              {card.sportName || card.sport}
+            </span>
             <span className={`status ${card.status === 'LIVE' ? 'live' : ''}`}>{card.status === 'LIVE' ? 'LIVE' : card.status === 'PRE' ? 'Upcoming' : 'Final'}</span>
           </div>
           {sides.map((s, i) => (
@@ -207,7 +211,8 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .label { flex-shrink: 0; display: flex; align-items: center; padding: 0 1.05rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .scorecard { flex-shrink: 0; width: 196px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: .3rem 1rem; border-right: 1px solid rgba(255,255,255,.14); text-decoration: none; color: #e2e8f0; }
         .schead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
-        .spchip { font-size: .58rem; font-weight: 800; padding: .03rem .35rem; border-radius: .3rem; color: #fff; }
+        .spchip { display: inline-flex; align-items: center; gap: .22rem; font-size: .58rem; font-weight: 800; padding: .05rem .35rem; border-radius: .3rem; color: #fff; }
+        .splogo { width: .8rem; height: .8rem; object-fit: contain; border-radius: 2px; }
         .status { font-size: .58rem; font-weight: 700; color: #cbd5e1; opacity: .75; text-transform: uppercase; }
         .status.live { color: #f87171; opacity: 1; }
         .team { display: flex; align-items: center; font-size: .82rem; line-height: 1.4; }
