@@ -2,28 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { sportMeta, sportAbbrLabel } from '@/lib/utils'
+import { sportMeta } from '@/lib/utils'
 
 type Side = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; score: number; win: boolean }
 type Card = { id: string; sport: string; sportName?: string; sportLogo?: string | null; status: 'Final' | 'LIVE' | 'PRE'; home: Side; away: Side }
-type News = { id: string; category: string; sport?: string; text: string; href: string }
-type Topic = { key: string; title: string; sport?: string; items: News[] }
+type Item = { id: string; text: string; href: string }
+type Topic = { key: string; title: string; sport?: string; items: Item[] }
 
-const CATEGORY_TITLE: Record<string, string> = {
-  PERFORMANCE: 'Top Performers', MILESTONE: 'Milestones', SHOOTOUT: 'Shootouts', SUPERLATIVE: 'Leaders',
-  TRANSACTION: 'Transactions', STREAK: 'Streaks', STANDINGS: 'Standings', POWER: 'Power Rankings',
-  PLAYOFF: 'Playoffs', CHAMPION: 'Champions', DRAFT: 'Draft', PREVIEW: 'On Deck', RIVALRY: 'Rivalries',
-  FORM: 'Form', PACE: 'Pace', FEDERATION: 'Federation', GOVERNANCE: 'League Office', SCHEDULE: 'Schedule',
-}
-
-type Snapshot = { scores: Card[]; news: News[]; cardIdx: number; topicIdx: number }
+type Snapshot = { scores: Card[]; topics: Topic[]; cardIdx: number }
 const tickerCache = new Map<string, Snapshot>()
 
-export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fbbf24', sportAbbr = {} }: { leagueId: string; primary?: string; secondary?: string; sportAbbr?: Record<string, string> }) {
+export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fbbf24' }: { leagueId: string; primary?: string; secondary?: string; sportAbbr?: Record<string, string> }) {
   const [scores, setScores] = useState<Card[]>(() => tickerCache.get(leagueId)?.scores ?? [])
-  const [news, setNews] = useState<News[]>(() => tickerCache.get(leagueId)?.news ?? [])
+  const [topics, setTopics] = useState<Topic[]>(() => tickerCache.get(leagueId)?.topics ?? [])
   const [cardIdx, setCardIdx] = useState(() => tickerCache.get(leagueId)?.cardIdx ?? 0)
-  const [topicIdx, setTopicIdx] = useState(() => tickerCache.get(leagueId)?.topicIdx ?? 0)
   const [hidden, setHidden] = useState(false)
   const [ready, setReady] = useState(false)
 
@@ -36,10 +28,10 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     let alive = true
     const load = () => fetch(`/api/leagues/${leagueId}/ticker`).then(r => r.json()).then(d => {
       if (!alive) return
-      const sc = d.scores ?? [], nw = d.news ?? []
-      setScores(sc); setNews(nw)
+      const sc = d.scores ?? [], tp = d.topics ?? []
+      setScores(sc); setTopics(tp)
       const c = tickerCache.get(leagueId)
-      tickerCache.set(leagueId, { scores: sc, news: nw, cardIdx: c?.cardIdx ?? 0, topicIdx: c?.topicIdx ?? 0 })
+      tickerCache.set(leagueId, { scores: sc, topics: tp, cardIdx: c?.cardIdx ?? 0 })
     }).catch(() => {})
     load()
     const iv = setInterval(() => { if (document.visibilityState === 'visible') load() }, 45_000)
@@ -48,37 +40,14 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
   useEffect(() => {
     const c = tickerCache.get(leagueId)
-    if (c) tickerCache.set(leagueId, { ...c, cardIdx, topicIdx })
-  }, [leagueId, cardIdx, topicIdx])
+    if (c) tickerCache.set(leagueId, { ...c, cardIdx })
+  }, [leagueId, cardIdx])
 
   useEffect(() => {
     if (scores.length <= 1) return
     const iv = setInterval(() => setCardIdx(i => (i + 1) % scores.length), 5000)
     return () => clearInterval(iv)
   }, [scores.length])
-
-  // Topics are per-sport: each sport bundles its scores, standings, news and
-  // transactions; cross-sport headlines fall under a Federation topic.
-  const topics = useMemo<Topic[]>(() => {
-    const SPORT_ORDER = ['NFL', 'NBA', 'NHL', 'MLB', 'FED']
-    const bySport = new Map<string, News[]>()
-    for (const h of news) {
-      const k = h.sport ?? 'FED'
-      ;(bySport.get(k) ?? bySport.set(k, []).get(k)!).push(h)
-    }
-    const keys = [...bySport.keys()].sort((a, b) => {
-      const ia = SPORT_ORDER.indexOf(a), ib = SPORT_ORDER.indexOf(b)
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
-    })
-    return keys.map(k => ({
-      key: k,
-      title: k === 'FED' ? 'Federation' : sportAbbrLabel(k, sportAbbr),
-      sport: k === 'FED' ? undefined : k,
-      items: bySport.get(k)!.slice(0, 12),
-    }))
-  }, [news, sportAbbr])
-
-  useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
 
   // One long train: for each topic, a sticky topic tile then its (de-duped) headlines.
   const [curIdx, setCurIdx] = useState(0)
@@ -87,7 +56,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   const pinRef = useRef<HTMLSpanElement>(null)
   const hoverRef = useRef(false)
   const train = useMemo(() => {
-    const segs: Array<{ kind: 'topic'; idx: number; topic: Topic } | { kind: 'news'; h: News; key: string }> = []
+    const segs: Array<{ kind: 'topic'; idx: number; topic: Topic } | { kind: 'news'; h: Item; key: string }> = []
     topics.forEach((t, ti) => {
       segs.push({ kind: 'topic', idx: ti, topic: t })
       const seen = new Set<string>()
