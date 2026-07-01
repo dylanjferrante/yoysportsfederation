@@ -541,13 +541,17 @@ export async function buildHeadlines(leagueId: string): Promise<Headline[]> {
 }
 
 export type ScoreSide = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; score: number; win: boolean }
-export type ScoreCard = { id: string; sport: string; status: 'Final' | 'LIVE' | 'PRE'; home: ScoreSide; away: ScoreSide }
+export type ScoreCard = { id: string; sport: string; sportName: string; sportLogo: string | null; status: 'Final' | 'LIVE' | 'PRE'; home: ScoreSide; away: ScoreSide }
 
 export async function buildScoreboard(leagueId: string): Promise<ScoreCard[]> {
   const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId)).limit(1)
   if (!league) return []
   const season = league.season
   const sports = safeParse<string[]>(league.sportsEnabled, [])
+  const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
+  const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
+  const divisionLogos = safeParse<Record<string, string>>(league.divisionLogos, {})
+  const divisionLogosAlt = safeParse<Record<string, string>>(league.divisionLogosAlt, {})
   const teamRows = await db.select({ id: teams.id, name: teams.name, abbr: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, p: teams.primaryColor, s: teams.secondaryColor }).from(teams).where(eq(teams.leagueId, leagueId))
   const t = new Map(teamRows.map(r => [r.id, r]))
   const ms = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season)))
@@ -559,6 +563,9 @@ export async function buildScoreboard(leagueId: string): Promise<ScoreCard[]> {
   for (const sp of sports) {
     const all = ms.filter(m => m.sport === sp && m.awayTeamId)
     if (!all.length) continue
+    const sportName = sportAbbr[sp] || sportNames[sp] || sp
+    const sportLogo = divisionLogos[sp] || divisionLogosAlt[sp] || null
+    const meta = { sport: sp, sportName, sportLogo }
     const incomplete = all.filter(m => !m.isComplete)
     const complete = all.filter(m => m.isComplete)
     const currentWeek = incomplete.length
@@ -567,11 +574,11 @@ export async function buildScoreboard(leagueId: string): Promise<ScoreCard[]> {
     for (const m of all.filter(m => m.week === currentWeek)) {
       if (m.isComplete) {
         if (Math.min(m.homeScore ?? 0, m.awayScore ?? 0) <= 0) continue
-        cards.push({ id: m.id, sport: sp, status: 'Final', home: side(m.homeTeamId, m.homeScore ?? 0, m.awayScore ?? 0, true), away: side(m.awayTeamId, m.awayScore ?? 0, m.homeScore ?? 0, true) })
+        cards.push({ ...meta, id: m.id, status: 'Final', home: side(m.homeTeamId, m.homeScore ?? 0, m.awayScore ?? 0, true), away: side(m.awayTeamId, m.awayScore ?? 0, m.homeScore ?? 0, true) })
       } else if (league.liveScoring && ((m.homeScore ?? 0) > 0 || (m.awayScore ?? 0) > 0)) {
-        cards.push({ id: m.id, sport: sp, status: 'LIVE', home: side(m.homeTeamId, m.homeScore ?? 0, m.awayScore ?? 0, false), away: side(m.awayTeamId, m.awayScore ?? 0, m.homeScore ?? 0, false) })
+        cards.push({ ...meta, id: m.id, status: 'LIVE', home: side(m.homeTeamId, m.homeScore ?? 0, m.awayScore ?? 0, false), away: side(m.awayTeamId, m.awayScore ?? 0, m.homeScore ?? 0, false) })
       } else {
-        cards.push({ id: m.id, sport: sp, status: 'PRE', home: side(m.homeTeamId, 0, 0, false), away: side(m.awayTeamId, 0, 0, false) })
+        cards.push({ ...meta, id: m.id, status: 'PRE', home: side(m.homeTeamId, 0, 0, false), away: side(m.awayTeamId, 0, 0, false) })
       }
     }
   }
