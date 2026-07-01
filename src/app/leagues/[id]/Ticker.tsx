@@ -57,18 +57,25 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     return () => clearInterval(iv)
   }, [scores.length])
 
+  // Topics are per-sport: each sport bundles its scores, standings, news and
+  // transactions; cross-sport headlines fall under a Federation topic.
   const topics = useMemo<Topic[]>(() => {
-    const order: string[] = []
-    const byCat = new Map<string, News[]>()
+    const SPORT_ORDER = ['NFL', 'NBA', 'NHL', 'MLB', 'FED']
+    const bySport = new Map<string, News[]>()
     for (const h of news) {
-      if (!byCat.has(h.category)) { byCat.set(h.category, []); order.push(h.category) }
-      byCat.get(h.category)!.push(h)
+      const k = h.sport ?? 'FED'
+      ;(bySport.get(k) ?? bySport.set(k, []).get(k)!).push(h)
     }
-    return order.map(cat => {
-      const items = byCat.get(cat)!.slice(0, 8)
-      const sport = items.every(i => i.sport && i.sport === items[0].sport) ? items[0].sport : undefined
-      return { key: cat, title: CATEGORY_TITLE[cat] ?? cat, sport, items }
+    const keys = [...bySport.keys()].sort((a, b) => {
+      const ia = SPORT_ORDER.indexOf(a), ib = SPORT_ORDER.indexOf(b)
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
     })
+    return keys.map(k => ({
+      key: k,
+      title: k === 'FED' ? 'Federation' : k,
+      sport: k === 'FED' ? undefined : k,
+      items: bySport.get(k)!.slice(0, 12),
+    }))
   }, [news])
 
   useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
