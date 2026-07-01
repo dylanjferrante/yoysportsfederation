@@ -116,14 +116,21 @@ export async function buildWire(leagueId: string): Promise<Wire> {
     return teamIds.slice().sort((a, b) => (w[b] ?? 0) - (w[a] ?? 0) || (pf[b] ?? 0) - (pf[a] ?? 0)).indexOf(teamId)
   }
 
-  // Whether the winner climbed the playoff race with this result.
-  const climbNote = (teamId: string, sp: string, wk: number, cut: number, snName: string) => {
+  // The club's live standing in a sport — the exact order (wins, then points)
+  // shown as "#N" on the slide, so recap claims never contradict it.
+  const recRank = (sp: string, teamId: string) =>
+    recs.filter(r => r.sport === sp).sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.pointsFor ?? 0) - (a.pointsFor ?? 0)).findIndex(r => r.teamId === teamId)
+
+  // Whether the winner climbed the playoff race with this result. Phrased
+  // qualitatively (no absolute rank number) and gated on the displayed standing
+  // so it can't disagree with the "#N" on the slide.
+  const climbNote = (teamId: string, sp: string, wk: number, cut: number) => {
     if (wk <= 1) return null
-    const now = rankThrough(sp, wk, teamId), before = rankThrough(sp, wk - 1, teamId)
-    if (now >= before) return null
-    if (cut > 0 && before >= cut && now < cut) return 'climbing into the playoff picture'
-    if (now < before) return `up to #${now + 1} in the ${snName} race`
-    return null
+    const before = rankThrough(sp, wk - 1, teamId), nowM = rankThrough(sp, wk, teamId)
+    if (nowM >= before) return null
+    const nowDisp = recRank(sp, teamId)
+    if (cut > 0 && before >= cut && nowDisp >= 0 && nowDisp < cut) return 'climbing into the playoff picture'
+    return 'climbing the standings'
   }
 
   // For daily sports, whether the winner trailed on cumulative day totals before
@@ -240,10 +247,11 @@ export async function buildWire(leagueId: string): Promise<Wire> {
       const flav = flavorDone(a, h, as, hs)
       const verb = flav === 'upset' ? 'pull off the upset' : flav === 'in a rout' ? 'roll in a rout' : flav === 'a nail-biter' ? 'survive a nail-biter' : 'take it'
       const situ: string[] = []
-      const skid = skidSnapped(winner, sp, wk)
+      // Cap the skid to the record's actual losses so it agrees with the W-L shown.
+      const skid = Math.min(skidSnapped(winner, sp, wk), recOf(winner, sp)?.losses ?? 0)
       if (skid >= 3) situ.push(`snapping a ${skid}-game skid`)
       const cb = comebackNote(winner, loser, sp, wk); if (cb) situ.push(cb)
-      const climb = climbNote(winner, sp, wk, cut, sn(sp)); if (climb) situ.push(climb)
+      const climb = climbNote(winner, sp, wk, cut); if (climb) situ.push(climb)
       const parts = [`${nm(winner)} ${verb}${situ.length ? `, ${situ.slice(0, 2).join(' and ')}` : ''}`]
       const perf = topPerformers(winner, sp, wk)
       if (perf.length) {
