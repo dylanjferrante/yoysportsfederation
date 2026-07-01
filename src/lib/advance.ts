@@ -1,11 +1,12 @@
 import 'server-only'
 import { db } from '@/db'
-import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStats, playoffGames, leagueHistory, realStatLines, rosterSnapshots } from '@/db/schema'
+import { leagues, teams, teamRecords, rosters, players, matchups, playerGameStats, playerDayStats, playoffGames, leagueHistory, realStatLines, rosterSnapshots } from '@/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { RESERVE_SLOTS, slotEligible, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, lineupCadenceFor, seasonAnchor, type ScheduleEntry } from '@/lib/defaults'
 import { weekDates, gameDateOf, leagueDayLineups } from '@/lib/dailylineup'
+import { buildDayRows } from '@/lib/dailygen'
 import { scorePlayer } from '@/lib/scoring'
 import { computeFederationStandings } from '@/lib/federation'
 import { logActivity } from '@/lib/activity'
@@ -122,6 +123,13 @@ async function scoreSportWeek(league: any, sport: string, week: number, detailed
     for (const [key, rs] of Object.entries(buckets)) {
       const tid = key.slice(0, key.indexOf('|'))
       teamTotal[tid] = +((teamTotal[tid] ?? 0) + effectiveTotal(sport, spCap, week, rs)).toFixed(1)
+    }
+    // Per-game-day box lines for the daily box score (sums to the weekly total).
+    if (detailed) {
+      const weekly = roster.filter(r => realBy.get(r.playerId)).map(r => ({ playerId: r.playerId, teamId: r.teamId, realTeamAbbr: r.realTeamAbbr, stats: realBy.get(r.playerId)! }))
+      const dayRows = buildDayRows(sport, `${league.id}:${league.season}:${week}`, dates, scoring, weekly)
+      await db.delete(playerDayStats).where(and(eq(playerDayStats.leagueId, league.id), eq(playerDayStats.season, league.season), eq(playerDayStats.week, week), eq(playerDayStats.sport, sport)))
+      if (dayRows.length) await db.insert(playerDayStats).values(dayRows.map(d => ({ id: nanoid(), leagueId: league.id, season: league.season, week, sport, date: d.date, playerId: d.playerId, teamId: d.teamId, stats: JSON.stringify(d.stats), points: d.points })))
     }
   } else {
     const byTeam: Record<string, Scored[]> = {}

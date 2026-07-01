@@ -475,6 +475,23 @@ export const playerGameStats = sqliteTable('player_game_stats', {
   uniq: uniqueIndex('pgs_uniq').on(t.leagueId, t.season, t.week, t.playerId),
 }))
 
+// Per-day box lines for daily sports (NBA/NHL/MLB): a player can play several
+// games in one fantasy week, one row per game date, summing to the weekly total.
+export const playerDayStats = sqliteTable('player_day_stats', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull().references(() => leagues.id, { onDelete: 'cascade' }),
+  season: text('season').notNull(),
+  week: integer('week').notNull(),
+  sport: text('sport').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD
+  playerId: text('player_id').notNull().references(() => players.id),
+  teamId: text('team_id').references(() => teams.id),
+  stats: text('stats').default('{}'),
+  points: real('points').default(0),
+}, (t) => ({
+  uniq: uniqueIndex('pds_uniq').on(t.leagueId, t.season, t.playerId, t.date),
+}))
+
 // ── Player news ──────────────────────────────────────────────────────────────
 
 export const playerNews = sqliteTable('player_news', {

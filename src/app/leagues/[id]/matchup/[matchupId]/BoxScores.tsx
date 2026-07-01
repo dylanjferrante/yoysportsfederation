@@ -12,6 +12,8 @@ type PL = {
 type Team = { name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null; secondaryColor: string | null; logoBg: boolean }
 type Side = { team: Team | null; starters: PL[]; bench: PL[]; dayOverrides: Record<string, Record<string, string>> }
 type Day = { date: string; label: string }
+type DayStat = { points: number; colVals: (number | null)[] }
+type DayStats = Record<string, Record<string, DayStat>>
 type Mode = 'PROJ' | 'WEEK' | 'DAY'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
@@ -27,8 +29,8 @@ function Logo({ team, size }: { team: Team | null; size: number }) {
     : <span className="rounded-lg flex items-center justify-center flex-shrink-0 font-bold" style={{ width: size, height: size, background: primary, color: secondary, fontSize: Math.round(size * 0.34) }}>{(team.abbreviation || team.name || '?').slice(0, 3).toUpperCase()}</span>
 }
 
-export default function BoxScores({ home, away, cols, accent, weekScore, weekDays, today }: {
-  home: Side; away: Side; cols: string[]; accent: string; weekScore: { home: number; away: number }; weekDays: Day[]; today: string
+export default function BoxScores({ home, away, cols, accent, weekScore, weekDays, today, dayStats }: {
+  home: Side; away: Side; cols: string[]; accent: string; weekScore: { home: number; away: number }; weekDays: Day[]; today: string; dayStats: DayStats
 }) {
   const [mode, setMode] = useState<Mode>('WEEK')
   const daily = weekDays.length > 0
@@ -42,7 +44,7 @@ export default function BoxScores({ home, away, cols, accent, weekScore, weekDay
       const withSlot = roster.map(p => ({ p, slot: side.dayOverrides[day]?.[p.playerId] ?? p.slot }))
       const starters = withSlot.filter(x => isStarter(x.slot))
       const bench = withSlot.filter(x => !isStarter(x.slot))
-      const total = round1(starters.reduce((s, x) => s + (x.p.gameDate === day ? (x.p.points || 0) : 0), 0))
+      const total = round1(starters.reduce((s, x) => s + (dayStats[x.p.playerId]?.[day]?.points || 0), 0))
       return { starters, bench, total }
     }
     const total = mode === 'PROJ'
@@ -56,13 +58,14 @@ export default function BoxScores({ home, away, cols, accent, weekScore, weekDay
 
     const Row = ({ x, benchRow }: { x: { p: PL; slot: string }; benchRow?: boolean }) => {
       const p = x.p
-      const playingToday = p.gameDate === day
+      const ds = mode === 'DAY' ? dayStats[p.playerId]?.[day] : undefined
+      const playingToday = !!ds
       const off = mode === 'DAY' && !playingToday       // on roster but no game that day
       const muted = benchRow || off
-      const pv = mode === 'PROJ' ? p.projected : mode === 'DAY' ? (playingToday ? p.points : null) : p.points
-      const colAt = (i: number) => mode === 'PROJ' ? null : mode === 'DAY' ? (playingToday ? p.colVals[i] : null) : p.colVals[i]
+      const pv = mode === 'PROJ' ? p.projected : mode === 'DAY' ? (ds ? ds.points : null) : p.points
+      const colAt = (i: number) => mode === 'PROJ' ? null : mode === 'DAY' ? (ds ? ds.colVals[i] : null) : p.colVals[i]
       const gameCell = mode === 'DAY'
-        ? (playingToday ? <span className={`text-[10px] font-semibold ${p.gameBucket === 'live' ? 'text-red-500' : p.gameBucket === 'final' ? 'text-slate-400' : 'text-blue-600'}`}>{p.gameLabel}</span> : <span className="text-[10px] font-semibold text-slate-300">Off</span>)
+        ? (ds ? <span className="text-[10px] font-semibold text-slate-400">Played</span> : <span className="text-[10px] font-semibold text-slate-300">Off</span>)
         : (p.gameLabel ? <span className={`text-[10px] font-semibold ${p.gameBucket === 'live' ? 'text-red-500' : p.gameBucket === 'final' ? 'text-slate-400' : 'text-blue-600'}`}>{p.gameLabel}</span> : '—')
       return (
         <tr className={muted ? 'text-slate-400' : 'hover:bg-slate-50'}>
