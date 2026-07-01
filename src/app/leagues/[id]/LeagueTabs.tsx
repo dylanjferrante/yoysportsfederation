@@ -134,7 +134,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
                         <td className="px-2 py-2">
                           <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
                             {(t?.altLogo || t?.logo)
-                              ? <img src={t.altLogo || t.logo} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0 p-1" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }} />
+                              ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
                             <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
                           </Link>
@@ -192,7 +192,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
                   <td className="px-2 py-3">
                     <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
                       {(t?.altLogo || t?.logo)
-                        ? <img src={t.altLogo || t.logo} alt="" className="w-7 h-7 rounded-full object-contain flex-shrink-0 p-1" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }} />
+                        ? <span className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                         : <span className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{t?.abbreviation}</span>}
                       <span>
                         <span className="font-medium text-slate-900 group-hover:text-blue-600">{t?.name}</span>
@@ -241,7 +241,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
                   <td className="px-2 py-2.5">
                     <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
                       {(t?.altLogo || t?.logo)
-                              ? <img src={t.altLogo || t.logo} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0 p-1" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }} />
+                              ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
                       <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
                     </Link>
@@ -382,7 +382,7 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
                           <td className="px-2 py-2">
                             <Link href={`/teams/${r.teamId}`} className="flex items-center gap-2 group">
                               {(t?.altLogo || t?.logo)
-                              ? <img src={t.altLogo || t.logo} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0 p-1" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }} />
+                              ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
                               <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
                             </Link>
@@ -436,7 +436,7 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
                     <td className="px-2 py-2.5">
                       <Link href={`/teams/${r.teamId}`} className="flex items-center gap-2 group">
                         {(t?.altLogo || t?.logo)
-                              ? <img src={t.altLogo || t.logo} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0 p-1" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }} />
+                              ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
                         <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
                       </Link>

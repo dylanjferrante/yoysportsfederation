@@ -18,8 +18,9 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
   const { season: viewSeason, isPast } = viewSeasonOf(league, await searchParams)
   const branding = isPast ? await seasonBranding(id, viewSeason) : null
 
-  const franchises = await db.select({ team: teams, userName: users.name }).from(teams)
-    .leftJoin(users, eq(teams.userId, users.id)).where(and(eq(teams.leagueId, id), isPast ? undefined : eq(teams.archived, false)))
+  const franchises = (await db.select({ team: teams, userName: users.name }).from(teams)
+    .leftJoin(users, eq(teams.userId, users.id)).where(and(eq(teams.leagueId, id), isPast ? undefined : eq(teams.archived, false))))
+    .sort((a, b) => a.team.name.localeCompare(b.team.name, undefined, { sensitivity: 'base' }))
   const recs = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, id), eq(teamRecords.season, viewSeason)))
   const allRecords = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, id))
   const history = await db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, id))
