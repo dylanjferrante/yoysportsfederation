@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 import { nanoid } from 'nanoid'
 import path from 'path'
 import fs from 'fs'
-import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, dynastyDraftRounds, defaultWaiverSchedule, defaultIrDesignations, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, RESERVE_SLOTS, weekDateRange } from '../lib/defaults'
+import { buildPerSportSettings, buildSchedule, buildWeeklyPairings, sportsActiveInWeek, scheduleWeeks, dynastyDraftRounds, defaultWaiverSchedule, defaultIrDesignations, DEFAULT_ROSTER, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, RESERVE_SLOTS, weekDateRange, seasonAnchor } from '../lib/defaults'
 import { defaultFederationScoring } from '../lib/federation'
 import { scorePlayer, generateStatLine } from '../lib/scoring'
 
@@ -364,11 +364,17 @@ if (scheduleTotal) console.log(`  Loaded ${scheduleTotal} real scheduled games i
 
 const SPORT_LIST = ['NFL', 'NHL', 'NBA', 'MLB']
 const POOLS: Record<string, PlayerSeed[]> = { NFL: NFL_ALL, NBA: NBA_ALL, NHL: NHL_ALL, MLB: MLB_ALL }
-const CURRENT_SEASON = '2025-26'
-const PRIOR_SEASONS = ['2024-25', '2023-24']
-const PICK_YEARS = [2027, 2028, 2029]
-const NEXT_DRAFT_YEAR = 2027
-const CURRENT_WEEK = 17 // a week where all four sports overlap
+// Anchor the demo to the real current date so the "current week" reads as today.
+// The season runs Sept → the following summer (weeks 1..52); before September we
+// are still inside the prior year's season.
+const NOW = Date.now()
+const seasonStr = (y: number) => `${y}-${String((y + 1) % 100).padStart(2, '0')}`
+const START_YEAR = new Date(NOW).getMonth() < 8 ? new Date(NOW).getFullYear() - 1 : new Date(NOW).getFullYear()
+const CURRENT_SEASON = seasonStr(START_YEAR)
+const PRIOR_SEASONS = [seasonStr(START_YEAR - 1), seasonStr(START_YEAR - 2)]
+const PICK_YEARS = [START_YEAR + 2, START_YEAR + 3, START_YEAR + 4]
+const NEXT_DRAFT_YEAR = START_YEAR + 2
+const CURRENT_WEEK = Math.min(52, Math.max(1, Math.floor((NOW - seasonAnchor(CURRENT_SEASON, 'FOOTBALL')) / (7 * 86_400_000)) + 1))
 const ROOKIE_ROUNDS = 4
 
 const randInt = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo + 1))
