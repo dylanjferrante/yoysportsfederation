@@ -54,9 +54,9 @@ export default async function LeagueLayout({ children, params }: { children: Rea
               ? <img src={league.logoUrl} alt="" className="w-14 h-14 object-contain rounded-xl flex-shrink-0 p-1.5" />
               : <span className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(league.abbreviation || league.name || '?').slice(0, 3).toUpperCase()}</span>}
             <div className="min-w-0 flex-1">
-              {league.wordmark
+              {league.wordmark && league.wordmark.startsWith('http')
                 ? <img src={league.wordmark} alt={league.name} className="h-9 w-auto max-w-[280px] object-contain object-left" />
-                : <h1 className="text-2xl font-bold leading-tight truncate">{league.name}</h1>}
+                : <h1 className="text-2xl font-bold leading-tight truncate">{league.wordmark || league.name}</h1>}
               <p className="text-sm font-medium opacity-95 mt-0.5">
                 {league.season} · {franchises.length} clubs
                 {activeNow.length > 0 && <> · {activeNow.join(', ')} in season</>}
