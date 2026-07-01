@@ -54,7 +54,7 @@ export default function Landing() {
       <section className="py-20 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
           <p className="text-slate-500 text-center uppercase tracking-widest text-xs font-semibold mb-3">All four major sports</p>
-          <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">One Platform. Every Sport.</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-slate-900">One Platform. Every Sport.</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {sports.map(s => (
               <div key={s.name} className="rounded-2xl border border-slate-100 p-6 text-center hover:shadow-md transition-shadow">
@@ -71,7 +71,7 @@ export default function Landing() {
       <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-5xl mx-auto">
           <p className="text-slate-500 text-center uppercase tracking-widest text-xs font-semibold mb-3">Built for commissioners</p>
-          <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">Everything You Need to Run a League</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-slate-900">Everything You Need to Run a League</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {features.map(f => (
               <div key={f.title} className="bg-white rounded-2xl border border-slate-100 p-6 hover:shadow-md transition-shadow">
@@ -87,7 +87,7 @@ export default function Landing() {
       {/* Cross-sport trading explainer */}
       <section className="py-20 px-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-6">How Cross-Sport Trading Works</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-6">How Cross-Sport Trading Works</h2>
           <p className="text-slate-300 text-lg mb-10 leading-relaxed">
             Propose a trade to any club in any of your leagues. Mix and match assets from different sports
             in a single trade proposal. Your NFL first-round pick plus your NHL star for someone's NBA MVP candidate.
@@ -110,7 +110,7 @@ export default function Landing() {
 
       {/* CTA */}
       <section className="py-20 px-6 bg-blue-600 text-white text-center">
-        <h2 className="text-4xl font-black mb-4">Ready to build your dynasty?</h2>
+        <h2 className="text-3xl sm:text-4xl font-black mb-4">Ready to build your dynasty?</h2>
         <p className="text-blue-100 mb-8 text-lg">Free to join. Create or join leagues across all four sports.</p>
         <Link href="/auth/register"
           className="bg-white text-blue-600 font-bold px-10 py-3.5 rounded-xl text-lg hover:bg-blue-50 transition-colors inline-block">
