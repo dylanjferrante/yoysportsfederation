@@ -564,7 +564,8 @@ export async function buildScoreboard(leagueId: string): Promise<ScoreCard[]> {
     const all = ms.filter(m => m.sport === sp && m.awayTeamId)
     if (!all.length) continue
     const sportName = sportAbbr[sp] || sportNames[sp] || sp
-    const sportLogo = divisionLogos[sp] || divisionLogosAlt[sp] || null
+    // The ticker is a compact strip — prefer the alternate (icon) mark.
+    const sportLogo = divisionLogosAlt[sp] || divisionLogos[sp] || null
     const meta = { sport: sp, sportName, sportLogo }
     const incomplete = all.filter(m => !m.isComplete)
     const complete = all.filter(m => m.isComplete)
