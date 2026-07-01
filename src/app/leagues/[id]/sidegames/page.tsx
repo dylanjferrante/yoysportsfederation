@@ -98,7 +98,7 @@ export default function SideGames() {
                   {d.standings.highScore.map((r, i) => (
                     <li key={r.teamId} className="flex items-center gap-3 px-4 py-2 text-sm">
                       <span className="text-slate-300 tabular-nums w-5">{i + 1}</span>
-                      <Link href={`/teams/${r.teamId}`} className="font-medium text-slate-800 hover:text-blue-600 flex-1">{r.team}</Link>
+                      <Link href={`/leagues/${id}/teams/${r.teamId}`} className="font-medium text-slate-800 hover:text-blue-600 flex-1">{r.team}</Link>
                       <span className="font-bold tabular-nums" style={{ color: meta.hex }}>{r.weeks} {r.weeks === 1 ? 'week' : 'weeks'}</span>
                     </li>
                   ))}

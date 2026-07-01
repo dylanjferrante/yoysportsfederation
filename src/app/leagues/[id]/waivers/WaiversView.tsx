@@ -249,7 +249,7 @@ export default function WaiversView({
                       </td>
                       <td className="px-2 py-1.5 text-center">
                         {p.owned
-                          ? <Link href={`/teams/${p.ownerTeamId}`} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 hover:text-slate-700">{p.ownerTeamAbbr}</Link>
+                          ? <Link href={`/leagues/${leagueId}/teams/${p.ownerTeamId}`} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 hover:text-slate-700">{p.ownerTeamAbbr}</Link>
                           : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-50 text-green-600">FA</span>}
                       </td>
                       {cols.map(c => (

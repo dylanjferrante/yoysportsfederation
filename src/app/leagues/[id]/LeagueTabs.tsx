@@ -89,8 +89,8 @@ export default function LeagueTabs({
       </div>
 
       {tab === 'OVERALL'
-        ? <Overall standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} divisionLogosAlt={divisionLogosAlt} championshipColors={championshipColors} included={included} countMode={countMode} setCountMode={setCountMode} completedSports={completedSports} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} divisions={divisions} divisionNames={divisionNames} />
-        : <SportView sport={tab} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} divisionLogosAlt={divisionLogosAlt} championshipColors={championshipColors} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} divisions={divisions} divisionNames={divisionNames} />}
+        ? <Overall leagueId={leagueId} standings={standings} power={power} sportsEnabled={sportsEnabled} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} divisionLogosAlt={divisionLogosAlt} championshipColors={championshipColors} included={included} countMode={countMode} setCountMode={setCountMode} completedSports={completedSports} teamById={teamById} currentUserId={currentUserId} fed={federationScoring} divisions={divisions} divisionNames={divisionNames} />
+        : <SportView leagueId={leagueId} sport={tab} sportNames={sportNames} sportAbbr={sportAbbr} divisionLogos={divisionLogos} divisionLogosAlt={divisionLogosAlt} championshipColors={championshipColors} teams={teams} teamById={teamById} records={records.filter(r => r.sport === tab)} matchups={matchups.filter(m => m.sport === tab)} rosterSettings={(rosterSettings as any)[tab] ?? {}} playoffTeams={playoffTeams} currentUserId={currentUserId} divisions={divisions} divisionNames={divisionNames} />}
     </div>
   )
 }
@@ -98,7 +98,7 @@ export default function LeagueTabs({
 // Division label (custom name from settings, else "Division N").
 const divLabel = (idx: number, names: Record<string, string>) => names[String(idx)]?.trim() || `Division ${idx}`
 
-function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, divisionLogosAlt = {}, championshipColors = {}, included, countMode, setCountMode, completedSports, teamById, currentUserId, fed, divisions = 0, divisionNames = {} }: any) {
+function Overall({ leagueId, standings, power = [], sportsEnabled, sportNames = {}, sportAbbr = {}, divisionLogos = {}, divisionLogosAlt = {}, championshipColors = {}, included, countMode, setCountMode, completedSports, teamById, currentUserId, fed, divisions = 0, divisionNames = {} }: any) {
   const countedSports = sportsEnabled.filter((s: string) => included.has(s))
   // When divisions are enabled, the federation standings split into divisions
   // (re-ranked within each) on top of the league-wide overall table below.
@@ -132,7 +132,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
                       <tr key={row.team.id} className={`hover:bg-slate-50 ${i === 0 ? 'bg-amber-50/40' : ''}`}>
                         <td className="px-3 py-2 text-slate-400 font-medium">{i + 1}</td>
                         <td className="px-2 py-2">
-                          <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
+                          <Link href={`/leagues/${leagueId}/teams/${row.team.id}`} className="flex items-center gap-2 group">
                             {(t?.altLogo || t?.logo)
                               ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
@@ -190,7 +190,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
                     {i + 1}
                   </td>
                   <td className="px-2 py-3">
-                    <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
+                    <Link href={`/leagues/${leagueId}/teams/${row.team.id}`} className="flex items-center gap-2 group">
                       {(t?.altLogo || t?.logo)
                         ? <span className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                         : <span className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{t?.abbreviation}</span>}
@@ -239,7 +239,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
                 <tr key={row.team.id} className="hover:bg-slate-50">
                   <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td>
                   <td className="px-2 py-2.5">
-                    <Link href={`/teams/${row.team.id}`} className="flex items-center gap-2 group">
+                    <Link href={`/leagues/${leagueId}/teams/${row.team.id}`} className="flex items-center gap-2 group">
                       {(t?.altLogo || t?.logo)
                               ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
@@ -266,7 +266,7 @@ function Overall({ standings, power = [], sportsEnabled, sportNames = {}, sportA
   )
 }
 
-function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {}, divisionLogosAlt = {}, championshipColors = {}, teamById, records, matchups, rosterSettings, playoffTeams = 6, currentUserId, divisions = 0, divisionNames = {} }: any) {
+function SportView({ leagueId, sport, sportNames = {}, sportAbbr = {}, divisionLogos = {}, divisionLogosAlt = {}, championshipColors = {}, teamById, records, matchups, rosterSettings, playoffTeams = 6, currentUserId, divisions = 0, divisionNames = {} }: any) {
   const meta = sportMeta(sport)
   const ranked = [...records].sort((a: TeamRec, b: TeamRec) =>
     (a.finishPosition ?? 99) - (b.finishPosition ?? 99) || b.wins - a.wins || b.pointsFor - a.pointsFor)
@@ -380,7 +380,7 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
                         <tr key={r.teamId} className={`hover:bg-slate-50 ${i === 0 ? 'bg-amber-50/40' : ''}`}>
                           <td className="px-3 py-2 font-medium text-slate-400">{i + 1}</td>
                           <td className="px-2 py-2">
-                            <Link href={`/teams/${r.teamId}`} className="flex items-center gap-2 group">
+                            <Link href={`/leagues/${leagueId}/teams/${r.teamId}`} className="flex items-center gap-2 group">
                               {(t?.altLogo || t?.logo)
                               ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
@@ -434,7 +434,7 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
                       {!a?.clinch && a?.magic != null && inPlayoffs && a.magic <= 4 && <span title="Magic number to clinch a playoff spot" className="ml-1 text-[9px] font-bold text-amber-500 align-top">{a.magic}</span>}
                     </td>
                     <td className="px-2 py-2.5">
-                      <Link href={`/teams/${r.teamId}`} className="flex items-center gap-2 group">
+                      <Link href={`/leagues/${leagueId}/teams/${r.teamId}`} className="flex items-center gap-2 group">
                         {(t?.altLogo || t?.logo)
                               ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
@@ -499,7 +499,7 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
               return (
                 <div key={r.teamId} className="flex items-center gap-2 px-4 py-2 text-sm">
                   <span className="w-4 text-slate-300 font-bold text-xs">{i + 1}</span>
-                  <Link href={`/teams/${r.teamId}`} className="flex-1 font-medium text-slate-800 hover:text-blue-600 truncate">{t?.name}</Link>
+                  <Link href={`/leagues/${leagueId}/teams/${r.teamId}`} className="flex-1 font-medium text-slate-800 hover:text-blue-600 truncate">{t?.name}</Link>
                   <span className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden hidden sm:block"><span className="block h-full" style={{ width: `${a?.power ?? 0}%`, background: meta.hex }} /></span>
                   <span className="tabular-nums font-bold text-slate-700 w-7 text-right">{a?.power ?? '—'}</span>
                 </div>
@@ -514,7 +514,7 @@ function SportView({ sport, sportNames = {}, sportAbbr = {}, divisionLogos = {},
             <span className="text-2xl"></span>
             <div>
               <p className="text-[11px] uppercase tracking-wide text-slate-400">Top Score · Week {analytics.top.week}</p>
-              <p className="text-sm"><Link href={`/teams/${analytics.top.teamId}`} className="font-semibold text-slate-900 hover:text-blue-600">{teamById[analytics.top.teamId]?.name}</Link> <span className="font-bold tabular-nums" style={{ color: meta.hex }}>{analytics.top.score.toFixed(1)}</span></p>
+              <p className="text-sm"><Link href={`/leagues/${leagueId}/teams/${analytics.top.teamId}`} className="font-semibold text-slate-900 hover:text-blue-600">{teamById[analytics.top.teamId]?.name}</Link> <span className="font-bold tabular-nums" style={{ color: meta.hex }}>{analytics.top.score.toFixed(1)}</span></p>
             </div>
           </div>
         )}

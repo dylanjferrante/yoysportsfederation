@@ -47,7 +47,7 @@ export default function Marketplace() {
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(r.sport).light}`}>{abbr(r.sport)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-slate-900 truncate">{r.name} <span className="text-xs text-slate-400">{r.position} · {r.realTeam}</span></p>
-                  <p className="text-xs text-slate-400">on <Link href={`/teams/${r.teamId}`} className="text-blue-600 hover:underline">{r.teamName}</Link></p>
+                  <p className="text-xs text-slate-400">on <Link href={`/leagues/${id}/teams/${r.teamId}`} className="text-blue-600 hover:underline">{r.teamName}</Link></p>
                 </div>
                 <span className="text-xs text-slate-500 tabular-nums">val {crossSportValue(r.sport, r.projectedPoints)}</span>
                 <Link href={`/trade/new?partner=${r.teamId}`} className="btn-secondary text-xs">Offer</Link>

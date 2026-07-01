@@ -141,7 +141,7 @@ export default async function SportLeaguePage({ params }: { params: Promise<{ id
                 <tr key={r.teamId} className={i < playoffTeams ? 'bg-emerald-50/30' : ''}>
                   <td className="px-4 py-2 text-slate-400 font-medium">{i + 1}</td>
                   <td className="px-2 py-2">
-                    <Link href={`/teams/${r.teamId}`} className="flex items-center gap-2 group">
+                    <Link href={`/leagues/${id}/teams/${r.teamId}`} className="flex items-center gap-2 group">
                       <Logo team={t} size={24} />
                       <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name ?? '—'}</span>
                     </Link>
