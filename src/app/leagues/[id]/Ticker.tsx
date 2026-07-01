@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { sportMeta } from '@/lib/utils'
+import { sportMeta, sportAbbrLabel } from '@/lib/utils'
 
 type Side = { name: string; abbr: string; logo: string | null; primary: string; secondary: string; score: number; win: boolean }
 type Card = { id: string; sport: string; sportName?: string; sportLogo?: string | null; status: 'Final' | 'LIVE' | 'PRE'; home: Side; away: Side }
@@ -19,7 +19,7 @@ const CATEGORY_TITLE: Record<string, string> = {
 type Snapshot = { scores: Card[]; news: News[]; cardIdx: number; topicIdx: number }
 const tickerCache = new Map<string, Snapshot>()
 
-export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fbbf24' }: { leagueId: string; primary?: string; secondary?: string }) {
+export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fbbf24', sportAbbr = {} }: { leagueId: string; primary?: string; secondary?: string; sportAbbr?: Record<string, string> }) {
   const [scores, setScores] = useState<Card[]>(() => tickerCache.get(leagueId)?.scores ?? [])
   const [news, setNews] = useState<News[]>(() => tickerCache.get(leagueId)?.news ?? [])
   const [cardIdx, setCardIdx] = useState(() => tickerCache.get(leagueId)?.cardIdx ?? 0)
@@ -72,11 +72,11 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
     })
     return keys.map(k => ({
       key: k,
-      title: k === 'FED' ? 'Federation' : k,
+      title: k === 'FED' ? 'Federation' : sportAbbrLabel(k, sportAbbr),
       sport: k === 'FED' ? undefined : k,
       items: bySport.get(k)!.slice(0, 12),
     }))
-  }, [news])
+  }, [news, sportAbbr])
 
   useEffect(() => { setTopicIdx(i => (topics.length && i >= topics.length ? 0 : i)) }, [topics.length])
 
