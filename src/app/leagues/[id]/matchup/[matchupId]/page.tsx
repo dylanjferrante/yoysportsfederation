@@ -1,6 +1,6 @@
 import { db } from '@/db'
-import { leagues, teams, matchups, rosters, players, playerGameStats } from '@/db/schema'
-import { eq, and, or, ne } from 'drizzle-orm'
+import { leagues, teams, matchups, rosters, players, playerGameStats, playerDayStats } from '@/db/schema'
+import { eq, and, or, ne, inArray } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { sportMeta, safeParse } from '@/lib/utils'
@@ -88,6 +88,17 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
   const awayOverrides = isDaily && m.awayTeamId ? await teamDayLineups(id, m.awayTeamId, season, m.sport, weekDaysList) : {}
   const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const weekDays = weekDaysList.map(d => { const dt = new Date(`${d}T00:00:00`); return { date: d, label: `${WD[dt.getDay()]} ${dt.getMonth() + 1}/${dt.getDate()}` } })
+
+  // Per-day box lines for the daily view: playerId -> date -> { points, colVals }.
+  const rosterIds = [...home.starters, ...home.bench, ...away.starters, ...away.bench].map((r: any) => r.playerId)
+  const dayRows = isDaily && rosterIds.length
+    ? await db.select().from(playerDayStats).where(and(eq(playerDayStats.leagueId, id), eq(playerDayStats.season, season), eq(playerDayStats.week, m.week), eq(playerDayStats.sport, m.sport), inArray(playerDayStats.playerId, rosterIds)))
+    : []
+  const dayStats: Record<string, Record<string, { points: number; colVals: (number | null)[] }>> = {}
+  for (const r of dayRows) {
+    const st = safeParse<Record<string, number>>(r.stats ?? '{}', {})
+    ;(dayStats[r.playerId] ??= {})[r.date] = { points: +(r.points ?? 0).toFixed(1), colVals: cols.map(c => +c.get(st).toFixed(1) || 0) }
+  }
 
   const spread = (home.proj || 0) - (away.proj || 0)
   const scale = Math.max(10, ((home.proj || 0) + (away.proj || 0)) * 0.06)
@@ -181,7 +192,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
 
       {/* Box scores — up front, no scrolling past hero cards */}
       <BoxScores home={sideLite(home, homeOverrides)} away={sideLite(away, awayOverrides)} cols={cols.map(c => c.label)} accent={meta.hex}
-        weekScore={{ home: m.homeScore ?? 0, away: m.awayScore ?? 0 }} weekDays={weekDays} today={todayStr} />
+        weekScore={{ home: m.homeScore ?? 0, away: m.awayScore ?? 0 }} weekDays={weekDays} today={todayStr} dayStats={dayStats} />
 
       {h2h && h2h.recent.length > 0 && (
         <details className="card mt-5">

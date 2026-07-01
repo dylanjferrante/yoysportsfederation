@@ -28,6 +28,7 @@ DROP TABLE IF EXISTS trade_items;
 DROP TABLE IF EXISTS trades;
 DROP TABLE IF EXISTS player_news;
 DROP TABLE IF EXISTS player_game_stats;
+DROP TABLE IF EXISTS player_day_stats;
 DROP TABLE IF EXISTS matchups;
 DROP TABLE IF EXISTS draft_queues;
 DROP TABLE IF EXISTS draft_autopick;
@@ -412,6 +413,20 @@ CREATE TABLE player_game_stats (
   stats TEXT DEFAULT '{}',
   points REAL DEFAULT 0,
   UNIQUE(league_id, season, week, player_id)
+);
+
+CREATE TABLE player_day_stats (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  season TEXT NOT NULL,
+  week INTEGER NOT NULL,
+  sport TEXT NOT NULL,
+  date TEXT NOT NULL,
+  player_id TEXT NOT NULL REFERENCES players(id),
+  team_id TEXT REFERENCES teams(id),
+  stats TEXT DEFAULT '{}',
+  points REAL DEFAULT 0,
+  UNIQUE(league_id, season, player_id, date)
 );
 
 CREATE TABLE player_news (
