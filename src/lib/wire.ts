@@ -1,5 +1,5 @@
 import { db } from '@/db'
-import { leagues, teams, teamRecords, matchups, leagueHistory, playoffGames, playerGameStats, playerDayStats, players, rosters } from '@/db/schema'
+import { leagues, teams, teamRecords, matchups, leagueHistory, playoffGames, playerGameStats, playerDayStats, players, rosters, drafts } from '@/db/schema'
 import { and, eq, inArray, ne } from 'drizzle-orm'
 import { safeParse, sportAbbrLabel, orderedSports } from '@/lib/utils'
 import { seasonAnchor, scheduleWeeks, type ScheduleEntry } from '@/lib/defaults'
@@ -93,7 +93,16 @@ export async function buildWire(leagueId: string): Promise<Wire> {
         .where(and(inArray(rosters.teamId, teamIds), ne(players.status, 'ACTIVE')))
     : []
 
-  const shortName = (full: string) => { const p = full.trim().split(/\s+/); return p.length > 1 ? `${p[0][0]}. ${p[p.length - 1]}` : full }
+  // "First Middle Last [Suffix]" → "F. Last" — keeping multi-word surnames (St. Brown)
+  // and a generational suffix (Jr./III), which a naive last-token grab would drop.
+  const NAME_SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i
+  const shortName = (full: string) => {
+    const p = full.trim().split(/\s+/)
+    if (p.length < 2) return full
+    let rest = p.slice(1), suffix = ''
+    if (rest.length > 1 && NAME_SUFFIX.test(rest[rest.length - 1])) { suffix = ` ${rest[rest.length - 1]}`; rest = rest.slice(0, -1) }
+    return `${p[0][0]}. ${rest.join(' ')}${suffix}`
+  }
 
   // The winner's top scorers that week (the players who carried the club).
   const topPerformers = (teamId: string, sp: string, wk: number) => {
@@ -149,13 +158,13 @@ export async function buildWire(leagueId: string): Promise<Wire> {
   const comebackNote = (winner: string, loser: string, sp: string, wk: number) => {
     const dates = [...new Set(pds.filter(r => r.sport === sp && r.week === wk && (r.teamId === winner || r.teamId === loser)).map(r => r.date))].sort()
     if (dates.length < 2) return null
-    let cw = 0, cl = 0, trailed = false
+    let cw = 0, cl = 0, maxDeficit = 0
     for (let i = 0; i < dates.length; i++) {
       cw += pds.filter(r => r.teamId === winner && r.sport === sp && r.week === wk && r.date === dates[i]).reduce((s, r) => s + (r.points ?? 0), 0)
       cl += pds.filter(r => r.teamId === loser && r.sport === sp && r.week === wk && r.date === dates[i]).reduce((s, r) => s + (r.points ?? 0), 0)
-      if (i < dates.length - 1 && cl - cw >= 3) trailed = true
+      if (i < dates.length - 1) maxDeficit = Math.max(maxDeficit, cl - cw)   // largest mid-week gap faced
     }
-    return trailed && cw >= cl ? 'rallying from an early-week deficit' : null
+    return maxDeficit >= 3 && cw >= cl ? `rallying from a ${Math.round(maxDeficit)}-pt deficit` : null
   }
 
   const injuryNote = (teamId: string, sp: string) => {
@@ -366,6 +375,28 @@ export async function buildWire(leagueId: string): Promise<Wire> {
         : { id: `soon-${sp}`, text: `${sn(sp)} season is on the way`, href: `${base}/sports/${sp}` })
     }
     topics.push({ key: sp, title: sn(sp), sport: sp, items })
+  }
+
+  // ── Upcoming drafts: date + the order (reverse standings, worst picks first) ──
+  const upcoming = await db.select().from(drafts).where(and(eq(drafts.leagueId, leagueId), ne(drafts.status, 'COMPLETED')))
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  for (const dr of upcoming.filter(d => d.startsAt).sort((a, b) => (a.startsAt! < b.startsAt! ? -1 : 1))) {
+    const scope = dr.scope
+    const perSport = !!scope && scope !== 'OVERALL'
+    const order = perSport
+      ? recs.filter(r => r.sport === scope).sort((a, b) => (b.finishPosition ?? 99) - (a.finishPosition ?? 99)).map(r => r.teamId)
+      : [...computeFederationStandings(
+          teamRows.map(t => ({ id: t.id })),
+          recs.map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: r.isChampion })),
+          safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sportsEnabled }), sportsEnabled,
+        )].reverse().map(s => s.team.id)
+    if (!order.length) continue
+    const label = perSport ? `${sn(scope!)} rookie` : 'rookie'
+    const top = order.slice(0, 3).map((id, i) => `${ab(id)} (${i + 1})`).join(', ')
+    const text = `Upcoming ${label} draft ${fmtDate(dr.startsAt!)} — ${nm(order[0])} on the clock at #1${top ? ` · order: ${top}` : ''}`
+    const href = `${base}/draft`
+    topics.push({ key: `draft-${dr.id}`, title: 'Draft', sport: perSport ? scope! : undefined, items: [{ id: `draft-${dr.id}`, text, href }] })
+    slides.push({ kind: 'news', id: `draft-${dr.id}`, topic: 'Draft', sport: perSport ? scope! : undefined, text, href })
   }
 
   // Reuse the rich headline generators for the non-game topics.
