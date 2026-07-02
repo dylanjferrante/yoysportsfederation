@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { sportMeta, safeParse, sportAbbrLabel } from '@/lib/utils'
 import { sportWeekOf, type ScheduleEntry } from '@/lib/defaults'
 import { RESERVE_SLOTS } from '@/lib/defaults'
-import { boxScoreColumns } from '@/lib/scoring-categories'
 import { weekGameStatus, type GameStatus } from '@/lib/schedule'
 import { playerKickoff } from '@/lib/locks'
 import { oppLabel } from '@/lib/realschedule'
@@ -40,7 +39,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
   if (!league || !m) notFound()
   const meta = sportMeta(m.sport)
   const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
-  const cols = boxScoreColumns(m.sport)
+  const scoring = safeParse<Record<string, Record<string, number>>>(league.scoringSettings, {})[m.sport] ?? {}
 
   const season = m.season ?? league.season
   const now = Date.now()
@@ -52,7 +51,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
     if (!teamId) return { team: null, starters: [] as any[], bench: [] as any[], proj: 0, optimal: 0, benchPts: 0, final: 0, live: 0, pending: 0, ptsIn: 0, projLeft: 0 }
     const [team] = await db.select().from(teams).where(eq(teams.id, teamId)).limit(1)
     const rows = await db
-      .select({ slot: rosters.slot, name: players.name, position: players.position, realTeam: players.realTeam, realTeamAbbr: players.realTeamAbbr, playerId: players.id, projected: players.projectedPoints, points: playerGameStats.points, stats: playerGameStats.stats })
+      .select({ slot: rosters.slot, name: players.name, position: players.position, realTeam: players.realTeam, realTeamAbbr: players.realTeamAbbr, playerId: players.id, projected: players.projectedPoints, projStats: players.stats, points: playerGameStats.points, stats: playerGameStats.stats })
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
       .leftJoin(playerGameStats, and(eq(playerGameStats.playerId, rosters.playerId), eq(playerGameStats.leagueId, id), eq(playerGameStats.season, season), eq(playerGameStats.week, m.week)))
       .where(and(eq(rosters.teamId, teamId), eq(rosters.sport, m.sport)))
@@ -95,10 +94,9 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
   const dayRows = isDaily && rosterIds.length
     ? await db.select().from(playerDayStats).where(and(eq(playerDayStats.leagueId, id), eq(playerDayStats.season, season), eq(playerDayStats.week, m.week), eq(playerDayStats.sport, m.sport), inArray(playerDayStats.playerId, rosterIds)))
     : []
-  const dayStats: Record<string, Record<string, { points: number; colVals: (number | null)[] }>> = {}
+  const dayStats: Record<string, Record<string, { points: number; stats: Record<string, number> }>> = {}
   for (const r of dayRows) {
-    const st = safeParse<Record<string, number>>(r.stats ?? '{}', {})
-    ;(dayStats[r.playerId] ??= {})[r.date] = { points: +(r.points ?? 0).toFixed(1), colVals: cols.map(c => +c.get(st).toFixed(1) || 0) }
+    ;(dayStats[r.playerId] ??= {})[r.date] = { points: +(r.points ?? 0).toFixed(1), stats: safeParse<Record<string, number>>(r.stats ?? '{}', {}) }
   }
 
   const spread = (home.proj || 0) - (away.proj || 0)
@@ -125,16 +123,14 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
     h2h = { homeW, awayW, recent }
   }
 
-  const toPL = (p: any) => {
-    const stats = safeParse<Record<string, number>>(p.stats ?? '{}', {})
-    return {
-      slot: p.slot, name: p.name, position: p.position, playerId: p.playerId,
-      projected: +(p.projected ?? 0).toFixed(1),
-      points: p.points == null ? null : +p.points.toFixed(1),
-      colVals: cols.map(c => p.points == null ? null : (+c.get(stats).toFixed(1) || 0)),
-      gameDate: p.gameDate ?? null, gameLabel: p.game?.label ?? null, gameBucket: p.game?.bucket ?? null,
-    }
-  }
+  const toPL = (p: any) => ({
+    slot: p.slot, name: p.name, position: p.position, playerId: p.playerId,
+    projected: +(p.projected ?? 0).toFixed(1),
+    points: p.points == null ? null : +p.points.toFixed(1),
+    weekStats: safeParse<Record<string, number>>(p.stats ?? '{}', {}),
+    projStats: safeParse<Record<string, number>>(p.projStats ?? '{}', {}),
+    gameDate: p.gameDate ?? null, gameLabel: p.game?.label ?? null, gameBucket: p.game?.bucket ?? null,
+  })
   const sideLite = (side: any, overrides: Record<string, Record<string, string>>) => ({
     team: side.team ? { name: side.team.name, abbreviation: side.team.abbreviation, logo: side.team.logo, altLogo: side.team.altLogo, primaryColor: side.team.primaryColor, secondaryColor: side.team.secondaryColor, logoBg: !!side.team.logoBg } : null,
     starters: side.starters.map(toPL), bench: side.bench.slice(0, 12).map(toPL), dayOverrides: overrides,
@@ -192,7 +188,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Box scores — up front, no scrolling past hero cards */}
-      <BoxScores home={sideLite(home, homeOverrides)} away={sideLite(away, awayOverrides)} cols={cols.map(c => c.label)} accent={meta.hex}
+      <BoxScores home={sideLite(home, homeOverrides)} away={sideLite(away, awayOverrides)} sport={m.sport} scoring={scoring} accent={meta.hex}
         weekScore={{ home: m.homeScore ?? 0, away: m.awayScore ?? 0 }} weekDays={weekDays} today={todayStr} dayStats={dayStats} />
 
       {h2h && h2h.recent.length > 0 && (

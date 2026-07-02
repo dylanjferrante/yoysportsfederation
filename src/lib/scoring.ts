@@ -24,18 +24,48 @@ function fgYardagePoints(stats: Stats, scoring: Record<string, number>): number 
   return pts
 }
 
-// Points = dot product of the stat line with the league's per-stat values, plus
-// optional per-yardage field-goal scoring.
-export function scorePlayer(stats: Stats, scoring: Record<string, number>): number {
+// One scored line of a breakdown: the stat, its per-unit value, and the points it
+// contributed. `key` is the raw stat key (label it via statMeta in scoring-categories).
+export type ScoreLine = { key: string; stat: number; perUnit: number; points: number }
+
+// Full per-category breakdown of a stat line under a scoring map: the line items
+// that earned (or lost) points, plus the same total scorePlayer returns. This is
+// the single source of truth — scorePlayer just sums these — so any UI that shows
+// the breakdown can never disagree with the displayed total.
+export function scoreBreakdown(stats: Stats, scoring: Record<string, number>): { items: ScoreLine[]; total: number } {
   const fgYardMode = (scoring.fgPointsPerYard ?? 0) > 0 || (scoring.fgMinPoints ?? 0) > 0
+  const items: ScoreLine[] = []
   let total = 0
   for (const [k, v] of Object.entries(stats)) {
-    if (k.startsWith('fgDist')) continue              // scored via fgYardagePoints, never the dot product
+    if (!v) continue                                  // no stat, no line
+    if (k.startsWith('fgDist')) continue              // scored via fgYardagePoints below
     if (fgYardMode && FG_TIER_KEYS.has(k)) continue    // per-yard mode replaces tier scoring
-    total += v * (scoring[k] ?? 0)
+    const perUnit = scoring[k] ?? 0
+    if (!perUnit) continue                            // stat the league doesn't score
+    const points = v * perUnit
+    total += points
+    items.push({ key: k, stat: v, perUnit, points: +points.toFixed(2) })
   }
-  if (fgYardMode) total += fgYardagePoints(stats, scoring)
-  return +total.toFixed(1)
+  if (fgYardMode) {
+    let fgPts = 0, made = 0
+    for (const [k, count] of Object.entries(stats)) {
+      if (!count) continue
+      const m = /^fgDist(\d+)$/.exec(k)
+      if (!m) continue
+      fgPts += count * Math.max(scoring.fgMinPoints ?? 0, Number(m[1]) * (scoring.fgPointsPerYard ?? 0))
+      made += count
+    }
+    if (made) { total += fgPts; items.push({ key: 'fgYardage', stat: made, perUnit: scoring.fgPointsPerYard ?? 0, points: +fgPts.toFixed(2) }) }
+  }
+  items.sort((a, b) => b.points - a.points)
+  return { items, total: +total.toFixed(1) }
+}
+
+// Points = dot product of the stat line with the league's per-stat values, plus
+// optional per-yardage field-goal scoring. (Delegates to scoreBreakdown so the
+// number and its breakdown always agree.)
+export function scorePlayer(stats: Stats, scoring: Record<string, number>): number {
+  return scoreBreakdown(stats, scoring).total
 }
 
 const rnd = () => Math.random()
