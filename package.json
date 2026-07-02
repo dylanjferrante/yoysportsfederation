@@ -20,7 +20,8 @@
     "tank01:probe": "tsx scripts/tank01-probe.ts",
     "tank01:pull": "tsx scripts/tank01-pull.ts",
     "tank01:schedule": "tsx scripts/tank01-schedule.ts",
-    "tank01:sync": "tsx scripts/tank01-sync.ts"
+    "tank01:sync": "tsx scripts/tank01-sync.ts",
+    "tank01:realstats": "tsx scripts/tank01-realstats.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

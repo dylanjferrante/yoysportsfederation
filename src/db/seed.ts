@@ -633,25 +633,41 @@ function seedMatchups(season: string, completed: boolean) {
 seedMatchups(CURRENT_SEASON, false)
 for (const s of PRIOR_SEASONS) seedMatchups(s, true)
 
-// ── Stat lines (real scoring) for the last ~6 played weeks of each sport ─────
-// Gives every player a real game log and makes recent scores derive from stats.
+// ── Stat lines (real scoring) for every played week of each sport ───────────
+// Gives every player a real game log for all completed weeks (so every box score
+// shows real stats, not just the recent ones) and makes scores derive from stats.
 const insertPGS = db.prepare(`INSERT OR IGNORE INTO player_game_stats (id,league_id,season,week,sport,player_id,team_id,stats,points) VALUES (?,?,?,?,?,?,?,?,?)`)
 const updMatchup = db.prepare(`UPDATE matchups SET home_score=?, away_score=? WHERE id=?`)
 const isStarterSlot = (slot: string) => !RESERVE_SLOTS.includes(slot)
 const scheduleMap: Record<string, any> = Object.fromEntries(schedule.map((e: any) => [e.sport, e]))
+// Real per-game stat fixtures (from `npm run tank01:realstats`). When present for a
+// sport, weekly game logs use REAL box-score stats keyed by player external id;
+// otherwise fall back to the simulator. weekly[externalId][week] = stat line.
+const REALSTATS: Record<string, { weekly: Record<string, Record<string, Record<string, number>>> } | null> = {}
+for (const sport of SPORT_LIST) {
+  try { REALSTATS[sport] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'src/fixtures', `realstats-${sport}.json`), 'utf8')) }
+  catch { REALSTATS[sport] = null }
+  if (REALSTATS[sport]) console.log(`  ${sport}: using REAL box-score stats (${Object.keys(REALSTATS[sport]!.weekly).length} players)`)
+}
 for (const sport of SPORT_LIST) {
   const w = scheduleMap[sport]; if (!w) continue
   const played = Math.min(CURRENT_WEEK, w.endWeek)       // latest week that has been played
   if (played < w.startWeek) continue
-  const firstLog = Math.max(w.startWeek, played - 5)
-  const rs = db.prepare(`SELECT r.player_id pid, r.team_id tid, r.slot slot, p.position pos, p.projected_points proj FROM rosters r JOIN players p ON p.id=r.player_id WHERE r.sport=?`).all(sport) as any[]
+  const firstLog = w.startWeek
+  const real = REALSTATS[sport]
+  const rs = db.prepare(`SELECT r.player_id pid, r.team_id tid, r.slot slot, p.position pos, p.projected_points proj, p.external_id ext FROM rosters r JOIN players p ON p.id=r.player_id WHERE r.sport=?`).all(sport) as any[]
   const avg = rs.reduce((a, x) => a + (x.proj || 0), 0) / (rs.length || 1)
+  const logStats = db.transaction(() => {
   for (let week = firstLog; week <= played; week++) {
     const games = db.prepare(`SELECT id, home_team_id h, away_team_id a FROM matchups WHERE league_id=? AND sport=? AND week=?`).all(leagueId, sport, week) as any[]
     if (!games.length) continue
     const pts: Record<string, number> = {}
     for (const x of rs) {
-      const stats = generateStatLine(sport, x.pos, (x.proj || avg) / avg)
+      // Real fixture: use the player's real line for this week, or 0 if they had no
+      // game (bye/inactive) — no fabricated stats. No fixture: simulate as before.
+      const realLine = real ? real.weekly[x.ext]?.[String(week)] : undefined
+      if (real && !realLine) { pts[x.pid] = 0; continue }
+      const stats = realLine ?? generateStatLine(sport, x.pos, (x.proj || avg) / avg)
       const pp = scorePlayer(stats, (scoring as any)[sport] || {})
       pts[x.pid] = pp
       insertPGS.run(id(), leagueId, CURRENT_SEASON, week, sport, x.pid, x.tid, JSON.stringify(stats), pp)
@@ -660,6 +676,32 @@ for (const sport of SPORT_LIST) {
     for (const x of rs) if (isStarterSlot(x.slot)) totals[x.tid] = +(((totals[x.tid] || 0) + (pts[x.pid] || 0)).toFixed(1))
     for (const g of games) updMatchup.run(totals[g.h] || 0, totals[g.a] || 0, g.id)
   }
+  })
+  logStats()
+}
+
+// ── Real standings: derive the current season's records from the (now real)
+// matchup results, so wins/points/finish reflect actual play instead of the
+// random seed — and the playoff backfill seeds brackets from real standings.
+{
+  const rows = db.prepare(`SELECT sport, home_team_id h, away_team_id a, home_score hs, away_score as_ FROM matchups WHERE league_id=? AND season=? AND is_complete=1 AND away_team_id IS NOT NULL`).all(leagueId, CURRENT_SEASON) as any[]
+  const agg: Record<string, { w: number; l: number; t: number; pf: number; pa: number }> = {}
+  const bump = (sport: string, tid: string, forPts: number, agPts: number) => {
+    const r = (agg[`${sport}|${tid}`] ??= { w: 0, l: 0, t: 0, pf: 0, pa: 0 })
+    r.pf += forPts; r.pa += agPts
+    if (forPts > agPts) r.w++; else if (forPts < agPts) r.l++; else r.t++
+  }
+  for (const m of rows) { bump(m.sport, m.h, m.hs, m.as_); bump(m.sport, m.a, m.as_, m.hs) }
+  const bySport: Record<string, { tid: string; w: number; l: number; t: number; pf: number; pa: number }[]> = {}
+  for (const k of Object.keys(agg)) { const [sp, tid] = k.split('|'); (bySport[sp] ??= []).push({ tid, ...agg[k] }) }
+  const updRec = db.prepare(`UPDATE team_records SET wins=?, losses=?, ties=?, points_for=?, points_against=?, finish_position=? WHERE league_id=? AND season=? AND sport=? AND team_id=?`)
+  const updStandings = db.transaction(() => {
+    for (const sp of Object.keys(bySport)) {
+      bySport[sp].sort((a, b) => b.w - a.w || b.pf - a.pf)
+        .forEach((r, i) => updRec.run(r.w, r.l, r.t, +r.pf.toFixed(1), +r.pa.toFixed(1), i + 1, leagueId, CURRENT_SEASON, sp, r.tid))
+    }
+  })
+  updStandings()
 }
 
 // ── Reconstruct the inaugural combined dynasty-draft board ──────────────────
