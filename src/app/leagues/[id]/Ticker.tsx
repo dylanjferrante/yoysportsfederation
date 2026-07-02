@@ -111,7 +111,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         <button onClick={() => setHiddenPersist(false)} className="show">Show Wire</button>
         <style jsx>{`
           .wirebar { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; justify-content: center; }
-          .show { color: #fff; opacity: .85; font-size: .68rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: .35rem .8rem; }
+          .show { color: #fff; opacity: .85; font-size: .68rem; font-weight: 400; letter-spacing: .03em; text-transform: uppercase; padding: .35rem .8rem; }
           .show:hover { opacity: 1; }
         `}</style>
       </div>
@@ -195,35 +195,35 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
       <style jsx>{`
         .wrap { position: sticky; top: 3.5rem; z-index: 40; width: 100%; display: flex; align-items: stretch; height: 50px; color: #e2e8f0; overflow: hidden; background: linear-gradient(0deg, rgba(2,6,23,.5), rgba(2,6,23,.5)), var(--lp); font-family: "Bitcount Single", var(--font-score), "punto", ui-monospace, "SFMono-Regular", Menlo, monospace; font-weight: 400; }
-        .wlabel { flex-shrink: 0; display: flex; align-items: center; padding: 0 .95rem; margin-right: 1rem; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
+        .wlabel { flex-shrink: 0; display: flex; align-items: center; padding: 0 .95rem; margin-right: 1rem; font-size: .68rem; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; background: var(--ls); color: var(--lp); }
         .stage { flex: 1; min-width: 0; position: relative; overflow: hidden; display: flex; align-items: stretch; }
         .slide { display: flex; flex-direction: row; align-items: center; gap: 1.3rem; width: 100%; min-width: 0; padding: 0 1.2rem; text-decoration: none; color: #e2e8f0; animation: ledOn .5s ease both; }
         .scoreline { flex-shrink: 0; display: flex; align-items: center; gap: 1.6rem; min-width: 0; white-space: nowrap; }
         .divider { flex-shrink: 0; width: 1px; height: 26px; background: rgba(255,255,255,.2); }
-        .spchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .3rem; font-size: .58rem; font-weight: 800; padding: .1rem .42rem; border-radius: .28rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
+        .spchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .3rem; font-size: .58rem; font-weight: 400; padding: .1rem .42rem; border-radius: .28rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
         .splogo { width: .82rem; height: .82rem; object-fit: contain; border-radius: 2px; }
-        .status { flex-shrink: 0; font-size: .56rem; font-weight: 800; color: #cbd5e1; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
+        .status { flex-shrink: 0; font-size: .56rem; font-weight: 400; color: #cbd5e1; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
         .status.live { color: #f87171; opacity: 1; }
         .side { flex-shrink: 0; display: inline-flex; align-items: center; gap: .55rem; }
         .tlogo { width: 22px; height: 22px; object-fit: contain; border-radius: 3px; flex-shrink: 0; padding: 1.5px; }
-        .tbadge { display: inline-flex; align-items: center; justify-content: center; font-size: .52rem; font-weight: 800; padding: 0; }
+        .tbadge { display: inline-flex; align-items: center; justify-content: center; font-size: .52rem; font-weight: 400; padding: 0; }
         .tcol { display: flex; flex-direction: column; line-height: 1; }
-        .nm { font-size: .86rem; font-weight: 600; color: #cbd5e1; white-space: nowrap; }
-        .nmab { display: none; font-size: .84rem; font-weight: 700; color: #cbd5e1; white-space: nowrap; }
-        .side.win .nm, .side.win .nmab { font-weight: 800; color: #fff; }
-        .sub { font-size: .56rem; font-weight: 600; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 2px; }
-        .sc { flex-shrink: 0; margin-left: .6rem; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 800; letter-spacing: .03em; color: rgba(226,232,240,.55); }
+        .nm { font-size: .86rem; font-weight: 400; color: #cbd5e1; white-space: nowrap; }
+        .nmab { display: none; font-size: .84rem; font-weight: 400; color: #cbd5e1; white-space: nowrap; }
+        .side.win .nm, .side.win .nmab { font-weight: 400; color: #fff; }
+        .sub { font-size: .56rem; font-weight: 400; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 2px; }
+        .sc { flex-shrink: 0; margin-left: .6rem; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 400; letter-spacing: .03em; color: rgba(226,232,240,.55); }
         .side.win .sc { color: var(--ls); }
         .note { flex: 1; min-width: 0; overflow: hidden; }
-        .scroll { display: inline-block; white-space: nowrap; font-size: .82rem; font-weight: 500; color: rgba(238,242,247,.82); will-change: transform; }
+        .scroll { display: inline-block; white-space: nowrap; font-size: .82rem; font-weight: 400; color: rgba(238,242,247,.82); will-change: transform; }
         .slide:hover .scroll { color: #fff; }
         .headline { font-size: .9rem; color: #eef2f7; }
-        .topicchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .45rem; font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); }
+        .topicchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .45rem; font-size: .74rem; font-weight: 400; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); }
         .tbar { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }
         .queue { flex-shrink: 0; display: flex; align-items: center; gap: 1.1rem; padding: 0 1.3rem; border-left: 1px solid rgba(255,255,255,.14); }
         .queue > .qtile { animation: qslide .5s ease; }
-        .upnext { font-size: .55rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.42); white-space: nowrap; }
-        .qtile { display: inline-flex; align-items: center; gap: .42rem; font-size: .76rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: rgba(238,242,247,.8); white-space: nowrap; }
+        .upnext { font-size: .55rem; font-weight: 400; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.42); white-space: nowrap; }
+        .qtile { display: inline-flex; align-items: center; gap: .42rem; font-size: .76rem; font-weight: 400; text-transform: uppercase; letter-spacing: .04em; color: rgba(238,242,247,.8); white-space: nowrap; }
         .qbar { width: 3px; height: 13px; border-radius: 2px; flex-shrink: 0; }
         .hide { flex-shrink: 0; color: rgba(255,255,255,.35); font-size: .8rem; padding: 0 .85rem; border-left: 1px solid rgba(255,255,255,.14); }
         .hide:hover { color: #fff; }

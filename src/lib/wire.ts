@@ -1,7 +1,8 @@
 import { db } from '@/db'
-import { leagues, teams, teamRecords, matchups, leagueHistory, playerGameStats, playerDayStats, players, rosters } from '@/db/schema'
+import { leagues, teams, teamRecords, matchups, leagueHistory, playoffGames, playerGameStats, playerDayStats, players, rosters } from '@/db/schema'
 import { and, eq, inArray, ne } from 'drizzle-orm'
 import { safeParse, sportAbbrLabel, orderedSports } from '@/lib/utils'
+import { seasonAnchor, scheduleWeeks, type ScheduleEntry } from '@/lib/defaults'
 import { computeFederationStandings } from '@/lib/federation'
 import { buildHeadlines } from '@/lib/headlines'
 
@@ -50,6 +51,16 @@ export async function buildWire(leagueId: string): Promise<Wire> {
   const rc = (teamId: string, sp: string) => { const r = recOf(teamId, sp); return `${r?.wins ?? 0}-${r?.losses ?? 0}` }
 
   const ms = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season)))
+
+  // What week is it, really? The ticker keys off the calendar, not matchup state,
+  // so a finished sport (e.g. NFL in July) reads as offseason instead of replaying
+  // its final week. Regular season vs playoffs vs offseason is derived per sport
+  // from the schedule (startWeek..endWeek) plus its playoff rounds (endWeek + round).
+  const schedule = safeParse<ScheduleEntry[]>(league.sportSchedule, [])
+  const maxWk = scheduleWeeks(schedule) || 52
+  const curWeek = Math.min(maxWk, Math.max(1, Math.floor((Date.now() - seasonAnchor(season, league.seasonStart ?? 'FOOTBALL')) / (7 * 86_400_000)) + 1))
+  const poAll = await db.select().from(playoffGames).where(and(eq(playoffGames.leagueId, leagueId), eq(playoffGames.season, season)))
+  const champs = await db.select().from(leagueHistory).where(and(eq(leagueHistory.leagueId, leagueId), eq(leagueHistory.season, season)))
 
   // Current win/loss streak for a club in a sport, from completed games.
   const streakOf = (teamId: string, sp: string) => {
@@ -171,7 +182,15 @@ export async function buildWire(leagueId: string): Promise<Wire> {
     const all = ms.filter(m => m.sport === sp && m.awayTeamId)
     const incomplete = all.filter(m => !m.isComplete)
     const complete = all.filter(m => m.isComplete)
-    const week = incomplete.length ? Math.min(...incomplete.map(m => m.week)) : (complete.length ? Math.max(...complete.map(m => m.week)) : 0)
+    // Where this sport sits in the calendar right now (regular / playoffs / offseason).
+    const entry = schedule.find(s => s.sport === sp)
+    const startWeek = entry?.startWeek ?? 1
+    const regEnd = entry?.endWeek ?? (all.length ? Math.max(...all.map(m => m.week)) : 0)
+    const spPo = poAll.filter(g => g.sport === sp)
+    const poRounds = spPo.length ? Math.max(...spPo.map(g => g.round)) : 0
+    const inRegular = regEnd > 0 && curWeek >= startWeek && curWeek <= regEnd
+    const inPlayoffs = poRounds > 0 && curWeek > regEnd && curWeek <= regEnd + poRounds
+    const week = inRegular ? Math.min(curWeek, regEnd) : (complete.length ? Math.max(...complete.map(m => m.week)) : 0)
     const ranked = recs.filter(r => r.sport === sp).sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.pointsFor ?? 0) - (a.pointsFor ?? 0))
     const rankOf = new Map(ranked.map((r, i) => [r.teamId, i]))
     const pfRank = new Map([...ranked].sort((a, b) => (b.pointsFor ?? 0) - (a.pointsFor ?? 0)).map((r, i) => [r.teamId, i]))
@@ -272,7 +291,9 @@ export async function buildWire(leagueId: string): Promise<Wire> {
     const stand = (id: string) => (rankOf.get(id) ?? -1) + 1
 
     const items: WireItem[] = []
-    for (const g of all.filter(m => m.week === week)) {
+
+    // A regular-season matchup → recap (finished) or preview (upcoming) slide.
+    const emitGame = (g: typeof all[number]) => {
       const a = g.awayTeamId as string, h = g.homeTeamId
       const href = `${base}/matchup/${g.id}`
       const live = !g.isComplete && league.liveScoring && ((g.homeScore ?? 0) > 0 || (g.awayScore ?? 0) > 0)
@@ -288,6 +309,55 @@ export async function buildWire(leagueId: string): Promise<Wire> {
         slides.push({ kind: 'game', id: `g-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status, href, note: story || `${sn(sp)} action`,
           away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, false, stand(a)), home: slideTeam(h as string, sp, g.homeScore ?? 0, g.awayScore ?? 0, false, stand(h as string)) })
       }
+    }
+
+    // A playoff game → seed-labelled recap/preview with a round name.
+    const poLabel = (round: number) => { const fe = poRounds - round; return fe === 0 ? 'Final' : fe === 1 ? 'Semifinal' : fe === 2 ? 'Quarterfinal' : `Round ${round}` }
+    const emitPlayoff = (g: typeof poAll[number]) => {
+      const a = g.awayTeamId, h = g.homeTeamId
+      if (!a || !h) return // bye
+      const href = `${base}/playoffs`, label = poLabel(g.round)
+      if (g.isComplete) {
+        const as = g.awayScore ?? 0, hs = g.homeScore ?? 0
+        const winner = g.winnerTeamId ?? (hs >= as ? h : a)
+        const note = poRounds - g.round === 0 ? `${nm(winner)} win the ${sn(sp)} title` : `${nm(winner)} advance to the ${poRounds - g.round === 1 ? 'final' : 'next round'}`
+        items.push({ id: `po-${g.id}`, text: `${label}: ${nm(a)} ${as.toFixed(1)}, ${nm(h)} ${hs.toFixed(1)} — Final`, href })
+        slides.push({ kind: 'game', id: `po-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status: 'Final', href, note,
+          away: slideTeam(a, sp, as, hs, true, g.awaySeed ?? 0), home: slideTeam(h, sp, hs, as, true, g.homeSeed ?? 0) })
+      } else {
+        const note = `${label} — ${ab(a)} (#${g.awaySeed ?? '?'}) vs ${ab(h)} (#${g.homeSeed ?? '?'})`
+        items.push({ id: `po-${g.id}`, text: `${label}: ${nm(a)} vs ${nm(h)}`, href })
+        slides.push({ kind: 'game', id: `po-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status: 'PRE', href, note,
+          away: slideTeam(a, sp, 0, 0, false, g.awaySeed ?? 0), home: slideTeam(h, sp, 0, 0, false, g.homeSeed ?? 0) })
+      }
+    }
+
+    if (inRegular) {
+      // Current + prior week's games (recaps for the completed prior week, live/
+      // preview for the current one), oldest first.
+      const weeks = curWeek - 1 >= startWeek ? [curWeek - 1, curWeek] : [curWeek]
+      for (const g of all.filter(m => weeks.includes(m.week)).sort((x, y) => x.week - y.week)) emitGame(g)
+    } else if (inPlayoffs) {
+      // Current + prior playoff round.
+      const curRound = curWeek - regEnd
+      const rounds = curRound - 1 >= 1 ? [curRound - 1, curRound] : [curRound]
+      for (const g of spPo.filter(g => rounds.includes(g.round)).sort((x, y) => x.round - y.round || x.matchIndex - y.matchIndex)) emitPlayoff(g)
+    } else {
+      // Offseason: crown recap + a forward-looking storyline, no stale scores.
+      const champ = champs.find(c => c.scope === sp)
+      if (champ?.championTeamId) {
+        const rn = nm(champ.runnerUpTeamId)
+        const text = `${nm(champ.championTeamId)} are the ${sn(sp)} champions${rn !== 'A club' ? `, beating ${rn} in the final` : ''} — ${sn(sp)} is now in the offseason`
+        items.push({ id: `champ-${sp}`, text, href: `${base}/sports/${sp}` })
+        slides.push({ kind: 'news', id: `champ-${sp}`, topic: sn(sp), sport: sp, text, href: `${base}/sports/${sp}` })
+      }
+      const leader = ranked[0]
+      // Forward-looking line — a different angle when the champ already tops the table.
+      const text = leader && leader.teamId !== champ?.championTeamId
+        ? `${sn(sp)} offseason: ${nm(leader.teamId)} (${leader.wins ?? 0}-${leader.losses ?? 0}) headline the early favorites for next season`
+        : `${sn(sp)} offseason underway — attention turns to the rookie draft and next season`
+      items.push({ id: `off-${sp}`, text, href: `${base}/sports/${sp}` })
+      slides.push({ kind: 'news', id: `off-${sp}`, topic: sn(sp), sport: sp, text, href: `${base}/sports/${sp}` })
     }
     if (!items.length) {
       const leader = ranked[0]
