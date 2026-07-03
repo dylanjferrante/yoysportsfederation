@@ -206,7 +206,12 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   const post = (payload: any) => fetch(`/api/teams/${id}/roster`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
   async function assign(rosterId: string, slot: string, displaceRosterId?: string) {
     const d = dayMap ? { date: lineupDate } : {}
-    if (displaceRosterId && displaceRosterId !== rosterId) await post({ action: 'SET_SLOT', rosterId: displaceRosterId, slot: 'BN', ...d })
+    if (displaceRosterId && displaceRosterId !== rosterId) {
+      // Bench the displaced player first; abort the whole move if that's rejected
+      // (e.g. a full bench with roster overflow disabled), so nobody double-fills a slot.
+      const dr = await post({ action: 'SET_SLOT', rosterId: displaceRosterId, slot: 'BN', ...d })
+      if (!dr.ok) { const e = await dr.json().catch(() => ({})); if (e?.error) alert(e.error); setSel(null); return }
+    }
     const r = await post({ action: 'SET_SLOT', rosterId, slot, ...d })
     if (!r.ok) { const e = await r.json().catch(() => ({})); if (e?.error) alert(e.error) }
     setSel(null); load()

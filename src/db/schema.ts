@@ -120,6 +120,8 @@ export const leagues = sqliteTable('leagues', {
   sideGames: text('side_games').default('{"highScore":true,"survivor":true,"pickem":true}'), // which side games are enabled
   keeperEnabled: integer('keeper_enabled', { mode: 'boolean' }).default(false),
   keeperCount: integer('keeper_count').default(0),
+  allowRosterOverflow: integer('allow_roster_overflow', { mode: 'boolean' }).default(false), // let a reserve area exceed its slot limit
+
   lockDay: integer('lock_day').default(0),
 
   // Playoffs

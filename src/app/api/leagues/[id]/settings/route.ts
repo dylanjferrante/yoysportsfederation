@@ -70,7 +70,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'playoffTeams', 'playoffStartWeek', 'regularSeasonWeeks', 'playoffRounds', 'playoffFormat', 'weeksPerRound', 'playoffReseed', 'consolationBracket', 'losersBracket', 'playoffTiebreaker', 'consolationTeams', 'losersTeams', 'losersAdvance', 'positionLimits', 'mlbSpCap',
     'waiverPeriodDays',
     'duesAmount', 'divisions', 'divisionNames', 'sportNames', 'sportAbbr', 'championshipNames', 'championshipLogos', 'breakWeeks',
-    'keeperEnabled', 'keeperCount', 'salaryCapEnabled', 'salaryCap', 'capMode',
+    'keeperEnabled', 'keeperCount', 'salaryCapEnabled', 'salaryCap', 'capMode', 'allowRosterOverflow',
     'abbreviation', 'timezone', 'sideGames',
     'primaryColor', 'secondaryColor', 'championshipColors',
     'logoSecondary', 'wordmark', 'divisionLogosAlt', 'divisionWordmarks',

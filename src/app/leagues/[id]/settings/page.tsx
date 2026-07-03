@@ -168,7 +168,7 @@ function SettingsInner() {
         duesAmount: form.duesAmount, logoUrl: form.logoUrl, logoSecondary: form.logoSecondary, wordmark: form.wordmark, seasonStart: form.seasonStart,
         primaryColor: form.primaryColor, secondaryColor: form.secondaryColor, championshipColors: champColors,
         divisions: form.divisions, divisionNames, sportNames, sportAbbr, championshipNames: champNames, championshipLogos: champLogos, breakWeeks,
-        sportsEnabled, divisionLogos, divisionLogoBg, divisionLogosAlt, divisionWordmarks, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap,
+        sportsEnabled, divisionLogos, divisionLogoBg, divisionLogosAlt, divisionWordmarks, rosterSettings: rosterObj, scoringSettings: scoringObj, positionLimits: posLimits, mlbSpCap: form.mlbSpCap, allowRosterOverflow: form.allowRosterOverflow,
         draftRounds: draftRoundsObj, federationScoring: fed,
         draftType: form.draftType, draftOrderMethod: form.draftOrderMethod, secondsPerPick: form.secondsPerPick, autoPickEnabled: form.autoPickEnabled, auctionBudget: form.auctionBudget,
         rookieDraftMode: form.rookieDraftMode, rookieDraftRounds: rookieRoundsObj,
@@ -827,6 +827,15 @@ function SettingsInner() {
                   )
                 })}
               </div>
+            </div>
+
+            {/* Roster overflow */}
+            <div className="border-t border-slate-100 pt-4">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={!!form.allowRosterOverflow} onChange={e => set('allowRosterOverflow', e.target.checked)} />
+                <span className="font-semibold text-slate-900">Allow roster overflow</span>
+              </label>
+              <p className="text-xs text-slate-500 mt-1">When on, a club may exceed a reserve area&apos;s limit — e.g. swapping an IR/taxi player into the lineup pushes the displaced starter onto an already-full bench. When off, moves that would overflow the bench, taxi, or IR are blocked.</p>
             </div>
 
             {/* Salary cap */}
