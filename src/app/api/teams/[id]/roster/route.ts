@@ -171,6 +171,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (body.slot === 'TAXI' && (league?.taxiEligibility ?? 'ALL') === 'ROOKIES' && !row.isRookie) {
       return NextResponse.json({ error: 'Only rookies may be placed on the taxi squad in this league' }, { status: 400 })
     }
+    // Reserve-area capacity: unless the league allows roster overflow, a standing
+    // move into a full bench / taxi / IR is blocked (e.g. a displaced starter with
+    // no open reserve spot). Daily-lineup overrides aren't standing-roster changes.
+    const RESERVE_AREAS = ['BN', 'IR', 'IL', 'DL', 'TAXI']
+    if (!body.date && RESERVE_AREAS.includes(body.slot) && row.slot !== body.slot && !league?.allowRosterOverflow) {
+      const cfg = safeParse<Record<string, Record<string, number>>>(league?.rosterSettings, {})[row.sport] ?? {}
+      const areaKeys = body.slot === 'BN' ? ['BN'] : body.slot === 'TAXI' ? ['TAXI'] : ['IR', 'IL', 'DL']
+      const limit = areaKeys.reduce((a, k) => a + (cfg[k] ?? 0), 0)
+      if (limit > 0) {
+        const occupants = await db.select({ id: rosters.id }).from(rosters)
+          .where(and(eq(rosters.teamId, id), eq(rosters.sport, row.sport), inArray(rosters.slot, areaKeys)))
+        if (occupants.filter(o => o.id !== body.rosterId).length + 1 > limit) {
+          const label = body.slot === 'BN' ? 'bench' : body.slot === 'TAXI' ? 'taxi squad' : 'IR'
+          return NextResponse.json({ error: `The ${label} is full (${limit}). Enable roster overflow in settings, or drop a player.` }, { status: 400 })
+        }
+      }
+    }
     const cadence = lineupCadenceFor(safeParse<Record<string, string>>(league?.lineupCadence, {}), row.sport)
     if (body.date && cadence === 'DAILY') {
       await db.insert(dailyLineups)
