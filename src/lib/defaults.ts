@@ -72,7 +72,7 @@ export function nflRosterFor(mode: DefenseMode): Record<string, number> {
 const NFL_DST_KEYS = [
   'sack', 'interception', 'fumbleRecovery', 'defensiveTD', 'specialTeamsTD', 'safeties', 'blockedKick',
   'ptsAllowed0', 'ptsAllowed1_6', 'ptsAllowed7_13', 'ptsAllowed14_20', 'ptsAllowed21_27', 'ptsAllowed28_34', 'ptsAllowed35plus',
-  'yardsAllowedUnder100', 'yardsAllowed100_199', 'yardsAllowed350_399', 'yardsAllowed400plus',
+  'yardsAllowedUnder100', 'yardsAllowed100_199', 'yardsAllowed200_299', 'yardsAllowed300_349', 'yardsAllowed350_399', 'yardsAllowed400plus',
 ]
 // Individual-defender scoring (used in IDP mode).
 export const IDP_SCORING: Record<string, number> = {
@@ -195,6 +195,8 @@ export const DEFAULT_SCORING: Record<string, ScoringSettings> = {
     ptsAllowed35plus: -4,
     yardsAllowedUnder100: 5,
     yardsAllowed100_199: 3,
+    yardsAllowed200_299: 1,
+    yardsAllowed300_349: 0,
     yardsAllowed350_399: -1,
     yardsAllowed400plus: -3,
   },

@@ -55,6 +55,8 @@ export const SCORING_CATEGORIES: Record<string, Record<string, StatMeta>> = {
     ptsAllowed35plus:    { label: 'Points Allowed 35+', group: 'Defense / ST' },
     yardsAllowedUnder100:{ label: 'Yards Allowed <100', group: 'Defense / ST' },
     yardsAllowed100_199: { label: 'Yards Allowed 100-199', group: 'Defense / ST' },
+    yardsAllowed200_299: { label: 'Yards Allowed 200-299', group: 'Defense / ST' },
+    yardsAllowed300_349: { label: 'Yards Allowed 300-349', group: 'Defense / ST' },
     yardsAllowed350_399: { label: 'Yards Allowed 350-399', group: 'Defense / ST' },
     yardsAllowed400plus: { label: 'Yards Allowed 400+', group: 'Defense / ST' },
     // IDP (individual defenders) — used when defense mode is IDP.

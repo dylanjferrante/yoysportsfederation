@@ -262,12 +262,10 @@ function mapNFLDST(dst: any): Record<string, number> {
   const pa = num(dst.ptsAllowed)
   out[pa === 0 ? 'ptsAllowed0' : pa <= 6 ? 'ptsAllowed1_6' : pa <= 13 ? 'ptsAllowed7_13'
     : pa <= 20 ? 'ptsAllowed14_20' : pa <= 27 ? 'ptsAllowed21_27' : pa <= 34 ? 'ptsAllowed28_34' : 'ptsAllowed35plus'] = 1
-  // Yards allowed → only the four scored buckets (200–349 is the neutral middle).
+  // Yards allowed → exactly one tier (a team plays once per fantasy week).
   const ya = num(dst.ydsAllowed)
-  if (ya < 100) out.yardsAllowedUnder100 = 1
-  else if (ya < 200) out.yardsAllowed100_199 = 1
-  else if (ya >= 400) out.yardsAllowed400plus = 1
-  else if (ya >= 350) out.yardsAllowed350_399 = 1
+  out[ya < 100 ? 'yardsAllowedUnder100' : ya < 200 ? 'yardsAllowed100_199' : ya < 300 ? 'yardsAllowed200_299'
+    : ya < 350 ? 'yardsAllowed300_349' : ya < 400 ? 'yardsAllowed350_399' : 'yardsAllowed400plus'] = 1
   return out
 }
 
