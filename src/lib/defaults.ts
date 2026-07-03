@@ -4,11 +4,14 @@ export type ScoringSettings = Record<string, number>
 export const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB'] as const
 export type Sport = (typeof SPORTS)[number]
 
+// Defaults align to ESPN's standard leagues: NFL is exactly ESPN standard
+// (QB, 2RB, 2WR, TE, FLEX, D/ST, K, 7 bench); the others follow ESPN's shape
+// with the flex-heavy tweaks requested (hockey UTIL flex, 6 MLB SP).
 export const DEFAULT_ROSTER: Record<string, RosterSettings> = {
-  NFL: { QB: 1, RB: 2, WR: 3, TE: 1, 'RB/WR/TE': 1, K: 1, DEF: 1, BN: 7, IR: 2, TAXI: 3 },
-  NBA: { PG: 1, SG: 1, SF: 1, PF: 1, C: 1, G: 1, F: 1, UTIL: 1, BN: 4, IR: 2, TAXI: 3 },
-  NHL: { C: 2, LW: 2, RW: 2, D: 4, G: 2, UTIL: 1, BN: 4, IR: 2, TAXI: 3 },
-  MLB: { C: 1, '1B': 1, '2B': 1, '3B': 1, SS: 1, OF: 3, UTIL: 1, SP: 4, RP: 2, BN: 5, IR: 2, TAXI: 3 },
+  NFL: { QB: 1, RB: 2, WR: 2, TE: 1, 'RB/WR/TE': 1, K: 1, DEF: 1, BN: 7, IR: 2, TAXI: 3 },
+  NBA: { PG: 1, SG: 1, SF: 1, PF: 1, C: 1, G: 1, F: 1, UTIL: 3, BN: 3, IR: 2, TAXI: 3 },
+  NHL: { C: 2, LW: 2, RW: 2, D: 4, UTIL: 4, G: 2, BN: 4, IR: 2, TAXI: 3 },
+  MLB: { C: 1, '1B': 1, '2B': 1, '3B': 1, SS: 1, OF: 3, UTIL: 1, SP: 6, RP: 2, BN: 5, IR: 2, TAXI: 3 },
 }
 
 // Bench/reserve slot keys (not in the active scoring lineup).
@@ -50,6 +53,7 @@ export function slotEligible(position: string, slot: string): boolean {
   if (slot === position) return true                  // exact position
   if (slot.includes('/')) return slot.split('/').includes(position) // flex e.g. RB/WR/TE
   if (slot === 'UTIL') return true                    // utility takes any
+  if (slot === 'SUPERFLEX' || slot === 'SFLEX' || slot === 'OP') return ['QB', 'RB', 'WR', 'TE'].includes(position) // superflex incl. QB
   if (slot === 'G') return ['PG', 'SG'].includes(position)
   if (slot === 'F') return ['SF', 'PF'].includes(position)
   if (IDP_SLOT_POSITIONS[slot]) return IDP_SLOT_POSITIONS[slot].includes(position)
@@ -60,7 +64,7 @@ export function slotEligible(position: string, slot: string): boolean {
 // ── NFL defense mode: team defense (DST) vs individual defenders (IDP) ────────
 export type DefenseMode = 'TEAM' | 'IDP'
 // Roster's defensive slots differ by mode; offense is identical.
-const NFL_OFFENSE_SLOTS = { QB: 1, RB: 2, WR: 3, TE: 1, 'RB/WR/TE': 1, K: 1 }
+const NFL_OFFENSE_SLOTS = { QB: 1, RB: 2, WR: 2, TE: 1, 'RB/WR/TE': 1, K: 1 }
 const NFL_BENCH_SLOTS = { BN: 7, IR: 2, TAXI: 3 }
 export function nflRosterFor(mode: DefenseMode): Record<string, number> {
   return mode === 'IDP'
