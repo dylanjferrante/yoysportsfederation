@@ -8,6 +8,9 @@ type SlideTeam = { name: string; abbr: string; logo: string | null; primary: str
 type GameSlide = { kind: 'game'; id: string; sport: string; sportName: string; sportLogo: string | null; status: 'Final' | 'LIVE' | 'PRE'; away: SlideTeam; home: SlideTeam; note: string; href: string }
 type NewsSlide = { kind: 'news'; id: string; topic: string; sport?: string; text: string; href: string }
 type Slide = GameSlide | NewsSlide
+// All league headlines collapse into one crawling line; game scores stay separate.
+type NewsLine = { kind: 'newsline'; id: string; items: NewsSlide[] }
+type DeckItem = GameSlide | NewsLine
 
 type Snapshot = { slides: Slide[]; idx: number }
 const tickerCache = new Map<string, Snapshot>()
@@ -42,66 +45,80 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
   }, [leagueId])
 
   useEffect(() => { const c = tickerCache.get(leagueId); if (c) tickerCache.set(leagueId, { ...c, idx }) }, [leagueId, idx])
-  useEffect(() => { if (slides.length && idx >= slides.length) setIdx(0) }, [slides.length]) // eslint-disable-line
 
-  // Advance one slide at a time. If the slide's copy is too long to fit, scroll
-  // it like a ticker and only advance once it has read all the way through;
-  // otherwise hold for a fixed beat. Pause on hover throughout.
+  // Deck: game scores stay individual (in the wire's sport-priority order); every
+  // league headline is merged into a single crawling line placed at the end.
+  const deck = useMemo<DeckItem[]>(() => {
+    const games = slides.filter((s): s is GameSlide => s.kind === 'game')
+    const news = slides.filter((s): s is NewsSlide => s.kind === 'news')
+    const d: DeckItem[] = [...games]
+    if (news.length) d.push({ kind: 'newsline', id: 'newsline', items: news })
+    return d
+  }, [slides])
+  useEffect(() => { if (deck.length && idx >= deck.length) setIdx(0) }, [deck.length]) // eslint-disable-line
+
+  // Timing per slide: it stays up at least MIN ms. If the copy fits, it just holds
+  // (no scroll). If it overflows, it holds a beat, then scrolls right-to-left until
+  // the last word clears the left edge before advancing. Pause on hover throughout.
   useEffect(() => {
-    if (hidden || slides.length <= 1) return
-    const advance = () => setIdx(i => (i + 1) % slides.length)
+    if (hidden || deck.length <= 1) return
+    const MIN = 4500       // min ms a score/headline is shown
+    const HOLD = 1500      // still beat before an overflowing line starts scrolling
+    const SPEED = 70       // px/sec scroll speed
+    const advance = () => setIdx(i => (i + 1) % deck.length)
     const txt0 = scrollTxtRef.current
     if (txt0) txt0.style.transform = 'translateX(0)'
     let raf = 0, timer = 0, measure = 0
-    const advanceFixed = () => {
-      const tick = () => { if (hoverRef.current) { timer = window.setTimeout(tick, 700); return } advance() }
-      timer = window.setTimeout(tick, 6000)
-    }
-    // Measure a frame later so the flex row has its final widths; only scroll
-    // when the copy genuinely overflows the space it's given.
     measure = requestAnimationFrame(() => {
       const wrap = scrollWrapRef.current, txt = scrollTxtRef.current
       const overflow = wrap && txt ? txt.scrollWidth - wrap.clientWidth : 0
-      if (!wrap || !txt || overflow <= 16) { advanceFixed(); return }
-      const SPEED = 46 // px/sec
-      let last = 0, offset = 0, lead = 1000, done = false
+      // Fits (or no copy): hold for the minimum, then advance — no scrolling.
+      if (!wrap || !txt || overflow <= 4) {
+        const tick = () => { if (hoverRef.current) { timer = window.setTimeout(tick, 700); return } advance() }
+        timer = window.setTimeout(tick, MIN)
+        return
+      }
+      // Overflows: scroll until the whole line (its last word included) clears the left edge.
+      const rollOff = txt.scrollWidth + Math.max(0, txt.offsetLeft - wrap.offsetLeft)
+      const scrollMs = (rollOff / SPEED) * 1000
+      let last = 0, offset = 0, lead = Math.max(HOLD, MIN - scrollMs - 250), done = false
       const step = (t: number) => {
         if (!last) last = t
         const dt = t - last; last = t
         if (hoverRef.current) { raf = requestAnimationFrame(step); return }
-        if (lead > 0) { lead -= dt; raf = requestAnimationFrame(step); return }
+        if (lead > 0) { lead -= dt; raf = requestAnimationFrame(step); return }   // initial still hold
         offset += SPEED * dt / 1000
-        if (offset >= overflow) { txt.style.transform = `translateX(${-overflow}px)`; if (!done) { done = true; timer = window.setTimeout(advance, 1400) } return }
+        if (offset >= rollOff) { txt.style.transform = `translateX(${-rollOff}px)`; if (!done) { done = true; timer = window.setTimeout(advance, 250) } return }
         txt.style.transform = `translateX(${-offset}px)`
         raf = requestAnimationFrame(step)
       }
       raf = requestAnimationFrame(step)
     })
     return () => { cancelAnimationFrame(raf); cancelAnimationFrame(measure); clearTimeout(timer); const t = scrollTxtRef.current; if (t) t.style.transform = 'translateX(0)' }
-  }, [idx, slides, hidden])
+  }, [idx, deck, hidden])
 
   // Each slide belongs to a topic (a sport, or a news category). "Up Next"
   // shows the next distinct topics coming down the deck.
-  const topicMeta = (s: Slide) => s.kind === 'game'
+  const topicMeta = (s: DeckItem) => s.kind === 'game'
     ? { label: s.sportName, hex: sportMeta(s.sport).hex }
-    : { label: s.topic, hex: s.sport ? sportMeta(s.sport).hex : secondary }
+    : { label: 'Headlines', hex: secondary }
 
   const upNext = useMemo(() => {
-    if (slides.length <= 1) return [] as { label: string; hex: string }[]
-    const cur = topicMeta(slides[idx % slides.length]).label
+    if (deck.length <= 1) return [] as { label: string; hex: string }[]
+    const cur = topicMeta(deck[idx % deck.length]).label
     const out: { label: string; hex: string }[] = []
     const seen = new Set([cur])
-    for (let k = 1; k <= slides.length && out.length < 3; k++) {
-      const m = topicMeta(slides[(idx + k) % slides.length])
+    for (let k = 1; k <= deck.length && out.length < 3; k++) {
+      const m = topicMeta(deck[(idx + k) % deck.length])
       if (seen.has(m.label)) continue
       seen.add(m.label); out.push(m)
     }
     return out
-  }, [slides, idx, secondary]) // eslint-disable-line
+  }, [deck, idx, secondary]) // eslint-disable-line
 
   const setHiddenPersist = (v: boolean) => { setHidden(v); try { localStorage.setItem('nf_wire_hidden', v ? '1' : '0') } catch {} }
 
-  const slide = slides.length ? slides[idx % slides.length] : null
+  const slide = deck.length ? deck[idx % deck.length] : null
 
   if (!ready) return null
 
@@ -164,18 +181,22 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
           </div>
           </Link>
         ) : (
-          <Link href={slide.href} key={slide.id} style={{ display: 'flex', flex: 1, minWidth: 0, alignItems: 'stretch', textDecoration: 'none' }}>
-          <div className="slide news">
+          <div className="slide news" key={slide.id} style={{ display: 'flex', flex: 1, minWidth: 0, alignItems: 'stretch' }}>
             <div className="scoreline">
-              <span className="topicchip">
-                <span className="tbar" style={{ background: slide.sport ? sportMeta(slide.sport).hex : secondary }} />
-                {slide.topic}
-              </span>
+              <span className="topicchip"><span className="tbar" style={{ background: secondary }} />Headlines</span>
             </div>
             <span className="divider" />
-            <span className="note" ref={scrollWrapRef}><span className="scroll headline" ref={scrollTxtRef}>{slide.text}</span></span>
+            <span className="note" ref={scrollWrapRef}>
+              <span className="scroll headline" ref={scrollTxtRef}>
+                {slide.items.map((it, i) => (
+                  <span key={it.id}>
+                    {i > 0 && <span className="hdivider">·</span>}
+                    <Link href={it.href} className="hlink">{it.text}</Link>
+                  </span>
+                ))}
+              </span>
+            </span>
           </div>
-          </Link>
         )}
       </div>
 
@@ -217,6 +238,9 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .note { flex: 1; min-width: 0; overflow: hidden; }
         .scroll { display: inline-block; white-space: nowrap; font-size: .82rem; font-weight: 400; color: rgba(238,242,247,.82); will-change: transform; }
         .slide:hover .scroll { color: #fff; }
+        .hlink { color: inherit; text-decoration: none; }
+        .hlink:hover { color: #fff; text-decoration: underline; }
+        .hdivider { display: inline-block; margin: 0 14px; color: var(--ls); opacity: .8; }
         .headline { font-size: .9rem; color: #eef2f7; }
         .topicchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: .45rem; font-size: .74rem; font-weight: 400; text-transform: uppercase; letter-spacing: .05em; color: var(--ls); }
         .tbar { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }

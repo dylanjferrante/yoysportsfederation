@@ -186,19 +186,46 @@ export async function buildWire(leagueId: string): Promise<Wire> {
   const topics: WireTopic[] = []
   const slides: WireSlide[] = []
 
-  // ── One topic per sport: this week's games, records, storylines ─────────────
-  for (const sp of sportsEnabled) {
+  // Upcoming drafts (kept out of COMPLETED). Folded into each sport's own topic;
+  // the federation (OVERALL) draft gets its own topic after the loop.
+  const upcomingDrafts = (await db.select().from(drafts).where(and(eq(drafts.leagueId, leagueId), ne(drafts.status, 'COMPLETED')))).filter(d => d.startsAt)
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const draftText = (dr: typeof upcomingDrafts[number]): string | null => {
+    const perSport = !!dr.scope && dr.scope !== 'OVERALL'
+    const order = perSport
+      ? recs.filter(r => r.sport === dr.scope).sort((a, b) => (b.finishPosition ?? 99) - (a.finishPosition ?? 99)).map(r => r.teamId)
+      : [...computeFederationStandings(teamRows.map(t => ({ id: t.id })), recs.map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: r.isChampion })), safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sportsEnabled }), sportsEnabled)].reverse().map(s => s.team.id)
+    if (!order.length) return null
+    const label = perSport ? `${sn(dr.scope!)} rookie` : 'federation'
+    const top = order.slice(0, 3).map((id, i) => `${ab(id)} (${i + 1})`).join(', ')
+    return `Upcoming ${label} draft ${fmtDate(dr.startsAt!)} — ${nm(order[0])} on the clock at #1${top ? ` · order: ${top}` : ''}`
+  }
+
+  // ── Sport order: active first, then finished within the last 2 weeks, then
+  // upcoming (by start week), then long-finished. Playoffs count as active. ────
+  const spInfo = sportsEnabled.map(sp => {
     const all = ms.filter(m => m.sport === sp && m.awayTeamId)
-    const incomplete = all.filter(m => !m.isComplete)
-    const complete = all.filter(m => m.isComplete)
-    // Where this sport sits in the calendar right now (regular / playoffs / offseason).
     const entry = schedule.find(s => s.sport === sp)
     const startWeek = entry?.startWeek ?? 1
     const regEnd = entry?.endWeek ?? (all.length ? Math.max(...all.map(m => m.week)) : 0)
     const spPo = poAll.filter(g => g.sport === sp)
     const poRounds = spPo.length ? Math.max(...spPo.map(g => g.round)) : 0
+    const endAll = regEnd + poRounds
     const inRegular = regEnd > 0 && curWeek >= startWeek && curWeek <= regEnd
-    const inPlayoffs = poRounds > 0 && curWeek > regEnd && curWeek <= regEnd + poRounds
+    const inPlayoffs = poRounds > 0 && curWeek > regEnd && curWeek <= endAll
+    const sinceEnd = curWeek - endAll
+    const [priority, sortKey]: [number, number] = (inRegular || inPlayoffs) ? [0, startWeek]
+      : (sinceEnd > 0 && sinceEnd <= 2) ? [1, sinceEnd]
+      : (startWeek > curWeek) ? [2, startWeek]
+      : [3, sinceEnd]
+    return { sp, all, startWeek, regEnd, spPo, poRounds, inRegular, inPlayoffs, priority, sortKey }
+  }).sort((a, b) => a.priority - b.priority || a.sortKey - b.sortKey)
+
+  // ── One topic per sport: this week's games, records, storylines ─────────────
+  for (const info of spInfo) {
+    const { sp, all, startWeek, regEnd, spPo, poRounds, inRegular, inPlayoffs } = info
+    const incomplete = all.filter(m => !m.isComplete)
+    const complete = all.filter(m => m.isComplete)
     const week = inRegular ? Math.min(curWeek, regEnd) : (complete.length ? Math.max(...complete.map(m => m.week)) : 0)
     const ranked = recs.filter(r => r.sport === sp).sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.pointsFor ?? 0) - (a.pointsFor ?? 0))
     const rankOf = new Map(ranked.map((r, i) => [r.teamId, i]))
@@ -305,7 +332,9 @@ export async function buildWire(leagueId: string): Promise<Wire> {
     const emitGame = (g: typeof all[number]) => {
       const a = g.awayTeamId as string, h = g.homeTeamId
       const href = `${base}/matchup/${g.id}`
-      const live = !g.isComplete && league.liveScoring && ((g.homeScore ?? 0) > 0 || (g.awayScore ?? 0) > 0)
+      // The current week is being played right now — show it live (with its running
+      // score), not as "Upcoming". Past weeks are Final; genuinely future weeks are Pre.
+      const live = !g.isComplete && (g.week === curWeek || (league.liveScoring && ((g.homeScore ?? 0) > 0 || (g.awayScore ?? 0) > 0)))
       const status: 'Final' | 'LIVE' | 'PRE' = g.isComplete ? 'Final' : live ? 'LIVE' : 'PRE'
       if (g.isComplete) {
         const flav = flavorDone(a, h, g.awayScore ?? 0, g.homeScore ?? 0)
@@ -314,8 +343,8 @@ export async function buildWire(leagueId: string): Promise<Wire> {
           away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, true, stand(a)), home: slideTeam(h as string, sp, g.homeScore ?? 0, g.awayScore ?? 0, true, stand(h as string)) })
       } else {
         const story = storyFor(a, h)
-        items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) vs ${nm(h)} (${rc(h, sp)})${story ? ` · ${story}` : ''}`, href })
-        slides.push({ kind: 'game', id: `g-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status, href, note: story || `${sn(sp)} action`,
+        items.push({ id: `g-${g.id}`, text: `${nm(a)} (${rc(a, sp)}) ${status === 'LIVE' ? `${(g.awayScore ?? 0).toFixed(1)}, ${nm(h)} (${rc(h, sp)}) ${(g.homeScore ?? 0).toFixed(1)} — in progress` : `vs ${nm(h)} (${rc(h, sp)})`}${story ? ` · ${story}` : ''}`, href })
+        slides.push({ kind: 'game', id: `g-${g.id}`, sport: sp, sportName: sn(sp), sportLogo: spLogo(sp), status, href, note: status === 'LIVE' ? (story ? `In progress — ${story}` : 'In progress') : (story || `${sn(sp)} action`),
           away: slideTeam(a, sp, g.awayScore ?? 0, g.homeScore ?? 0, false, stand(a)), home: slideTeam(h as string, sp, g.homeScore ?? 0, g.awayScore ?? 0, false, stand(h as string)) })
       }
     }
@@ -374,30 +403,16 @@ export async function buildWire(leagueId: string): Promise<Wire> {
         ? { id: `lead-${sp}`, text: `${nm(leader.teamId)} leads the ${sn(sp)} at ${leader.wins ?? 0}-${leader.losses ?? 0}`, href: `${base}/sports/${sp}` }
         : { id: `soon-${sp}`, text: `${sn(sp)} season is on the way`, href: `${base}/sports/${sp}` })
     }
+    // This sport's upcoming rookie draft, folded into the sport's own topic.
+    const spDraft = upcomingDrafts.find(d => d.scope === sp)
+    if (spDraft) { const dt = draftText(spDraft); if (dt) { items.push({ id: `draft-${spDraft.id}`, text: dt, href: `${base}/draft` }); slides.push({ kind: 'news', id: `draft-${spDraft.id}`, topic: sn(sp), sport: sp, text: dt, href: `${base}/draft` }) } }
     topics.push({ key: sp, title: sn(sp), sport: sp, items })
   }
 
-  // ── Upcoming drafts: date + the order (reverse standings, worst picks first) ──
-  const upcoming = await db.select().from(drafts).where(and(eq(drafts.leagueId, leagueId), ne(drafts.status, 'COMPLETED')))
-  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  for (const dr of upcoming.filter(d => d.startsAt).sort((a, b) => (a.startsAt! < b.startsAt! ? -1 : 1))) {
-    const scope = dr.scope
-    const perSport = !!scope && scope !== 'OVERALL'
-    const order = perSport
-      ? recs.filter(r => r.sport === scope).sort((a, b) => (b.finishPosition ?? 99) - (a.finishPosition ?? 99)).map(r => r.teamId)
-      : [...computeFederationStandings(
-          teamRows.map(t => ({ id: t.id })),
-          recs.map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: r.isChampion })),
-          safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sportsEnabled }), sportsEnabled,
-        )].reverse().map(s => s.team.id)
-    if (!order.length) continue
-    const label = perSport ? `${sn(scope!)} rookie` : 'rookie'
-    const top = order.slice(0, 3).map((id, i) => `${ab(id)} (${i + 1})`).join(', ')
-    const text = `Upcoming ${label} draft ${fmtDate(dr.startsAt!)} — ${nm(order[0])} on the clock at #1${top ? ` · order: ${top}` : ''}`
-    const href = `${base}/draft`
-    topics.push({ key: `draft-${dr.id}`, title: 'Draft', sport: perSport ? scope! : undefined, items: [{ id: `draft-${dr.id}`, text, href }] })
-    slides.push({ kind: 'news', id: `draft-${dr.id}`, topic: 'Draft', sport: perSport ? scope! : undefined, text, href })
-  }
+  // Federation (OVERALL) draft — its own topic, if upcoming. (Per-sport rookie
+  // drafts are folded into each sport's own topic in the loop above.)
+  const fedDraft = upcomingDrafts.find(d => !d.scope || d.scope === 'OVERALL')
+  if (fedDraft) { const dt = draftText(fedDraft); if (dt) { topics.push({ key: `draft-${fedDraft.id}`, title: 'Draft', items: [{ id: `draft-${fedDraft.id}`, text: dt, href: `${base}/draft` }] }); slides.push({ kind: 'news', id: `draft-${fedDraft.id}`, topic: 'Draft', text: dt, href: `${base}/draft` }) } }
 
   // Reuse the rich headline generators for the non-game topics.
   const headlines = await buildHeadlines(leagueId)
@@ -409,14 +424,17 @@ export async function buildWire(leagueId: string): Promise<Wire> {
   if (fedItems.length) { topics.push({ key: 'FEDCUP', title: 'Federation Cup Race', items: fedItems }); slides.push(...toSlides('Federation Cup Race', fedItems)) }
 
   // ── Breaking News ───────────────────────────────────────────────────────────
+  // Breaking = recent only. Anything more than 2 weeks old is no longer breaking.
+  const breakingCutoff = Date.now() - 14 * 86_400_000
   const breaking: WireItem[] = []
   breaking.push(...toItems(headlines.filter(h =>
-    h.category === 'CHAMPION' || h.category === 'PLAYOFF'
-    // Only elite, rare feats reach Breaking News — routine milestones (a 4-hit
-    // night, a double-double, 300 passing yards) stay in their sport topic.
-    || (h.category === 'MILESTONE' && (h.priority ?? 0) >= 60)
-    || (h.category === 'STANDINGS' && /clinch|eliminat/i.test(h.text))
-    || (h.category === 'SUPERLATIVE' && /season high/i.test(h.text)))))
+    (h.ts ?? 0) >= breakingCutoff && (
+      h.category === 'CHAMPION' || h.category === 'PLAYOFF'
+      // Only elite, rare feats reach Breaking News — routine milestones (a 4-hit
+      // night, a double-double, 300 passing yards) stay in their sport topic.
+      || (h.category === 'MILESTONE' && (h.priority ?? 0) >= 60)
+      || (h.category === 'STANDINGS' && /clinch|eliminat/i.test(h.text))
+      || (h.category === 'SUPERLATIVE' && /season high/i.test(h.text))))))
   // All-time Federation Cup points — tightest gap (teams passing each other).
   const fedScoring = safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sportsEnabled })
   const allTime: Record<string, number> = {}
