@@ -50,12 +50,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         .from(playerGameStats)
         .where(and(eq(playerGameStats.leagueId, team.leagueId), eq(playerGameStats.season, league?.season ?? ''), inArray(playerGameStats.playerId, playerIds)))
     : []
-  const agg: Record<string, { season: Record<string, number>; gp: number; lastWk: number; lastPts: number }> = {}
+  const agg: Record<string, { season: Record<string, number>; gp: number; lastWk: number; lastPts: number; pts: number }> = {}
   for (const g of logs) {
-    const a = (agg[g.playerId] ??= { season: {}, gp: 0, lastWk: -1, lastPts: 0 })
+    const a = (agg[g.playerId] ??= { season: {}, gp: 0, lastWk: -1, lastPts: 0, pts: 0 })
     const s = safeParse<Record<string, number>>(g.stats ?? '{}', {})
     for (const k in s) a.season[k] = (a.season[k] ?? 0) + (s[k] ?? 0)
     a.gp++
+    a.pts += g.points ?? 0
     if (g.week > a.lastWk) { a.lastWk = g.week; a.lastPts = g.points ?? 0 }
   }
 
@@ -84,6 +85,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     return {
       ...r,
       gp: a?.gp ?? 0,
+      seasonPtsActual: +((a?.pts ?? 0).toFixed(1)),
       lastPts: a?.lastPts ?? null,
       seasonStats: a?.season ?? {},
       opp: r.realTeamAbbr ? (oppMaps[r.sport]?.[r.realTeamAbbr] ?? null) : null,
