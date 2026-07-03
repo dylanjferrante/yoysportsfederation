@@ -225,12 +225,6 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
     if (!r.ok) { const e = await r.json().catch(() => ({})); if (e?.error) alert(e.error) }
     setSel(null); load()
   }
-  // Reserve slots (Bench / IR / Taxi) this league configures that the selected
-  // player can go to — shown as quick targets in the move banner.
-  const reserveTargets = selPlayer
-    ? Object.keys(cfg).filter(s => RESERVE.includes(s) && s !== selPlayer.slot && canPlace(selPlayer, s))
-    : []
-  const reserveLabel = (s: string) => s === 'BN' ? 'Bench' : s === 'TAXI' ? 'Taxi' : s
   // Tap a lineup slot (filled or empty).
   function tapSlot(slot: string, idx: number, occupant: P | null) {
     if (!canManage) return
@@ -343,8 +337,9 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
   }
   // An OPEN reserve spot — appears/highlights while moving a starter so you can
   // drop them straight onto the bench (or taxi/IR when eligible).
+  const inArea = (p: P | null, slotType: string) => !!p && (p.slot === slotType || (['IR', 'IL', 'DL'].includes(slotType) && ['IR', 'IL', 'DL'].includes(p.slot)))
   const emptyReserveCard = (slotType: string, key: string) => {
-    const targetable = !!selPlayer && !isLocked(selPlayer) && STARTER(selPlayer.slot) && reserveEligible(selPlayer, slotType)
+    const targetable = !!selPlayer && !isLocked(selPlayer) && !inArea(selPlayer, slotType) && reserveEligible(selPlayer, slotType)
     return (
       <div key={key} className={`flex items-center border-b border-slate-50 transition ${targetable ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : selPlayer ? 'opacity-45' : ''}`}>
         <button onClick={() => { if (selPlayer && targetable) assign(selPlayer.rosterId, slotType) }} disabled={!canManage || !targetable}
@@ -355,12 +350,13 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
       </div>
     )
   }
-  // Open capacity per reserve area, and whether we're mid-move of a starter.
   const irKey = ['IR', 'IL', 'DL'].find(k => cfg[k]) ?? 'IR'
   const openCap = (keys: string[], used: number) => Math.max(0, keys.reduce((a, k) => a + (cfg[k] ?? 0), 0) - used)
-  const movingStarter = !!selPlayer && !isLocked(selPlayer) && STARTER(selPlayer.slot)
+  const moving = !!selPlayer && !isLocked(selPlayer)
   const reserveSection = (key: string, list: P[], type: string, open: number) => {
-    const empties = movingStarter && reserveEligible(selPlayer!, type) ? open : 0
+    // Bench shares the active pool, so always offer an open bench spot while moving;
+    // taxi/IR only when they have room and the player qualifies.
+    const empties = moving && !inArea(selPlayer, type) && reserveEligible(selPlayer!, type) ? (type === 'BN' ? 1 : (open > 0 ? 1 : 0)) : 0
     const body = [...list.map(reserveCard), ...Array.from({ length: empties }, (_, i) => emptyReserveCard(type, `empty-${type}-${i}`))]
     return { key, count: list.length, show: body.length > 0, body }
   }
@@ -531,9 +527,6 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
                     ? <span className="min-w-0 truncate flex-shrink">Moving <b>{selPlayer.name}</b> — tap a slot</span>
                     : <span className="min-w-0 truncate flex-shrink">Filling <b>{selSlot?.slot}</b> — tap a player</span>}
                   <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-                    {selPlayer && reserveTargets.map(s => (
-                      <button key={s} onClick={() => assign(selPlayer.rosterId, s)} className="bg-white/15 hover:bg-white/25 px-2 py-1 rounded">{reserveLabel(s)}</button>
-                    ))}
                     <button onClick={() => setSel(null)} className="bg-white/10 hover:bg-white/25 px-2 py-1 rounded">Cancel</button>
                   </span>
                 </div>
