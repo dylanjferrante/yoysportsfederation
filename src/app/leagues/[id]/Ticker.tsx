@@ -158,22 +158,20 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
                   ? <img src={slide.away.logo} alt="" className="tlogo" style={{ background: slide.away.primary }} />
                   : <span className="tlogo tbadge" style={{ background: slide.away.primary, color: slide.away.secondary }}>{slide.away.abbr.slice(0, 3)}</span>}
                 <span className="tcol">
-                  <span className="nm">{slide.away.name}</span>
-                  {slide.away.logo && <span className="nmab">{slide.away.abbr}</span>}
+                  <span className="nm">{slide.away.abbr}</span>
                   <span className="sub">{slide.away.record}{slide.away.standing > 0 ? ` | #${slide.away.standing}` : ''}</span>
                 </span>
-                <span className="sc">{slide.status === 'PRE' ? '—' : slide.away.score}</span>
+                <span className="sc">{slide.status === 'PRE' ? '—' : slide.away.score.toFixed(1)}</span>
               </span>
               <span className={`side ${slide.home.win ? 'win' : ''}`}>
                 {slide.home.logo
                   ? <img src={slide.home.logo} alt="" className="tlogo" style={{ background: slide.home.primary }} />
                   : <span className="tlogo tbadge" style={{ background: slide.home.primary, color: slide.home.secondary }}>{slide.home.abbr.slice(0, 3)}</span>}
                 <span className="tcol">
-                  <span className="nm">{slide.home.name}</span>
-                  {slide.home.logo && <span className="nmab">{slide.home.abbr}</span>}
+                  <span className="nm">{slide.home.abbr}</span>
                   <span className="sub">{slide.home.record}{slide.home.standing > 0 ? ` | #${slide.home.standing}` : ''}</span>
                 </span>
-                <span className="sc">{slide.status === 'PRE' ? '—' : slide.home.score}</span>
+                <span className="sc">{slide.status === 'PRE' ? '—' : slide.home.score.toFixed(1)}</span>
               </span>
             </div>
             {slide.note && <span className="divider" />}
@@ -229,11 +227,10 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .tlogo { width: 22px; height: 22px; object-fit: contain; border-radius: 3px; flex-shrink: 0; padding: 1.5px; }
         .tbadge { display: inline-flex; align-items: center; justify-content: center; font-size: .52rem; font-weight: 400; padding: 0; }
         .tcol { display: flex; flex-direction: column; line-height: 1; }
-        .nm { font-size: .86rem; font-weight: 400; color: #cbd5e1; white-space: nowrap; }
-        .nmab { display: none; font-size: .84rem; font-weight: 400; color: #cbd5e1; white-space: nowrap; }
-        .side.win .nm, .side.win .nmab { font-weight: 400; color: #fff; }
+        .nm { display: inline-block; min-width: 3.2em; font-size: .86rem; font-weight: 400; color: #cbd5e1; white-space: nowrap; }
+        .side.win .nm { font-weight: 400; color: #fff; }
         .sub { font-size: .56rem; font-weight: 400; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 2px; }
-        .sc { flex-shrink: 0; margin-left: .6rem; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 400; letter-spacing: .03em; color: rgba(226,232,240,.55); }
+        .sc { flex-shrink: 0; margin-left: .6rem; min-width: 3.6em; text-align: right; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 400; letter-spacing: .03em; color: rgba(226,232,240,.55); }
         .side.win .sc { color: var(--ls); }
         .note { flex: 1; min-width: 0; overflow: hidden; }
         .scroll { display: inline-block; white-space: nowrap; font-size: .82rem; font-weight: 400; color: rgba(238,242,247,.82); will-change: transform; }
@@ -264,9 +261,9 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
           .splogo { width: .72rem; height: .72rem; }
           .status { font-size: .48rem; }
           .side { gap: .32rem; }
+          .nm { min-width: 2.8em; font-size: .8rem; }
+          .sc { min-width: 3.2em; }
           .tlogo { width: 18px; height: 18px; }
-          .nm { display: none; }
-          .nmab { display: inline; }
           .sub { font-size: .5rem; }
           .sc { margin-left: .3rem; font-size: .84rem; }
           .divider { height: 20px; }
