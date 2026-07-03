@@ -11,7 +11,7 @@ import { oppLabel } from '@/lib/realschedule'
 type P = {
   rosterId: string; slot: string; sport: string; onBlock?: boolean; isKeeper?: boolean; salary?: number; contractYears?: number | null; id: string; name: string; position: string
   realTeam: string; realTeamAbbr: string | null; status: string; injuryNote: string | null; byeWeek: number | null
-  seasonPoints: number; projectedPoints: number; weeklyAvg: number
+  seasonPoints: number; projectedPoints: number; weeklyAvg: number; seasonPtsActual?: number
   gp: number; lastPts: number | null; seasonStats: Record<string, number>; opp: { opp: string; home: boolean } | null
   locked?: boolean; kickoff?: number | null; gameDate?: string | null
 }
@@ -270,8 +270,8 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
         </span>
       </span>
       <span className="text-right flex-shrink-0 leading-tight">
-        <span className="block text-sm font-bold tabular-nums text-slate-900">{(p.seasonPoints ?? 0).toFixed(1)}</span>
-        <span className="block text-[10px] text-slate-400 tabular-nums">proj {(p.projectedPoints ?? 0).toFixed(1)}</span>
+        <span className="block text-sm font-bold tabular-nums text-slate-900">{(p.seasonPtsActual ?? 0).toFixed(1)}</span>
+        <span className="block text-[10px] text-slate-400 tabular-nums">{p.gp ?? 0} GP · proj {(p.projectedPoints ?? 0).toFixed(1)}</span>
       </span>
     </>
   )
@@ -304,9 +304,15 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
     )
   }
 
-  // A reserve player (bench / taxi / IR): the whole card is a tap target.
+  // A reserve player (bench / taxi / IR): the whole card is a tap target. It
+  // highlights when it can fill a selected empty slot, OR when it's eligible to
+  // swap into the currently-selected player's spot (and that player can take its
+  // reserve spot) — so moving a starter lights up every legal swap partner.
   const reserveCard = (p: P) => {
-    const targetable = !!selSlot && canPlace(p, selSlot.slot) && !isLocked(p)
+    const targetable = !isLocked(p) && (
+      (!!selSlot && canPlace(p, selSlot.slot)) ||
+      (!!selPlayer && selPlayer.rosterId !== p.rosterId && !isLocked(selPlayer) && canPlace(p, selPlayer.slot) && canPlace(selPlayer, p.slot))
+    )
     const picked = selPlayer?.rosterId === p.rosterId
     const dim = (selSlot && !targetable) || (selPlayer && !picked)
     return (
@@ -320,6 +326,38 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
         {cardActions(p)}
       </div>
     )
+  }
+
+  // Is a player eligible for a reserve area (so its empty slot should light up)?
+  // Bench takes anyone; IR needs a non-active status; taxi is enforced server-side.
+  const reserveEligible = (p: P, slotType: string) => {
+    if (slotType === 'BN') return true
+    if (['IR', 'IL', 'DL'].includes(slotType)) return !!p.status && p.status !== 'ACTIVE'
+    if (slotType === 'TAXI') return true
+    return false
+  }
+  // An OPEN reserve spot — appears/highlights while moving a starter so you can
+  // drop them straight onto the bench (or taxi/IR when eligible).
+  const emptyReserveCard = (slotType: string, key: string) => {
+    const targetable = !!selPlayer && !isLocked(selPlayer) && STARTER(selPlayer.slot) && reserveEligible(selPlayer, slotType)
+    return (
+      <div key={key} className={`flex items-center border-b border-slate-50 transition ${targetable ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : selPlayer ? 'opacity-45' : ''}`}>
+        <button onClick={() => { if (selPlayer && targetable) assign(selPlayer.rosterId, slotType) }} disabled={!canManage || !targetable}
+          className="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2.5 text-left">
+          <span className="w-11 flex-shrink-0 text-center text-[10px] font-bold text-slate-300">{slotType === 'BN' ? 'Bench' : slotType}</span>
+          <span className="flex-1 text-xs italic text-slate-400">{targetable ? 'Tap to place here' : 'Open'}</span>
+        </button>
+      </div>
+    )
+  }
+  // Open capacity per reserve area, and whether we're mid-move of a starter.
+  const irKey = ['IR', 'IL', 'DL'].find(k => cfg[k]) ?? 'IR'
+  const openCap = (keys: string[], used: number) => Math.max(0, keys.reduce((a, k) => a + (cfg[k] ?? 0), 0) - used)
+  const movingStarter = !!selPlayer && !isLocked(selPlayer) && STARTER(selPlayer.slot)
+  const reserveSection = (key: string, list: P[], type: string, open: number) => {
+    const empties = movingStarter && reserveEligible(selPlayer!, type) ? open : 0
+    const body = [...list.map(reserveCard), ...Array.from({ length: empties }, (_, i) => emptyReserveCard(type, `empty-${type}-${i}`))]
+    return { key, count: list.length, show: body.length > 0, body }
   }
 
   return (
@@ -495,12 +533,12 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
                   </span>
                 </div>
               )}
-              {([
-                { key: 'Starting Lineup', count: lineup.length, body: lineup.map((e, i) => slotCard(e, i)) },
-                { key: 'Bench', count: bench.length, body: bench.map(reserveCard) },
-                { key: 'Taxi Squad', count: taxi.length, body: taxi.map(reserveCard) },
-                { key: 'Injured Reserve', count: ir.length, body: ir.map(reserveCard) },
-              ] as const).filter(s => s.count > 0).map(section => (
+              {[
+                { key: 'Starting Lineup', count: lineup.length, show: true, body: lineup.map((e, i) => slotCard(e, i)) },
+                reserveSection('Bench', bench, 'BN', openCap(['BN'], bench.length)),
+                reserveSection('Taxi Squad', taxi, 'TAXI', openCap(['TAXI'], taxi.length)),
+                reserveSection('Injured Reserve', ir, irKey, openCap(['IR', 'IL', 'DL'], ir.length)),
+              ].filter(s => s.show).map(section => (
                 <div key={section.key} className="card overflow-hidden">
                   <div className="card-header flex items-center justify-between">
                     <h2 className="font-semibold text-slate-900">{section.key}</h2>
