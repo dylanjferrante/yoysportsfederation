@@ -211,6 +211,15 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
     if (!r.ok) { const e = await r.json().catch(() => ({})); if (e?.error) alert(e.error) }
     setSel(null); load()
   }
+  // Swap two players' slots directly (e.g. tap a starter, then a bench player to
+  // sit the starter and start the other). Each must be eligible for the other's slot.
+  async function swapSlots(x: P, y: P) {
+    const d = dayMap ? { date: lineupDate } : {}
+    await post({ action: 'SET_SLOT', rosterId: x.rosterId, slot: y.slot, ...d })
+    const r = await post({ action: 'SET_SLOT', rosterId: y.rosterId, slot: x.slot, ...d })
+    if (!r.ok) { const e = await r.json().catch(() => ({})); if (e?.error) alert(e.error) }
+    setSel(null); load()
+  }
   // Reserve slots (Bench / IR / Taxi) this league configures that the selected
   // player can go to — shown as quick targets in the move banner.
   const reserveTargets = selPlayer
@@ -234,6 +243,13 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
     if (selSlot) {
       if (!canPlace(p, selSlot.slot)) return
       assign(p.rosterId, selSlot.slot, lineup[selSlot.idx]?.player?.rosterId); return
+    }
+    // A player is already selected → swap the two (bench a starter by tapping a
+    // bench player, promote a bench player by tapping a starter, or swap two
+    // starters), as long as each is eligible for the other's slot.
+    if (selPlayer && selPlayer.rosterId !== p.rosterId && !isLocked(selPlayer)
+        && canPlace(selPlayer, p.slot) && canPlace(p, selPlayer.slot)) {
+      swapSlots(selPlayer, p); return
     }
     setSel(selPlayer && selPlayer.rosterId === p.rosterId ? null : { k: 'player', id: p.rosterId })
   }
