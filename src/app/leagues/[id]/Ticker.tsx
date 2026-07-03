@@ -8,9 +8,6 @@ type SlideTeam = { name: string; abbr: string; logo: string | null; primary: str
 type GameSlide = { kind: 'game'; id: string; sport: string; sportName: string; sportLogo: string | null; status: 'Final' | 'LIVE' | 'PRE'; away: SlideTeam; home: SlideTeam; note: string; href: string }
 type NewsSlide = { kind: 'news'; id: string; topic: string; sport?: string; text: string; href: string }
 type Slide = GameSlide | NewsSlide
-// All league headlines collapse into one crawling line; game scores stay separate.
-type NewsLine = { kind: 'newsline'; id: string; items: NewsSlide[] }
-type DeckItem = GameSlide | NewsLine
 
 type Snapshot = { slides: Slide[]; idx: number }
 const tickerCache = new Map<string, Snapshot>()
@@ -46,15 +43,10 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
   useEffect(() => { const c = tickerCache.get(leagueId); if (c) tickerCache.set(leagueId, { ...c, idx }) }, [leagueId, idx])
 
-  // Deck: game scores stay individual (in the wire's sport-priority order); every
-  // league headline is merged into a single crawling line placed at the end.
-  const deck = useMemo<DeckItem[]>(() => {
-    const games = slides.filter((s): s is GameSlide => s.kind === 'game')
-    const news = slides.filter((s): s is NewsSlide => s.kind === 'news')
-    const d: DeckItem[] = [...games]
-    if (news.length) d.push({ kind: 'newsline', id: 'newsline', items: news })
-    return d
-  }, [slides])
+  // Each slide is its own item in wire order — game scores with a scorebug, and
+  // league news as plain slides under their own topic (NFL/MLB/… or Federation/
+  // Breaking/Trades), no scorebug.
+  const deck = slides
   useEffect(() => { if (deck.length && idx >= deck.length) setIdx(0) }, [deck.length]) // eslint-disable-line
 
   // Timing per slide: it stays up at least MIN ms. If the copy fits, it just holds
@@ -99,9 +91,9 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
 
   // Each slide belongs to a topic (a sport, or a news category). "Up Next"
   // shows the next distinct topics coming down the deck.
-  const topicMeta = (s: DeckItem) => s.kind === 'game'
+  const topicMeta = (s: Slide) => s.kind === 'game'
     ? { label: s.sportName, hex: sportMeta(s.sport).hex }
-    : { label: 'Headlines', hex: secondary }
+    : { label: s.topic, hex: s.sport ? sportMeta(s.sport).hex : secondary }
 
   const upNext = useMemo(() => {
     if (deck.length <= 1) return [] as { label: string; hex: string }[]
@@ -179,22 +171,15 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
           </div>
           </Link>
         ) : (
-          <div className="slide news" key={slide.id} style={{ display: 'flex', flex: 1, minWidth: 0, alignItems: 'stretch' }}>
+          <Link href={slide.href} key={slide.id} style={{ display: 'flex', flex: 1, minWidth: 0, alignItems: 'stretch', textDecoration: 'none' }}>
+          <div className="slide news">
             <div className="scoreline">
-              <span className="topicchip"><span className="tbar" style={{ background: secondary }} />Headlines</span>
+              <span className="topicchip"><span className="tbar" style={{ background: slide.sport ? sportMeta(slide.sport).hex : secondary }} />{slide.topic}</span>
             </div>
             <span className="divider" />
-            <span className="note" ref={scrollWrapRef}>
-              <span className="scroll headline" ref={scrollTxtRef}>
-                {slide.items.map((it, i) => (
-                  <span key={it.id}>
-                    {i > 0 && <span className="hdivider">·</span>}
-                    <Link href={it.href} className="hlink">{it.text}</Link>
-                  </span>
-                ))}
-              </span>
-            </span>
+            <span className="note" ref={scrollWrapRef}><span className="scroll headline" ref={scrollTxtRef}>{slide.text}</span></span>
           </div>
+          </Link>
         )}
       </div>
 
@@ -232,7 +217,7 @@ export default function Ticker({ leagueId, primary = '#0f172a', secondary = '#fb
         .sub { font-size: .56rem; font-weight: 400; color: rgba(226,232,240,.5); letter-spacing: .02em; white-space: nowrap; margin-top: 2px; }
         .sc { flex-shrink: 0; margin-left: .6rem; min-width: 3.6em; text-align: right; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 400; letter-spacing: .03em; color: rgba(226,232,240,.55); }
         .side.win .sc { color: var(--ls); }
-        .note { flex: 1; min-width: 0; overflow: hidden; }
+        .note { flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; align-self: stretch; }
         .scroll { display: inline-block; white-space: nowrap; font-size: .82rem; font-weight: 400; color: rgba(238,242,247,.82); will-change: transform; }
         .slide:hover .scroll { color: #fff; }
         .hlink { color: inherit; text-decoration: none; }
