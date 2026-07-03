@@ -11,6 +11,28 @@ import DuesPanel from '../DuesPanel'
 import ScheduleEditor from './ScheduleEditor'
 
 const ALL_SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
+// Slot types a commissioner can add to a roster, beyond the pure positions —
+// flex, superflex, utility. Values must match slotEligible() in defaults.ts.
+const ADDABLE_SLOTS: Record<string, { value: string; label: string }[]> = {
+  NFL: [
+    { value: 'QB', label: 'QB' }, { value: 'RB', label: 'RB' }, { value: 'WR', label: 'WR' }, { value: 'TE', label: 'TE' }, { value: 'K', label: 'K' }, { value: 'DEF', label: 'D/ST' },
+    { value: 'RB/WR/TE', label: 'FLEX (RB/WR/TE)' }, { value: 'WR/TE', label: 'W/T (WR/TE)' }, { value: 'RB/WR', label: 'R/W (RB/WR)' },
+    { value: 'SUPERFLEX', label: 'SUPERFLEX (QB/RB/WR/TE)' },
+  ],
+  NBA: [
+    { value: 'PG', label: 'PG' }, { value: 'SG', label: 'SG' }, { value: 'SF', label: 'SF' }, { value: 'PF', label: 'PF' }, { value: 'C', label: 'C' },
+    { value: 'G', label: 'G (PG/SG)' }, { value: 'F', label: 'F (SF/PF)' }, { value: 'UTIL', label: 'UTIL' },
+  ],
+  NHL: [
+    { value: 'C', label: 'C' }, { value: 'LW', label: 'LW' }, { value: 'RW', label: 'RW' }, { value: 'D', label: 'D' }, { value: 'G', label: 'G' },
+    { value: 'C/LW/RW', label: 'F (C/LW/RW)' }, { value: 'UTIL', label: 'UTIL' },
+  ],
+  MLB: [
+    { value: 'C', label: 'C' }, { value: '1B', label: '1B' }, { value: '2B', label: '2B' }, { value: '3B', label: '3B' }, { value: 'SS', label: 'SS' }, { value: 'OF', label: 'OF' },
+    { value: '1B/3B', label: 'CI (1B/3B)' }, { value: '2B/SS', label: 'MI (2B/SS)' }, { value: 'UTIL', label: 'UTIL' },
+    { value: 'SP', label: 'SP' }, { value: 'RP', label: 'RP' }, { value: 'SP/RP', label: 'P (SP/RP)' },
+  ],
+}
 const TABS = ['General', 'Clubs', 'Sports & Schedule', 'Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Live Stats']
 const SETUP_STEPS = ['General', 'Sports & Schedule', 'Roster', 'Scoring', 'Draft', 'Waivers', 'Trades', 'Playoffs', 'Federation', 'Clubs']
 
@@ -765,6 +787,16 @@ function SettingsInner() {
                   })}
                 </tbody>
               </table>
+            </div>
+            {/* Add a position / flex / superflex slot */}
+            <div className="mt-2">
+              <select value="" className="input py-1 text-sm w-auto"
+                onChange={e => { const s = e.target.value; if (s) setRosterObj(r => ({ ...r, [subSport]: { ...r[subSport], [s]: (r[subSport]?.[s] ?? 0) + 1 } })) }}>
+                <option value="">+ Add position…</option>
+                {(ADDABLE_SLOTS[subSport] ?? []).filter(o => rosterObj[subSport]?.[o.value] == null).map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
 
             {/* MLB weekly starting-pitcher cap */}
