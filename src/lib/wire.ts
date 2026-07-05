@@ -197,8 +197,8 @@ export async function buildWire(leagueId: string): Promise<Wire> {
       : [...computeFederationStandings(teamRows.map(t => ({ id: t.id })), recs.map(r => ({ teamId: r.teamId, sport: r.sport, finishPosition: r.finishPosition, isChampion: r.isChampion })), safeParse<any>(league.federationScoring, { placement: [], championBonus: 0, regularSeasonBonus: 0, includedSports: sportsEnabled }), sportsEnabled)].reverse().map(s => s.team.id)
     if (!order.length) return null
     const label = perSport ? `${sn(dr.scope!)} rookie` : 'federation'
-    const top = order.slice(0, 3).map((id, i) => `${ab(id)} (${i + 1})`).join(', ')
-    return `Upcoming ${label} draft ${fmtDate(dr.startsAt!)} — ${nm(order[0])} on the clock at #1${top ? ` · order: ${top}` : ''}`
+    const full = order.map((id, i) => `${i + 1}. ${ab(id)}`).join('  ')
+    return `Upcoming ${label} draft ${fmtDate(dr.startsAt!)} — order: ${full}`
   }
 
   // ── Sport order: active first, then finished within the last 2 weeks, then

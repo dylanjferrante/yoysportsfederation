@@ -55,7 +55,7 @@ function SettingsInner() {
   const [divisionLogosAlt, setDivisionLogosAlt] = useState<Record<string, string>>({})
   const [divisionWordmarks, setDivisionWordmarks] = useState<Record<string, string>>({})
   const [rosterObj, setRosterObj] = useState<Record<string, Record<string, number>>>({})
-  const [scoringObj, setScoringObj] = useState<Record<string, Record<string, number>>>({})
+  const [scoringObj, setScoringObj] = useState<Record<string, Record<string, any>>>({})
   const [draftRoundsObj, setDraftRoundsObj] = useState<Record<string, number>>({})
   const [rookieRoundsObj, setRookieRoundsObj] = useState<Record<string, number>>({})
   const [seasonWeeksObj, setSeasonWeeksObj] = useState<Record<string, number>>({})
@@ -889,6 +889,50 @@ function SettingsInner() {
                 </div>
               ))}
             </div>
+
+            {/* Custom defensive tiers (NFL DST) */}
+            {subSport === 'NFL' && (() => {
+              const nfl = scoringObj.NFL ?? {}
+              const setTiers = (cat: string, tiers: any[] | null) => setScoringObj(s => {
+                const n = { ...(s.NFL ?? {}) }
+                if (tiers) n[cat] = tiers; else delete n[cat]
+                return { ...s, NFL: n }
+              })
+              const PA_DEFAULT = [{ min: 0, max: 0, points: 10 }, { min: 1, max: 6, points: 7 }, { min: 7, max: 13, points: 4 }, { min: 14, max: 20, points: 1 }, { min: 21, max: 27, points: 0 }, { min: 28, max: 34, points: -1 }, { min: 35, max: null, points: -4 }]
+              const YA_DEFAULT = [{ min: null, max: 99, points: 5 }, { min: 100, max: 199, points: 3 }, { min: 200, max: 299, points: 2 }, { min: 300, max: 349, points: 0 }, { min: 350, max: 399, points: -1 }, { min: 400, max: null, points: -3 }]
+              const editor = (cat: string, label: string, def: any[]) => {
+                const on = Array.isArray(nfl[cat])
+                const tiers: any[] = on ? nfl[cat] : []
+                const upd = (i: number, patch: any) => setTiers(cat, tiers.map((t, j) => j === i ? { ...t, ...patch } : t))
+                const numOrNull = (v: string) => v === '' ? null : +v
+                return (
+                  <div className="border-t border-slate-100 pt-4">
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={on} onChange={e => setTiers(cat, e.target.checked ? def : null)} />
+                      <span className="font-semibold text-slate-900">Custom {label} tiers</span>
+                    </label>
+                    <p className="text-[11px] text-slate-400 mt-1 mb-2">Blank min/max is open-ended. When on, these replace the preset {label.toLowerCase()} bands.</p>
+                    {on && (
+                      <div className="space-y-1.5">
+                        <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_1.5rem] items-center gap-1.5 text-[10px] uppercase text-slate-400"><span>Min</span><span /><span>Max</span><span /><span>Pts</span><span /></div>
+                        {tiers.map((t, i) => (
+                          <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto_1fr_1.5rem] items-center gap-1.5">
+                            <input type="number" placeholder="—" value={t.min ?? ''} onChange={e => upd(i, { min: numOrNull(e.target.value) })} className="input py-1 text-right text-sm" />
+                            <span className="text-slate-300 text-xs">to</span>
+                            <input type="number" placeholder="—" value={t.max ?? ''} onChange={e => upd(i, { max: numOrNull(e.target.value) })} className="input py-1 text-right text-sm" />
+                            <span className="text-slate-300 text-xs">=</span>
+                            <input type="number" step="0.5" value={t.points ?? 0} onChange={e => upd(i, { points: +e.target.value })} className="input py-1 text-right text-sm" />
+                            <button onClick={() => setTiers(cat, tiers.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">×</button>
+                          </div>
+                        ))}
+                        <button onClick={() => setTiers(cat, [...tiers, { min: null, max: null, points: 0 }])} className="btn-ghost text-xs">+ Add tier</button>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              return <div className="space-y-1">{editor('ptsAllowedTiers', 'Points Allowed', PA_DEFAULT)}{editor('yardsAllowedTiers', 'Yards Allowed', YA_DEFAULT)}</div>
+            })()}
           </>
         )}
 
