@@ -195,10 +195,19 @@ export function boxScoreColumns(sport: string): Col[] {
 }
 
 // Group a sport's scoring entries into ordered { group, items[] } sections.
+const PA_BANDS = ['ptsAllowed0', 'ptsAllowed1_6', 'ptsAllowed7_13', 'ptsAllowed14_20', 'ptsAllowed21_27', 'ptsAllowed28_34', 'ptsAllowed35plus']
+const YA_BANDS = ['yardsAllowedUnder100', 'yardsAllowed100_199', 'yardsAllowed200_249', 'yardsAllowed250_299', 'yardsAllowed300_349', 'yardsAllowed350_399', 'yardsAllowed400plus']
 export function groupScoring(sport: string, scoring: Record<string, number>) {
+  // When a league sets custom pts/yds-allowed tiers, the fixed preset bands are
+  // replaced (edited via the tier editor), so they're hidden from the flat grid.
+  const hasPA = Array.isArray((scoring as any).ptsAllowedTiers)
+  const hasYA = Array.isArray((scoring as any).yardsAllowedTiers)
   const groups: { group: string; items: { key: string; label: string; value: number }[] }[] = []
   const indexOf = (g: string) => groups.findIndex(x => x.group === g)
   for (const [key, value] of Object.entries(scoring)) {
+    if (typeof value !== 'number') continue                  // tier arrays aren't scalar rows
+    if (hasPA && PA_BANDS.includes(key)) continue
+    if (hasYA && YA_BANDS.includes(key)) continue
     const meta = statMeta(sport, key)
     let gi = indexOf(meta.group)
     if (gi === -1) { groups.push({ group: meta.group, items: [] }); gi = groups.length - 1 }

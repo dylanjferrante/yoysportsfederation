@@ -258,6 +258,9 @@ function mapNFLDST(dst: any): Record<string, number> {
   put('fumbleRecovery', num(dst.fumblesRecovered))
   put('defensiveTD', num(dst.defTD))
   put('safeties', num(dst.safeties))
+  // Raw pts/yds allowed, so leagues with custom tier bounds can score by range.
+  out.ptsAllowedValue = num(dst.ptsAllowed)
+  out.ydsAllowedValue = num(dst.ydsAllowed)
   // Points allowed → tier (always exactly one tier per game).
   const pa = num(dst.ptsAllowed)
   out[pa === 0 ? 'ptsAllowed0' : pa <= 6 ? 'ptsAllowed1_6' : pa <= 13 ? 'ptsAllowed7_13'
