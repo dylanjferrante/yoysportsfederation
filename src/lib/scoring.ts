@@ -8,6 +8,28 @@ export type Stats = Record<string, number>
 // opts into per-yardage FG scoring, so the two modes never double-count.
 const FG_TIER_KEYS = new Set(['fgMade0_39', 'fgMade40_49', 'fgMade50plus'])
 
+// Custom defensive scoring tiers. A league may define its own points-allowed and
+// yards-allowed ranges (in scoringSettings[sport].ptsAllowedTiers / yardsAllowedTiers
+// as {min,max,points}[]). When set, they replace the fixed preset tier keys: the
+// engine reads the game's raw pts/yds-allowed value and finds the matching range.
+export type ScoreTier = { min?: number | null; max?: number | null; points: number }
+const PA_TIER_KEYS = ['ptsAllowed0', 'ptsAllowed1_6', 'ptsAllowed7_13', 'ptsAllowed14_20', 'ptsAllowed21_27', 'ptsAllowed28_34', 'ptsAllowed35plus']
+const YA_TIER_KEYS = ['yardsAllowedUnder100', 'yardsAllowed100_199', 'yardsAllowed200_249', 'yardsAllowed250_299', 'yardsAllowed300_349', 'yardsAllowed350_399', 'yardsAllowed400plus']
+// Midpoint of each preset band, used to recover a raw value from older stat lines
+// that only carry the preset tier flag (not the new ptsAllowedValue/ydsAllowedValue).
+const PA_MID: Record<string, number> = { ptsAllowed0: 0, ptsAllowed1_6: 3, ptsAllowed7_13: 10, ptsAllowed14_20: 17, ptsAllowed21_27: 24, ptsAllowed28_34: 31, ptsAllowed35plus: 42 }
+const YA_MID: Record<string, number> = { yardsAllowedUnder100: 75, yardsAllowed100_199: 150, yardsAllowed200_249: 225, yardsAllowed250_299: 275, yardsAllowed300_349: 325, yardsAllowed350_399: 375, yardsAllowed400plus: 430 }
+
+function rawAllowed(stats: Stats, valueKey: string, presetKeys: string[], mid: Record<string, number>): number | null {
+  if (stats[valueKey] != null) return stats[valueKey]
+  for (const k of presetKeys) if (stats[k]) return mid[k]
+  return null
+}
+function tierPointsFor(tiers: ScoreTier[], value: number): number {
+  for (const t of tiers) if (value >= (t.min ?? -Infinity) && value <= (t.max ?? Infinity)) return t.points ?? 0
+  return 0
+}
+
 // Per-yardage field-goal scoring (opt-in). With fgPointsPerYard = 0.1, a 32-yd kick
 // is worth 3.2; fgMinPoints sets a per-made-FG floor (e.g. min 3 → a 20-yd kick pays
 // 3.0, not 2.0). Reads the per-kick fgDist<N> keys produced by the box-score mapper.
@@ -34,17 +56,32 @@ export type ScoreLine = { key: string; stat: number; perUnit: number; points: nu
 // the breakdown can never disagree with the displayed total.
 export function scoreBreakdown(stats: Stats, scoring: Record<string, number>): { items: ScoreLine[]; total: number } {
   const fgYardMode = (scoring.fgPointsPerYard ?? 0) > 0 || (scoring.fgMinPoints ?? 0) > 0
+  // Custom defensive tiers (arrays living alongside the numeric scoring keys).
+  const paTiers = Array.isArray((scoring as any).ptsAllowedTiers) ? (scoring as any).ptsAllowedTiers as ScoreTier[] : null
+  const yaTiers = Array.isArray((scoring as any).yardsAllowedTiers) ? (scoring as any).yardsAllowedTiers as ScoreTier[] : null
   const items: ScoreLine[] = []
   let total = 0
   for (const [k, v] of Object.entries(stats)) {
     if (!v) continue                                  // no stat, no line
+    if (k === 'ptsAllowedValue' || k === 'ydsAllowedValue') continue // raw helpers, scored via tiers
+    if (paTiers && PA_TIER_KEYS.includes(k)) continue  // preset band superseded by custom tiers
+    if (yaTiers && YA_TIER_KEYS.includes(k)) continue
     if (k.startsWith('fgDist')) continue              // scored via fgYardagePoints below
     if (fgYardMode && FG_TIER_KEYS.has(k)) continue    // per-yard mode replaces tier scoring
     const perUnit = scoring[k] ?? 0
-    if (!perUnit) continue                            // stat the league doesn't score
+    if (typeof perUnit !== 'number' || !perUnit) continue // stat the league doesn't score
     const points = v * perUnit
     total += points
     items.push({ key: k, stat: v, perUnit, points: +points.toFixed(2) })
+  }
+  // Custom points-allowed / yards-allowed tiers: match the raw value to a range.
+  if (paTiers) {
+    const val = rawAllowed(stats, 'ptsAllowedValue', PA_TIER_KEYS, PA_MID)
+    if (val != null) { const pts = tierPointsFor(paTiers, val); if (pts) { total += pts; items.push({ key: 'ptsAllowedCustom', stat: val, perUnit: pts, points: +pts.toFixed(2) }) } }
+  }
+  if (yaTiers) {
+    const val = rawAllowed(stats, 'ydsAllowedValue', YA_TIER_KEYS, YA_MID)
+    if (val != null) { const pts = tierPointsFor(yaTiers, val); if (pts) { total += pts; items.push({ key: 'yardsAllowedCustom', stat: val, perUnit: pts, points: +pts.toFixed(2) }) } }
   }
   if (fgYardMode) {
     let fgPts = 0, made = 0
