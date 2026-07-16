@@ -52,9 +52,15 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
     const recs = records.filter(r => r.teamId === f.id)
     const wins = recs.reduce((s, r) => s + (r.wins ?? 0), 0)
     const losses = recs.reduce((s, r) => s + (r.losses ?? 0), 0)
+    // All-time record in each sport (the "sports records" alongside the federation ones).
+    const bySport: Record<string, { w: number; l: number }> = {}
+    for (const s of sports) {
+      const sr = recs.filter(r => r.sport === s)
+      bySport[s] = { w: sr.reduce((a, r) => a + (r.wins ?? 0), 0), l: sr.reduce((a, r) => a + (r.losses ?? 0), 0) }
+    }
     const sportTitles = history.filter(h => h.championTeamId === f.id && h.scope !== 'OVERALL').length
     const fedTitles = history.filter(h => h.championTeamId === f.id && h.scope === 'OVERALL').length
-    return { team: f, wins, losses, sportTitles, fedTitles, fedPoints: fedPointsByTeam[f.id] ?? 0 }
+    return { team: f, wins, losses, bySport, sportTitles, fedTitles, fedPoints: fedPointsByTeam[f.id] ?? 0 }
   }).sort((a, b) => b.fedPoints - a.fedPoints || b.fedTitles - a.fedTitles || b.wins - a.wins)
 
   const championOf = (season: string, scope: string) =>
@@ -128,19 +134,21 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
           <thead>
             <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
               <th className="text-left px-4 py-2 font-medium">Club</th>
-              <th className="text-center px-3 py-2 font-medium">All-Time W-L</th>
+              {sports.map(s => <th key={s} className="text-center px-3 py-2 font-medium whitespace-nowrap"><span className="inline-flex items-center gap-1"><SportChip sport={s} logos={divisionLogos} colors={champColors} chip={16} size={11} />{sportAbbrLabel(s, sportAbbr)}</span></th>)}
+              <th className="text-center px-3 py-2 font-medium">All-Time</th>
               <th className="text-center px-3 py-2 font-medium">Sport Titles</th>
               <th className="text-center px-3 py-2 font-medium">Fed Titles</th>
-              <th className="text-center px-3 py-2 font-medium">All-Time Fed Pts</th>
+              <th className="text-center px-3 py-2 font-medium">Fed Pts</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {allTime.map(({ team, wins, losses, sportTitles, fedTitles, fedPoints }) => (
+            {allTime.map(({ team, wins, losses, bySport, sportTitles, fedTitles, fedPoints }) => (
               <tr key={team.id} className="hover:bg-slate-50">
                 <td className="px-4 py-2">
                   <Link href={`/leagues/${id}/teams/${team.id}`} className="font-medium text-slate-900 hover:text-blue-600">{team.name}</Link>
                 </td>
-                <td className="text-center px-3 py-2 text-slate-700">{wins}-{losses}</td>
+                {sports.map(s => <td key={s} className="text-center px-3 py-2 text-slate-600 tabular-nums">{bySport[s].w}-{bySport[s].l}</td>)}
+                <td className="text-center px-3 py-2 font-semibold text-slate-800 tabular-nums">{wins}-{losses}</td>
                 <td className="text-center px-3 py-2 text-slate-700">{sportTitles}</td>
                 <td className="text-center px-3 py-2 font-semibold text-amber-600">{fedTitles || '—'}</td>
                 <td className="text-center px-3 py-2 font-bold text-slate-900 tabular-nums">{fedPoints}</td>
