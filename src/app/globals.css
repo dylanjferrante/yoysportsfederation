@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-slate-50 text-slate-900 antialiased; }
+  h1,h2,h3,h4 { @apply tracking-tight; }
+}
+
+@layer components {
+  .card { @apply bg-white rounded-2xl border border-slate-100 shadow-sm; }
+  .card-header { @apply px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100; }
+  .card-body { @apply p-4 sm:p-6; }
+
+  /* Wrap a wide table so it scrolls horizontally on small screens instead of
+     overflowing the viewport. Bleeds to the card edges for more usable width. */
+  .table-scroll { @apply -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto; }
+
+  .btn { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all text-sm; }
+  .btn-primary { @apply btn bg-slate-900 text-white hover:bg-slate-700 px-4 py-2; }
+  .btn-secondary { @apply btn bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 px-4 py-2; }
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-500 px-4 py-2; }
+  .btn-ghost { @apply btn text-slate-600 hover:bg-slate-100 px-3 py-1.5; }
+
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+
+  .input {
+    @apply w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white
+    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+    placeholder:text-slate-400;
+  }
+  .label { @apply block text-sm font-medium text-slate-700 mb-1; }
+  .select {
+    @apply input appearance-none cursor-pointer;
+  }
+
+  .tab { @apply px-4 py-2 text-sm font-medium border-b-2 transition-colors; }
+  .tab-active { @apply tab border-blue-500 text-blue-600; }
+  .tab-inactive { @apply tab border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300; }
+}

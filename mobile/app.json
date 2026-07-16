@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Nexus Federation",
+    "slug": "nexus-federation",
+    "scheme": "nexusfederation",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nexusfederation.app"
+    },
+    "android": {
+      "package": "com.nexusfederation.app"
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "extra": {
+      "apiUrl": "https://your-app.example.com",
+      "eas": { "projectId": "" }
+    }
+  }
+}

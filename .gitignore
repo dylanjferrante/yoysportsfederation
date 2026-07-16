@@ -1,0 +1,17 @@
+.env
+node_modules/
+.next/
+# SQLite database files
+data/
+*.db
+*.db-shm
+*.db-wal
+prisma/dev.db
+prisma/dev.db-journal
+
+# Local scratch scripts (not part of the app)
+/scratch_*.ts
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+node_modules/.cache/
