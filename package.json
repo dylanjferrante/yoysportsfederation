@@ -25,6 +25,7 @@
     "tank01:refresh": "tsx scripts/tank01-realstats.ts --days=3 && npm run db:reset"
   },
   "dependencies": {
+    "@libsql/client": "^0.14.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.8.1",
     "clsx": "^2.1.1",
