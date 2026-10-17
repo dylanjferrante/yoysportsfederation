@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { leagues, teams, teamRecords, matchups, users } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -41,30 +41,36 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if ((body.confirmName ?? '').trim() !== league.name) return NextResponse.json({ error: 'League name did not match' }, { status: 400 })
   if (body.confirm !== true) return NextResponse.json({ error: 'Confirmation required' }, { status: 400 })
 
-  const sqlite = (db as unknown as { $client: { prepare: (s: string) => { all: (...a: unknown[]) => unknown[]; run: (...a: unknown[]) => unknown }; pragma: (s: string) => void; transaction: (fn: () => void) => () => void } }).$client
-
-  const tableNames = (sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all() as { name: string }[]).map(t => t.name)
+  // Discover every table scoped to a league (those with a league_id column),
+  // then delete this league's rows grandchildren-first. Table names come from
+  // sqlite_master (schema, not user input), so raw interpolation is safe.
+  // No PRAGMA foreign_keys toggle: libSQL/Turso don't hold a per-connection
+  // pragma across requests, and the explicit ordering below needs none.
+  const tableRows = await db.all<{ name: string }>(sql`SELECT name FROM sqlite_master WHERE type='table'`)
+  const tableNames = tableRows.map(t => t.name)
   const childDeletes: Array<[string, string, string]> = [
     ['trade_items', 'trade_id', 'trades'], ['trade_approvals', 'trade_id', 'trades'], ['trade_votes', 'trade_id', 'trades'],
     ['auction_budgets', 'draft_id', 'drafts'], ['draft_queues', 'draft_id', 'drafts'], ['draft_autopick', 'draft_id', 'drafts'],
     ['proposal_votes', 'proposal_id', 'proposals'],
   ]
-  const leagueScoped = tableNames.filter(n => n !== 'leagues' &&
-    (sqlite.prepare(`PRAGMA table_info("${n}")`).all() as { name: string }[]).some(c => c.name === 'league_id'))
-
-  sqlite.pragma('foreign_keys = OFF')
-  try {
-    const tx = sqlite.transaction(() => {
-      for (const [child, fk, parent] of childDeletes) {
-        if (tableNames.includes(child)) sqlite.prepare(`DELETE FROM "${child}" WHERE "${fk}" IN (SELECT id FROM "${parent}" WHERE league_id = ?)`).run(id)
-      }
-      for (const t of leagueScoped) sqlite.prepare(`DELETE FROM "${t}" WHERE league_id = ?`).run(id)
-      sqlite.prepare(`DELETE FROM leagues WHERE id = ?`).run(id)
-    })
-    tx()
-  } finally {
-    sqlite.pragma('foreign_keys = ON')
+  const leagueScoped: string[] = []
+  for (const n of tableNames) {
+    if (n === 'leagues') continue
+    const cols = await db.all<{ name: string }>(sql.raw(`PRAGMA table_info("${n}")`))
+    if (cols.some(c => c.name === 'league_id')) leagueScoped.push(n)
   }
+
+  await db.transaction(async (tx) => {
+    for (const [child, fk, parent] of childDeletes) {
+      if (tableNames.includes(child)) {
+        await tx.run(sql`DELETE FROM ${sql.identifier(child)} WHERE ${sql.identifier(fk)} IN (SELECT id FROM ${sql.identifier(parent)} WHERE league_id = ${id})`)
+      }
+    }
+    for (const t of leagueScoped) {
+      await tx.run(sql`DELETE FROM ${sql.identifier(t)} WHERE league_id = ${id}`)
+    }
+    await tx.run(sql`DELETE FROM leagues WHERE id = ${id}`)
+  })
 
   return NextResponse.json({ ok: true })
 }
