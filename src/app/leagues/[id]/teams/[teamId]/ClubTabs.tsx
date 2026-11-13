@@ -13,7 +13,7 @@ export type LeagueSeason = {
 }
 type PickChip = { kind: 'own' } | { kind: 'acq'; ab: string; crest: string | null } | { kind: 'gone'; ab: string }
 export type ClubTabsData = {
-  leagueId: string; clubName: string; clubAb: string; season: string
+  leagueId: string; teamId: string; clubName: string; clubAb: string; season: string
   calendar: { cols: { key: string; label: string; current: boolean; season?: string }[]; rows: { sport: string; cells: Cell[] }[] }
   leagues: Record<string, { seasons: string[]; bySeason: Record<string, LeagueSeason>; roster: { label: string; rows: { slot: string; name: string; team: string; pos: string }[] }[]; rounds: number[]; picks: { year: number; cells: PickChip[][] }[] }>
   drafts: { title: string; sport: string | null; when: string; rows: { pk: string; player: string; team: string; pos: string; via: string }[] }[]
@@ -109,26 +109,11 @@ export default function ClubTabs({ data: d, own = false, start = 'cal' }: { data
             </div>
           </div>
 
-          {own && isCur && <MyClub key={L.sport} leagueId={d.leagueId} embedded sport={L.sport} view="lineup" />}
+          {/* this season's roster with stats: your own club to manage, any other club view only */}
+          {isCur && <MyClub key={L.sport + (own ? '' : d.teamId)} leagueId={d.leagueId} embedded sport={L.sport} view="lineup" teamId={own ? undefined : d.teamId} />}
 
           <div className="grid gap-4 lg:grid-cols-2 items-start">
-            {isCur && !own && (
-              <div className="card overflow-hidden">
-                {lg.roster.map(g => (
-                  <div key={g.label}>
-                    <div className="ui flex justify-between px-4 py-2 bg-ink-50 text-[12px] font-bold tracking-[.12em]"><span>{g.label}</span><span className="text-ink-500">{g.rows.length}</span></div>
-                    {g.rows.map((p, i) => (
-                      <div key={i} className="grid grid-cols-[52px_minmax(0,1fr)_44px_72px] gap-3 items-center px-4 py-2 border-t border-ink-50">
-                        <span className="ui inline-flex items-center justify-center leading-none h-7 rounded-[3px] text-[12px] font-bold" style={{ background: g.label === 'STARTERS' ? L.color : '#E5E5E5', color: g.label === 'STARTERS' ? '#fff' : '#1F1F1F' }}>{p.slot}</span>
-                        <span className="min-w-0 font-semibold text-[14px] break-words">{p.name}</span><span className="text-[13px]">{p.team}</span><span className="text-[13px] break-words">{p.pos}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-                {!lg.roster.length && <div className="p-4 text-ink-400 font-semibold">No players</div>}
-              </div>
-            )}
-            <div className="flex flex-col gap-4 min-w-0">
+            <div className="contents">
               {isCur && lg.picks.length > 0 && (
                 <div className="card overflow-hidden">
                   <div className="ui px-4 py-2.5 border-b-2 border-black text-[12px] font-bold tracking-[.12em]">FUTURE DRAFT PICKS</div>

@@ -7,6 +7,7 @@
 //   every  6 h    injury designations
 //   every hour    the ySF projection model
 //   every hour    ySF News stories that are due (when ANTHROPIC_API_KEY is set)
+//   every hour    player news (Tank01 fantasy feeds)
 //   every 24 h    pro experience (taxi eligibility)
 // Each job runs one at a time; a job still running is skipped rather than doubled up.
 // Off when YSF_SCHEDULER=off. Output goes to data/logs/scheduler.log.
@@ -60,6 +61,8 @@ const JOBS: Job[] = [
   { name: 'model', every: 60 * MIN, run: () => script('ysf-model.ts') },
   // ySF News: each morning's stories (the staff writers when ANTHROPIC_API_KEY is set), and back issues once
   { name: 'news', every: 60 * MIN, run: () => script('ysf-news.ts', '--back', '14') },
+  // player news (Tank01's fantasy feeds: four calls a run, well inside each sport's 1,000 a day)
+  { name: 'player-news', every: 60 * MIN, run: () => script('ysf-player-news.ts') },
 ]
 
 export function startYsfScheduler() {

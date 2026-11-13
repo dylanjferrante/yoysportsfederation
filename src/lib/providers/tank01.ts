@@ -238,3 +238,10 @@ export class Tank01Provider implements SportsDataProvider {
     return []
   }
 }
+
+// Player news, newest first: [{ title, link }]. The league-wide fantasy feed titles each note
+// "Player Name: what happened"; a playerID request returns that player's headlines.
+export async function tank01News(sport: Sport, query: Record<string, string | number | boolean>): Promise<{ title: string; link: string }[]> {
+  const body = await call<any>(sport, `get${sport}News`, query, 30 * 60_000)
+  return Array.isArray(body) ? body.filter((x: any) => x?.title) : []
+}

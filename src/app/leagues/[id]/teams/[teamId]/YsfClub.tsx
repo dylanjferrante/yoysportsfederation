@@ -273,7 +273,7 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
         </section>
       )}
 
-      <ClubTabs own={own} start={own ? YSF_LEAGUES.find(L => cur[L.sport] != null)?.sport ?? 'cal' : 'cal'} data={{ leagueId: league.id, clubName: club.name, clubAb: club.abbreviation, season: league.season, calendar, leagues, drafts, moves, h2h }} />
+      <ClubTabs own={own} start={own ? YSF_LEAGUES.find(L => cur[L.sport] != null)?.sport ?? 'cal' : 'cal'} data={{ leagueId: league.id, teamId, clubName: club.name, clubAb: club.abbreviation, season: league.season, calendar, leagues, drafts, moves, h2h }} />
     </>
   )
 }

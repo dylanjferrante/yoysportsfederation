@@ -10,10 +10,12 @@ import { slotEligible } from '@/lib/defaults'
 import { YSF_LEAGUES, YSF_ART, U, injTag } from '@/lib/ysf'
 
 type Game = { opp: string; home: boolean; epoch: number | null; status: string; gameId: string } | null
-type RP = { rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null; seasonStats?: Record<string, number>; wkStats?: Record<string, number> | null; proj?: { pts: number; games: number; stats: Record<string, number>; source: string } | null; oppText?: string | null }
+type RP = { news?: Note | null; rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null; seasonStats?: Record<string, number>; wkStats?: Record<string, number> | null; proj?: { pts: number; games: number; stats: Record<string, number>; source: string } | null; oppText?: string | null }
+type Note = { playerId: string; name: string; text: string; link: string; seen: string }
 type FA = { playerId: string; name: string; position: string; pos: string; team: string | null; gp: number; points: number; injury: string | null; pending: boolean; clears: string | null }
 type Club = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null; ink?: string }
 type Data = {
+  readOnly?: boolean; news?: Note[]
   team: Club; sports: { sport: string; code: string }[]; sport: string; code: string; cadence: 'DAILY' | 'WEEKLY'; week: number | null; curWeek: number | null
   weeks: { week: number; label: string; start: string; end: string }[]; past: boolean; future: boolean; taxiLocked?: boolean; dates: string[]; date: string | null; today: string
   matchup: { week: number; final?: boolean; start: string; end: string; me: number; them: number; opp: Club | null } | null
@@ -39,6 +41,7 @@ const lg = (sport: string) => YSF_LEAGUES.find(l => l.sport === sport) ?? YSF_LE
 const posFix = (p: string) => p.replace(/\bDEF\b/g, 'D/ST')
 const meta = (code: string, team: string | null, pos: string) => `(${code}-${team || 'FA'}, ${posFix(pos)})`
 const fmtTime = (ms: number, withDay: boolean) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', ...(withDay ? { weekday: 'short' } : {}), hour: 'numeric', minute: '2-digit' }).format(new Date(ms))
+const agoOf = (iso: string) => { const m = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago` }
 const isLive = (s: string) => /live|progress/i.test(s)
 const isFinal = (s: string) => /final|completed/i.test(s)
 const positionsOf = (p: { pos: string; position: string }) => [...new Set([...p.pos.split('/'), p.position])].filter(Boolean)
@@ -50,7 +53,8 @@ const btn = 'inline-flex items-center justify-center leading-none rounded font-d
 // `sport` / `view`: the club page's own tabs choose the league and the tool, so this hides its
 // league buttons and tool tabs.
 type View = 'lineup' | 'players' | 'trade' | 'pending'
-export default function MyClub({ leagueId, embedded = false, sport: fixedSport, view }: { leagueId: string; embedded?: boolean; sport?: string; view?: View }) {
+// `teamId`: another club's roster, shown view only (same stats and weeks, no moves).
+export default function MyClub({ leagueId, embedded = false, sport: fixedSport, view, teamId }: { leagueId: string; embedded?: boolean; sport?: string; view?: View; teamId?: string }) {
   const [sport, setSport] = useState<string | null>(null)
   const [date, setDate] = useState<string | null>(null)
   const [data, setData] = useState<Data | null>(null)
@@ -66,12 +70,12 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
   const [statSpan, setStatSpan] = useState<Span>('week')
 
   const load = useCallback(async (s?: string | null, d?: string | null, w?: number | null) => {
-    const q = new URLSearchParams(); if (s) q.set('sport', s); if (d) q.set('date', d); if (w) q.set('week', String(w))
+    const q = new URLSearchParams(); if (teamId) q.set('team', teamId); if (s) q.set('sport', s); if (d) q.set('date', d); if (w) q.set('week', String(w))
     const r = await fetch(`/api/leagues/${leagueId}/myclub?${q}`)
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Could not load your club'); return }
     setErr(null); setData(j); setSport(j.sport); setDate(j.date)
-  }, [leagueId])
+  }, [leagueId, teamId])
   useEffect(() => { load(fixedSport ?? null) }, [load, fixedSport])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3200); return () => clearTimeout(t) }, [toast])
 
@@ -93,7 +97,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
   const setSlot = (p: RP, slot: string) => roster({ action: 'SET_SLOT', rosterId: p.rosterId, slot, ...(data!.cadence === 'DAILY' && date ? { date } : {}) })
 
   if (err) return <div className="card p-8 text-center font-semibold text-ink-500">{err}</div>
-  if (!data) return <div className="card p-8 text-center text-ink-400">Loading your club…</div>
+  if (!data) return <div className="card p-8 text-center text-ink-400">{teamId ? 'Loading the roster…' : 'Loading your club…'}</div>
 
   const dayPast = !!data.date && data.date < data.today
   const starterKeys = [...(ORDER[data.sport] ?? []).filter(k => data.slots[k]), ...Object.keys(data.slots).filter(k => !RESERVE.includes(k) && !(ORDER[data.sport] ?? []).includes(k) && !['IL', 'DL'].includes(k))]
@@ -112,8 +116,10 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
   }
   const reserveRows = (w: string) => data.roster.filter(p => p.slot === w).map(p => ({ key: p.rosterId, slot: w, label: w, p, starter: false } as Row))
 
+  const ro = !!data.readOnly
   const actionsFor = (row: Row) => {
     const p = row.p
+    if (ro) return {}
     if (dayPast) return { lock: 'FINAL' as string | null }
     if (p?.locked) return { lock: p.game && isLive(p.game.status) ? 'LIVE' : 'FINAL' }
     if (selP) {
@@ -133,7 +139,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
     return { move: () => { setSel(p.rosterId); setDropAsk(null) }, drop: true }
   }
   const groupDrop = (w: string) => {
-    if (!selP || selP.locked || dayPast || selP.slot === w) return null
+    if (ro || !selP || selP.locked || dayPast || selP.slot === w) return null
     // Comm. Res. VII: the Taxi Squad locks at the season's first game
     if (w === 'TAXI' && data.taxiLocked) return null
     if (w !== 'BN' && (data.slots[w] ?? 0) > 0 && data.roster.filter(p => p.slot === w).length >= (data.slots[w] ?? 0)) return null
@@ -212,7 +218,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
         <div key={g.label} className="card overflow-x-auto" style={{ borderTop: `4px solid ${L.color}` }}>
           <div className="ui flex items-center gap-x-[10px] px-4 py-2 bg-ink-50 text-[12px] font-bold tracking-[.12em] min-h-[40px] min-w-max">
             <span className="flex items-center gap-[10px] sm:sticky sm:left-0 sm:z-10 bg-ink-50 w-[150px] sm:w-[286px] flex-none whitespace-nowrap">{g.label} <span className="text-ink-500 font-medium">{g.count}</span></span>
-            <span className="order-1 sm:order-3 w-[140px] sm:w-[152px] flex-none flex justify-end sm:sticky sm:right-0 sm:z-10 bg-ink-50">{g.drop && <button disabled={busy} onClick={g.drop} className={`${btn} h-[30px] px-3 bg-black text-white`}>MOVE HERE</button>}</span>
+            {!ro && <span className="order-1 sm:order-3 w-[140px] sm:w-[152px] flex-none flex justify-end sm:sticky sm:right-0 sm:z-10 bg-ink-50">{g.drop && <button disabled={busy} onClick={g.drop} className={`${btn} h-[30px] px-3 bg-black text-white`}>MOVE HERE</button>}</span>}
             <span className="order-2 flex items-center gap-x-[10px] text-ink-500 font-medium">
               <span className="w-[120px] flex-none">OPP</span><span className="w-[44px] flex-none">TEAM</span><span className="w-[72px] flex-none">POS</span>
               <span className={`${cellW} text-black`}>{statSpan === 'proj' ? 'PROJ' : 'FPTS'}</span><span className="w-[40px] flex-none text-right">{statSpan === 'proj' ? 'G' : 'GP'}</span>
@@ -229,10 +235,11 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
                   <span className="ui w-[56px] flex-none inline-flex items-center justify-center leading-none h-[28px] rounded-[3px] text-[12px] font-bold" style={{ background: row.starter ? L.color : '#E5E5E5', color: row.starter ? '#fff' : '#1F1F1F' }}>{row.label === 'BN' ? 'BN' : row.label}</span>
                   <span className="min-w-0 flex-1 font-bold leading-tight" style={{ color: p ? '#000' : '#8A8A8A' }}>
                     <span className="block line-clamp-2 break-words">{p ? p.name : 'Empty'}</span>
+                    {p?.news && <span className="hidden sm:block"><span title={p.news.text} className="text-[11px] font-normal text-ink-500 leading-snug line-clamp-1 break-all sm:break-normal">{p.news.text}</span></span>}
                     {inj && <span title={(p as any)?.injuryNote ?? p?.injury ?? ''} className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] mt-0.5 rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold">{inj}</span>}
                   </span>
                 </span>
-                <span className="order-1 sm:order-3 w-[140px] sm:w-[152px] flex-none flex gap-[6px] justify-end sm:sticky sm:right-0 sm:z-10" style={{ background: bg }}>
+                {!ro && <span className="order-1 sm:order-3 w-[140px] sm:w-[152px] flex-none flex gap-[6px] justify-end sm:sticky sm:right-0 sm:z-10" style={{ background: bg }}>
                   {a.lock && <span className="ui inline-flex items-center justify-center leading-none h-[32px] px-[10px] rounded bg-ink-50 text-ink-500 text-[11px] font-bold">{a.lock}</span>}
                   {a.here && <button disabled={busy} onClick={a.here} className={`${btn} h-[32px] px-3 bg-black text-white`}>{a.hereLabel}</button>}
                   {a.cancel && <button onClick={() => setSel(null)} className={`${btn} h-[32px] px-3 border border-black bg-white text-black`}>CANCEL</button>}
@@ -240,7 +247,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
                   {a.drop && p && (dropAsk === p.rosterId
                     ? <button disabled={busy} onClick={() => run(() => roster({ action: 'DROP', rosterId: p.rosterId }), `Dropped ${p.name}`)} className={`${btn} h-[32px] px-3 bg-[#ba0c2f] text-white`}>CONFIRM DROP</button>
                     : <button disabled={busy} onClick={() => setDropAsk(p.rosterId)} className={`${btn} h-[32px] px-3 border border-ink-200 bg-white text-ink-500`}>DROP</button>)}
-                </span>
+                </span>}
                 <span className="order-2 flex items-center gap-x-[10px]">
                   <span className="w-[120px] flex-none leading-tight"><span className="block font-bold text-[14px] truncate" style={{ color: gc.ink }}>{gc.opp}</span><span className="block text-[12px]" style={{ color: gc.sub, fontWeight: gc.w }}>{gc.when}</span></span>
                   <span className="w-[44px] flex-none text-[13px]">{p ? p.team || 'FA' : ''}</span>
@@ -255,6 +262,21 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
           {!g.rows.length && <div className="px-4 py-3 text-ink-400 font-semibold border-t border-ink-50">Empty</div>}
         </div>
       ))}
+      {/* the roster's newest player news (Tank01's fantasy feeds), newest first */}
+      {!!data.news?.length && (
+        <div className="card overflow-hidden" style={{ borderTop: `4px solid ${L.color}` }}>
+          <div className="ui px-4 py-2 bg-ink-50 text-[12px] font-bold tracking-[.12em] min-h-[40px] flex items-center">PLAYER NEWS</div>
+          {data.news.map((n, i) => (
+            <div key={i} className="px-4 py-3 border-t border-ink-50 flex flex-col gap-0.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-bold">{n.name}</span>
+                <span className="text-[11px] text-ink-500 whitespace-nowrap">{agoOf(n.seen)}</span>
+              </div>
+              <p className="text-[14px] text-ink-800 leading-snug">{n.text}{n.link && <> <a href={n.link} target="_blank" rel="noopener noreferrer" className="text-ink-500 underline text-[12px] whitespace-nowrap">Source</a></>}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   )
 

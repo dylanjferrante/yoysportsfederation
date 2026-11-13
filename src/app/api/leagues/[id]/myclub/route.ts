@@ -16,26 +16,33 @@ import { lastNflRun, nextNflRun } from '@/lib/waivers'
 import { clubInk } from '@/lib/ysf'
 import { playerProjection } from '@/lib/ysf-model'
 import { taxiLockAt } from '@/lib/ysf-rules'
+import { playerNews } from '@/lib/ysf-player-news'
 
 // Everything the My Club page needs for one league (sport) and one week: the matchup, the lineup
 // (per day for daily leagues) with each player's game, lock state and stats — that week's, the
 // season's and projected — FAAB, pending claims, and the free-agent pool with stats. Past weeks show
 // the lineup as it was played (read-only); future weeks the current roster.
 //   GET /api/leagues/:id/myclub?sport=NBA&week=10&date=2026-11-12
+// &team=<club id> shows another club's roster, view only (no claims, free agents or moves).
 const ymd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await getServerSession(authOptions)
   const uid = session?.user?.id ?? bearerUserId(req)
-  if (!uid) return NextResponse.json({ error: 'Sign in to manage your club' }, { status: 401 })
+  const url = new URL(req.url)
+  const viewId = url.searchParams.get('team')
+  if (!uid && !viewId) return NextResponse.json({ error: 'Sign in to manage your club' }, { status: 401 })
 
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) return NextResponse.json({ error: 'League not found' }, { status: 404 })
-  const [team] = await db.select().from(teams).where(and(eq(teams.leagueId, id), eq(teams.userId, uid))).limit(1)
-  if (!team) return NextResponse.json({ error: 'You have no club in this league' }, { status: 403 })
+  const [team] = viewId
+    ? await db.select().from(teams).where(and(eq(teams.leagueId, id), eq(teams.id, viewId))).limit(1)
+    : await db.select().from(teams).where(and(eq(teams.leagueId, id), eq(teams.userId, uid!))).limit(1)
+  if (!team) return NextResponse.json({ error: viewId ? 'Club not found' : 'You have no club in this league' }, { status: viewId ? 404 : 403 })
+  // another club's roster: shown, not managed
+  const readOnly = !uid || team.userId !== uid
 
-  const url = new URL(req.url)
   const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const sport = url.searchParams.get('sport') && sportsEnabled.includes(url.searchParams.get('sport')!) ? url.searchParams.get('sport')! : sportsEnabled[0]
   const season = league.season
@@ -200,7 +207,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   // FAAB + claims
   const [rec] = await db.select().from(teamRecords).where(and(eq(teamRecords.teamId, team.id), eq(teamRecords.season, season), eq(teamRecords.sport, sport))).limit(1)
-  const claimRows = await db.select().from(waiverClaims).where(and(eq(waiverClaims.leagueId, id), eq(waiverClaims.teamId, team.id), eq(waiverClaims.status, 'PENDING')))
+  const claimRows = readOnly ? [] : await db.select().from(waiverClaims).where(and(eq(waiverClaims.leagueId, id), eq(waiverClaims.teamId, team.id), eq(waiverClaims.status, 'PENDING')))
   const claimPlayers = claimRows.length ? await db.select({ id: players.id, name: players.name, sport: players.sport, team: players.realTeamAbbr, position: players.position }).from(players)
     .where(inArray(players.id, [...new Set(claimRows.flatMap(c => [c.addPlayerId, c.dropPlayerId].filter(Boolean) as string[]))])) : []
   const cpBy = new Map(claimPlayers.map(p => [p.id, p]))
@@ -209,7 +216,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // free agents: not rostered by any club in the league, best season points first
   const leagueTeamIds = (await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, id))).map(t => t.id)
   const rostered = (await db.select({ p: rosters.playerId }).from(rosters).where(and(inArray(rosters.teamId, leagueTeamIds), eq(rosters.sport, sport)))).map(r => r.p)
-  const faRows = await db.select({ playerId: players.id, name: players.name, position: players.position, eligible: players.eligiblePositions, team: players.realTeamAbbr,
+  const faRows = readOnly ? [] : await db.select({ playerId: players.id, name: players.name, position: players.position, eligible: players.eligiblePositions, team: players.realTeamAbbr,
       status: players.status, injury: players.injuryNote, gp: playerSeasonStats.gp, points: playerSeasonStats.points })
     .from(playerSeasonStats).innerJoin(players, eq(playerSeasonStats.playerId, players.id))
     .where(and(eq(playerSeasonStats.leagueId, id), eq(playerSeasonStats.season, season), eq(playerSeasonStats.sport, sport), rostered.length ? notInArray(players.id, rostered) : undefined))
@@ -231,7 +238,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const others = (await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor })
     .from(teams).where(and(eq(teams.leagueId, id), eq(teams.archived, false)))).map(o => ({ ...o, ink: clubInk(o.primaryColor, o.secondaryColor) }))
 
+  // player news: each player's latest note, and the roster's newest notes
+  const pn = playerNews(roster.map(r => r.playerId).filter(Boolean), 8)
+  roster = roster.map(r => ({ ...r, news: pn.latest.get(r.playerId) ?? null }))
+
   return NextResponse.json({
+    readOnly, news: pn.recent,
     team: { id: team.id, name: team.name, abbreviation: team.abbreviation, logo: team.logo, altLogo: team.altLogo, primaryColor: team.primaryColor, ink: clubInk(team.primaryColor, team.secondaryColor) },
     sports: sportsEnabled.map(s => ({ sport: s, code: sportAbbr[s] || s })), sport, code: sportAbbr[sport] || sport,
     taxiLocked: id === 'ysf' ? ((await taxiLockAt(sport))?.getTime() ?? Infinity) <= Date.now() : false,
