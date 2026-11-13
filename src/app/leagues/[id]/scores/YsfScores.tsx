@@ -1,7 +1,10 @@
 // ySF Site Redesign — Scores (Matchday folded in): pick any federation week from the scroller,
 // filter by league, one card per club pairing with every league's score stacked.
 import Link from 'next/link'
-import { loadClubs, loadWeek } from '@/lib/ysf-data'
+import { loadClubs, loadWeek, pastSeasonWeeks } from '@/lib/ysf-data'
+import { db } from '@/db'
+import { matchups } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { PageTitle } from '@/components/ysf/ui'
 import PairCards from '@/components/ysf/PairCards'
 import WeekScroller from '@/components/ysf/WeekScroller'
@@ -14,21 +17,33 @@ function span(season: string, w: number) {
   return start.getMonth() === end.getMonth() ? `${M(start)} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}` : `${M(start)} ${start.getDate()} – ${M(end)} ${end.getDate()}, ${end.getFullYear()}`
 }
 
-export default async function YsfScores({ league, week, lg }: { league: any; week?: number; lg?: string }) {
+export default async function YsfScores({ league, week, lg, season: sArg }: { league: any; week?: number; lg?: string; season?: string }) {
   const C = await loadClubs(league.id)
-  const wk = await loadWeek(league, week)
+  const allSeasons = [...new Set((await db.selectDistinct({ s: matchups.season }).from(matchups).where(eq(matchups.leagueId, league.id))).map(r => r.s!).filter(Boolean))].sort()
+  const season = sArg && allSeasons.includes(sArg) ? sArg : league.season
+  const past = season !== league.season
+  const wk = await loadWeek(league, week, season)
   const base = `/leagues/${league.id}/scores`
   const only = YSF_LEAGUES.find(l => l.key === lg)?.sport ?? null
-  const q = (w: number | null, k?: string | null) => { const p = new URLSearchParams(); if (w != null && w !== wk.thisWeek) p.set('w', String(wk.num(w))); if (k) p.set('lg', k); const s = p.toString(); return s ? `${base}?${s}` : base }
+  const link = (sea: string, n: number | null, k?: string | null) => { const p = new URLSearchParams(); if (sea !== league.season) p.set('s', sea); if (n != null) p.set('w', String(n)); if (k) p.set('lg', k); const s = p.toString(); return s ? `${base}?${s}` : base }
+  const q = (w: number | null, k?: string | null) => link(season, w != null && (past || w !== wk.thisWeek) ? wk.num(w) : null, k)
+  // every season's weeks in one scroller: past seasons first, then this one
+  const chips: { week: number; dates: string; href: string; on: boolean; now: boolean; season?: string }[] = []
+  for (const sea of allSeasons.filter(x => x < league.season)) {
+    const pw = sea === season ? { weeks: wk.weeks, num: wk.num } : await pastSeasonWeeks(sea)
+    for (const w of pw.weeks) chips.push({ season: sea, week: pw.num(w), dates: span(sea, w), href: link(sea, pw.num(w), lg && only ? lg : null), on: sea === season && w === wk.week, now: false })
+  }
   const lines = wk.pairings.flatMap(p => p.lines.filter(x => !only || x.sport === only))
   const live = lines.filter(x => x.status === 'LIVE').length
   const sports = YSF_LEAGUES.filter(l => wk.pairings.some(p => p.lines.some(x => x.sport === l.sport)))
   const chip = 'inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg font-display text-[12px] font-bold tracking-[.06em] leading-none border'
-  const eyebrow = wk.week === wk.thisWeek ? `${live ? 'Live now' : 'This week'} · ${lines.length} matchups` : `${span(league.season, wk.week)} · ${lines.length} matchups`
+  const eyebrow = !past && wk.week === wk.thisWeek ? `${live ? 'Live now' : 'This week'} · ${lines.length} matchups` : `${past ? season.replace('-', '–') + ' · ' : ''}${span(season, wk.week)} · ${lines.length} matchups`
+  if (!past) for (const w of wk.weeks) chips.push({ season: allSeasons.length > 1 ? league.season : undefined, week: wk.num(w), dates: span(league.season, w), href: q(w, lg && only ? lg : null), on: w === wk.week, now: w === wk.thisWeek })
+  else { const cur = await loadWeek(league); for (const w of cur.weeks) chips.push({ season: league.season, week: cur.num(w), dates: span(league.season, w), href: link(league.season, w === cur.thisWeek ? null : cur.num(w), lg && only ? lg : null), on: false, now: w === cur.thisWeek }) }
   return (
     <>
       <PageTitle eyebrow={eyebrow} title="SCORES" />
-      <WeekScroller weeks={wk.weeks.map(w => ({ week: wk.num(w), dates: span(league.season, w), href: q(w, lg && only ? lg : null), on: w === wk.week, now: w === wk.thisWeek }))} />
+      <WeekScroller weeks={chips} />
       {sports.length > 1 && (
         <div className="flex flex-wrap gap-2 -mt-3 sm:-mt-4">
           <Link href={q(wk.week)} scroll={false} className={chip} style={{ background: only ? '#fff' : '#000', color: only ? '#000' : '#fff', borderColor: only ? '#C7C7C7' : '#000' }}>ALL</Link>

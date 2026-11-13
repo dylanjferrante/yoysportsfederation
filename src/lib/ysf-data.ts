@@ -74,7 +74,32 @@ export type Pairing = { a: string; b: string; lines: PairLine[]; summary: string
 // Federation weeks are numbered per season from the week its first games are played (Week 1),
 // and a week also carries the prior season's games still running then (ySFLB ends in September,
 // after the new football season has started).
-export async function loadWeek(league: any, week?: number) {
+const SITE_KEY: Record<string, string> = { NFL: 'ysf_fl', NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }
+// A past season's matchups are stored by each league's own period; place them on that season's
+// federation calendar (Mon–Sun weeks) from the periods' real dates. A two-week period covers both weeks.
+export async function pastSeasonWeeks(season: string) {
+  const anchor = weekDateRange(season, 1).start.getTime()
+  const fw = (iso: string) => Math.floor((new Date(iso + 'T12:00:00').getTime() - anchor) / (7 * 86_400_000)) + 1
+  const periodWeeks: Record<string, Record<number, number[]>> = {}
+  const all = new Set<number>()
+  for (const L of YSF_LEAGUES) {
+    const arch = await siteFeed<any>(`archives/${season}/${SITE_KEY[L.sport]}.json`)
+    const pm = (arch?.schedule_meta?.periods ?? {}) as Record<string, { start: string; end: string }>
+    const map: Record<number, number[]> = {}
+    for (const [p, d] of Object.entries(pm)) {
+      if (!d?.start) continue
+      const ws: number[] = []
+      for (let w = fw(d.start); w <= fw(d.end ?? d.start); w++) { ws.push(w); all.add(w) }
+      map[Number(p)] = ws
+    }
+    periodWeeks[L.sport] = map
+  }
+  const weeks = [...all].sort((a, b) => a - b)
+  return { periodWeeks, weeks, num: (x: number) => x - (weeks[0] ?? 1) + 1 }
+}
+
+export async function loadWeek(league: any, week?: number, seasonArg?: string) {
+  if (seasonArg && seasonArg !== league.season) return loadPastWeek(league, seasonArg, week)
   const season = league.season
   const ms = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.season, season)))
   const curWeek = Math.min(...ms.filter(m => !m.isComplete).map(m => m.week), Infinity)
@@ -119,6 +144,26 @@ export async function loadWeek(league: any, week?: number) {
     }
   }
   return { week: w, thisWeek, weeks, num, prev: weeks.filter(x => x < w).pop() ?? null, next: weeks.find(x => x > w) ?? null, pairings: [...pairs.values()] }
+}
+
+async function loadPastWeek(league: any, season: string, week?: number) {
+  const { periodWeeks, weeks, num } = await pastSeasonWeeks(season)
+  const first = weeks[0] ?? 1
+  const last = weeks[weeks.length - 1] ?? 1
+  const w = week != null ? week + first - 1 : last
+  const ms = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.season, season)))
+  const pairs = new Map<string, Pairing>()
+  for (const L of YSF_LEAGUES) {
+    for (const m of ms.filter(x => x.sport === L.sport && x.awayTeamId && (periodWeeks[L.sport]?.[x.week] ?? []).includes(w))) {
+      const [a, b] = [m.homeTeamId, m.awayTeamId!].sort()
+      const key = a + '|' + b
+      const p = pairs.get(key) ?? { a: m.homeTeamId, b: m.awayTeamId!, lines: [], summary: '' }
+      const sa = m.homeTeamId === p.a ? m.homeScore : m.awayScore, sb = m.homeTeamId === p.a ? m.awayScore : m.homeScore
+      p.lines.push({ sport: L.sport, label: `${L.sport === 'NFL' ? 'Week' : 'Period'} ${m.week}${m.isPlayoff ? ' · Playoffs' : ''}`, status: m.isComplete ? 'FINAL' : 'LIVE', a: sa ?? 0, b: sb ?? 0, matchupId: m.id })
+      pairs.set(key, p)
+    }
+  }
+  return { week: w, thisWeek: last, weeks, num, prev: weeks.filter(x => x < w).pop() ?? null, next: weeks.find(x => x > w) ?? null, pairings: [...pairs.values()] }
 }
 
 export function seriesSummary(p: Pairing, ab: (id: string) => string) {
