@@ -370,7 +370,7 @@ async function main() {
         const kind = KIND[p.type] ?? String(p.type).toUpperCase()
         const pos = String(p.position || '').replace(/,/g, '/')
         insAct.run(id(), LEAGUE_ID, p.type === 'DRAFT' ? 'DRAFT' : 'WAIVER', `${clubs[t.ysf_id].abbr} ${kind.toLowerCase()} ${p.name} (${codeOf}, ${pos})`, teamId[t.ysf_id], String(t.date).replace('T', ' '),
-          JSON.stringify({ kind, sport, player: firstLast(p.name), team: proAbbr(sport, p.real_team), pos, bid: t.bid && p.type === 'WW' ? Math.round(t.bid) : null, season: '2025-26' }))
+          JSON.stringify({ kind, sport, player: firstLast(p.name), team: proAbbr(sport, p.real_team), pos, bid: t.bid && p.type === 'WW' ? Math.round(t.bid) : null, season: '2025-26', ...(p.type === 'DRAFT' && t.pick_info ? { pick: t.pick_info } : {}) }))
         nPrevTx++
       }
     }
