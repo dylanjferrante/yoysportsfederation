@@ -45,5 +45,6 @@ const lum = (hex: string) => {
 const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
 export function clubInk(primary: string | null | undefined, secondary: string | null | undefined): string {
   if (!primary || !secondary || secondary.toLowerCase() === primary.toLowerCase()) return '#FFFFFF'
-  return contrast(primary, secondary) >= 2.4 ? secondary : '#FFFFFF'
+  // the club's secondary colour unless it all but disappears on the primary (RC's red on navy)
+  return contrast(primary, secondary) >= 1.8 ? secondary : '#FFFFFF'
 }
