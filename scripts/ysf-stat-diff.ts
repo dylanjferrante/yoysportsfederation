@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 const db = new Database('data/nexus.db', { readonly: true })
 async function main() {
   const { loadGameLines, toFantraxStats } = await import('../src/lib/ysf-gamelines')
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
   for (const sport of ['NHL', 'NBA'] as const) {
     const L = loadGameLines(sport, '2026-09-01', today, {})
     const by = new Map<string, Record<string, number>>()
