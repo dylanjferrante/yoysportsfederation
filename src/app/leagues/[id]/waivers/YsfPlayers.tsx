@@ -93,9 +93,9 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
               const c = r.owner ? C[r.owner] : undefined
               return (
                 <tr key={r.id}>
-                  <td className={`${td} whitespace-nowrap`}>
-                    <span className="block text-[14px] leading-tight max-w-[24vw] sm:max-w-none overflow-hidden text-ellipsis"><b>{r.name}</b>{injTag(r.status) && <> <span title={r.status ?? ''} className="ui inline-flex items-center justify-center leading-none h-[16px] px-[4px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[1px]">{injTag(r.status)}</span></>}</span>
-                    {r.injury && injTag(r.status) && <span className="block text-[11px] text-[#ba0c2f] font-semibold leading-tight mt-0.5 max-w-[24vw] sm:max-w-[420px] overflow-hidden text-ellipsis">{r.injury}</span>}
+                  <td className={`${td} !whitespace-normal min-w-[132px]`}>
+                    <span className="block text-[14px] leading-tight break-words"><b>{r.name}</b>{injTag(r.status) && <> <span title={r.status ?? ''} className="ui inline-flex items-center justify-center leading-none h-[16px] px-[4px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[1px]">{injTag(r.status)}</span></>}</span>
+                    {r.injury && injTag(r.status) && <span className="block text-[11px] text-[#ba0c2f] font-semibold leading-tight mt-0.5 max-w-[420px]">{r.injury}</span>}
                   </td>
                   <td className={`${td} font-normal whitespace-nowrap`}>{r.team || 'FA'}</td>
                   <td className={`${td} font-normal whitespace-nowrap`}>{posOf(r).join('/').replace(/\bDEF\b/, 'D/ST')}</td>

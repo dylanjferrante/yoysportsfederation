@@ -5,13 +5,13 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { PageTitle } from '@/components/ysf/ui'
 import { buildLeagueNews } from '@/lib/leaguenews'
-import YsfInjuries from './YsfInjuries'
+import YsfNews from './YsfNews'
 import { YSF_LEAGUE_ID } from '@/lib/ysf'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
-  return { title: `${league?.name ?? 'League'} · ${id === YSF_LEAGUE_ID ? 'Injuries' : 'News'}` }
+  return { title: `${league?.name ?? 'League'} · ${id === YSF_LEAGUE_ID ? 'News' : 'News'}` }
 }
 
 const CAT: Record<string, { label: string; cls: string; bg: string }> = {
@@ -35,7 +35,7 @@ export default async function NewsPage({ params, searchParams }: { params: Promi
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
-  if (id === YSF_LEAGUE_ID) return <div className="flex flex-col gap-5"><YsfInjuries league={league} lg={(await searchParams).lg} /></div>
+  if (id === YSF_LEAGUE_ID) return <div className="flex flex-col gap-5"><YsfNews league={league} /></div>
   const items = await buildLeagueNews(id)
 
   return (

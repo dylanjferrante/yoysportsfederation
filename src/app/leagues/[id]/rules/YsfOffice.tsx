@@ -161,8 +161,8 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
             return (
               <article key={i} className="card p-4 sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <h2 className="disp text-[20px] sm:text-[24px] font-extrabold leading-tight min-w-0 flex-1">{r.title}</h2>
-                  <span className="flex gap-1.5 flex-none">
+                  <h2 className="disp text-[20px] sm:text-[24px] font-extrabold leading-tight min-w-0 flex-[1_1_16rem]">{r.title}</h2>
+                  <span className="flex flex-wrap gap-1.5 flex-none">
                     {r.emergency && <span className={`${badge} border border-black text-black`}>EMERGENCY</span>}
                     {r.type && <span className={`${badge} border border-black text-black`}>{r.type.toUpperCase()}</span>}
                     <span className={`${badge} text-white`} style={{ background: bg }}>{r.status.toUpperCase()}</span>

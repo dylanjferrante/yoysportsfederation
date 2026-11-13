@@ -52,7 +52,7 @@ export default function ClubTabs({ data: d, own = false, start = 'cal' }: { data
   return (
     <>
       <div className="flex flex-wrap items-center gap-3 min-w-0">
-        <div className="min-w-0 max-w-full flex-1">
+        <div className="min-w-0 w-full lg:w-auto lg:flex-1">
           <Tabs value={tab} onChange={setTab} items={[{ id: 'cal', label: 'CALENDAR' }, ...YSF_LEAGUES.map(l => ({ id: l.sport, label: l.code })), ...(own ? [{ id: 'players', label: 'ADD / DROP' }, { id: 'trade', label: 'TRADE' }, { id: 'pending', label: 'PENDING' }] : []), { id: 'dr', label: 'DRAFTS' }, { id: 'tx', label: 'MOVES' }, { id: 'h2h', label: 'HEAD-TO-HEAD' }]} />
         </div>
         {L && lg && lg.seasons.length > 1 && (

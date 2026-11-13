@@ -20,7 +20,7 @@ export function Tabs<T extends string>({ items, value, onChange }: { items: { id
     <div role="tablist" className="flex gap-1 p-1 bg-white border border-ink-100 rounded-xl overflow-x-auto max-w-full">
       {items.map(t => (
         <button key={t.id} role="tab" type="button" onClick={() => onChange(t.id)}
-          className={`inline-flex items-center justify-center min-h-[40px] px-4 rounded-lg font-display text-[13px] font-medium tracking-[.08em] leading-none whitespace-nowrap ${value === t.id ? 'bg-black text-white' : 'text-ink-500 hover:bg-ink-50'}`}>
+          className={`flex-none inline-flex items-center justify-center min-h-[40px] px-4 rounded-lg font-display text-[13px] font-medium tracking-[.08em] leading-none whitespace-nowrap ${value === t.id ? 'bg-black text-white' : 'text-ink-500 hover:bg-ink-50'}`}>
           <span className="ysf-case">{t.label}</span>
         </button>
       ))}

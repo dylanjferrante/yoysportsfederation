@@ -24,7 +24,7 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
     { label: 'Home', href: base },
     { label: 'Standings', href: `${base}/standings` },
     { label: 'Scores', href: `${base}/scores` },
-    { label: 'Report', href: `${base}/report` },
+    { label: 'News', href: `${base}/news` },
     { label: 'Leagues', menu: YSF_LEAGUES.map(l => ({ label: l.code, href: `${base}/sports/${l.sport}`, icon: YSF_ART.leagueSymbol(l.key, 'white') })) },
     { label: 'Clubs', menu: [{ label: 'All clubs', href: `${base}/teams` }, ...clubs.map(c => ({ label: c.name, href: `${base}/teams/${c.id}`, icon: c.logo }))] },
     { label: 'My Club', href: `${base}/myteam` },
@@ -36,7 +36,7 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
       label: 'More', menu: [
         { label: 'Cup Race', href: `${base}/cup` }, { label: 'Playoffs', href: `${base}/playoffs` },
         { label: 'Draft', href: `${base}/draft` }, { label: 'History', href: `${base}/history` },
-        { label: 'Records', href: `${base}/records` }, { label: 'Injuries', href: `${base}/news` }, { label: 'League Office', href: `${base}/rules` },
+        { label: 'Records', href: `${base}/records` }, { label: 'Injuries', href: `${base}/injuries` }, { label: 'League Office', href: `${base}/rules` },
         { label: 'Votes', href: `${base}/proposals` }, { label: 'Chat', href: `${base}/chat` },
         ...(commish ? [{ label: 'Commissioner', href: `${base}/commish` }, { label: 'League Settings', href: `${base}/settings` }] : []),
       ],

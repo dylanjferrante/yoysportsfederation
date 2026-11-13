@@ -83,8 +83,9 @@ export default async function MorePage({ params }: { params: Promise<{ id: strin
           { href: `${b}/playoffs`, label: 'Playoffs', icon: <Icon bg="#B8860B" k="cup" /> },
           { href: `${b}/history`, label: 'History', icon: <Icon bg="#0D00B2" k="history" /> },
           { href: `${b}/records`, label: 'Records', icon: <Icon bg="#0D00B2" k="history" /> },
+          { href: `${b}/news`, label: 'News', icon: <Icon bg="#4A4A4A" k="report" /> },
           { href: `${b}/report`, label: 'Federation Report', icon: <Icon bg="#4A4A4A" k="report" /> },
-          { href: `${b}/news`, label: 'Injuries', icon: <Icon bg="#ba0c2f" k="memo" /> },
+          { href: `${b}/injuries`, label: 'Injuries', icon: <Icon bg="#ba0c2f" k="memo" /> },
         ]} />
         <Group title="LEAGUES" items={YSF_LEAGUES.map(l => ({ href: `${b}/sports/${l.sport}`, label: l.name, icon: <span className="w-8 h-8 inline-flex items-center justify-center flex-none"><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt="" className="w-8 h-8 object-contain" /></span> }))} />
         <Group title="LEAGUE OFFICE" items={[
