@@ -43,13 +43,12 @@ export default function NewsCarousel({ slides, more }: { slides: Slide[]; more: 
       </div>
       <div ref={track} className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {slides.map(s => (
-          <Link key={s.id} href={s.href} className="group flex-none w-full snap-start grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] rounded overflow-hidden border border-ink-100">
-            <StoryArt tiles={s.tiles} className="aspect-[5/2] sm:aspect-[3/1] md:aspect-auto md:h-[230px] !rounded-none" />
-            <div className="flex flex-col justify-center gap-1.5 p-4 sm:p-5 min-w-0">
+          <Link key={s.id} href={s.href} className="group flex-none w-full snap-start flex flex-col rounded overflow-hidden border border-ink-100">
+            <StoryArt tiles={s.tiles} className="aspect-[2/1] flex-auto !rounded-none" />
+            <div className="flex flex-col gap-1.5 p-4 sm:p-5 min-w-0">
               <div className="ui text-[12px] font-bold tracking-[.14em] text-[#ba0c2f]"><span className="ysf-case">{s.kicker}</span></div>
-              <h2 className="disp text-[24px] sm:text-[30px] font-extrabold leading-[.95] group-hover:underline break-words line-clamp-3">{s.headline}</h2>
-              <p className="text-[14px] sm:text-[15px] text-ink-800 leading-snug line-clamp-2">{s.dek}</p>
-              <div className="text-[12px] text-ink-500">{s.by}</div>
+              <h2 className="disp text-[24px] sm:text-[30px] font-extrabold leading-[.95] group-hover:underline break-words line-clamp-2">{s.headline}</h2>
+              <div className="text-[12px] text-ink-500 mt-0.5">{s.by}</div>
             </div>
           </Link>
         ))}
