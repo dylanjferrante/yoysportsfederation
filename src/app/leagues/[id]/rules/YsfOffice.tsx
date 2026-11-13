@@ -2,9 +2,9 @@
 // league's scoring and roster rules, and the Commission's directives and resolutions.
 import Link from 'next/link'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
-import { siteFeed } from '@/lib/ysf-data'
+import { siteFeed, loadClubs } from '@/lib/ysf-data'
 import { PageTitle, th, td } from '@/components/ysf/ui'
-import { loadConstitution, DOC_URL } from '@/lib/ysf-constitution'
+import { loadConstitution, DOC_URL, type Resolution } from '@/lib/ysf-constitution'
 import { auditLeague } from '@/lib/ysf-audit'
 import { usage } from '@/lib/api-usage'
 import { getServerSession } from 'next-auth'
@@ -41,7 +41,20 @@ const RULEBOOK: [string, string, string][] = [
 const LG_KEY: Record<string, string> = { ysf_fl: 'fl', ysf_hl: 'hl', ysf_ba: 'ba', ysf_lb: 'lb' }
 
 export default async function YsfOffice({ league, tab }: { league: any; tab?: string }) {
-  const [c, doc] = await Promise.all([siteFeed<any>('constitution.json'), loadConstitution()])
+  const [c, doc, rec, clubs] = await Promise.all([siteFeed<any>('constitution.json'), loadConstitution(), siteFeed<any>('resolutions.json'), loadClubs(league.id)])
+  // the official rules record: ysffantasy.com's resolutions.json, built from the ySF Portal's vote record
+  // plus the Commission's directives and notices (newest first). The Constitution document's copy is the
+  // fallback when the record can't be reached.
+  const nameOf = new Map(Object.values(clubs).map(x => [x.abbreviation, x.name]))
+  const cap = (x: string) => x ? x[0].toUpperCase() + x.slice(1) : x
+  const record: Resolution[] | null = rec?.items?.length ? [...rec.items].sort((a: any, b: any) => String(b.sort_date ?? '').localeCompare(String(a.sort_date ?? ''))).map((x: any): Resolution => ({
+    title: x.title, kind: x.kind === 'directive' || x.kind === 'notice' ? x.kind : 'resolution', html: x.html ?? '', text: x.text ?? undefined, date: x.sort_date ?? undefined,
+    status: x.kind !== 'resolution' ? 'Issued' : x.status === 'passed' ? 'Passed' : x.status === 'failed' ? 'Failed' : x.status === 'open' ? 'Open' : 'Vote not recorded',
+    type: x.type ? cap(x.type) : undefined, emergency: !!x.emergency,
+    tally: x.kind === 'resolution' && x.yes != null ? `${x.yes} yes · ${x.no ?? 0} no${x.abstain ? ` · ${x.abstain} abstain` : ''}${x.needed ? ` · ${x.needed} needed (${x.threshold})` : ''}` : undefined,
+    votes: [...(x.approved_by ?? []).map((a: string) => ({ owner: nameOf.get(a) ?? a, club: nameOf.get(a) ?? a, vote: 'Yes' })), ...(x.opposed_by ?? []).map((a: string) => ({ owner: nameOf.get(a) ?? a, club: nameOf.get(a) ?? a, vote: 'No' }))],
+    notes: (x.amended_by ?? []).map((m: any) => `Amended by ${m.by}${m.note ? `: ${m.note}` : ''}`),
+  })) : null
   const t = TABS.find(x => x[0] === tab)?.[0] ?? 'constitution'
   const base = `/leagues/${league.id}/rules`
   if (!c) return <><PageTitle title="LEAGUE OFFICE" /><div className="card p-8 text-center font-semibold text-ink-500">The Constitution couldn’t be loaded</div></>
@@ -155,7 +168,7 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
 
       {t === 'resolutions' && (
         <section className="flex flex-col gap-4">
-          {(doc?.resolutions ?? []).map((r, i) => {
+          {(record ?? doc?.resolutions ?? []).map((r, i) => {
             const bg = r.status === 'Passed' ? '#177245' : r.status === 'Failed' ? '#ba0c2f' : r.status === 'Issued' ? '#000' : r.status === 'Open' ? '#6da7ee' : '#8A8A8A'
             const badge = 'ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none flex-none'
             return (
@@ -168,14 +181,15 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
                     <span className={`${badge} text-white`} style={{ background: bg }}>{r.status.toUpperCase()}</span>
                   </span>
                 </div>
-                {r.text
+                {r.text && !r.html
                   ? <div className="text-[15px] leading-relaxed text-ink-800 mt-2 whitespace-pre-wrap"><span className="ysf-case">{r.text}</span></div>
                   : <div className={`${DOC} mt-2`} dangerouslySetInnerHTML={{ __html: r.html }} />}
+                {!!r.notes?.length && <ul className="mt-3 text-[13px] text-ink-500 list-disc pl-5">{r.notes.map((n, k) => <li key={k}>{n}</li>)}</ul>}
                 {r.tally && (
                   <div className="mt-4 border-t border-ink-100 pt-3">
                     <div className="ui text-[12px] font-bold tracking-[.12em]">{r.status === 'Open' ? 'VOTING' : 'RESULT'}</div>
                     <div className="text-[14px] font-semibold mt-1">{r.tally}</div>
-                    {!!r.votes?.length && r.status !== 'Open' && (
+                    {!!r.votes?.length && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 mt-2">
                         {r.votes.map(v => (
                           <div key={v.owner} className="flex items-center justify-between gap-3 py-1 border-b border-ink-50 text-[14px]">
@@ -190,7 +204,7 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
               </article>
             )
           })}
-          {!doc && resolutions.map(r => (
+          {!doc && !record && resolutions.map(r => (
             <div key={r.id} className="card p-4">
               <div className="disp text-[20px] font-extrabold leading-tight">{r.title}</div>
               <p className="text-[15px] leading-relaxed text-ink-800 mt-2"><span className="ysf-case">{r.content}</span></p>

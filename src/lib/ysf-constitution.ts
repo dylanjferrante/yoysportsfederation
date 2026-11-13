@@ -10,6 +10,7 @@ export type Resolution = {
   title: string; kind: 'directive' | 'resolution' | 'notice'; status: 'Passed' | 'Failed' | 'Vote not recorded' | 'Issued' | 'Open'; html: string
   // from the ySF Portal's proposal record, when there is one: the text as voted, the result and each club's vote
   text?: string; type?: string; emergency?: boolean; tally?: string; votes?: Vote[]; date?: string
+  notes?: string[]   // e.g. amended by a later directive
 }
 export const DOC_URL = `https://docs.google.com/document/d/${DOC_ID}/edit`
 
