@@ -6,7 +6,7 @@ import { Tabs, th, td } from '@/components/ysf/ui'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 import MyClub from '../../myteam/MyClub'
 
-type Cell = { matchupId: string; span: number; label: string; opp: string; result: string; tone: 'win' | 'loss' | 'tie' | 'live' | 'future'; playoff: boolean } | null
+type Cell = { matchupId: string; span: number; label: string; opp: string; result: string; tone: 'win' | 'loss' | 'tie' | 'live' | 'future'; playoff: boolean; round?: 'final' | 'third' } | null
 export type LeagueSeason = {
   result: string | null; rankLabel: string; rank: string; rec: string; pf: string; fed: string; po: string | null; title: string | null
   sched: { per: string; dates: string; ha: string; crest: string | null; opp: string; matchupId: string; res: string; score: string }[]
@@ -81,9 +81,17 @@ export default function ClubTabs({ data: d, own = false, start = 'cal' }: { data
                 return [
                   <span key={r.sport} className="sticky left-0 z-20 bg-white shadow-[4px_0_0_#fff] flex items-center justify-center border-r-4 border-black pr-1" title={l.code}><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt={l.code} className="w-7 h-7 object-contain" /></span>,
                   ...r.cells.map((c, i) => c ? (
-                    <Link key={r.sport + i} href={`/leagues/${d.leagueId}/matchup/${c.matchupId}`} className="h-[52px] rounded flex flex-col items-center justify-center text-center leading-tight border hover:brightness-95"
-                      style={{ gridColumn: `span ${c.span}`, background: TONE[c.tone].bg, borderColor: l.color, borderWidth: c.tone === 'live' ? 3 : 2 }}>
-                      <span className="text-[10px] text-ink-500">{c.label}{c.playoff ? ' · PO' : ''}</span>
+                    // playoff games carry a black band naming the round; the championship is gold,
+                    // and a won final says so
+                    <Link key={r.sport + i} href={`/leagues/${d.leagueId}/matchup/${c.matchupId}`} title={c.round === 'final' ? 'Championship' : c.round === 'third' ? '3rd-place game' : c.playoff ? 'Playoffs' : undefined}
+                      className="relative h-[52px] rounded overflow-hidden flex flex-col items-center justify-center text-center leading-tight border hover:brightness-95"
+                      style={{ gridColumn: `span ${c.span}`, background: c.round === 'final' ? 'linear-gradient(135deg, #F7E7A6 0%, #E2C15A 55%, #C99A1E 100%)' : TONE[c.tone].bg,
+                        borderColor: c.round === 'final' ? '#9A7410' : l.color, borderWidth: c.tone === 'live' || c.playoff ? 3 : 2 }}>
+                      {c.playoff
+                        ? <span className="ui text-[9px] font-bold tracking-[.12em] leading-none px-1.5 py-[2px] rounded-[2px]" style={{ background: c.round === 'final' ? '#1F1F1F' : '#000', color: c.round === 'final' ? '#F7E7A6' : '#fff' }}>
+                            {c.round === 'final' ? (c.tone === 'win' ? '★ CHAMPIONS' : '★ FINAL') : c.round === 'third' ? '3RD PLACE' : 'PLAYOFFS'}
+                          </span>
+                        : <span className="text-[10px] text-ink-500">{c.label}</span>}
                       <span className="text-[12px] font-bold">{c.opp}</span>
                       {c.result && <span className="text-[10px]">{c.result}</span>}
                     </Link>

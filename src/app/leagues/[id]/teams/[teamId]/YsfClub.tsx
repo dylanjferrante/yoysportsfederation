@@ -83,6 +83,18 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
       if (live && cur[m.sport ?? ''] === m.week) days.forEach(d => curDays.add(d))
     }
   }
+  // each season's playoff rounds: in the last playoff week, the championship is the game between the
+  // two clubs that won the week before, the other game is for 3rd place
+  const round = new Map<string, 'final' | 'third'>()
+  for (const season of allSeasons) for (const L of YSF_LEAGUES) {
+    const po = all.filter(m => m.season === season && m.sport === L.sport && m.isPlayoff && m.awayTeamId)
+    const wks = [...new Set(po.map(m => m.week))].sort((a, b) => a - b)
+    if (wks.length < 2) continue
+    const winners = new Set(po.filter(m => m.week === wks[wks.length - 2] && m.isComplete).map(m => (m.homeScore ?? 0) >= (m.awayScore ?? 0) ? m.homeTeamId : m.awayTeamId!))
+    const last = po.filter(m => m.week === wks[wks.length - 1])
+    const fin = last.find(m => winners.has(m.homeTeamId) && winners.has(m.awayTeamId!))
+    if (fin) { round.set(fin.id, 'final'); last.filter(m => m !== fin).forEach(m => round.set(m.id, 'third')) }
+  }
   const days = [...new Set(evs.flatMap(e => e.days))].sort((a, b) => a - b)
   const col = new Map(days.map((d, i) => [d, i]))
   const startsAt = new Map(Object.entries(seasonStartDay).map(([sn, d]) => [d, sn]))
@@ -101,9 +113,11 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
       while (i < at) { cells.push(null); i++ }
       const width = Math.max(1, Math.min(e.days.length, days.length - at))
       const sd = side(e.m), m = e.m
-      cells.push({ matchupId: m.id, span: width, label: e.label, opp: `${sd.home ? '' : '@'}${C[sd.opp]?.abbreviation ?? 'TBD'}`,
-        result: m.isComplete ? `${sd.me > sd.them ? 'W' : sd.me < sd.them ? 'L' : 'T'} ${n1(sd.me)}–${n1(sd.them)}` : (sd.me || sd.them) ? `${n1(sd.me)}–${n1(sd.them)}` : '',
-        tone: (m.isComplete ? (sd.me > sd.them ? 'win' : sd.me < sd.them ? 'loss' : 'tie') : e.live && cur[L.sport] === m.week ? 'live' : 'future') as 'win' | 'loss' | 'tie' | 'live' | 'future', playoff: !!m.isPlayoff })
+      // a playoff bye (a top seed's first round) has no opponent
+      const bye = !m.awayTeamId
+      cells.push({ matchupId: m.id, span: width, label: e.label, opp: bye ? 'BYE' : `${sd.home ? '' : '@'}${C[sd.opp]?.abbreviation ?? 'TBD'}`,
+        result: bye ? '' : m.isComplete ? `${sd.me > sd.them ? 'W' : sd.me < sd.them ? 'L' : 'T'} ${n1(sd.me)}–${n1(sd.them)}` : (sd.me || sd.them) ? `${n1(sd.me)}–${n1(sd.them)}` : '',
+        tone: (bye ? 'future' : m.isComplete ? (sd.me > sd.them ? 'win' : sd.me < sd.them ? 'loss' : 'tie') : e.live && cur[L.sport] === m.week ? 'live' : 'future') as 'win' | 'loss' | 'tie' | 'live' | 'future', playoff: !!m.isPlayoff, round: round.get(m.id) })
       i = at + width
     }
     while (i < days.length) { cells.push(null); i++ }
