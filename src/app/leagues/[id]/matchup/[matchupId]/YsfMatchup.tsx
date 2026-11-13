@@ -11,7 +11,7 @@ import { and, eq, sql } from 'drizzle-orm'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { loadClubs, periodLabel } from '@/lib/ysf-data'
 import { weekDateRange } from '@/lib/defaults'
-import { statLine } from '@/lib/ysf-statline'
+import { statType, statCell, maxCols } from '@/lib/ysf-statline'
 
 type Line = { team_id: string; date: string | null; slot: string; status: string; name: string; pro_team: string | null; positions: string | null; fpts: number | null; opp: string | null; fx_player_id: string; stats: string | null }
 const SLOT: Record<string, string> = { RWT: 'FLEX', Flx: 'FLEX', UT: 'UTIL', Util: 'UTIL', Skt: 'SKT' }
@@ -21,7 +21,7 @@ const dayLabel = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString
 const utd = (name = '') => name.replace(/\bUnited\b/, 'Utd.')
 // full club name; "United" becomes "Utd." on phones
 const ClubName = ({ name }: { name?: string }) => <><span className="sm:hidden">{utd(name)}</span><span className="hidden sm:inline">{name}</span></>
-const GRID = 'grid grid-cols-[minmax(0,1fr)_auto_48px_auto_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_64px_60px_64px_minmax(0,1.2fr)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3 px-3 sm:px-4'
+const GRID = 'grid grid-cols-[minmax(0,1fr)_auto_48px_auto_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_72px_60px_72px_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3 px-3 sm:px-4'
 
 export default async function YsfMatchup({ league, m, day }: { league: any; m: any; day?: string }) {
   const C = await loadClubs(league.id)
@@ -63,17 +63,14 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
   const rows = Math.max(sa.act.length, sb.act.length)
   const base = `/leagues/${league.id}/matchup/${m.id}`
   const aw = (m.homeScore ?? 0) > (m.awayScore ?? 0), bw = (m.awayScore ?? 0) > (m.homeScore ?? 0)
-  const stat = (l?: Line) => l ? statLine(m.sport, l.slot, l.stats ? JSON.parse(l.stats) : null) : ''
+  const statsOf = (l: Line) => (l.stats ? JSON.parse(l.stats) : null) as Record<string, string> | null
 
   const Player = ({ l, right }: { l?: Line; right?: boolean }) => l ? (
     <span className={`min-w-0 flex flex-col ${right ? 'items-end text-right' : ''}`}>
       <span className="font-bold text-[14px] leading-tight">{l.name}</span>
       <span className="text-[11px] text-ink-500 leading-tight"><span className="ysf-case">({L.code}{l.pro_team ? `-${l.pro_team}` : ''}, {l.positions ?? l.slot})</span>{l.opp ? <span> · {l.opp.replace(/ F$/, '')}</span> : null}</span>
-      {/* phones and tablets: the stat line sits under the name */}
-      {stat(l) && <span className="lg:hidden text-[11px] text-ink-800 leading-tight mt-0.5">{stat(l)}</span>}
     </span>
   ) : <span className="text-ink-200 text-[13px]">Empty</span>
-  const Stat = ({ l, right }: { l?: Line; right?: boolean }) => <span className={`hidden lg:block text-[12px] text-ink-800 leading-snug ${right ? 'text-left' : 'text-right'}`}>{stat(l) || <span className="text-ink-200">—</span>}</span>
   const Pts = ({ l, right }: { l?: Line; right?: boolean }) => (
     <span className={`disp text-[18px] sm:text-[20px] tabular-nums ${right ? 'text-left' : 'text-right'} ${l && final(l) ? 'font-extrabold' : 'text-ink-400 font-medium'}`}>{l && final(l) && l.fpts != null && (l.opp || l.fpts) ? fmt(l.fpts) : '–'}</span>
   )
@@ -147,55 +144,76 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
       ) : (
         <section className="card overflow-hidden">
           <div className={`${GRID} py-2 border-b-2 border-black ui text-[11px] text-ink-500`}>
-            <span><ClubName name={C[A]?.name} /></span><span className="hidden lg:block text-right">STATS</span><span className="text-right">PTS</span>
+            <span><ClubName name={C[A]?.name} /></span><span className="text-right">PTS</span>
             <span className="text-center">{daily && sel ? dayLabel(sel).toUpperCase() : 'SLOT'}</span>
-            <span>PTS</span><span className="hidden lg:block">STATS</span><span className="text-right"><ClubName name={C[B]?.name} /></span>
+            <span>PTS</span><span className="text-right"><ClubName name={C[B]?.name} /></span>
           </div>
           {Array.from({ length: rows }, (_, i) => {
             const a = sa.act[i], b = sb.act[i]
             return (
               <div key={i} className={`${GRID} py-2.5 border-b border-ink-50`}>
-                <Player l={a} /><Stat l={a} /><Pts l={a} />
+                <Player l={a} /><Pts l={a} />
                 <span className="inline-flex items-center justify-center h-7 rounded bg-ink-50 ui text-[11px] font-bold leading-none">{SLOT[(a ?? b)!.slot] ?? (a ?? b)!.slot}</span>
-                <Pts l={b} right /><Stat l={b} right /><Player l={b} right />
+                <Pts l={b} right /><Player l={b} right />
               </div>
             )
           })}
           <div className={`${GRID} py-3 bg-ink-50`}>
-            <span className="ui text-[12px] font-bold">{daily ? 'DAY TOTAL' : 'TOTAL'}</span><span className="hidden lg:block" />
+            <span className="ui text-[12px] font-bold">{daily ? 'DAY TOTAL' : 'TOTAL'}</span>
             <span className="disp text-[22px] font-extrabold tabular-nums text-right">{fmt(total(A, shown))}</span><span />
-            <span className="disp text-[22px] font-extrabold tabular-nums">{fmt(total(B, shown))}</span><span className="hidden lg:block" />
+            <span className="disp text-[22px] font-extrabold tabular-nums">{fmt(total(B, shown))}</span>
             <span className="ui text-[12px] font-bold text-right">{daily ? 'DAY TOTAL' : 'TOTAL'}</span>
           </div>
         </section>
       )}
 
-      {lines.length > 0 && (
-        <section className="grid gap-4 sm:grid-cols-2">
-          {[{ tid: A, s: sa }, { tid: B, s: sb }].map(({ tid, s }) => (
-            <div key={tid} className="card overflow-hidden">
-              <div className="flex items-center gap-2.5 px-4 py-2.5 border-b-2 border-black">
-                <span className="w-7 h-7 inline-flex items-center justify-center"><img src={C[tid]?.logo ?? ''} alt="" className="w-7 h-7 object-contain" /></span>
-                <span className="font-bold">{C[tid]?.name}</span>
-              </div>
-              {s.groups.filter(g => g.ls.length).map(g => (
-                <div key={g.s}>
-                  <div className="ui text-[11px] tracking-[.12em] text-ink-500 px-4 pt-3 pb-1">{STATUS[g.s]}</div>
-                  {g.ls.map(l => (
-                    <div key={l.fx_player_id} className="flex items-center justify-between gap-3 px-4 py-2 border-t border-ink-50">
-                      <span className="min-w-0 flex flex-col">
-                        <Player l={l} />
-                        {stat(l) && <span className="hidden lg:block text-[11px] text-ink-800 leading-tight mt-0.5">{stat(l)}</span>}
-                      </span>
-                      <span className="text-[14px] tabular-nums text-ink-500">{final(l) && l.fpts != null ? fmt(l.fpts) : '–'}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
+      {/* box score: one table per club, stat columns; starters together in position order, a header row wherever the stat type changes */}
+      {lines.length > 0 && [{ tid: A, s: sa }, { tid: B, s: sb }].map(({ tid, s }) => {
+        const nCols = maxCols(m.sport)
+        const groups = [{ s: '1', ls: s.act }, ...s.groups].filter(g => g.ls.length)
+        const th = 'px-2 py-2 ui text-[11px] font-medium text-ink-500 whitespace-nowrap'
+        return (
+          <section key={tid} className="card overflow-hidden">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 border-b-2 border-black">
+              <span className="w-7 h-7 inline-flex items-center justify-center"><img src={C[tid]?.logo ?? ''} alt="" className="w-7 h-7 object-contain" /></span>
+              <span className="font-bold flex-1">{C[tid]?.name}</span>
+              <span className="disp text-[20px] font-extrabold tabular-nums">{fmt(total(tid, shown))}</span>
             </div>
-          ))}
-        </section>
-      )}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-[13px]">
+                <tbody>
+                  {groups.map(g => {
+                    let prev = ''
+                    return [
+                      <tr key={g.s + 'h'} className="bg-ink-50"><td colSpan={5 + nCols} className="px-3 py-1.5 ui text-[11px] font-bold tracking-[.12em]">{g.s === '1' ? 'STARTERS' : STATUS[g.s]}</td></tr>,
+                      ...g.ls.flatMap(l => {
+                        const st = statsOf(l), t = statType(m.sport, l.slot, st), out = []
+                        if (t.id !== prev) {
+                          out.push(<tr key={l.fx_player_id + 'th'} className="border-b border-ink-100">
+                            <th className={`${th} text-left sticky left-0 bg-white`}>{g.s === '1' ? 'SLOT' : ''}</th><th className={`${th} text-left sticky left-[52px] bg-white`}>PLAYER</th><th className={`${th} text-left`}>OPP</th><th className={`${th} text-right`}>FPTS</th>
+                            {t.cols.map(([lab]) => <th key={lab} className={`${th} text-right`}>{lab}</th>)}{Array.from({ length: nCols - t.cols.length }, (_, i) => <th key={'x' + i} />)}<th />
+                          </tr>)
+                          prev = t.id
+                        }
+                        const played = !!(l.opp || l.fpts)
+                        out.push(<tr key={l.fx_player_id} className="border-b border-ink-50">
+                          <td className="px-2 py-2 sticky left-0 bg-white w-[52px]">{g.s === '1' && <span className="inline-flex items-center justify-center h-6 min-w-[40px] px-1 rounded bg-ink-50 ui text-[10px] font-bold leading-none">{SLOT[l.slot] ?? l.slot}</span>}</td>
+                          <td className="px-2 py-2 sticky left-[52px] bg-white min-w-[150px]"><span className="block font-bold leading-tight">{l.name}</span><span className="block text-[11px] text-ink-500 leading-tight ysf-case">({L.code}{l.pro_team ? `-${l.pro_team}` : ''}, {l.positions ?? l.slot})</span></td>
+                          <td className="px-2 py-2 text-ink-500 whitespace-nowrap">{l.opp ? l.opp.replace(/ F$/, '') : '–'}</td>
+                          <td className={`px-2 py-2 text-right tabular-nums ${g.s === '1' ? 'font-extrabold' : 'text-ink-500'}`}>{final(l) && l.fpts != null && played ? fmt(l.fpts) : '–'}</td>
+                          {t.cols.map(([lab, key]) => { const v = played ? statCell(st, key) : ''; return <td key={lab} className={`px-2 py-2 text-right tabular-nums ${v && v !== '0' ? '' : 'text-ink-200'}`}>{v === '' ? '–' : v}</td> })}
+                          {Array.from({ length: nCols - t.cols.length }, (_, i) => <td key={'x' + i} />)}<td />
+                        </tr>)
+                        return out
+                      }),
+                    ]
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )
+      })}
     </>
   )
 }
