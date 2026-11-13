@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['better-sqlite3', 'bcryptjs'],
+  // Dev only: webpack's on-disk cache kept corrupting ("reading 'call'") after rapid edits; build in memory instead
+  webpack: (config, { dev }) => { if (dev) config.cache = { type: 'memory' }; return config },
   // ySF: the old Nexus odds page is the Cup Race; the schedule lives on Scores
   async redirects() {
     return [
