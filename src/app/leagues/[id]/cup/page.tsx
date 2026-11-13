@@ -9,6 +9,7 @@ import { YSF_LEAGUE_ID, YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 import { loadStandings, siteCupProjection } from '@/lib/ysf-data'
 import { pct } from '@/lib/ysf-stories'
 import { PageTitle, th, td, ClubCell } from '@/components/ysf/ui'
+import { loadModel } from '@/lib/ysf-model'
 
 export const metadata = { title: 'ySF · Cup Race' }
 const KEY: Record<string, string> = { NFL: 'ysf_fl', NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }
@@ -101,6 +102,22 @@ export default async function CupRacePage({ params }: { params: Promise<{ id: st
             </tr>) })}</tbody>
         </table>
       </section>
+
+      {/* the app's own model: player projections → club lineups → 10,000 seasons through the playoffs */}
+      {(() => { const mdl = loadModel(); if (!mdl || mdl.season !== league.season) return null; const list = Object.entries(mdl.cup).sort((a, b) => b[1].win - a[1].win || b[1].exp - a[1].exp); return (
+        <section className="card overflow-x-auto">
+          <div className="ui px-4 pt-3 pb-1 text-[12px] font-bold tracking-[.12em]">ySF MODEL · {mdl.sims.toLocaleString()} SEASONS · {new Date(mdl.generatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }).toUpperCase()} ET</div>
+          <table className="w-full border-collapse min-w-[640px]">
+            <thead><tr><th className={th}>CLUB</th><th className={`${th} text-right`}>EXP PTS</th><th className={`${th} text-right`}>±</th>{YSF_LEAGUES.map(l => <th key={l.key} className={`${th} text-right`}><span className="ysf-case">{l.code}</span> TITLE</th>)}<th className={`${th} text-right`}>TOP 3</th><th className={`${th} text-right`}>WIN CUP</th></tr></thead>
+            <tbody>{list.map(([tid, c]) => { const cc = ClubCell({ name: C[tid]?.name ?? '', logo: C[tid]?.logo, color: C[tid]?.color, href: `/leagues/${id}/teams/${tid}` }); return (
+              <tr key={tid}>
+                <td className={td} style={cc.style}>{cc.inner}</td>
+                <td className={`${td} text-right`}>{c.exp.toFixed(1)}</td><td className={`${td} text-right font-normal`}>{c.sd.toFixed(1)}</td>
+                {YSF_LEAGUES.map(l => <td key={l.key} className={`${td} text-right font-normal`}>{pct(mdl.leagues[l.sport]?.clubs[tid]?.title ?? 0)}</td>)}
+                <td className={`${td} text-right font-normal`}>{pct(c.top3)}</td><td className={`${td} text-right disp text-[20px] font-extrabold`}>{pct(c.win)}</td>
+              </tr>) })}</tbody>
+          </table>
+        </section>) })()}
     </>
   )
 }

@@ -5,6 +5,7 @@
 //   every 15 min  NHL official stats, Fantrax lineups, engine scores
 //   every hour    Tank01 box scores and season stats (cached; only new finals are fetched)
 //   every  6 h    injury designations
+//   every hour    the ySF projection model
 //   every hour    ySF News stories that are due (when ANTHROPIC_API_KEY is set)
 //   every 24 h    pro experience (taxi eligibility)
 // Each job runs one at a time; a job still running is skipped rather than doubled up.
@@ -55,6 +56,8 @@ const JOBS: Job[] = [
   { name: 'stats', every: 60 * MIN, run: () => script('ysf-sync.ts', '--stats') },
   { name: 'injuries', every: 6 * 60 * MIN, run: () => script('ysf-injuries.ts') },
   { name: 'eligibility', every: 24 * 60 * MIN, run: () => script('ysf-eligibility.ts') },
+  // the ySF projection model (player projections, matchup odds, 10,000 seasons)
+  { name: 'model', every: 60 * MIN, run: () => script('ysf-model.ts') },
   // ySF News: the daily wrap, the day's column and trade stories, as each comes due (needs ANTHROPIC_API_KEY)
   { name: 'news', every: 60 * MIN, run: () => process.env.ANTHROPIC_API_KEY ? script('ysf-news.ts') : Promise.resolve() },
 ]

@@ -14,6 +14,7 @@ import { weekDates } from '@/lib/dailylineup'
 import { bearerUserId } from '@/lib/mobileAuth'
 import { lastNflRun, nextNflRun } from '@/lib/waivers'
 import { clubInk } from '@/lib/ysf'
+import { playerProjection } from '@/lib/ysf-model'
 import { taxiLockAt } from '@/lib/ysf-rules'
 
 // Everything the My Club page needs for one league (sport) and one week: the matchup, the lineup
@@ -143,8 +144,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const gp = st?.gp ?? 0, points = st?.points ?? null
     const ext = playerId ? extOf.get(playerId) ?? null : null
     const wk = (ext && wkStats.get(ext)) || wkStats.get(`n:${name.toLowerCase()}`) || null
-    let proj: { pts: number; games: number; stats: Record<string, number>; source: 'tank01' | 'average' } | null = null
-    if (!pastWeek) {
+    let proj: { pts: number; games: number; stats: Record<string, number>; source: string } | null = null
+    const fromModel = !pastWeek && playerId && week != null ? playerProjection(playerId, season, week) : null
+    if (fromModel) proj = { pts: +fromModel.pts.toFixed(1), games: fromModel.games, stats: fromModel.stats, source: fromModel.source }
+    else if (!pastWeek) {
       const raw = ext ? tankProj[ext] : undefined
       if (raw) {
         const stats = deriveWeekly(sport, mapBoxScoreBase(sport, raw))

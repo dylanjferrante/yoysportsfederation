@@ -14,6 +14,7 @@ import { weekDateRange } from '@/lib/defaults'
 import { statType, statCell, compactCols, maxCompact, breakdown } from '@/lib/ysf-statline'
 import { gameInfo, refreshLive, tankTeam, loadGameLines, toFantraxStats, type Sport } from '@/lib/ysf-gamelines'
 import { scoreSource } from '@/lib/ysf-engine'
+import { loadModel } from '@/lib/ysf-model'
 
 type Line = { team_id: string; date: string | null; slot: string; status: string; name: string; pro_team: string | null; positions: string | null; fpts: number | null; opp: string | null; fx_player_id: string; stats: string | null }
 const SLOT: Record<string, string> = { RWT: 'FLEX', Flx: 'FLEX', UT: 'UTIL', Util: 'UTIL', Skt: 'SKT' }
@@ -205,6 +206,14 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
           <Club tid={B} score={m.awayScore} win={bw} right />
         </div>
         <div className="ui text-[12px] font-bold tracking-[.12em] text-center py-2 bg-black text-white">{m.isComplete ? 'FINAL' : 'IN PROGRESS'}</div>
+        {/* the ySF model's win probability and projected finish, while the matchup is still being played */}
+        {!m.isComplete && (() => { const wp = loadModel()?.leagues[m.sport]?.matchups[m.id]; if (!wp) return null; const a = Math.round(wp.homeWin * 100); return (
+          <div className="bg-white border border-t-0 border-ink-100 px-4 py-3">
+            <div className="flex items-center justify-between ui text-[12px] font-bold tracking-[.1em]">
+              <span>{C[A]?.abbreviation} {a}% · PROJ {wp.homeMu.toFixed(1)}</span><span className="text-ink-500">WIN PROBABILITY</span><span>PROJ {wp.awayMu.toFixed(1)} · {100 - a}% {C[B]?.abbreviation}</span>
+            </div>
+            <div className="flex h-2.5 rounded overflow-hidden mt-2"><span style={{ width: `${a}%`, background: C[A]?.color ?? '#000' }} /><span style={{ width: `${100 - a}%`, background: C[B]?.color ?? '#8A8A8A' }} /></div>
+          </div>) })()}
       </section>
 
       {/* the league's other matchups this week */}

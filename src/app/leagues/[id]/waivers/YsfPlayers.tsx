@@ -49,6 +49,12 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
   const total = list.length, shown = list.slice((page - 1) * PER, page * PER)
 
   // my club: roster in this league (to drop) and FAAB left
+  // this week's projection from the ySF player model (its earliest week still to finish)
+  const proj = new Map<string, number>()
+  try {
+    const wk = db.all<{ w: number | null }>(sql`SELECT MIN(week) w FROM matchups WHERE league_id = ${league.id} AND season = ${league.season} AND sport = ${L.sport} AND is_complete = 0`)[0]?.w
+    if (wk != null) for (const r of db.all<{ id: string; pts: number }>(sql`SELECT player_id id, pts FROM ysf_player_proj WHERE season = ${league.season} AND week = ${wk}`)) proj.set(r.id, r.pts)
+  } catch { /* the model hasn't run yet */ }
   const me = session?.user?.id ? db.all<{ id: string }>(sql`SELECT id FROM teams WHERE league_id = ${league.id} AND user_id = ${session.user.id} LIMIT 1`)[0] : undefined
   // claims I already have in (from here or My Club) show as PENDING, not another CLAIM button
   const myClaims = new Set(me ? db.all<{ p: string }>(sql`SELECT add_player_id p FROM waiver_claims WHERE team_id = ${me.id} AND status = 'PENDING'`).map(r => r.p) : [])
@@ -86,7 +92,7 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
         <table className="w-full border-collapse">
           <thead><tr>
             <SortTh k="name" label="PLAYER" /><th className={th}>TEAM</th><th className={th}>POS</th><th className={th}>STATUS</th>
-            <SortTh k="gp" label="GP" right cls="hidden sm:table-cell" /><SortTh k="pts" label="FPTS" right /><SortTh k="ppg" label="FP/G" right cls="hidden sm:table-cell" /><th className={th} />
+            <SortTh k="gp" label="GP" right cls="hidden sm:table-cell" /><SortTh k="pts" label="FPTS" right /><th className={`${th} text-right`}>PROJ</th><SortTh k="ppg" label="FP/G" right cls="hidden sm:table-cell" /><th className={th} />
           </tr></thead>
           <tbody>
             {shown.map(r => {
@@ -106,12 +112,13 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
                   </td>
                   <td className={`${td} text-right hidden sm:table-cell font-normal`}>{r.gp ?? 0}</td>
                   <td className={`${td} text-right`}>{(r.pts ?? 0).toFixed(1)}</td>
+                  <td className={`${td} text-right font-normal`}>{proj.has(r.id) ? proj.get(r.id)!.toFixed(1) : '—'}</td>
                   <td className={`${td} text-right hidden sm:table-cell font-normal`}>{ppg(r).toFixed(1)}</td>
                   <td className={`${td} text-right`}>{!r.owner && me && myClaims.has(r.id) && <span className="ui inline-flex items-center justify-center h-8 px-3 rounded-lg border border-black text-[12px] font-bold leading-none">PENDING</span>}{!r.owner && me && !myClaims.has(r.id) && <ClaimButton leagueId={league.id} teamId={me.id} player={{ id: r.id, name: r.name, team: r.team, pos: posOf(r).join('/') }} code={L.code} waivers={!!r.clears} faab={faab} roster={myRoster} />}</td>
                 </tr>
               )
             })}
-            {!shown.length && <tr><td colSpan={8} className="px-4 py-6 text-center text-ink-400 font-semibold">No players match</td></tr>}
+            {!shown.length && <tr><td colSpan={9} className="px-4 py-6 text-center text-ink-400 font-semibold">No players match</td></tr>}
           </tbody>
         </table>
       </section>

@@ -7,6 +7,7 @@ import { rankWithinSport } from '@/lib/federation'
 import { simulateSeason } from '@/lib/odds'
 import { weekDateRange } from '@/lib/defaults'
 import { YSF_LEAGUES, clubInk } from '@/lib/ysf'
+import { loadModel } from '@/lib/ysf-model'
 
 export type ClubInfo = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; color: string | null; ink: string }
 export type LeagueRow = { teamId: string; rk: number; rec: string; w: number; l: number; gb: number; pf: number; faab: number; fed: number; po: number; title: number }
@@ -39,7 +40,13 @@ export async function loadStandings(league: any) {
     teams: recs.filter(r => r.sport === L.sport).map(r => ({ teamId: r.teamId, wins: r.wins ?? 0, pointsFor: r.pointsFor ?? 0, games: (r.wins ?? 0) + (r.losses ?? 0) + (r.ties ?? 0) })),
     remaining: ms.filter(m => m.sport === L.sport && !m.isComplete && !m.isPlayoff && m.awayTeamId).map(m => ({ home: m.homeTeamId, away: m.awayTeamId! })),
   })), fs, fs.includedSports, 4000)
-  for (const L of YSF_LEAGUES) for (const r of tables[L.sport]) { r.po = odds.perSport[L.sport]?.playoff[r.teamId] ?? 0; r.title = odds.perSport[L.sport]?.title[r.teamId] ?? 0 }
+  // playoff and title odds: the ySF projection model when it has run, the quick simulation otherwise
+  const model = loadModel()
+  for (const L of YSF_LEAGUES) for (const r of tables[L.sport]) {
+    const mc = model && model.season === season ? model.leagues[L.sport]?.clubs[r.teamId] : undefined
+    r.po = mc ? mc.playoff : odds.perSport[L.sport]?.playoff[r.teamId] ?? 0
+    r.title = mc ? mc.title : odds.perSport[L.sport]?.title[r.teamId] ?? 0
+  }
   // Cup odds come from ysffantasy.com's own projection (10,000-trial model), so the app and the
   // site always agree; Nexus's simulator is only a fallback if the feed can't be reached.
   const site = await siteCupProjection()
