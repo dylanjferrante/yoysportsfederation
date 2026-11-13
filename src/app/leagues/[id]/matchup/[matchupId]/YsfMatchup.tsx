@@ -13,6 +13,7 @@ import { loadClubs, periodLabel, siteFeed } from '@/lib/ysf-data'
 import { weekDateRange } from '@/lib/defaults'
 import { statType, statCell, compactCols, maxCompact, breakdown } from '@/lib/ysf-statline'
 import { gameInfo, refreshLive, tankTeam, loadGameLines, toFantraxStats, type Sport } from '@/lib/ysf-gamelines'
+import { scoreSource } from '@/lib/ysf-engine'
 
 type Line = { team_id: string; date: string | null; slot: string; status: string; name: string; pro_team: string | null; positions: string | null; fpts: number | null; opp: string | null; fx_player_id: string; stats: string | null }
 const SLOT: Record<string, string> = { RWT: 'FLEX', Flx: 'FLEX', UT: 'UTIL', Util: 'UTIL', Skt: 'SKT' }
@@ -36,7 +37,12 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
 
   let lines: Line[] = []
   try {
-    lines = db.all<Line>(sql`SELECT team_id, date, slot, status, name, pro_team, positions, fpts, opp, fx_player_id, stats FROM fantrax_player_periods
+    // with the engine as the score source, points and stats are the app's own (Fantrax's kept for comparison)
+    const eng = scoreSource() === 'engine' && season === league.season
+    lines = db.all<Line>(eng
+      ? sql`SELECT team_id, date, slot, status, name, pro_team, positions, engine_pts AS fpts, opp, fx_player_id, COALESCE(engine_stats, stats) AS stats FROM fantrax_player_periods
+      WHERE season = ${season} AND sport = ${m.sport} AND matchup_period = ${period} AND team_id IN (${A}, ${B}) ORDER BY rowid`
+      : sql`SELECT team_id, date, slot, status, name, pro_team, positions, fpts, opp, fx_player_id, stats FROM fantrax_player_periods
       WHERE season = ${season} AND sport = ${m.sport} AND matchup_period = ${period} AND team_id IN (${A}, ${B}) ORDER BY rowid`)
   } catch { /* table not loaded yet */ }
   const today = etToday()
