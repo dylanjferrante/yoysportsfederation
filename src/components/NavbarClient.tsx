@@ -48,7 +48,8 @@ export default function NavbarClient({ clubs, leagueId }: { clubs: Club[]; leagu
     <header className="bg-black text-white sticky top-0 z-50 border-b border-ink-800" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-[1240px] mx-auto px-4 sm:px-5 min-h-[60px] flex items-center gap-6">
         <Link href={base} className="flex items-center min-w-0" aria-label="yoy Sports Federation">
-          <img src={YSF_ART.wordmarkOnBlack} alt="yoy Sports Federation" className="h-[15px] sm:h-6 w-auto max-w-[62vw]" />
+          <img src={YSF_ART.wordmarkOnBlack} alt="yoy Sports Federation" className="lg:hidden h-[15px] sm:h-6 w-auto max-w-[62vw]" />
+          <img src={YSF_ART.primaryOnBlack} alt="yoy Sports Federation" className="hidden lg:block h-10 w-auto" />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-4 xl:gap-5 flex-1 ui text-[12px] xl:text-[13px] whitespace-nowrap">

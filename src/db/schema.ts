@@ -216,6 +216,23 @@ export const dailyLineups = sqliteTable('daily_lineups', {
   uniq: uniqueIndex('daily_lineup_uniq').on(t.teamId, t.season, t.sport, t.date, t.playerId),
 }))
 
+// Season-to-date real stats per player, scored with a league's own scoring (filled by
+// scripts/ysf-sync.ts from Tank01). Display-only: matchup scoring still reads real_stat_lines.
+export const playerSeasonStats = sqliteTable('player_season_stats', {
+  id: text('id').primaryKey(),
+  leagueId: text('league_id').notNull(),
+  season: text('season').notNull(),
+  sport: text('sport').notNull(),
+  playerId: text('player_id').notNull(),
+  gp: integer('gp').default(0),
+  points: real('points').default(0),
+  stats: text('stats').default('{}'),
+  injury: text('injury'),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+}, (t) => ({
+  uniq: uniqueIndex('player_season_stats_uniq').on(t.leagueId, t.season, t.playerId),
+}))
+
 // Expo push tokens for the native app (one row per device). Used to send push
 // notifications (score finals, trades, waiver results) via the Expo Push API.
 export const deviceTokens = sqliteTable('device_tokens', {

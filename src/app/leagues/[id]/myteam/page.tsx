@@ -4,7 +4,7 @@ import { db } from '@/db'
 import { teams } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import Link from 'next/link'
-import FranchiseView from '@/components/FranchiseView'
+import MyClub from './MyClub'
 
 export const metadata = { title: 'My Club' }
 
@@ -24,5 +24,5 @@ export default async function MyTeamPage({ params }: { params: Promise<{ id: str
       </div>
     )
   }
-  return <FranchiseView teamId={myTeam.id} />
+  return <MyClub leagueId={id} />
 }

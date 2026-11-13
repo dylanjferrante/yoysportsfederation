@@ -14,6 +14,7 @@ db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = OFF')
 
 const drop = `
+DROP TABLE IF EXISTS player_season_stats;
 DROP TABLE IF EXISTS watchlist;
 DROP TABLE IF EXISTS playoff_games;
 DROP TABLE IF EXISTS league_messages;
@@ -211,6 +212,20 @@ CREATE TABLE daily_lineups (
   slot TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS daily_lineup_uniq ON daily_lineups(team_id, season, sport, date, player_id);
+
+CREATE TABLE IF NOT EXISTS player_season_stats (
+  id TEXT PRIMARY KEY,
+  league_id TEXT NOT NULL,
+  season TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  gp INTEGER DEFAULT 0,
+  points REAL DEFAULT 0,
+  stats TEXT DEFAULT '{}',
+  injury TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS player_season_stats_uniq ON player_season_stats(league_id, season, player_id);
 
 CREATE TABLE device_tokens (
   id TEXT PRIMARY KEY,
