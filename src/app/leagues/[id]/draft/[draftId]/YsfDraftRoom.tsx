@@ -73,7 +73,8 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
   const until = starts ? Math.max(0, starts.getTime() - now) : 0
   const dhm = `${Math.floor(until / 86400000)}d ${Math.floor(until / 3600000) % 24}h ${Math.floor(until / 60000) % 60}m`
   const queueIds = new Set(s.myQueue.map((x: any) => x.playerId))
-  const meta = (p: any) => `(${L.code}-${p.realTeamAbbr || 'FA'}, ${(p.position ?? '').replace(/,/g, '/')})`
+  const meta = (p: any) => `(${L.code}-${p.realTeamAbbr || p.prospect?.org || 'FA'}, ${(p.position ?? '').replace(/,/g, '/')})`
+  const isMlb = L.sport === 'MLB'
   const avail = s.available.filter((p: any) => (pf === 'ALL' || p.position === pf || (pf === 'OF' && OF.includes(p.position))) && (!q || p.name.toLowerCase().includes(q.toLowerCase())))
   const rounds = Math.max(...board.map(b => b.round))
   const perRound = Math.max(...board.map(b => b.pickInRound))
@@ -174,11 +175,19 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
           </div>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search players" className="h-11 px-3.5 border border-black rounded-lg font-semibold" />
           <div className="card overflow-hidden">
-            <div className="ui grid grid-cols-[52px_minmax(0,1fr)_auto] gap-3 px-4 py-2.5 border-b-2 border-black text-[12px] text-ink-500 tracking-[.12em]"><span>MLB #</span><span>PLAYER</span><span /></div>
+            {/* baseball: sorted by the ySF prospect score, with each player's level, age and season line */}
+            <div className="ui grid grid-cols-[52px_minmax(0,1fr)_auto] gap-3 px-4 py-2.5 border-b-2 border-black text-[12px] text-ink-500 tracking-[.12em]"><span title={isMlb ? 'ySF prospect score: level, age for the level, and production (50 = an average High-A regular)' : undefined}>{isMlb ? 'SCORE' : 'MLB #'}</span><span>PLAYER</span><span /></div>
             {avail.map((p: any) => (
               <div key={p.id} className="grid grid-cols-[52px_minmax(0,1fr)_auto] gap-3 items-center px-4 py-2 border-t border-ink-50">
-                <span className="font-bold text-ink-500 tabular-nums">{p.adp ?? '—'}</span>
-                <span className="min-w-0 font-bold">{p.name}<span className="block font-normal text-[13px] text-ink-500 ysf-case">{meta(p)}</span></span>
+                <span className="font-bold text-ink-500 tabular-nums">{isMlb ? (p.prospect ? Math.round(p.prospect.score) : '—') : p.adp ?? '—'}</span>
+                <span className="min-w-0 font-bold">{p.name}<span className="block font-normal text-[13px] text-ink-500 ysf-case">{meta(p)}</span>
+                  {isMlb && p.prospect && <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5 font-normal text-[12px] text-ink-800">
+                    <span className="ui inline-flex items-center leading-none h-[18px] px-1.5 rounded-[2px] bg-black text-white text-[10px] font-bold">{p.prospect.level}</span>
+                    {p.prospect.age != null && <span>Age {p.prospect.age}</span>}
+                    {Object.entries(p.prospect.line).map(([k, v]) => <span key={k} className="whitespace-nowrap"><span className="text-ink-500">{k === 'K9' ? 'K/9' : k}</span> {String(v)}</span>)}
+                  </span>}
+                  {isMlb && !p.prospect && <span className="block font-normal text-[12px] text-ink-400">No 2026 pro stats</span>}
+                </span>
                 <span className="flex gap-1.5">
                   {s.myTeamId && <button disabled={busy} onClick={() => act({ action: queueIds.has(p.id) ? 'QUEUE_REMOVE' : 'QUEUE_ADD', playerId: p.id })} className={`${btn} h-8 min-w-[84px] px-2.5 border border-black`}
                     style={{ background: queueIds.has(p.id) ? '#000' : '#fff', color: queueIds.has(p.id) ? '#fff' : '#000' }}>{queueIds.has(p.id) ? 'QUEUED' : '+ QUEUE'}</button>}

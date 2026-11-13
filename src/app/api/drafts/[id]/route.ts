@@ -1,4 +1,5 @@
 import { isYsf, taxiCheck } from '@/lib/ysf-rules'
+import { prospectsFor } from '@/lib/ysf-prospects'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -183,9 +184,15 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const sportsFilter = draft.scope === 'OVERALL' ? SPORTS : [draft.scope]
   const totals = await sportTotals()
   const pool = await draftPool(draft, sportsFilter)
-  const available = pool.filter(p => !rostered.has(p.id))
-    .map(p => ({ id: p.id, name: p.name, sport: p.sport, position: p.position, realTeam: p.realTeam, realTeamAbbr: p.realTeamAbbr, eligible: p.eligiblePositions, projectedPoints: p.projectedPoints, adp: p.adp, value: +(shareValue(p, totals) * 100).toFixed(2) }))
-    .sort((a, b) => (b.value - a.value) || ((a.adp ?? 1e9) - (b.adp ?? 1e9))).slice(0, 300)
+  const avail0 = pool.filter(p => !rostered.has(p.id))
+  // baseball: minor leaguers have no projections, so the ySF prospect score (level, age for the level,
+  // production) orders the board and each player carries his season line
+  const pros = sportsFilter.length === 1 && sportsFilter[0] === 'MLB' ? prospectsFor(avail0.map(p => p.id)) : null
+  const available = avail0
+    .map(p => ({ id: p.id, name: p.name, sport: p.sport, position: p.position, realTeam: p.realTeam, realTeamAbbr: p.realTeamAbbr, eligible: p.eligiblePositions, projectedPoints: p.projectedPoints, adp: p.adp, value: +(shareValue(p, totals) * 100).toFixed(2),
+      prospect: pros?.get(p.id) ?? null }))
+    .sort((a, b) => pros ? ((b.prospect?.score ?? -1) - (a.prospect?.score ?? -1)) || a.name.localeCompare(b.name)
+      : (b.value - a.value) || ((a.adp ?? 1e9) - (b.adp ?? 1e9))).slice(0, 300)
 
   // Requesting user's queue + auto-pick state.
   let myQueue: any[] = [], myAutopick = false
@@ -248,7 +255,13 @@ async function autoSelect(draft: any, teamId: string, sportsFilter: string[], ro
   const queued = q.filter(x => !rostered.has(x.playerId) && sportsFilter.includes(x.sport)).sort((a, b) => a.position - b.position)
   if (queued.length) return queued[0].playerId
   const pool = await draftPool(draft, sportsFilter)
-  const best = pool.filter(p => !rostered.has(p.id)).sort((a, b) => (shareValue(b, totals) - shareValue(a, totals)) || ((a.adp ?? 1e9) - (b.adp ?? 1e9)))[0]
+  const left = pool.filter(p => !rostered.has(p.id))
+  if (sportsFilter.length === 1 && sportsFilter[0] === 'MLB') {
+    const pros = prospectsFor(left.map(p => p.id))
+    const top = left.sort((a, b) => (pros.get(b.id)?.score ?? -1) - (pros.get(a.id)?.score ?? -1))[0]
+    return top?.id ?? null
+  }
+  const best = left.sort((a, b) => (shareValue(b, totals) - shareValue(a, totals)) || ((a.adp ?? 1e9) - (b.adp ?? 1e9)))[0]
   return best?.id ?? null
 }
 
