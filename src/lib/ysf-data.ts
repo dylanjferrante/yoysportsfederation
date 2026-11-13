@@ -266,6 +266,9 @@ export async function loadMoves(leagueId: string, currentSeason = '2026-27') {
     moves.push({ id: `dp-${p.id}`, when: t.toISOString(), sport: p.scope, teamId: p.current_team_id, kind: 'DRAFTED', player: p.name ?? '', team: p.real_team_abbr ?? '', pos: elig.length ? elig.join('/') : p.position ?? '', bid: null, text: '', season: p.season,
       pick: `R${p.round} · P${inRound}`, via: p.original_team_id !== p.current_team_id ? p.original_team_id : undefined })
   }
+  // defenses arrive as a team code ("ARI"): show "Arizona D/ST"
+  const NFL_CITY: Record<string, string> = { ARI: 'Arizona', ATL: 'Atlanta', BAL: 'Baltimore', BUF: 'Buffalo', CAR: 'Carolina', CHI: 'Chicago', CIN: 'Cincinnati', CLE: 'Cleveland', DAL: 'Dallas', DEN: 'Denver', DET: 'Detroit', GB: 'Green Bay', HOU: 'Houston', IND: 'Indianapolis', JAX: 'Jacksonville', KC: 'Kansas City', LAC: 'LA Chargers', LAR: 'LA Rams', LV: 'Las Vegas', MIA: 'Miami', MIN: 'Minnesota', NE: 'New England', NO: 'New Orleans', NYG: 'NY Giants', NYJ: 'NY Jets', PHI: 'Philadelphia', PIT: 'Pittsburgh', SF: 'San Francisco', SEA: 'Seattle', TB: 'Tampa Bay', TEN: 'Tennessee', WAS: 'Washington', WSH: 'Washington' }
+  for (const m of moves) if (m.sport === 'NFL' && /^(DST|DEF|D\/ST)$/i.test(m.pos) && NFL_CITY[m.player]) { m.player = `${NFL_CITY[m.player]} D/ST`; m.pos = 'D/ST' }
   moves.sort((a, b) => (b.when > a.when ? 1 : b.when < a.when ? -1 : 0))
   // trade cards from Fantrax's history (players and picks): one card per trade, merging the legs
   // a multi-league trade leaves in each Fantrax league (same day, same two clubs)
