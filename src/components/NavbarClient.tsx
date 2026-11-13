@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import NotificationBell from './NotificationBell'
 import { YSF_ART, YSF_LEAGUES, U } from '@/lib/ysf'
@@ -18,6 +18,15 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
   const [open, setOpen] = useState<string | null>(null)
   const [mobile, setMobile] = useState(false)
   useEffect(() => { setOpen(null); setMobile(false) }, [pathname])
+  // the scoreboard and menu bar stay pinned together; other sticky bars sit below them (--ysf-top)
+  const top = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = top.current; if (!el) return
+    const set = () => document.documentElement.style.setProperty('--ysf-top', `${el.offsetHeight}px`)
+    set()
+    const ro = new ResizeObserver(set); ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const base = `/leagues/${leagueId}`
   const items: Item[] = [
@@ -48,9 +57,10 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
 
   return (
     <>
-    {/* home page: the score strip runs full width above the menu */}
-    {(pathname === `/leagues/${leagueId}` || pathname === '/') && strip}
-    <header className="bg-black text-white sticky top-0 z-50 border-b border-ink-800" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    {/* every page: the scoreboard runs full width above the menu, and both stay pinned at the top */}
+    <div ref={top} className="sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    {strip}
+    <header className="bg-black text-white relative border-b border-ink-800">
       <div className="max-w-[1240px] mx-auto px-4 sm:px-5 min-h-[60px] flex items-center gap-6">
         <Link href={base} className="flex items-center min-w-0" aria-label="yoy Sports Federation">
           <img src={YSF_ART.wordmarkOnBlack} alt="yoy Sports Federation" className="lg:hidden h-[15px] sm:h-6 w-auto max-w-[62vw]" />
@@ -124,6 +134,7 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
         </div>
       )}
     </header>
+    </div>
     </>
   )
 }

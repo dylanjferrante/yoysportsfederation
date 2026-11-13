@@ -30,7 +30,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
       { label: 'All Seasons', href: `${base}/seasons`, emoji: '' },
     ]
     return (
-      <div className="sticky top-[60px] z-30 -mx-4 px-4 bg-amber-50/95 backdrop-blur border-b border-amber-200 mb-6">
+      <div className="sticky top-[var(--ysf-top,60px)] z-30 -mx-4 px-4 bg-amber-50/95 backdrop-blur border-b border-amber-200 mb-6">
         <div className="max-w-6xl mx-auto flex items-center gap-1 overflow-x-auto py-1.5">
           <span className="whitespace-nowrap text-sm font-semibold text-amber-800 mr-2 flex-shrink-0">{viewSeason} season <span className="font-normal text-amber-600">· final standings</span></span>
           {items.map(item => (
@@ -71,7 +71,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
   ]
 
   return (
-    <div className="sticky top-[60px] z-30 -mx-4 px-4 bg-white border-b border-ink-100 mb-6">
+    <div className="sticky top-[var(--ysf-top,60px)] z-30 -mx-4 px-4 bg-white border-b border-ink-100 mb-6">
       <div className="max-w-6xl mx-auto flex items-center gap-1 overflow-x-auto py-1.5">
         {items.map(item => (
           <Link key={item.href} href={item.href} className={tabClass(isActive(item))}>

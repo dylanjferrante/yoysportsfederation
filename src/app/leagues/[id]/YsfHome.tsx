@@ -1,71 +1,51 @@
-// ySF Site Redesign — Home (front page), from the Nexus database.
+// ySF Site Redesign — Home (front page), from the Nexus database: the top stories carousel beside the
+// latest headlines from ySF News, then the standings.
 import Link from 'next/link'
-import { loadStandings, type ClubInfo } from '@/lib/ysf-data'
-import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
+import { loadStandings } from '@/lib/ysf-data'
 import HomeStandings from './HomeStandings'
-import { writeStories, ord, pct } from '@/lib/ysf-stories'
 import { listNews, topStories } from '@/lib/ysf-news'
-import { kicker, by, tilesOf } from './news/YsfNews'
+import { kicker, by, ago, tilesOf } from './news/YsfNews'
 import NewsCarousel, { type Slide } from './NewsCarousel'
+import StoryArt from '@/components/ysf/StoryArt'
 
 export default async function YsfHome({ league }: { league: any }) {
   const s = await loadStandings(league)
-  const C = s.clubs, ab = (id: string) => C[id]?.abbreviation ?? ''
-  const live = s.live
-  const lead = s.cup[0], second = s.cup[1]
-  const L = (sport: string) => YSF_LEAGUES.find(l => l.sport === sport)!
-
-  const { headline, dek, heads } = writeStories(s)
-
-  const leader = C[lead.teamId] as ClubInfo
+  const C = s.clubs
   const byAbbr = new Map(Object.values(C).map(c => [c.abbreviation, c]))
-  const slides: Slide[] = topStories(listNews(80)).map(a => ({
-    id: a.id, href: `/leagues/${league.id}/news/${a.id}`, kicker: kicker(a), headline: a.headline, dek: a.dek || a.body[0] || '', by: by(a), tiles: tilesOf(a, byAbbr),
+  const all = listNews(80)
+  const top = topStories(all)
+  const base = `/leagues/${league.id}/news`
+  const slides: Slide[] = top.map(a => ({
+    id: a.id, href: `${base}/${a.id}`, kicker: kicker(a), headline: a.headline, dek: a.dek || a.body[0] || '', by: by(a), tiles: tilesOf(a, byAbbr),
   }))
+  // the headlines list: the newest stories not already in the carousel
+  const heads = all.filter(a => !top.includes(a)).slice(0, 6)
 
   return (
     <>
-      {slides.length >= 3 && <NewsCarousel slides={slides} more={`/leagues/${league.id}/news`} />}
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-        <div className="flex flex-col gap-5">
-          <div className="rounded overflow-hidden flex" style={{ background: leader.color ?? '#000' }}>
-            <div className="flex flex-col w-1.5">{YSF_LEAGUES.map(l => <span key={l.key} className="flex-1" style={{ background: l.color }} />)}</div>
-            <div className="flex flex-wrap items-center gap-6 p-6 text-white">
-              <span className="w-28 h-28 sm:w-36 sm:h-36 inline-flex items-center justify-center"><img src={(leader.altLogo || leader.logo)!} alt={leader.name} className="w-full h-full object-contain" /></span>
-              <div className="min-w-0">
-                <div className="disp text-[64px] sm:text-[96px] font-extrabold leading-[.85]">{pct(lead.cupPct)}</div>
-                <div className="ui text-[13px] tracking-[.14em] mt-2">{U(`percent chance to win the 26-27 Fed Cup · ${leader.name}`)}</div>
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {live.map(sp => lead.ranks[sp] != null && (
-                    <span key={sp} className="ui inline-flex items-center gap-1.5 bg-white text-black rounded px-2 h-7 text-[12px] font-bold leading-none">
-                      <img src={YSF_ART.leagueSymbol(L(sp).key, 'white')} alt="" className="w-5 h-5 object-contain" />{ord(lead.ranks[sp]!).toUpperCase()} <span className="ysf-case">{L(sp).code}</span>
-                    </span>
-                  ))}
+      {slides.length > 0 && (
+        <section className="grid gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] items-start">
+          <NewsCarousel slides={slides} more={base} />
+          <aside className="min-w-0">
+            <div className="flex items-center justify-between gap-3 border-b-2 border-black pb-2 min-h-[42px]">
+              <div className="ui text-[13px] tracking-[.18em] font-bold">HEADLINES</div>
+              <Link href={base} className="ui text-[12px] font-bold tracking-[.12em] text-ink-500 hover:text-black">ALL NEWS →</Link>
+            </div>
+            {heads.map(a => (
+              <Link key={a.id} href={`${base}/${a.id}`} className="group grid grid-cols-[64px_minmax(0,1fr)] gap-3 py-3 border-b border-ink-100">
+                <StoryArt tiles={tilesOf(a, byAbbr)} className="aspect-square" />
+                <div className="min-w-0">
+                  <div className="ui text-[10px] font-bold tracking-[.12em] text-[#ba0c2f]"><span className="ysf-case">{kicker(a)}</span></div>
+                  <div className="font-bold leading-snug mt-0.5 group-hover:underline break-words">{a.headline}</div>
+                  <div className="text-[11px] text-ink-500 mt-0.5">{ago(a.published)}</div>
                 </div>
-              </div>
-            </div>
-          </div>
-          <h1 className="disp text-[40px] sm:text-[64px] font-extrabold leading-[.9]"><span className="ysf-case">{U(headline)}</span></h1>
-          <p className="text-[16px] leading-relaxed text-ink-800 max-w-[640px]">{dek}</p>
-          <Link href={`/leagues/${league.id}/standings`} className="ui text-[13px] font-bold tracking-[.12em]">SEE THE FULL STANDINGS →</Link>
-        </div>
+              </Link>
+            ))}
+          </aside>
+        </section>
+      )}
 
-        <aside>
-          <div className="ui text-[13px] tracking-[.18em] pb-2 border-b-2 border-black">HEADLINES</div>
-          {heads.slice(0, 4).map((h, i) => (
-            <div key={i} className="flex gap-4 py-4 border-b border-ink-100">
-              <div className="flex flex-col gap-1 flex-none">{h.clubs.map(id => <span key={id} className="w-9 h-9 inline-flex items-center justify-center"><img src={C[id]?.logo ?? ''} alt="" className="w-9 h-9 object-contain" /></span>)}</div>
-              <div className="min-w-0">
-                <div className="ui text-[11px] font-bold tracking-[.12em]" style={{ color: h.sport ? L(h.sport).color : '#000' }}><span className="ysf-case">{h.topic}</span></div>
-                <div className="disp text-[22px] font-extrabold leading-[1.02] mt-1">{U(h.title)}</div>
-                <p className="text-[13px] text-ink-500 mt-1.5 leading-snug">{h.dek}</p>
-              </div>
-            </div>
-          ))}
-        </aside>
-      </section>
-
-      <HomeStandings leagueId={league.id} cup={s.cup} live={live} clubs={Object.fromEntries(Object.values(C).map(c => [c.id, { name: c.name, abbreviation: c.abbreviation, logo: c.logo, color: c.color }]))} />
+      <HomeStandings leagueId={league.id} cup={s.cup} live={s.live} clubs={Object.fromEntries(Object.values(C).map(c => [c.id, { name: c.name, abbreviation: c.abbreviation, logo: c.logo, color: c.color }]))} />
     </>
   )
 }

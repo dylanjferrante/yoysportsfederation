@@ -521,7 +521,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
               )}
               {/* Tap-to-assign guidance banner while a move is in progress. */}
               {canManage && sel && (
-                <div className="sticky top-[60px] z-20 flex items-center gap-2 rounded-lg bg-slate-900 text-white px-3 py-2 text-xs shadow-lg">
+                <div className="sticky top-[var(--ysf-top,60px)] z-20 flex items-center gap-2 rounded-lg bg-slate-900 text-white px-3 py-2 text-xs shadow-lg">
                   {selPlayer
                     ? <span className="min-w-0 truncate flex-shrink">Moving <b>{selPlayer.name}</b> — tap a slot</span>
                     : <span className="min-w-0 truncate flex-shrink">Filling <b>{selSlot?.slot}</b> — tap a player</span>}

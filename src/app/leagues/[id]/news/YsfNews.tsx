@@ -18,7 +18,7 @@ export const kicker = (a: Article) => {
   if (a.sport === 'CUP') return a.kind === 'analysis' ? 'CUP RACE' : `CUP RACE · ${TYPE[a.kind] ?? 'COLUMN'}`
   return lg ? `${lg.code} · ${TYPE[a.kind] ?? a.kind.toUpperCase()}` : TYPE[a.kind] ?? (a.kind ?? 'NEWS').toUpperCase()
 }
-const ago = (iso: string) => {
+export const ago = (iso: string) => {
   const m = Math.max(0, (Date.now() - Date.parse(iso)) / 60000)
   if (m < 60) return `${Math.max(1, Math.round(m))}m ago`
   if (m < 24 * 60) return `${Math.round(m / 60)}h ago`
@@ -27,10 +27,22 @@ const ago = (iso: string) => {
 export const stamp = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) + ' ET'
 export const by = (a: Article) => `By ${WRITERS[a.writer]?.name ?? 'ySF News'}`
 
-// story art: each club the story is about, crest on its colour (two split on the diagonal, more side
-// by side); a story about no club gets the league's symbol on the league colour
+// story art: the club (or two) the story is about, crest on its colour (two split on the diagonal);
+// a story about no club gets the league's symbol on the league colour. The main clubs are the ones the
+// headline names — by abbreviation, full name or short name ("Mitchel", "Real Meir"); when the
+// headline names none, the story's first club
+const shortName = (n: string) => n.replace(/(\s+([A-Z]\.)+[A-Z]?\.?)+$/, '').trim()
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+export function mainClubs(a: Article, C: Map<string, ClubInfo>): ClubInfo[] {
+  const named = (c: ClubInfo) => [c.abbreviation, c.name, shortName(c.name)].filter(Boolean)
+    .map(n => new RegExp(`(^|[^A-Za-z])${esc(n)}([^A-Za-z]|$)`).exec(a.headline)?.index ?? -1).filter(i => i >= 0)
+  const hits = [...C.values()].map(c => ({ c, at: Math.min(...named(c), 1e9) })).filter(x => x.at < 1e9).sort((x, y) => x.at - y.at).map(x => x.c)
+  if (hits.length) return [...new Set(hits)].slice(0, 2)
+  const first = a.clubs.map(x => C.get(x)).find(Boolean)
+  return first ? [first] : []
+}
 export function tilesOf(a: Article, C: Map<string, ClubInfo>): ArtTile[] {
-  const clubs = [...new Set(a.clubs)].map(x => C.get(x)).filter((c): c is ClubInfo => !!c)
+  const clubs = mainClubs(a, C)
   if (clubs.length) return clubs.map(c => ({ bg: c.color ?? '#000', img: (c.altLogo || c.logo) ?? '' }))
   const sec = SECTIONS.find(s => s.id === a.sport)
   return [{ bg: sec?.color ?? '#000', img: (sec?.key ? YSF_ART.leagueSymbol(sec.key, 'color') : YSF_ART.primaryOnBlack) ?? '' }]
