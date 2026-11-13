@@ -2,7 +2,7 @@
 // against the rule book in ysf-rules.ts, plus each league's no-trade window and trades under review.
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
-import { RULES, LEAGUE_OF, eligTokens, taxiCheck, hasDesignation, injuriesFresh, inSeason, claimWeek, etMidnightUtc, tradeWindow, type Window } from '@/lib/ysf-rules'
+import { RULES, LEAGUE_OF, eligTokens, taxiCheck, hasDesignation, injuriesFresh, inSeason, claimWeek, etMidnightUtc, tradeWindow, taxiRemoved, type Window } from '@/lib/ysf-rules'
 
 export type Finding = { sport: string; teamId: string; rule: string; source: string; detail: string }
 const MON: Record<string, number> = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 }
@@ -15,7 +15,7 @@ export function playerLabel(sport: string, name: string, team: string | null, po
 
 export async function auditLeague(season0?: string): Promise<{ findings: Finding[]; windows: Window[] }> {
   const season = season0 || (db.all<{ s: string }>(sql`SELECT season s FROM leagues WHERE id = 'ysf'`)[0]?.s ?? '')
-  const rows = db.all<any>(sql`SELECT r.team_id t, r.sport, r.slot, p.name, p.real_team_abbr team, p.position, p.eligible_positions elig, p.status, p.pro_exp exp
+  const rows = db.all<any>(sql`SELECT r.team_id t, r.player_id pid, r.sport, r.slot, p.name, p.real_team_abbr team, p.position, p.eligible_positions elig, p.status, p.pro_exp exp
     FROM rosters r JOIN teams tm ON tm.id = r.team_id JOIN players p ON p.id = r.player_id WHERE tm.league_id = 'ysf'`)
   const cfg = JSON.parse(db.all<{ s: string }>(sql`SELECT roster_settings s FROM leagues WHERE id = 'ysf'`)[0]?.s ?? '{}') as Record<string, Record<string, number>>
   const out: Finding[] = []
@@ -34,7 +34,13 @@ export async function auditLeague(season0?: string): Promise<{ findings: Finding
     }
     const taxi = list.filter(r => r.slot === 'TAXI')
     if (taxi.length > (RULES.taxi[sport] ?? 0)) out.push({ sport, teamId, rule: `Taxi Squad max ${RULES.taxi[sport]}`, source: 'Comm. Res. VII', detail: `${taxi.length} on the Taxi Squad` })
-    for (const r of taxi) { const c = taxiCheck(sport, r.exp); if (!c.ok) out.push({ sport, teamId, rule: 'Taxi Squad eligibility', source: 'Comm. Res. VII', detail: `${label(r)}: ${c.why}` }) }
+    for (const r of taxi) {
+      const c = taxiCheck(sport, r.exp); if (!c.ok) out.push({ sport, teamId, rule: 'Taxi Squad eligibility', source: 'Comm. Res. VII', detail: `${label(r)}: ${c.why}` })
+      if (taxiRemoved(teamId, r.name, r.pid, sport, season)) out.push({ sport, teamId, rule: 'Placed back on the Taxi Squad', source: 'Comm. Res. VII', detail: `${label(r)} was taken off the Taxi Squad earlier this season` })
+      // first went on this club's Taxi Squad after the season's first scoring period (the lock)
+      const first = db.all<{ p: number; d: string | null }>(sql`SELECT MIN(period) p, MIN(date) d FROM fantrax_player_periods WHERE season = ${season} AND sport = ${sport} AND team_id = ${teamId} AND name = ${r.name} AND status = '9'`)[0]
+      if (first?.p != null && first.p > 1) out.push({ sport, teamId, rule: 'Placed on the Taxi Squad after the lock', source: 'Comm. Res. VII', detail: `${label(r)} went on the Taxi Squad ${first.d ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(first.d + 'T12:00:00Z')) : `in week ${first.p}`}` })
+    }
     const ir = list.filter(r => ['IR', 'IL', 'DL'].includes(r.slot))
     if (ir.length > (RULES.ir[sport] ?? 0)) out.push({ sport, teamId, rule: `IR max ${RULES.ir[sport]}`, source: 'Art. V', detail: `${ir.length} on IR` })
     if (fresh && season_[sport]) for (const r of ir) if (!hasDesignation(r.status)) out.push({ sport, teamId, rule: 'IR needs a designation', source: 'Art. V fn. 5', detail: `${label(r)} is no longer injured` })
@@ -44,7 +50,7 @@ export async function auditLeague(season0?: string): Promise<{ findings: Finding
   }
 
   // Fed. Res. III: Fantrax claims per Monday–Sunday week (ET), from the Rookie Draft on
-  const claims = db.all<any>(sql`SELECT sport, team_id t, date FROM fantrax_transactions WHERE season = ${season} AND code = 'CLAIM' AND result = 'EXECUTED' AND team_id IS NOT NULL AND sport IN ('NBA', 'NHL')`)
+  const claims = db.all<any>(sql`SELECT sport, team_id t, date FROM fantrax_transactions WHERE season = ${season} AND code = 'CLAIM' AND result = 'EXECUTED' AND team_id IS NOT NULL AND sport IN ('NBA', 'NHL', 'MLB')`)
   const weeks = new Map<string, number>()
   for (const c of claims) {
     const m = /(\w{3}) (\d+), (\d{4}), (\d+):(\d+)(AM|PM)/.exec(c.date ?? ''); if (!m) continue

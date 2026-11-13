@@ -70,23 +70,28 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
         <span key={g.gid} className="inline-flex items-stretch">
           <Tag label={g.label} bd={g.bd} gid={g.gid + copy * groupsById.length} />
           {g.items.map((it, k) => (
-            <span key={k} className="inline-flex items-center">
-            {k > 0 && <span className="text-ink-400 text-[15px]">|</span>}
-            <span className="inline-flex items-center gap-2.5 px-[22px]">
-              {it.live && <span className="w-2 h-2 rounded-full bg-[#ba0c2f] flex-none" />}
+            <span key={k} className="inline-flex items-stretch">
+            {k > 0 && <span className="w-px self-stretch bg-ink-400 flex-none" />}
+            <span className="inline-flex items-stretch gap-2.5 px-[22px]">
+              {it.live && <span className="self-center w-2 h-2 rounded-full bg-[#ba0c2f] flex-none" />}
               {it.score ? it.score.map((sd, j) => (
-                <span key={j} className={`inline-flex items-center gap-2 whitespace-nowrap${j > 0 ? ' ml-2' : ''}`}>
+                <span key={j} className={`self-center inline-flex items-center gap-2 whitespace-nowrap${j > 0 ? ' ml-2' : ''}`}>
                   <span className="w-8 h-8 inline-flex items-center justify-center rounded-[2px] flex-none" style={{ background: sd.mark.bg }}><img src={sd.mark.src} alt="" className="w-6 h-6 object-contain" /></span>
                   <span className="text-[15px] font-semibold">{sd.ab}</span>
                   {sd.v != null && <span className={`text-[15px] tabular-nums ${sd.win ? 'font-extrabold text-white' : 'font-medium text-ink-200'}`}>{sd.v}</span>}
                 </span>
               )) : <>
-                <span className="inline-flex gap-[3px] flex-none">{it.marks.map((m, j) => (
+                <span className="self-center inline-flex gap-[3px] flex-none">{it.marks.map((m, j) => (
                   <span key={j} className="w-8 h-8 inline-flex items-center justify-center rounded-[2px]" style={{ background: m.bg }}><img src={m.src} alt="" className="w-6 h-6 object-contain" /></span>
                 ))}</span>
-                <span className="text-[15px] font-semibold whitespace-nowrap ysf-case">{it.text}</span>
+                {it.text.split(' | ').map((part, j) => (
+                  <span key={j} className="inline-flex items-stretch gap-2.5">
+                    {j > 0 && <span className="w-px self-stretch bg-ink-400 flex-none" />}
+                    <span className="self-center text-[15px] font-semibold whitespace-nowrap ysf-case">{part}</span>
+                  </span>
+                ))}
               </>}
-              <span className="text-[12px] text-ink-400 whitespace-nowrap">{it.ago}</span>
+              <span className="self-center text-[12px] text-ink-400 whitespace-nowrap">{it.ago}</span>
             </span>
             </span>
           ))}

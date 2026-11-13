@@ -20,10 +20,11 @@ const etStamp = (d: Date | null) => d ? new Intl.DateTimeFormat('en-US', { timeZ
 const RULEBOOK: [string, string, string][] = [
   ['Taxi Squads: ySFFL 3 · ySFHL 4 · ySFBA 3 · ySFLB 5', 'Comm. Res. VII', 'Lineup moves'],
   ['Taxi Squad eligibility: under 1 year (NFL, NBA, MLB service time); 84 or fewer NHL games', 'Comm. Res. VII', 'Lineup moves'],
+  ['Taxi Squads fill after the Rookie Draft and lock at the season’s first game; a player taken off can’t go back', 'Comm. Res. VII', 'Lineup moves'],
   ['Max 3 QB-eligible (ySFFL) · 4 G-eligible (ySFHL) · 13 P-eligible (ySFLB)', 'Art. V', 'Adds, claims, trades'],
   ['IR: ySFFL 2 · ySFHL 3 · ySFBA 3 · ySFLB 4, official designation only', 'Art. V fn. 5', 'Lineup moves'],
   ['A healthy player on IR locks the roster until he’s moved off', 'Art. V fn. 5', 'Adds, claims, lineup moves'],
-  ['Claims: ySFBA 3 · ySFHL 4 per Monday–Sunday week, from the Rookie Draft on', 'Fed. Res. III', 'Adds, claims'],
+  ['Claims: 4 per Monday–Sunday week in ySFBA, ySFHL and ySFLB, from the Rookie Draft on', 'Fed. Res. III', 'Adds, claims'],
   ['ySFLB starting pitchers: 10 games per matchup, prorated by length', 'Fed. Res. III', 'Scoring engine'],
   ['FAAB $250 per league; ties go to the worse record; FAAB may be traded', 'Art. IV §A', 'Claims, trades'],
   ['No-trade window from the deadline to the end of the playoffs locks players, picks and FAAB', 'Art. IV §B, Comm. Notice II', 'Trades'],
@@ -149,14 +150,37 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
       {t === 'resolutions' && (
         <section className="flex flex-col gap-4">
           {(doc?.resolutions ?? []).map((r, i) => {
-            const bg = r.status === 'Passed' ? '#177245' : r.status === 'Failed' ? '#ba0c2f' : r.status === 'Issued' ? '#000' : '#8A8A8A'
+            const bg = r.status === 'Passed' ? '#177245' : r.status === 'Failed' ? '#ba0c2f' : r.status === 'Issued' ? '#000' : r.status === 'Open' ? '#6da7ee' : '#8A8A8A'
+            const badge = 'ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none flex-none'
             return (
               <article key={i} className="card p-4 sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <h2 className="disp text-[20px] sm:text-[24px] font-extrabold leading-tight min-w-0 flex-1">{r.title}</h2>
-                  <span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none text-white flex-none" style={{ background: bg }}>{r.status.toUpperCase()}</span>
+                  <span className="flex gap-1.5 flex-none">
+                    {r.emergency && <span className={`${badge} border border-black text-black`}>EMERGENCY</span>}
+                    {r.type && <span className={`${badge} border border-black text-black`}>{r.type.toUpperCase()}</span>}
+                    <span className={`${badge} text-white`} style={{ background: bg }}>{r.status.toUpperCase()}</span>
+                  </span>
                 </div>
-                <div className={`${DOC} mt-2`} dangerouslySetInnerHTML={{ __html: r.html }} />
+                {r.text
+                  ? <div className="text-[15px] leading-relaxed text-ink-800 mt-2 whitespace-pre-wrap"><span className="ysf-case">{r.text}</span></div>
+                  : <div className={`${DOC} mt-2`} dangerouslySetInnerHTML={{ __html: r.html }} />}
+                {r.tally && (
+                  <div className="mt-4 border-t border-ink-100 pt-3">
+                    <div className="ui text-[12px] font-bold tracking-[.12em]">{r.status === 'Open' ? 'VOTING' : 'RESULT'}</div>
+                    <div className="text-[14px] font-semibold mt-1">{r.tally}</div>
+                    {!!r.votes?.length && r.status !== 'Open' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 mt-2">
+                        {r.votes.map(v => (
+                          <div key={v.owner} className="flex items-center justify-between gap-3 py-1 border-b border-ink-50 text-[14px]">
+                            <span>{v.club ?? v.owner}</span>
+                            <span className="font-bold" style={{ color: /yes/i.test(v.vote) ? '#177245' : /no/i.test(v.vote) ? '#ba0c2f' : '#8A8A8A' }}>{v.vote.toUpperCase()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </article>
             )
           })}

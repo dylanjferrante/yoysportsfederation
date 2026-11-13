@@ -5,9 +5,11 @@
 //                 48-hour review; bad-faith complaints; Commission veto (unanimous, 36 h); Federation
 //                 override (⅔ excl. parties); Federation veto when a Commission club is a party (⅔)
 //   Art. V        roster sizes; max 3 QB-eligible (ySFFL), 4 G-eligible (ySFHL), 13 P-eligible (ySFLB)
-//   Comm. Res. VII taxi squads FL 3 · HL 4 · BA 3 · LB 5 and who may be on them
+//   Comm. Res. VII taxi squads FL 3 · HL 4 · BA 3 · LB 5, who may be on them, the lock at the season's
+//                 first game, and no return once removed (as passed Jul 23, 2026 — ySF Portal)
 //   Comm. Notice II trade-deadline weeks (carried forward until the Commission sets new ones)
-//   Fed. Res. III claim limits (BA 3, HL 4 per Mon–Sun week, from the Rookie Draft on); ySFLB SP 10 games per matchup
+//   Fed. Res. III claim limits (4 per Mon–Sun week in BA, HL and LB, from the Rookie Draft on, as passed Jul 23, 2026);
+//                 ySFLB SP 10 games per matchup
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
 import { siteFeed } from '@/lib/ysf-data'
@@ -21,7 +23,7 @@ export const RULES = {
   ir: { NFL: 2, NHL: 3, NBA: 3, MLB: 4 } as Record<string, number>,
   bench: { NFL: 7, NHL: 4, NBA: 5, MLB: 5 } as Record<string, number>,
   eligMax: { NFL: { QB: 3 }, NHL: { G: 4 }, MLB: { P: 13 } } as Record<string, Record<string, number>>,
-  weeklyClaims: { NBA: 3, NHL: 4 } as Record<string, number>,
+  weeklyClaims: { NBA: 4, NHL: 4, MLB: 4 } as Record<string, number>,
   spGamesPerWeek: 10,
   faab: 250,
   reviewHours: 48,
@@ -39,6 +41,7 @@ export function ensureRulesSchema() {
     `ALTER TABLE trade_items ADD COLUMN faab_sport TEXT`, `ALTER TABLE trade_items ADD COLUMN faab_amount INTEGER`,
     `ALTER TABLE trades ADD COLUMN complaint_at TEXT`,
   ]) { try { db.run(sql.raw(s)) } catch { /* exists */ } }
+  db.run(sql`CREATE TABLE IF NOT EXISTS ysf_taxi_removed (team_id TEXT NOT NULL, player_id TEXT NOT NULL, sport TEXT NOT NULL, season TEXT NOT NULL, removed_at TEXT NOT NULL, PRIMARY KEY (team_id, player_id, season))`)
   db.run(sql`CREATE TABLE IF NOT EXISTS ysf_trade_votes (trade_id TEXT NOT NULL, team_id TEXT NOT NULL, kind TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL, PRIMARY KEY (trade_id, team_id, kind))`)
 }
 
@@ -78,6 +81,35 @@ export function taxiCheck(sport: string, proExp: string | null): TaxiCheck {
       : { ok: false, why: `debuted ${e.debut}; up to ${e.maxDays} service days possible — the Commission must confirm under 1 year` }
   }
   return { ok: true, why: '' }
+}
+
+// ── Taxi Squad lock (Comm. Res. VII as passed) ──────────────────────────────
+// Players go on the Taxi Squad after the Rookie Draft; the squad locks at the start of the season's first
+// fantasy game; a player taken off can't be put back that season.
+export async function taxiLockAt(sport: string): Promise<Date | null> {
+  const feed = await siteFeed<any>(`league_${FEED[sport]}.json`)
+  const first = Object.values<any>(feed?.schedule_meta?.periods ?? {}).map(p => p.start).filter(Boolean).sort()[0] as string | undefined
+  if (!first) return null
+  const g = db.all<{ e: number | null }>(sql`SELECT MIN(game_time_epoch) e FROM game_schedule WHERE sport = ${sport} AND game_date = ${first.replace(/-/g, '')}`)[0]?.e
+  const [y, m, d] = first.split('-').map(Number)
+  return g ? new Date(Number(g) * 1000) : etMidnightUtc(y, m, d)
+}
+// was this player on this club's Taxi Squad earlier this season and then moved off it?
+export function taxiRemoved(teamId: string, playerName: string, playerId: string, sport: string, season: string): boolean {
+  if (db.all(sql`SELECT 1 FROM ysf_taxi_removed WHERE team_id = ${teamId} AND player_id = ${playerId} AND season = ${season}`).length) return true
+  // Fantrax lineup history: a Minors period followed by a later non-Minors period on the same club
+  const h = db.all<{ period: number; status: string }>(sql`SELECT period, status FROM fantrax_player_periods WHERE season = ${season} AND sport = ${sport} AND team_id = ${teamId} AND name = ${playerName} ORDER BY period`)
+  let seen = false
+  for (const r of h) { if (r.status === '9') seen = true; else if (seen) return true }
+  return false
+}
+export async function taxiPlaceError(teamId: string, player: { id: string; name: string }, sport: string, season: string, now = new Date()): Promise<string | null> {
+  const draft = RULES.rookieDraft[sport]
+  if (draft && now < new Date(draft)) return `Taxi Squads open after the ${LEAGUE_OF[sport]} Rookie Draft (Comm. Res. VII)`
+  const lock = await taxiLockAt(sport)
+  if (lock && now >= lock) return `The ${LEAGUE_OF[sport]} Taxi Squad locked at the season’s first game (Comm. Res. VII)`
+  if (taxiRemoved(teamId, player.name, player.id, sport, season)) return `${player.name} was taken off the Taxi Squad and can’t be placed back (Comm. Res. VII)`
+  return null
 }
 
 // ── Claim weeks (Fed. Res. III): Monday 12:00am ET → Sunday 11:59pm ET ───────
