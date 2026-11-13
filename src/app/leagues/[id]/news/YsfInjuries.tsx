@@ -67,7 +67,7 @@ export default async function YsfInjuries({ league, lg }: { league: any; lg?: st
                   <td className={`${td} !whitespace-normal`}><span className="inline-flex items-center gap-1.5">{o?.logo && <img src={o.logo} alt="" className="w-5 h-5 object-contain flex-none" />}<span className="hidden sm:inline">{o?.name}</span><span className="sm:hidden">{o?.abbreviation}</span></span></td>
                   <td className={`${td} !whitespace-normal`}><div>{r.name}</div>{r.note && <div className="text-[13px] font-normal text-ink-600 mt-0.5">{r.note}</div>}</td>
                   <td className={`${td} font-normal`}>{r.team || 'FA'}</td>
-                  <td className={`${td} font-normal hidden sm:table-cell`}>{(r.elig || r.position || '').replace(/\bDEF\b/g, 'D/ST')}</td>
+                  <td className={`${td} font-normal hidden sm:table-cell`}>{(() => { try { const e = JSON.parse(r.elig ?? '[]') as string[]; return (e.length ? e : [r.position]).join('/') } catch { return r.position } })().replace(/\bDEF\b/g, 'D/ST')}</td>
                   <td className={`${td} font-normal hidden sm:table-cell`}>{r.slot === 'IR' ? 'IR' : ''}</td>
                   <td className={`${td} text-center`}><Tag s={r.status} /></td>
                 </tr>) })}</tbody>
