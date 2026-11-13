@@ -76,3 +76,37 @@ const C2: Record<string, string[]> = { nfl: ['PaYd', 'PaTD', 'Int', 'RuYd', 'RuT
   skater: ['G', 'A', 'SOG', 'PPP', 'Hit', 'Blk'], goalie: ['W', 'SV', 'GA', 'SO'], nba: ['PTS', 'REB', 'AST', 'STL', 'BLK', 'TO', '3PM'], hitter: ['AB', 'H', 'R', 'HR', 'RBI', 'SB'], pitcher: ['IP', 'K', 'ER', 'W', 'SV'] }
 export const compactCols = (t: StatType): [string, string][] => (C2[t.id] ?? []).map(l => t.cols.find(c => c[0] === l)!).filter(Boolean)
 export const maxCompact = (sport: string) => sport === 'NFL' ? 8 : sport === 'NHL' ? 6 : sport === 'NBA' ? 7 : 6
+
+// How a player's points were calculated, from the stat columns and the ySF rules (Fantrax's
+// category weights). D/ST tiers come from the league's own tier settings.
+type W = Record<string, [string, number]>   // column key → [label, points per unit]
+const WEIGHTS: Record<string, W> = {
+  nfl: { YDS: ['Pass yds', 0.04], TD: ['Pass TD', 4], Int: ['INT', -2], '2Pa': ['2-pt pass', 2], 'YDS#8': ['Rush yds', 0.1], 'TD#9': ['Rush TD', 6], REC: ['Rec', 0.5], 'YDS#11': ['Rec yds', 0.1], 'TD#12': ['Rec TD', 6], FL: ['Fumble lost', -2], FRTD: ['Fumble rec TD', 6], RtT: ['Return TD', 6], '2RR': ['2-pt run/catch', 2] },
+  k: { FGYd: ['FG yds', 0.1], XP: ['XP', 1], XPM: ['XP missed', -1], FGM: ['FG missed', -1] },
+  dst: { Sk: ['Sack', 1], TA: ['Takeaway', 2], TDDST: ['D/ST TD', 6], Sft: ['Safety', 2], XPB2P: ['Def 2-pt', 2] },
+  skater: { G: ['Goal', 2], A: ['Assist', 1], SOG: ['SOG', 0.1], PPP: ['PPP', 0.5], SHP: ['SHP', 0.5], Hit: ['Hit', 0.1], Blk: ['Block', 0.5] },
+  goalie: { W: ['Win', 4], 'OL+ShL': ['OT/SO loss', 1], SV: ['Save', 0.2], GA: ['Goal against', -2], SHO: ['Shutout', 3], G: ['Goal', 2], A: ['Assist', 1] },
+  nba: { PTS: ['Pts', 1], REB: ['Reb', 1], AST: ['Ast', 2], ST: ['Stl', 4], BLK: ['Blk', 4], TO: ['TO', -2], '3PTM': ['3PM', 1], FGM: ['FGM', 2], FGA: ['FGA', -1], FTM: ['FTM', 1], FTA: ['FTA', -1] },
+  hitter: { R: ['R', 1], HR: ['HR', 1], RBI: ['RBI', 1], BB: ['BB', 1], SO: ['K', -1], SB: ['SB', 1], CS: ['CS', -0.5], TB: ['TB', 1], XBH: ['XBH', 1], GIDP: ['GIDP', -1], CYC: ['Cycle', 15], AOF: ['OF assist', 2], E: ['Error', -1] },
+  pitcher: { IP: ['IP', 3], K: ['K', 1], W: ['W', 3], L: ['L', -2], ER: ['ER', -1], H: ['H', -1], BB: ['BB', -1], HR: ['HR', -2], SV: ['SV', 5], HLD: ['HLD', 2], NH: ['No-hitter', 30], PG: ['Perfect game', 50], PKO: ['Pickoff', 1], E: ['Error', -1] },
+}
+const tier = (v: number, tiers: { min: number; max: number | null; points: number }[] | undefined) => (tiers ?? []).find(t => v >= t.min && (t.max == null || v <= t.max))?.points ?? 0
+const ip = (s: string) => { const [w, f] = String(s).split('.'); return Number(w) + (Number(f || 0) / 3) }
+export function breakdown(sport: string, slot: string, stats: S | null | undefined, rules?: Record<string, any>): { lines: string[]; total: number } {
+  if (!stats) return { lines: [], total: 0 }
+  const t = statType(sport, slot, stats), w = WEIGHTS[t.id] ?? {}
+  const lines: string[] = []; let total = 0
+  const fmt = (x: number) => +x.toFixed(2)
+  for (const [k, [label, per]] of Object.entries(w)) {
+    const v = k === 'IP' ? ip(stats[k] ?? '0') : n(stats, k)
+    if (!v) continue
+    const p = fmt(v * per); total += p
+    lines.push(`${k === 'IP' ? stats[k] : v} ${label} × ${per} = ${p}`)
+  }
+  if (t.id === 'dst') {
+    const pa = n(stats, 'PA-Def'), ya = n(stats, 'YdA')
+    const pp = tier(pa, rules?.ptsAllowedTiers), yp = tier(ya, rules?.yardsAllowedTiers)
+    lines.push(`${pa} points allowed → ${pp}`, `${ya} yards allowed → ${yp}`); total += pp + yp
+  }
+  return { lines, total: fmt(total) }
+}

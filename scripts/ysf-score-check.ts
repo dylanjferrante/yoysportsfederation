@@ -21,7 +21,7 @@ async function main() {
   // --fantrax-rules: score D/ST yards 300-349 as Fantrax does (+2) to compare like for like
   if (process.argv.includes('--fantrax-rules')) for (const t of scoringAll.NFL.yardsAllowedTiers) if (t.min === 300) t.points = 2
   const proTeams = JSON.parse(fs.readFileSync('scripts/data/pro-teams.json', 'utf8'))
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
   const feed: Record<string, any> = {}
   for (const [sp, k] of [['NFL', 'ysf_fl'], ['NHL', 'ysf_hl'], ['NBA', 'ysf_ba']]) feed[sp] = await (await fetch(`https://ysffantasy.com/data/league_${k}.json`)).json()
 

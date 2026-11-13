@@ -20,3 +20,6 @@ export const YSF_ART = {
 
 /** Uppercase a display label but keep the lowercase y in ySF. */
 export const U = (s: string) => s.toUpperCase().replace(/YSF/g, 'ySF')
+
+// Today's date in US Eastern time (the Federation's clock), YYYY-MM-DD
+export const etToday = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
