@@ -41,7 +41,7 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
   const curTrades = trades.filter(t => t.season === league.season).slice(0, 3)
   if (curTrades.length) fed.push({ label: 'TRADES', bd: '#E500C5', items: curTrades.map(t => ({
     marks: t.sides.map(sd => mark(sd.teamId)),
-    text: t.sides.map(sd => `${C[sd.teamId]?.name} gets ${sd.gets.map(g => g.team ? `${g.name} (${YSF_LEAGUES.find(l => l.sport === g.sport)?.code ?? ''}-${g.team}, ${g.pos})` : g.name).join(' + ')}`).join(' | '),
+    text: t.sides.filter(sd => sd.gets.length).map(sd => `${C[sd.teamId]?.name} gets ${sd.gets.map(g => g.team ? `${g.name} (${YSF_LEAGUES.find(l => l.sport === g.sport)?.code ?? ''}-${g.team}, ${g.pos})` : g.name).join(' + ')}`).join(' | '),
     ago: ago(t.when) })) })
   const up: TickerItem[] = []
   for (const d of (await db.select().from(drafts).where(eq(drafts.leagueId, league.id))).filter(d => d.status === 'PENDING' && d.startsAt)) {
@@ -59,7 +59,7 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
     const lines = wk.pairings.flatMap(p => p.lines.filter(l => l.sport === L.sport).map(l => ({ p, l })))
     if (lines.length) groups.push({ label: periodLabel(league, L.sport, wk.week).toUpperCase(), bd: L.color, items: lines.map(({ p, l }) => ({
       marks: [], live: l.status === 'LIVE',
-      text: l.a == null ? `${ab(p.a)} vs ${ab(p.b)}` : `${ab(p.a)} ${num(l.a)} | ${ab(p.b)} ${num(l.b ?? 0)}`,
+      text: l.a == null ? `${ab(p.a)} vs ${ab(p.b)}` : `${ab(p.a)} ${num(l.a)} ${ab(p.b)} ${num(l.b ?? 0)}`,
       score: [[p.a, l.a, l.b], [p.b, l.b, l.a]].map(([id, v, o]) => ({ mark: mark(id as string), ab: ab(id as string), v: v == null ? null : num(v as number), win: v != null && o != null && (v as number) > (o as number) })),
       ago: l.status === 'FINAL' ? 'Final' : l.status === 'LIVE' ? 'Live' : 'Up next' })) })
     const t = s.tables[L.sport]

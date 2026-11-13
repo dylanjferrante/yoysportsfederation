@@ -212,15 +212,18 @@ export async function loadMoves(leagueId: string, currentSeason = '2026-27') {
   const code = (sp: string) => YSF_LEAGUES.find(l => l.sport === sp)?.code ?? sp
   try {
     const tr = db.all<any>(sql`SELECT season, sport, fx_league_id, seq, from_team_id, to_team_id, name, pro_team, positions, pick, date FROM fantrax_trades WHERE executed = 1 AND deleted = 0 AND to_team_id IS NOT NULL`)
+    // Fantrax spells some clubs out ("Athletic Club Ferrante"); show the official name
+    const key = (n: string) => n.toLowerCase().replace(/athletic club|athletic sporting club/g, 'ac').replace(/sporting club/g, 'sc').replace(/fantasy club|football club/g, 'fc').replace(/[^a-z]/g, '')
+    const official = new Map(db.all<{ name: string }>(sql`SELECT name FROM teams WHERE league_id = 'ysf'`).map(c => [key(c.name), c.name]))
     for (const t of tr) {
       let text = '', pick: string | undefined, via: string | undefined
       if (t.pick) {
         const m = /^(\d{4}) Draft Pick Round (\d+)(?: Pick (\d+))?(?: \((.+)\))?/.exec(t.pick)
         text = m ? `${m[1]} ${code(t.sport)} Rookie Draft pick` : t.pick
         if (m) pick = `R${m[2]}${m[3] ? ` · P${m[3]}` : ''}`
-        if (m?.[4]) via = m[4]
+        if (m?.[4]) via = official.get(key(m[4])) ?? m[4]
       }
-      moves.push({ id: `fxt-${t.fx_league_id}-${t.seq}`, when: t.date ?? '', sport: t.sport, teamId: t.to_team_id, kind: 'TRADED', player: t.pick ? '' : (t.name ?? ''), team: t.pro_team ?? '', pos: t.positions ?? '', bid: null, text, season: t.season, from: t.from_team_id ?? undefined, pick, via })
+      moves.push({ id: `fxt-${t.fx_league_id}-${t.seq}`, when: t.date ?? '', sport: t.sport, teamId: t.to_team_id, kind: 'TRADED', player: t.pick ? '' : (t.name ?? ''), team: t.pro_team ?? '', pos: String(t.positions ?? '').split(/[,/]/).filter(Boolean).join('/'), bid: null, text, season: t.season, from: t.from_team_id ?? undefined, pick, via })
     }
   } catch { /* history not loaded */ }
   // rookie-draft selections (drafts run in the app)
