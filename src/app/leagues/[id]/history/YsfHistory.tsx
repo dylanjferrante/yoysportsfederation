@@ -4,17 +4,20 @@ import Link from 'next/link'
 import { db } from '@/db'
 import { teamRecords, leagueHistory, matchups, drafts, draftPicks, players } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
-import { loadStandings, loadMoves, periodLabel } from '@/lib/ysf-data'
+import { loadStandings, loadMoves, periodLabel, siteSeasons } from '@/lib/ysf-data'
 import { PageTitle, th, td, RecTh, RecTd } from '@/components/ysf/ui'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { trophyName, trophyArt } from '@/lib/ysf-trophies'
 import DraftResults from './DraftResults'
 
 const TROPHY_BG: Record<string, string> = { NFL: '#95A2AC', NHL: '#8CC63F', NBA: '#EEB21D', MLB: '#8B2144' }
-const PREV = '2025-26'
+// the first ySF season; the page's "last season" is the most recent finished one (from ysffantasy.com)
+const FIRST = '2025-26'
 const num = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 1 })
 
 export default async function YsfHistory({ league }: { league: any }) {
+  const PREV = (await siteSeasons()).complete.filter(x => x < league.season).pop() ?? FIRST
+  const firstTag = PREV === FIRST ? ' · INAUGURAL SEASON' : ''
   const s = await loadStandings(league)
   const C = s.clubs, ab = (id: string) => C[id]?.abbreviation ?? ''
   const recs = await db.select().from(teamRecords).where(eq(teamRecords.leagueId, league.id))
@@ -104,7 +107,7 @@ export default async function YsfHistory({ league }: { league: any }) {
           <SeasonCard title={league.season.replace('-', '–')} kick="IN PROGRESS" cupLabel="FED CUP LEADER" cupLine={`${C[lead.teamId]?.name} · ${lead.pts} pts`}
             rows={YSF_LEAGUES.map(L => { const t = s.tables[L.sport]?.[0]; return { sp: L.sport, label: s.live.includes(L.sport) ? 'LEADER' : 'OPENS SOON', line: s.live.includes(L.sport) && t ? `${ab(t.teamId)} · ${t.rec}` : '—' } })}
             links={[['STANDINGS', `${base}/standings`], ['SCORES', `${base}/scores`], ['CLUBS', `${base}/teams`]]} />
-          <SeasonCard title={PREV.replace('-', '–')} kick="FINAL · INAUGURAL SEASON" cupLabel="FED CUP CHAMPION" cupLine={fc ? `${fc.name} · ${prevCup[fedChamp!.championTeamId!] ?? ''} pts` : '—'}
+          <SeasonCard title={PREV.replace('-', '–')} kick={`FINAL${firstTag}`} cupLabel="FED CUP CHAMPION" cupLine={fc ? `${fc.name} · ${prevCup[fedChamp!.championTeamId!] ?? ''} pts` : '—'}
             rows={YSF_LEAGUES.map(L => { const c = champOf(L.sport); return { sp: L.sport, label: 'CHAMPION', line: c ? ab(c.championTeamId!) : '—' } })}
             links={[['MOVES', `${base}/transactions`]]} />
         </div>
@@ -114,7 +117,7 @@ export default async function YsfHistory({ league }: { league: any }) {
         <section className="rounded p-6 sm:p-7 flex flex-wrap items-center gap-6" style={{ background: fc.color ?? '#000', color: fc.ink ?? '#fff' }}>
           <img src={trophyArt('OVERALL')} alt="" className="w-24 h-24 object-contain" />
           <span className="w-24 h-24 inline-flex items-center justify-center"><img src={(fc.altLogo || fc.logo)!} alt="" className="w-24 h-24 object-contain" /></span>
-          <div className="min-w-0"><div className="ui text-[13px] tracking-[.14em] opacity-90">{U(`${PREV.replace('-', '–')} Federation Cup champion · inaugural`)}</div>
+          <div className="min-w-0"><div className="ui text-[13px] tracking-[.14em] opacity-90">{U(`${PREV.replace('-', '–')} Federation Cup champion${PREV === FIRST ? ' · inaugural' : ''}`)}</div>
             <div className="disp text-[44px] sm:text-[60px] font-extrabold leading-[.9]">{U(fc.name)}</div>
             <div className="text-[14px] mt-1 opacity-95">{prevCup[fedChamp!.championTeamId!]} Federation points · {titles.filter(t => t.season === PREV && t.scope !== 'OVERALL' && t.championTeamId === fedChamp!.championTeamId).map(t => code(t.scope)).join(' and ')} titles</div></div>
         </section>

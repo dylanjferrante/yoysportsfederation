@@ -3,7 +3,7 @@
 // models so the app and the site agree.
 import Link from 'next/link'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
-import { loadClubs, siteFeed, siteClubMap } from '@/lib/ysf-data'
+import { loadClubs, siteFeed, siteClubMap, leagueFeed, powerRankingsFeed, siteSeasons } from '@/lib/ysf-data'
 import { PageTitle, th, td, ClubCell, RecTh, RecTd } from '@/components/ysf/ui'
 
 const KEY: Record<string, string> = { ysf_fl: 'NFL', ysf_hl: 'NHL', ysf_ba: 'NBA', ysf_lb: 'MLB' }
@@ -65,13 +65,16 @@ export default async function YsfRankings({ league, tab, lg }: { league: any; ta
     )
   } else if (t === 'all') {
     const keys = ['ysf_fl', 'ysf_hl', 'ysf_ba', 'ysf_lb']
-    const [pr, ...arch] = await Promise.all([siteFeed<any>('power_rankings.json'), ...keys.map(k => siteFeed<any>(`archives/2025-26/${k}.json`))])
+    // every finished season's final standings (from its archive), then this season's live rankings
+    const done = (await siteSeasons()).complete.filter(x => x !== league.season)
+    const pairs = done.flatMap(sn => keys.map(k => ({ sn, k })))
+    const [pr, ...arch] = await Promise.all([powerRankingsFeed<any>(league.season), ...pairs.map(x => leagueFeed<any>(x.k, x.sn))])
     type TS = { k: string; lg: string; season: string; live: boolean; pr: number; rec: string; ppg: number; fin: string }
     const ts: TS[] = []
-    keys.forEach((k, i) => (arch[i]?.standings ?? []).forEach((s: any) => ts.push({ k: s.ysf_id, lg: k, season: '2025–26', live: false, pr: s.display_pr ?? 0,
+    pairs.forEach(({ sn, k }, i) => (arch[i]?.standings ?? []).forEach((s: any) => ts.push({ k: s.ysf_id, lg: k, season: sn.replace('-', '–'), live: false, pr: s.display_pr ?? 0,
       rec: `${s.w}-${s.l}`, ppg: s.ppg ?? s.pf / Math.max(1, s.w + s.l), fin: s.playoff_result || `${s.final_rank}${['th', 'st', 'nd', 'rd'][s.final_rank] ?? 'th'}` })))
     for (const [k, rows] of Object.entries(pr?.power_rankings?.leagues ?? {}) as [string, any[]][])
-      rows.forEach(s => ts.push({ k: s.team, lg: k, season: '2026–27', live: true, pr: s.display_pr, rec: `${s.wins}-${s.losses}`, ppg: s.ppg, fin: `${s.standings_rank}${['th', 'st', 'nd', 'rd'][s.standings_rank] ?? 'th'} now` }))
+      rows.forEach(s => ts.push({ k: s.team, lg: k, season: String(league.season).replace('-', '–'), live: true, pr: s.display_pr, rec: `${s.wins}-${s.losses}`, ppg: s.ppg, fin: `${s.standings_rank}${['th', 'st', 'nd', 'rd'][s.standings_rank] ?? 'th'} now` }))
     const f = keys.includes(lg ?? '') ? lg! : 'all'
     const list = ts.filter(x => f === 'all' || x.lg === f).sort((a, b) => b.pr - a.pr).slice(0, 25)
     body = (

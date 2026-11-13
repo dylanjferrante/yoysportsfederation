@@ -8,7 +8,7 @@
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
 import { loadGameLines, toFantraxStats, type Sport, type GameLine } from '@/lib/ysf-gamelines'
-import { siteFeed } from '@/lib/ysf-data'
+import { leagueFeed } from '@/lib/ysf-data'
 import { spCap } from '@/lib/ysf-rules'
 
 const SPORTS: Sport[] = ['NFL', 'NHL', 'NBA', 'MLB']
@@ -42,7 +42,7 @@ export async function runEngine(league: any, opts: { write?: boolean } = {}): Pr
   const results: EngineResult[] = []
 
   for (const sport of SPORTS) {
-    const feed = await siteFeed<any>(`league_${KEY[sport]}.json`)
+    const feed = await leagueFeed<any>(KEY[sport], season)
     const periods = Object.entries<any>(feed?.schedule_meta?.periods ?? {}).map(([p, v]) => ({ p: +p, start: v.start as string, end: v.end as string }))
     if (!periods.length) continue
     const first = periods.reduce((a, b) => (a.start < b.start ? a : b)).start

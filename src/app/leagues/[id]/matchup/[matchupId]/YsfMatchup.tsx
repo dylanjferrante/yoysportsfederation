@@ -9,7 +9,7 @@ import { db } from '@/db'
 import { matchups } from '@/db/schema'
 import { and, eq, sql } from 'drizzle-orm'
 import { YSF_LEAGUES, YSF_ART, U, etToday } from '@/lib/ysf'
-import { loadClubs, periodLabel, siteFeed } from '@/lib/ysf-data'
+import { loadClubs, periodLabel, leagueFeed } from '@/lib/ysf-data'
 import { weekDateRange } from '@/lib/defaults'
 import { statType, statCell, compactCols, maxCompact, breakdown } from '@/lib/ysf-statline'
 import { gameInfo, refreshLive, tankTeam, loadGameLines, toFantraxStats, type Sport } from '@/lib/ysf-gamelines'
@@ -52,7 +52,7 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
   const dataDays = daily ? [...new Set(lines.map(l => l.date!).filter(Boolean))].sort() : []
   let days = dataDays
   const fkey = { NFL: 'ysf_fl', NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }[m.sport as string]
-  const pfeed = await siteFeed<any>(isCur ? `league_${fkey}.json` : `archives/${season}/${fkey}.json`)
+  const pfeed = await leagueFeed<any>(fkey!, season)
   const pd = pfeed?.schedule_meta?.periods?.[String(period)] as { start: string; end: string } | undefined
   if (daily) {
     if (pd?.start && pd?.end) {

@@ -12,7 +12,7 @@
 //                 ySFLB SP 10 games per matchup
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
-import { siteFeed } from '@/lib/ysf-data'
+import { leagueFeed, ysfSeason } from '@/lib/ysf-data'
 
 export const isYsf = (leagueId?: string | null) => leagueId === 'ysf'
 export const LEAGUE_OF: Record<string, string> = { NFL: 'ySFFL', NHL: 'ySFHL', NBA: 'ySFBA', MLB: 'ySFLB' }
@@ -138,7 +138,7 @@ export function taxiCheck(sport: string, proExp: string | null): TaxiCheck {
 // Players go on the Taxi Squad after the Rookie Draft; the squad locks at the start of the season's first
 // fantasy game; a player taken off can't be put back that season.
 export async function taxiLockAt(sport: string): Promise<Date | null> {
-  const feed = await siteFeed<any>(`league_${FEED[sport]}.json`)
+  const feed = await leagueFeed<any>(FEED[sport], await ysfSeason())
   const first = Object.values<any>(feed?.schedule_meta?.periods ?? {}).map(p => p.start).filter(Boolean).sort()[0] as string | undefined
   if (!first) return null
   const g = db.all<{ e: number | null }>(sql`SELECT MIN(game_time_epoch) e FROM game_schedule WHERE sport = ${sport} AND game_date = ${first.replace(/-/g, '')}`)[0]?.e
@@ -199,7 +199,7 @@ export type Window = { sport: string; deadline: Date | null; reopens: Date | nul
 const endOfEtDay = (ymd: string) => { const [y, m, d] = ymd.split('-').map(Number); const n = new Date(Date.UTC(y, m - 1, d + 1)); return new Date(etMidnightUtc(n.getUTCFullYear(), n.getUTCMonth() + 1, n.getUTCDate()).getTime() - 60_000) }
 const addDays = (ymd: string, n: number) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10) }
 export async function tradeWindow(sport: string, now = new Date()): Promise<Window> {
-  const feed = await siteFeed<any>(`league_${FEED[sport]}.json`)
+  const feed = await leagueFeed<any>(FEED[sport], await ysfSeason())
   const ps = Object.entries<any>(feed?.schedule_meta?.periods ?? {}).map(([k, v]) => ({ n: +k, ...v })).sort((a, b) => a.n - b.n)
   const regular = ps.filter(p => !p.is_playoff && p.end)
   const playoffs = ps.filter(p => p.is_playoff)
@@ -265,7 +265,7 @@ export function injuriesFresh(now = new Date()): boolean {
   try { const v = db.all<{ value: string }>(sql`SELECT value FROM app_settings WHERE key = 'injuries_synced_at'`)[0]?.value; return !!v && now.getTime() - Date.parse(v) < 36 * 3_600_000 } catch { return false }
 }
 export async function inSeason(sport: string, now = new Date()): Promise<boolean> {
-  const feed = await siteFeed<any>(`league_${FEED[sport]}.json`)
+  const feed = await leagueFeed<any>(FEED[sport], await ysfSeason())
   const ps = Object.values<any>(feed?.schedule_meta?.periods ?? {}).filter(p => p.start && p.end)
   if (!ps.length) return false
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(now)

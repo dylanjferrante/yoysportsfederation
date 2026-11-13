@@ -6,7 +6,7 @@ import { safeParse } from '@/lib/utils'
 import { rankWithinSport } from '@/lib/federation'
 import { simulateSeason } from '@/lib/odds'
 import { weekDateRange } from '@/lib/defaults'
-import { YSF_LEAGUES, clubInk } from '@/lib/ysf'
+import { YSF_LEAGUES, YSF_LEAGUE_ID, clubInk } from '@/lib/ysf'
 import { loadModel } from '@/lib/ysf-model'
 
 export type ClubInfo = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; color: string | null; ink: string }
@@ -116,7 +116,7 @@ export async function pastSeasonWeeks(season: string) {
   const periodWeeks: Record<string, Record<number, number[]>> = {}
   const all = new Set<number>()
   for (const L of YSF_LEAGUES) {
-    const arch = await siteFeed<any>(`archives/${season}/${SITE_KEY[L.sport]}.json`)
+    const arch = await leagueFeed<any>(SITE_KEY[L.sport], season)
     const pm = (arch?.schedule_meta?.periods ?? {}) as Record<string, { start: string; end: string }>
     const map: Record<number, number[]> = {}
     for (const [p, d] of Object.entries(pm)) {
@@ -178,7 +178,7 @@ export async function loadWeek(league: any, week?: number, seasonArg?: string) {
   const prevMs = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.season, prev)))
   for (const L of YSF_LEAGUES) {
     if (!prevMs.some(m => m.sport === L.sport)) continue
-    const arch = await siteFeed<any>(`archives/${prev}/${KEYS[L.sport]}.json`)
+    const arch = await leagueFeed<any>(KEYS[L.sport], prev)
     const pm = (arch?.schedule_meta?.periods ?? {}) as Record<string, { start: string; end: string }>
     for (const [pid, d] of Object.entries(pm)) {
       if (!d?.start || d.start > hi || (d.end ?? d.start) < lo) continue
@@ -227,6 +227,48 @@ export async function siteFeed<T = any>(path: string): Promise<T | null> {
     return r.ok ? await r.json() : null
   } catch { return null }
 }
+// ── seasons, the ysffantasy.com way ─────────────────────────────────────────
+// core.json pins the season each league is ON (`leagues[key].active_season`) and lists every season
+// with its status. During the September overlap the leagues are on different seasons, so a league's
+// data is always fetched FOR a season — never through the un-suffixed alias without checking that the
+// league is on that season (the SEASON-IDENTITY rule in ysffantasy's CLAUDE.md).
+type Core = { default_view_season?: string; seasons?: Record<string, { status?: string; current?: boolean; has_archive?: boolean }>; leagues?: Record<string, { active_season?: string; league_id?: string }> }
+export const siteCore = () => siteFeed<Core>('core.json')
+// the seasons ysffantasy.com knows, oldest first, and the ones that are finished (with archives)
+export async function siteSeasons(): Promise<{ all: string[]; complete: string[]; current: string | null }> {
+  const c = await siteCore()
+  const all = Object.keys(c?.seasons ?? {}).sort()
+  return { all, complete: all.filter(s => c?.seasons?.[s]?.status === 'complete' && c?.seasons?.[s]?.has_archive !== false), current: c?.default_view_season ?? all.find(s => c?.seasons?.[s]?.current) ?? null }
+}
+// one league's data for one season: while the league is on that season, its season-named file (then the
+// alias, which is that season's only then); for any other season, that season's archive (then its
+// season-named file). Never another season's data: if nothing matches, null.
+export async function leagueFeed<T = any>(key: string, season: string): Promise<T | null> {
+  const c = await siteCore()
+  const lg = c?.leagues?.[key]
+  const onIt = !c || lg?.active_season === season
+  if (onIt) {
+    const f = await siteFeed<any>(`league_${key}_${season}.json`)
+    if (f) return f
+    const alias = await siteFeed<any>(`league_${key}.json`)
+    // the alias is "whatever season the league is on": keep it only if it is this league's current Fantrax league
+    return alias && (!lg?.league_id || !alias.league_id || alias.league_id === lg.league_id) ? alias : null
+  }
+  return (await siteFeed<T>(`archives/${season}/${key}.json`)) ?? (await siteFeed<T>(`league_${key}_${season}.json`))
+}
+// the power rankings published for a season (the alias only when it is the season the site shows)
+export async function powerRankingsFeed<T = any>(season: string): Promise<T | null> {
+  const f = await siteFeed<T>(`power_rankings_${season}.json`)
+  if (f) return f
+  const c = await siteCore()
+  return !c || c.default_view_season === season ? siteFeed<T>('power_rankings.json') : null
+}
+// the app's own current ySF season (the leagues row), for code that has no league object to hand
+export async function ysfSeason(): Promise<string> {
+  const r = db.all<{ season: string }>(sql`SELECT season FROM leagues WHERE id = ${YSF_LEAGUE_ID}`)[0]
+  return r?.season ?? '2026-27'
+}
+
 export const siteCupProjection = () => siteFeed<{ generated_at: string; n_trials?: number; teams: any[]; leagues?: Record<string, any> }>('fed_cup_projection.json')
 // ysffantasy.com keys clubs by owner id ('schoenfeld'); map them to Nexus team ids through the abbreviation.
 export async function siteClubMap(clubs: Record<string, ClubInfo>): Promise<Record<string, string>> {

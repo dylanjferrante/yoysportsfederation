@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
-import { loadClubs, loadStandings, siteFeed } from '@/lib/ysf-data'
+import { loadClubs, loadStandings, leagueFeed, siteSeasons } from '@/lib/ysf-data'
 import { trophyName, trophyArt } from '@/lib/ysf-trophies'
 import { pct } from '@/lib/ysf-stories'
 import { PageTitle, th, td, ClubCell, RecTh, RecTd } from '@/components/ysf/ui'
@@ -18,10 +18,11 @@ const fmt = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 
 export default async function YsfPlayoffs({ league, lg, season: sArg }: { league: any; lg?: string; season?: string }) {
   const C = await loadClubs(league.id)
   const L = YSF_LEAGUES.find(l => l.key === lg) ?? YSF_LEAGUES[0]
-  const seasons = ['2025-26', league.season]
+  // every finished season ysffantasy.com has archived, then this one
+  const seasons = [...new Set([...(await siteSeasons()).complete, league.season])]
   const season = seasons.includes(sArg ?? '') ? sArg! : league.season
   const cur = season === league.season
-  const feed = await siteFeed<any>(cur ? `league_${KEY[L.sport]}.json` : `archives/${season}/${KEY[L.sport]}.json`)
+  const feed = await leagueFeed<any>(KEY[L.sport], season)
   const bracket = feed?.playoff_bracket as { status: string; seeds: Record<string, number>; rounds: Round[] } | undefined
   // ysffantasy.com owner ids → our clubs (owners were imported as <ysf_id>@ysf.local)
   const own = new Map(db.all<{ id: string; email: string }>(sql`SELECT t.id, u.email FROM teams t JOIN users u ON u.id = t.user_id WHERE t.league_id = ${league.id}`).map(r => [r.email.replace('@ysf.local', ''), r.id]))
