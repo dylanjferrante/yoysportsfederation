@@ -12,7 +12,7 @@ import { YSF_LEAGUES, YSF_ART, U, injTag } from '@/lib/ysf'
 type Game = { opp: string; home: boolean; epoch: number | null; status: string; gameId: string } | null
 type RP = { rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null; seasonStats?: Record<string, number>; wkStats?: Record<string, number> | null; proj?: { pts: number; games: number; stats: Record<string, number>; source: string } | null; oppText?: string | null }
 type FA = { playerId: string; name: string; position: string; pos: string; team: string | null; gp: number; points: number; injury: string | null; pending: boolean; clears: string | null }
-type Club = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null }
+type Club = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null; ink?: string }
 type Data = {
   team: Club; sports: { sport: string; code: string }[]; sport: string; code: string; cadence: 'DAILY' | 'WEEKLY'; week: number | null; curWeek: number | null
   weeks: { week: number; label: string; start: string; end: string }[]; past: boolean; future: boolean; dates: string[]; date: string | null; today: string
@@ -299,13 +299,13 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
       </div>
 
       {data.matchup && opp ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 rounded overflow-hidden text-white">
-          <div className="flex items-center gap-3 px-4 py-3" style={{ background: data.team.primaryColor ?? '#000' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 rounded overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3" style={{ background: data.team.primaryColor ?? '#000', color: data.team.ink ?? '#fff' }}>
             <span className="w-11 h-11 inline-flex items-center justify-center flex-none"><img src={(data.team.altLogo || data.team.logo)!} alt="" className="w-11 h-11 object-contain" /></span>
             <div className="min-w-0"><div className="ui text-[11px] opacity-85">{U(`${data.cadence === 'DAILY' ? 'Scoring period' : 'Week'} · ${span}`)}</div><div className="disp text-[22px] font-extrabold">{data.team.abbreviation}</div></div>
             <span className="disp ml-auto text-[32px] font-extrabold tabular-nums">{(data.matchup.me ?? 0).toFixed(2)}</span>
           </div>
-          <div className="flex flex-row-reverse items-center gap-3 px-4 py-3 text-right" style={{ background: opp.primaryColor ?? '#000' }}>
+          <div className="flex flex-row-reverse items-center gap-3 px-4 py-3 text-right" style={{ background: opp.primaryColor ?? '#000', color: opp.ink ?? '#fff' }}>
             <span className="w-11 h-11 inline-flex items-center justify-center flex-none"><img src={(opp.altLogo || opp.logo)!} alt="" className="w-11 h-11 object-contain" /></span>
             <div className="min-w-0"><div className="ui text-[11px] opacity-85">OPPONENT</div><div className="disp text-[22px] font-extrabold">{opp.abbreviation}</div></div>
             <span className="disp mr-auto text-[32px] font-extrabold tabular-nums">{(data.matchup.them ?? 0).toFixed(2)}</span>
@@ -483,7 +483,7 @@ function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-1.5">
         {data.clubs.map(c => { const on = c.id === partner; return (
-          <button key={c.id} onClick={() => { setPartner(c.id); setGet([]) }} className={`${btn} gap-2 h-11 pl-2 pr-3 border-2 text-[13px]`} style={{ borderColor: c.primaryColor ?? '#000', background: on ? c.primaryColor ?? '#000' : '#fff', color: on ? '#fff' : '#000' }}>
+          <button key={c.id} onClick={() => { setPartner(c.id); setGet([]) }} className={`${btn} gap-2 h-11 pl-2 pr-3 border-2 text-[13px]`} style={{ borderColor: c.primaryColor ?? '#000', background: on ? c.primaryColor ?? '#000' : '#fff', color: on ? c.ink ?? '#fff' : '#000' }}>
             <span className="w-[26px] h-[26px] inline-flex items-center justify-center"><img src={(on ? c.altLogo || c.logo : c.logo || c.altLogo)!} alt="" className="w-[26px] h-[26px] object-contain" /></span>{c.abbreviation}</button>) })}
       </div>
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>

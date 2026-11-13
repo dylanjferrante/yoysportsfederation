@@ -33,3 +33,17 @@ export function injTag(status?: string | null): string | null {
   return ({ out: 'O', questionable: 'Q', doubtful: 'D', probable: 'P', 'day to day': 'DTD', dtd: 'DTD', 'injured reserve': 'IR', ir: 'IR', ltir: 'LTIR',
     suspension: 'SUSP', suspended: 'SUSP', pup: 'PUP', nfi: 'NFI', 'not injury related': 'NIR' } as Record<string, string>)[x] ?? 'INJ'
 }
+
+// Text on a club's primary colour is the club's secondary (KMU navy on light blue, SSU red on
+// orange), unless the two are too close to read (AAC, OYSC, RC) — then white.
+const lum = (hex: string) => {
+  const h = hex.replace('#', ''); if (h.length !== 6) return 0
+  const f = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  const [r, g, b] = [0, 2, 4].map(i => f(parseInt(h.slice(i, i + 2), 16) / 255))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
+export function clubInk(primary: string | null | undefined, secondary: string | null | undefined): string {
+  if (!primary || !secondary || secondary.toLowerCase() === primary.toLowerCase()) return '#FFFFFF'
+  return contrast(primary, secondary) >= 2.4 ? secondary : '#FFFFFF'
+}

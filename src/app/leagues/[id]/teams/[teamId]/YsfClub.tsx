@@ -233,7 +233,7 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
         })}
       </nav>
 
-      <section className="rounded p-5 sm:p-7 text-white flex flex-wrap items-center gap-5 sm:gap-6" style={{ background: club.color ?? '#000' }}>
+      <section className="rounded p-5 sm:p-7 flex flex-wrap items-center gap-5 sm:gap-6" style={{ background: club.color ?? '#000', color: club.ink }}>
         <span className="w-24 h-24 sm:w-36 sm:h-36 inline-flex items-center justify-center flex-none"><img src={(club.altLogo || club.logo)!} alt={`${club.name} crest`} className="w-full h-full object-contain" /></span>
         <div className="min-w-0 flex-1 basis-[260px]">
           <div className="ui text-[12px] sm:text-[13px] tracking-[.16em] opacity-90">{U(`${ownerRow?.owner ?? ''} · ${club.abbreviation} · `)}<span className="whitespace-nowrap">{U('est. 2025–26')}</span></div>

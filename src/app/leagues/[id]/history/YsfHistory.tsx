@@ -111,7 +111,7 @@ export default async function YsfHistory({ league }: { league: any }) {
       </section>
 
       {fc && (
-        <section className="rounded p-6 sm:p-7 text-white flex flex-wrap items-center gap-6" style={{ background: fc.color ?? '#000' }}>
+        <section className="rounded p-6 sm:p-7 flex flex-wrap items-center gap-6" style={{ background: fc.color ?? '#000', color: fc.ink ?? '#fff' }}>
           <img src={trophyArt('OVERALL')} alt="" className="w-24 h-24 object-contain" />
           <span className="w-24 h-24 inline-flex items-center justify-center"><img src={(fc.altLogo || fc.logo)!} alt="" className="w-24 h-24 object-contain" /></span>
           <div className="min-w-0"><div className="ui text-[13px] tracking-[.14em] opacity-90">{U(`${PREV.replace('-', '–')} Federation Cup champion · inaugural`)}</div>
@@ -145,7 +145,7 @@ export default async function YsfHistory({ league }: { league: any }) {
         {YSF_LEAGUES.map(L => { const t = champOf(L.sport); const c = t ? C[t.championTeamId!] : null; return (
           <div key={L.sport} className="rounded overflow-hidden">
             <div className="flex flex-col items-center gap-2 p-4" style={{ background: TROPHY_BG[L.sport] }}><img src={trophyArt(L.sport, PREV)} alt="" className="h-24 w-auto" /><div className="ui text-[12px] font-bold text-center" style={{ color: L.sport === 'MLB' ? '#fff' : '#000' }}>{U(trophyName(L.sport, PREV))}</div></div>
-            <div className="flex items-center gap-3 p-4 text-white" style={{ background: c?.color ?? '#000' }}>
+            <div className="flex items-center gap-3 p-4" style={{ background: c?.color ?? '#000', color: c?.ink ?? '#fff' }}>
               {c && <span className="w-12 h-12 inline-flex items-center justify-center flex-none"><img src={(c.altLogo || c.logo)!} alt="" className="w-12 h-12 object-contain" /></span>}
               <div className="min-w-0"><div className="ui text-[10px] opacity-90">CHAMPION</div><div className="disp text-[22px] font-extrabold leading-tight">{c?.name ?? '—'}</div>{t?.runnerUpTeamId && <div className="text-[12px] opacity-90">Runner-up: {C[t.runnerUpTeamId]?.name}</div>}</div>
             </div>

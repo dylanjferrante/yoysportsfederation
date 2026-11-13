@@ -6,15 +6,15 @@ import { safeParse } from '@/lib/utils'
 import { rankWithinSport } from '@/lib/federation'
 import { simulateSeason } from '@/lib/odds'
 import { weekDateRange } from '@/lib/defaults'
-import { YSF_LEAGUES } from '@/lib/ysf'
+import { YSF_LEAGUES, clubInk } from '@/lib/ysf'
 
-export type ClubInfo = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; color: string | null }
+export type ClubInfo = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; color: string | null; ink: string }
 export type LeagueRow = { teamId: string; rk: number; rec: string; w: number; l: number; gb: number; pf: number; faab: number; fed: number; po: number; title: number }
 export type CupRow = { teamId: string; rk: number; pts: number; rec: string; w: number; l: number; ranks: Record<string, number | null>; cupPct: number; exp: number }
 
 export async function loadClubs(leagueId: string): Promise<Record<string, ClubInfo>> {
   const rows = await db.select().from(teams).where(and(eq(teams.leagueId, leagueId), eq(teams.archived, false)))
-  return Object.fromEntries(rows.map(c => [c.id, { id: c.id, name: c.name, abbreviation: c.abbreviation, logo: c.logo, altLogo: c.altLogo, color: c.primaryColor }]))
+  return Object.fromEntries(rows.map(c => [c.id, { id: c.id, name: c.name, abbreviation: c.abbreviation, logo: c.logo, altLogo: c.altLogo, color: c.primaryColor, ink: clubInk(c.primaryColor, c.secondaryColor) }]))
 }
 
 // Fed Cup table + the four league tables, with season-simulator odds.

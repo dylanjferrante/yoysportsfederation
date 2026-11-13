@@ -169,7 +169,7 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
     </span>
   ) : <span className="text-ink-200 text-[13px]">Empty</span>
   const Club = ({ tid, score, win, right }: { tid: string; score: number | null; win: boolean; right?: boolean }) => (
-    <Link href={`/leagues/${league.id}/teams/${tid}`} className={`flex-1 min-w-0 flex items-center gap-3 p-4 text-white ${right ? 'sm:flex-row-reverse sm:text-right' : ''}`} style={{ background: C[tid]?.color ?? '#000' }}>
+    <Link href={`/leagues/${league.id}/teams/${tid}`} className={`flex-1 min-w-0 flex items-center gap-3 p-4 ${right ? 'sm:flex-row-reverse sm:text-right' : ''}`} style={{ background: C[tid]?.color ?? '#000', color: C[tid]?.ink ?? '#fff' }}>
       <span className="w-14 h-14 sm:w-20 sm:h-20 inline-flex items-center justify-center flex-none"><img src={(C[tid]?.altLogo || C[tid]?.logo) ?? ''} alt="" className="w-full h-full object-contain" /></span>
       <span className="min-w-0 flex-1 disp text-[20px] sm:text-[26px] font-extrabold leading-[1.05]"><ClubName name={C[tid]?.name} /></span>
       <span className={`disp tabular-nums text-[34px] sm:text-[52px] leading-none ${win ? 'font-extrabold' : 'font-medium opacity-80'}`}>{score == null ? '–' : fmt(score)}</span>

@@ -13,6 +13,7 @@ import { lineupCadenceFor, weekDateRange } from '@/lib/defaults'
 import { weekDates } from '@/lib/dailylineup'
 import { bearerUserId } from '@/lib/mobileAuth'
 import { lastNflRun, nextNflRun } from '@/lib/waivers'
+import { clubInk } from '@/lib/ysf'
 
 // Everything the My Club page needs for one league (sport) and one week: the matchup, the lineup
 // (per day for daily leagues) with each player's game, lock state and stats — that week's, the
@@ -67,7 +68,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const [opp] = oppId ? await db.select().from(teams).where(eq(teams.id, oppId)).limit(1) : []
       const { start, end } = weekDateRange(season, week)
       matchup = { week, final: !!m.isComplete, start: start.toISOString(), end: end.toISOString(), me: m.homeTeamId === team.id ? m.homeScore : m.awayScore, them: m.homeTeamId === team.id ? m.awayScore : m.homeScore,
-        opp: opp ? { id: opp.id, name: opp.name, abbreviation: opp.abbreviation, logo: opp.logo, altLogo: opp.altLogo, primaryColor: opp.primaryColor } : null }
+        opp: opp ? { id: opp.id, name: opp.name, abbreviation: opp.abbreviation, logo: opp.logo, altLogo: opp.altLogo, primaryColor: opp.primaryColor, ink: clubInk(opp.primaryColor, opp.secondaryColor) } : null }
     }
   }
 
@@ -221,11 +222,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     injury: f.status && !/^(active|healthy)$/i.test(f.status) ? f.status : null, injuryNote: f.injury || null, pending: claims.some(c => c.add?.id === f.playerId) }))
 
   // trade partners + my picks for this sport
-  const others = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, primaryColor: teams.primaryColor })
-    .from(teams).where(and(eq(teams.leagueId, id), eq(teams.archived, false)))
+  const others = (await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor })
+    .from(teams).where(and(eq(teams.leagueId, id), eq(teams.archived, false)))).map(o => ({ ...o, ink: clubInk(o.primaryColor, o.secondaryColor) }))
 
   return NextResponse.json({
-    team: { id: team.id, name: team.name, abbreviation: team.abbreviation, logo: team.logo, altLogo: team.altLogo, primaryColor: team.primaryColor },
+    team: { id: team.id, name: team.name, abbreviation: team.abbreviation, logo: team.logo, altLogo: team.altLogo, primaryColor: team.primaryColor, ink: clubInk(team.primaryColor, team.secondaryColor) },
     sports: sportsEnabled.map(s => ({ sport: s, code: sportAbbr[s] || s })), sport, code: sportAbbr[sport] || sport,
     cadence, week, curWeek, weeks: teamWeeks.map(w => { const r = weekDateRange(season, w); return { week: w, label: sched ? `${sport === 'NFL' ? 'WEEK' : 'PERIOD'} ${w - sched.startWeek + 1}` : `WEEK ${w}`, start: r.start.toISOString(), end: r.end.toISOString() } }), past: pastWeek, future: futureWeek, dates, date, today: `${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6)}`, matchup,
     slots: rosterCfg, roster, faab: rec?.faabRemaining ?? 0, waiverPriority: rec?.waiverPriority ?? null, claims, freeAgents,

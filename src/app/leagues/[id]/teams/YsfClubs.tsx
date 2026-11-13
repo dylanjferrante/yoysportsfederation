@@ -22,7 +22,7 @@ export default async function YsfClubs({ league }: { league: any }) {
           const c = s.clubs[r.teamId], o = owners.get(r.teamId)
           const cups = titles.filter(t => t.championTeamId === r.teamId)
           return (
-            <Link key={r.teamId} href={`/leagues/${league.id}/teams/${r.teamId}`} className="rounded p-5 text-white flex flex-col gap-4 hover:brightness-110" style={{ background: c.color ?? '#000' }}>
+            <Link key={r.teamId} href={`/leagues/${league.id}/teams/${r.teamId}`} className="rounded p-5 flex flex-col gap-4 hover:brightness-110" style={{ background: c.color ?? '#000', color: c.ink }}>
               <div className="flex items-center gap-3">
                 <span className="w-14 h-14 inline-flex items-center justify-center flex-none"><img src={(c.altLogo || c.logo)!} alt="" className="w-14 h-14 object-contain" /></span>
                 <div className="min-w-0"><div className="disp text-[26px] font-extrabold leading-none">{c.name}</div><div className="text-[12px] opacity-90 mt-1">{o?.owner} · <b>{c.abbreviation}</b></div></div>
