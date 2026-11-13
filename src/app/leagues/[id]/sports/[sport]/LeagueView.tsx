@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Tabs, th, td } from '@/components/ysf/ui'
+import { Tabs, th, td, RecTh, RecTd } from '@/components/ysf/ui'
 import MovesTable, { type MoveRowT } from '@/components/ysf/MovesTable'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 
@@ -65,7 +65,7 @@ export default function LeagueView({ data: d }: { data: LeagueViewData }) {
           <div className="card overflow-x-auto">
             <table className="w-full border-collapse sm:min-w-[640px]">
               <thead><tr>
-                <th className={th}>RK</th><th className={th}>CLUB</th><th className={`${th} text-right`}>RECORD</th><th className={`${th} text-right hidden sm:table-cell`}>GB</th>
+                <th className={th}>RK</th><th className={th}>CLUB</th><RecTh /><th className={`${th} text-right hidden sm:table-cell`}>GB</th>
                 <th className={`${th} text-right`}>PF</th><th className={`${th} text-right hidden sm:table-cell`}>FAAB</th><th className={`${th} text-right`}>P%</th>
                 <th className={`${th} text-right hidden sm:table-cell`}>TITLE %</th><th className={`${th} text-right hidden sm:table-cell`}>FED</th>
               </tr></thead>
@@ -75,7 +75,7 @@ export default function LeagueView({ data: d }: { data: LeagueViewData }) {
                   <td className={`${td} whitespace-normal`} style={{ borderLeft: `4px solid ${c?.color ?? '#000'}` }}>
                     <Link href={`/leagues/${d.leagueId}/teams/${r.teamId}`} className="flex items-center gap-2.5"><span className="w-7 h-7 inline-flex items-center justify-center flex-none">{c?.logo && <img src={c.logo} alt="" className="w-7 h-7 object-contain" />}</span>
                       <span className="font-bold leading-tight"><span className="hidden sm:inline">{c?.name}</span><span className="sm:hidden">{c?.abbreviation}</span></span></Link></td>
-                  <td className={`${td} text-right`}>{r.rec}</td><td className={`${td} text-right font-normal hidden sm:table-cell`}>{r.gb ? r.gb.toFixed(1) : '–'}</td>
+                  <RecTd rec={r.rec} /><td className={`${td} text-right font-normal hidden sm:table-cell`}>{r.gb ? r.gb.toFixed(1) : '–'}</td>
                   <td className={`${td} text-right`}>{num(r.pf)}</td><td className={`${td} text-right font-normal hidden sm:table-cell`}>${r.faab}</td>
                   <td className={`${td} text-right`}>{pct(r.po)}</td><td className={`${td} text-right font-normal hidden sm:table-cell`}>{pct(r.title)}</td><td className={`${td} text-right hidden sm:table-cell`}>{r.fed}</td>
                 </tr>) })}</tbody>

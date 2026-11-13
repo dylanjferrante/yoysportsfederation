@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { PageTitle, Tabs, th, td } from '@/components/ysf/ui'
+import { PageTitle, Tabs, th, td, RecTh, RecTd } from '@/components/ysf/ui'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 import Link from 'next/link'
 
@@ -44,7 +44,7 @@ export default function StandingsView({ data: d }: { data: StandingsData }) {
             <thead><tr>
               <th className={th}>RK</th><th className={th}>CLUB</th>
               {YSF_LEAGUES.map(l => <th key={l.sport} className={`${th} text-center hidden sm:table-cell`}><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt={l.code} className="w-[26px] h-[26px] inline-block align-middle" /></th>)}
-              <th className={`${th} text-right`}>PTS</th><th className={`${th} text-right hidden sm:table-cell`}>RECORD</th>
+              <th className={`${th} text-right`}>PTS</th><RecTh cls="hidden sm:table-cell" />
               <th className={`${th} text-right`}>CUP %</th><th className={`${th} text-right hidden sm:table-cell`}>EXP. PTS</th>
             </tr></thead>
             <tbody>{d.cup.map(r => (
@@ -59,7 +59,7 @@ export default function StandingsView({ data: d }: { data: StandingsData }) {
                   </td>
                 ))}
                 <td className={`${td} text-right disp text-[26px] font-extrabold`}>{r.pts}</td>
-                <td className={`${td} text-right hidden sm:table-cell`}>{r.rec}</td>
+                <RecTd rec={r.rec} cls="hidden sm:table-cell" />
                 <td className={`${td} text-right`}>{pct(r.cupPct)}</td>
                 <td className={`${td} text-right font-normal hidden sm:table-cell`}>{r.exp.toFixed(1)}</td>
               </tr>
@@ -79,7 +79,7 @@ export default function StandingsView({ data: d }: { data: StandingsData }) {
           <div className="flex items-center gap-3 px-4 pt-4"><img src={YSF_ART.leagueLockup(L.key, 'white')} alt={L.name} className="h-16 w-auto max-w-full" /></div>
           <table className="w-full border-collapse mt-2 sm:min-w-[760px]">
             <thead><tr>
-              <th className={th}>RK</th><th className={th}>CLUB</th><th className={`${th} text-right`}>RECORD</th>
+              <th className={th}>RK</th><th className={th}>CLUB</th><RecTh />
               <th className={`${th} text-right hidden sm:table-cell`}>GB</th><th className={`${th} text-right`}>PF</th>
               <th className={`${th} text-right hidden sm:table-cell`}>FAAB</th><th className={`${th} text-right hidden sm:table-cell`}>FED PTS</th>
               <th className={`${th} text-right`}>P%</th><th className={`${th} text-right hidden sm:table-cell`}>TITLE %</th>
@@ -88,7 +88,7 @@ export default function StandingsView({ data: d }: { data: StandingsData }) {
               <tr key={r.teamId} style={{ boxShadow: r.rk === 6 ? 'inset 0 -3px 0 #000' : 'none' }}>
                 <td className={`${td} w-9`}>{r.rk}</td>
                 <Club d={d} id={r.teamId} />
-                <td className={`${td} text-right`}>{r.rec}</td>
+                <RecTd rec={r.rec} />
                 <td className={`${td} text-right font-normal hidden sm:table-cell`}>{r.gb ? r.gb.toFixed(1) : '—'}</td>
                 <td className={`${td} text-right`}>{r.pf.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
                 <td className={`${td} text-right font-normal hidden sm:table-cell`}>${r.faab}</td>

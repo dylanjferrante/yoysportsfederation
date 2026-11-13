@@ -8,7 +8,7 @@ import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { loadClubs, loadStandings, siteFeed } from '@/lib/ysf-data'
 import { trophyName, trophyArt } from '@/lib/ysf-trophies'
 import { pct } from '@/lib/ysf-stories'
-import { PageTitle, th, td, ClubCell } from '@/components/ysf/ui'
+import { PageTitle, th, td, ClubCell, RecTh, RecTd } from '@/components/ysf/ui'
 
 const KEY: Record<string, string> = { NFL: 'ysf_fl', NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }
 type M = { away_ysf_id: string | null; home_ysf_id: string | null; away_seed: number | null; home_seed: number | null; away_score: number; home_score: number; winner_ysf_id: string | null; complete: boolean; is_bye: boolean }
@@ -102,11 +102,11 @@ export default async function YsfPlayoffs({ league, lg, season: sArg }: { league
         <section className="card">
           <div className="px-4 pt-3 pb-1 ui text-[12px] tracking-[.14em] text-ink-500">PLAYOFF PICTURE</div>
           <table className="w-full border-collapse">
-            <thead><tr><th className={th}>SEED</th><th className={th}>CLUB</th><th className={`${th} text-right`}>W–L</th><th className={`${th} text-right`}>GB</th><th className={`${th} text-right`}>PLAYOFFS</th><th className={`${th} text-right hidden sm:table-cell`}>TITLE</th></tr></thead>
+            <thead><tr><th className={th}>SEED</th><th className={th}>CLUB</th><RecTh /><th className={`${th} text-right`}>GB</th><th className={`${th} text-right`}>PLAYOFFS</th><th className={`${th} text-right hidden sm:table-cell`}>TITLE</th></tr></thead>
             <tbody>{s.tables[L.sport].map(r => { const c = C[r.teamId], cc = ClubCell({ name: c?.name ?? '', logo: c?.logo, color: c?.color, href: `/leagues/${league.id}/teams/${r.teamId}` }); return (
               <tr key={r.teamId} className={r.rk === 6 ? '[&>td]:border-b-2 [&>td]:border-b-black' : ''}>
                 <td className={`${td} w-12`}>{r.rk}</td><td className={td} style={cc.style}>{cc.inner}</td>
-                <td className={`${td} text-right`}>{r.rec}</td><td className={`${td} text-right font-normal`}>{r.gb ? r.gb.toFixed(1) : '–'}</td>
+                <RecTd rec={r.rec} /><td className={`${td} text-right font-normal`}>{r.gb ? r.gb.toFixed(1) : '–'}</td>
                 <td className={`${td} text-right`}>{pct(r.po)}</td><td className={`${td} text-right font-normal hidden sm:table-cell`}>{pct(r.title)}</td>
               </tr>) })}</tbody>
           </table>

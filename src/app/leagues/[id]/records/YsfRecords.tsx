@@ -6,7 +6,7 @@ import { matchups } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 import { loadClubs } from '@/lib/ysf-data'
-import { PageTitle, th, td, ClubCell } from '@/components/ysf/ui'
+import { PageTitle, th, td, ClubCell, RecTh, RecTd } from '@/components/ysf/ui'
 
 const fmt = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 })
 
@@ -63,9 +63,9 @@ export default async function YsfRecords({ league, lg }: { league: any; lg?: str
       <section className="card">
         <div className="ui px-4 pt-3 pb-1 text-[12px] font-bold tracking-[.12em]">ALL-TIME · {L.code.replace('ySF', 'ySF')}</div>
         <table className="w-full border-collapse">
-          <thead><tr><th className={th}>CLUB</th><th className={`${th} text-right`}>W–L</th><th className={`${th} text-right`}>PCT</th><th className={`${th} text-right hidden sm:table-cell`}>PF</th><th className={`${th} text-right hidden sm:table-cell`}>PF/G</th></tr></thead>
+          <thead><tr><th className={th}>CLUB</th><RecTh ties={table.some(([, r]) => r.t)} /><th className={`${th} text-right`}>PCT</th><th className={`${th} text-right hidden sm:table-cell`}>PF</th><th className={`${th} text-right hidden sm:table-cell`}>PF/G</th></tr></thead>
           <tbody>{table.map(([id, r]) => { const cc = ClubCell({ name: C[id]?.name ?? '', logo: C[id]?.logo, color: C[id]?.color, href: `/leagues/${league.id}/teams/${id}` }); return (
-            <tr key={id}><td className={td} style={cc.style}>{cc.inner}</td><td className={`${td} text-right`}>{r.w}-{r.l}{r.t ? `-${r.t}` : ''}</td><td className={`${td} text-right font-normal`}>{(r.w / r.g).toFixed(3).replace(/^0/, '')}</td>
+            <tr key={id}><td className={td} style={cc.style}>{cc.inner}</td><RecTd rec={`${r.w}-${r.l}-${r.t ?? 0}`} ties={table.some(([, x]) => x.t)} /><td className={`${td} text-right font-normal`}>{(r.w / r.g).toFixed(3).replace(/^0/, '')}</td>
               <td className={`${td} text-right font-normal hidden sm:table-cell`}>{fmt(r.pf)}</td><td className={`${td} text-right font-normal hidden sm:table-cell`}>{fmt(r.pf / r.g)}</td></tr>) })}</tbody>
         </table>
       </section>

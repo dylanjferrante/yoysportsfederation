@@ -5,7 +5,7 @@ import { db } from '@/db'
 import { teamRecords, leagueHistory, matchups, drafts, draftPicks, players } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { loadStandings, loadMoves, periodLabel } from '@/lib/ysf-data'
-import { PageTitle, th, td } from '@/components/ysf/ui'
+import { PageTitle, th, td, RecTh, RecTd } from '@/components/ysf/ui'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { trophyName, trophyArt } from '@/lib/ysf-trophies'
 import DraftResults from './DraftResults'
@@ -124,7 +124,7 @@ export default async function YsfHistory({ league }: { league: any }) {
         <div className="px-4 pt-4"><h2 className="disp text-[28px] font-extrabold m-0">ALL-TIME FEDERATION TABLE</h2></div>
         <table className="w-full border-collapse mt-2 min-w-[900px]">
           <thead><tr>
-            <th className={th}>RK</th><th className={th}>CLUB</th><th className={`${th} text-right`}>GP</th><th className={`${th} text-right`}>W–L</th><th className={`${th} text-right`}>PCT</th>
+            <th className={th}>RK</th><th className={th}>CLUB</th><th className={`${th} text-right`}>GP</th><RecTh /><th className={`${th} text-right`}>PCT</th>
             {YSF_LEAGUES.map(l => <th key={l.sport} className={`${th} text-right`} style={{ color: l.color }}><span className="ysf-case">{l.code}</span></th>)}
             <th className={`${th} text-right`}>CUP PTS</th><th className={th}>TITLES</th>
           </tr></thead>
@@ -132,7 +132,7 @@ export default async function YsfHistory({ league }: { league: any }) {
             <tr key={r.id}>
               <td className={`${td} w-9`}>{i + 1}</td>
               <td className={`${td} whitespace-normal`} style={{ borderLeft: `4px solid ${C[r.id]?.color ?? '#000'}` }}><Link href={`${base}/teams/${r.id}`} className="flex items-center gap-2.5"><span className="w-7 h-7 inline-flex items-center justify-center"><img src={C[r.id]?.logo ?? ''} alt="" className="w-7 h-7 object-contain" /></span><span className="font-bold">{C[r.id]?.name}</span></Link></td>
-              <td className={`${td} text-right font-normal`}>{r.gp}</td><td className={`${td} text-right`}>{r.w}–{r.l}</td><td className={`${td} text-right`}>{r.pct.toFixed(3).replace(/^0/, '')}</td>
+              <td className={`${td} text-right font-normal`}>{r.gp}</td><RecTd rec={`${r.w}-${r.l}`} /><td className={`${td} text-right`}>{r.pct.toFixed(3).replace(/^0/, '')}</td>
               {YSF_LEAGUES.map(l => <td key={l.sport} className={`${td} text-right font-normal`}>{r.per[l.sport].w + r.per[l.sport].l ? `${r.per[l.sport].w}–${r.per[l.sport].l}` : '—'}</td>)}
               <td className={`${td} text-right`}>{r.cup}</td>
               <td className={td}><span className="flex gap-1">{r.titles.map(t => <span key={t.id} title={trophyName(t.scope, t.season)} className="w-8 h-8 inline-flex items-center justify-center rounded" style={{ background: t.scope === 'OVERALL' ? '#000' : TROPHY_BG[t.scope] }}><img src={trophyArt(t.scope, t.season)} alt={trophyName(t.scope, t.season)} className="w-7 h-7 object-contain" /></span>)}</span></td>

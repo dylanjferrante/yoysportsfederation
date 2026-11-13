@@ -4,7 +4,7 @@
 import Link from 'next/link'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 import { loadClubs, siteFeed, siteClubMap } from '@/lib/ysf-data'
-import { PageTitle, th, td, ClubCell } from '@/components/ysf/ui'
+import { PageTitle, th, td, ClubCell, RecTh, RecTd } from '@/components/ysf/ui'
 
 const KEY: Record<string, string> = { ysf_fl: 'NFL', ysf_hl: 'NHL', ysf_ba: 'NBA', ysf_lb: 'MLB' }
 const LG = (k: string) => YSF_LEAGUES.find(l => l.sport === KEY[k])!
@@ -84,14 +84,14 @@ export default async function YsfRankings({ league, tab, lg }: { league: any; ta
         </div>
         <div className="card">
           <table className="w-full border-collapse">
-            <thead><tr><th className={th}>RK</th><th className={th}>CLUB</th><th className={th}>SEASON</th><th className={`${th} text-right`}>ySFPR</th><th className={`${th} text-right`}>W–L</th><th className={`${th} text-right hidden sm:table-cell`}>PPG</th><th className={`${th} hidden sm:table-cell`}>FINISH</th></tr></thead>
+            <thead><tr><th className={th}>RK</th><th className={th}>CLUB</th><th className={th}>SEASON</th><th className={`${th} text-right`}>ySFPR</th><RecTh /><th className={`${th} text-right hidden sm:table-cell`}>PPG</th><th className={`${th} hidden sm:table-cell`}>FINISH</th></tr></thead>
             <tbody>{list.map((x, i) => { const c = club(x.k), L = LG(x.lg), cc = ClubCell({ name: c?.abbreviation ?? '', logo: c?.logo, color: c?.color, href: `/leagues/${league.id}/teams/${c?.id}` }); return (
               <tr key={x.k + x.lg + x.season}>
                 <td className={`${td} w-8`}>{i + 1}</td>
                 <td className={td} style={cc.style}><span className="sm:hidden">{cc.inner}</span><span className="hidden sm:inline">{ClubCell({ name: c?.name ?? '', logo: c?.logo, color: c?.color, href: `/leagues/${league.id}/teams/${c?.id}` }).inner}</span></td>
                 <td className={`${td} font-normal`}><span className="inline-flex items-center gap-1.5"><img src={YSF_ART.leagueSymbol(L.key, 'white')} alt={L.code} className="w-5 h-5 object-contain" /><span className="text-[13px] hidden sm:inline">{x.season}</span><span className="text-[13px] sm:hidden">{x.season.slice(2)}</span>{x.live && <><span className="ui hidden sm:inline-flex items-center justify-center text-[10px] font-bold leading-none px-1.5 h-[18px] rounded-sm bg-[#ba0c2f] text-white">LIVE</span><span className="sm:hidden w-2 h-2 rounded-full bg-[#ba0c2f]" aria-label="Live" /></>}</span></td>
                 <td className={`${td} text-right disp text-[18px] sm:text-[22px] font-extrabold`}>{x.pr.toFixed(1)}</td>
-                <td className={`${td} text-right`}>{x.rec}</td>
+                <RecTd rec={x.rec} />
                 <td className={`${td} text-right font-normal hidden sm:table-cell`}>{x.ppg.toFixed(1)}</td>
                 <td className={`${td} font-normal hidden sm:table-cell`}>{x.fin}</td>
               </tr>) })}</tbody>

@@ -56,3 +56,13 @@ export function YsfFooter() {
     </footer>
   )
 }
+
+// A win–loss record as its own columns: W, L, and T when the table has ties.
+export const recOf = (rec: string) => { const [w = '', l = '', t = ''] = rec.split(/[–-]/).map(x => x.trim()); return { w, l, t } }
+export function RecTh({ cls = '', ties = false }: { cls?: string; ties?: boolean }) {
+  return <><th className={`${th} text-right ${cls}`}>W</th><th className={`${th} text-right ${cls}`}>L</th>{ties && <th className={`${th} text-right ${cls}`}>T</th>}</>
+}
+export function RecTd({ rec, cls = '', ties = false }: { rec: string; cls?: string; ties?: boolean }) {
+  const r = recOf(rec)
+  return <><td className={`${td} text-right ${cls}`}>{r.w}</td><td className={`${td} text-right ${cls}`}>{r.l}</td>{ties && <td className={`${td} text-right ${cls}`}>{r.t || '0'}</td>}</>
+}

@@ -63,3 +63,9 @@
   /* Keep the lowercase y in ySF even inside uppercase UI. */
   .ysf-case { text-transform: none; }
 }
+
+/* sortable table headers (SortableTables): a pointer, and an arrow on the sorted column */
+th.ysf-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.ysf-sortable:hover { color: #000; }
+th.ysf-sortable[data-sort-dir="asc"]::after { content: " ▲"; font-size: .8em; }
+th.ysf-sortable[data-sort-dir="desc"]::after { content: " ▼"; font-size: .8em; }

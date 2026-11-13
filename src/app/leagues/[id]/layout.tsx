@@ -15,6 +15,7 @@ import YsfTicker from '@/components/ysf/YsfTicker'
 import { buildTicker } from '@/lib/ysf-ticker'
 import AppTabBar from '@/components/ysf/AppTabBar'
 import BottomDock from '@/components/ysf/BottomDock'
+import SortableTables from '@/components/ysf/SortableTables'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -56,6 +57,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
       <SportNamingProvider value={{ sportAbbr, sportNames }}>
         <main className="max-w-[1240px] mx-auto px-4 sm:px-5 pt-6 sm:pt-8 pb-12 flex flex-col gap-7 sm:gap-9">{children}</main>
         <YsfFooter />
+        <SortableTables />
         <BottomDock>
           <YsfTicker blocks={await buildTicker(league).catch(() => [])} />
           <AppTabBar leagueId={id} myLogo={franchises.find(f => f.id === myTeamId)?.logo ?? null} />

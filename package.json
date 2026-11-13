@@ -33,6 +33,7 @@
     "ysf:refresh": "tsx scripts/nhl-sync.ts && tsx scripts/ysf-sync.ts --stats && tsx scripts/ysf-injuries.ts && tsx scripts/fantrax-capture.ts && tsx scripts/ysf-score.ts --write"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.8.1",
     "clsx": "^2.1.1",

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Tabs, th, td } from '@/components/ysf/ui'
+import { Tabs, th, td, RecTh, RecTd } from '@/components/ysf/ui'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 
 type Club = { name: string; abbreviation: string; logo: string | null; color: string | null }
@@ -27,7 +27,7 @@ export default function HomeStandings({ leagueId, cup, live, clubs }: { leagueId
         <thead><tr>
           <th className={th}>RK</th><th className={th}>CLUB</th>
           {YSF_LEAGUES.map(l => <th key={l.sport} className={`${th} text-center hidden sm:table-cell`}><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt={l.code} className="w-6 h-6 inline-block" /></th>)}
-          {view === 'current' ? <><th className={`${th} text-right`}>PTS</th><th className={`${th} text-right`}>RECORD</th></> : <><th className={`${th} text-right`}>CUP %</th><th className={`${th} text-right`}>EXP. PTS</th></>}
+          {view === 'current' ? <><th className={`${th} text-right`}>PTS</th><RecTh /></> : <><th className={`${th} text-right`}>CUP %</th><th className={`${th} text-right`}>EXP. PTS</th></>}
         </tr></thead>
         <tbody>{rows.map((r, i) => {
           const c = clubs[r.teamId]
@@ -42,7 +42,7 @@ export default function HomeStandings({ leagueId, cup, live, clubs }: { leagueId
               </td>
               {YSF_LEAGUES.map(l => { const v = r.ranks[l.sport]; return <td key={l.sport} className={`${td} text-center hidden sm:table-cell`} style={{ color: v != null && v <= 3 ? MEDAL[v] : v == null ? '#8A8A8A' : '#000' }}>{v ?? '–'}</td> })}
               {view === 'current'
-                ? <><td className={`${td} text-right disp text-[26px] font-extrabold`}>{r.pts}</td><td className={`${td} text-right`}>{r.rec}</td></>
+                ? <><td className={`${td} text-right disp text-[26px] font-extrabold`}>{r.pts}</td><RecTd rec={r.rec} /></>
                 : <><td className={`${td} text-right disp text-[22px] font-extrabold`}>{pct(r.cupPct)}</td><td className={`${td} text-right font-normal`}>{r.exp.toFixed(1)}</td></>}
             </tr>
           )
