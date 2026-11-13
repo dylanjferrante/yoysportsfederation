@@ -15,7 +15,7 @@ type FA = { playerId: string; name: string; position: string; pos: string; team:
 type Club = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null; ink?: string }
 type Data = {
   team: Club; sports: { sport: string; code: string }[]; sport: string; code: string; cadence: 'DAILY' | 'WEEKLY'; week: number | null; curWeek: number | null
-  weeks: { week: number; label: string; start: string; end: string }[]; past: boolean; future: boolean; dates: string[]; date: string | null; today: string
+  weeks: { week: number; label: string; start: string; end: string }[]; past: boolean; future: boolean; taxiLocked?: boolean; dates: string[]; date: string | null; today: string
   matchup: { week: number; final?: boolean; start: string; end: string; me: number; them: number; opp: Club | null } | null
   slots: Record<string, number>; roster: RP[]; faab: number; claims: { id: string; bid: number; add: any; drop: any }[]; freeAgents: FA[]; clubs: Club[]
 }
@@ -134,6 +134,8 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
   }
   const groupDrop = (w: string) => {
     if (!selP || selP.locked || dayPast || selP.slot === w) return null
+    // Comm. Res. VII: the Taxi Squad locks at the season's first game
+    if (w === 'TAXI' && data.taxiLocked) return null
     if (w !== 'BN' && (data.slots[w] ?? 0) > 0 && data.roster.filter(p => p.slot === w).length >= (data.slots[w] ?? 0)) return null
     return () => run(() => setSlot(selP, w), `${selP.name} → ${w === 'BN' ? 'Bench' : w === 'IR' ? 'Injured Reserve' : 'Taxi Squad'}`)
   }

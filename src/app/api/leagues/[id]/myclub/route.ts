@@ -14,6 +14,7 @@ import { weekDates } from '@/lib/dailylineup'
 import { bearerUserId } from '@/lib/mobileAuth'
 import { lastNflRun, nextNflRun } from '@/lib/waivers'
 import { clubInk } from '@/lib/ysf'
+import { taxiLockAt } from '@/lib/ysf-rules'
 
 // Everything the My Club page needs for one league (sport) and one week: the matchup, the lineup
 // (per day for daily leagues) with each player's game, lock state and stats — that week's, the
@@ -230,6 +231,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json({
     team: { id: team.id, name: team.name, abbreviation: team.abbreviation, logo: team.logo, altLogo: team.altLogo, primaryColor: team.primaryColor, ink: clubInk(team.primaryColor, team.secondaryColor) },
     sports: sportsEnabled.map(s => ({ sport: s, code: sportAbbr[s] || s })), sport, code: sportAbbr[sport] || sport,
+    taxiLocked: id === 'ysf' ? ((await taxiLockAt(sport))?.getTime() ?? Infinity) <= Date.now() : false,
     cadence, week, curWeek, weeks: teamWeeks.map(w => { const r = wr(w); return { week: w, label: sched ? `${sport === 'NFL' ? 'WEEK' : 'PERIOD'} ${w - sched.startWeek + 1}` : `WEEK ${w}`, start: r.start.toISOString(), end: r.end.toISOString() } }), past: pastWeek, future: futureWeek, dates, date, today: `${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6)}`, matchup,
     slots: rosterCfg, roster, faab: rec?.faabRemaining ?? 0, waiverPriority: rec?.waiverPriority ?? null, claims, freeAgents,
     clubs: others.filter(o => o.id !== team.id),

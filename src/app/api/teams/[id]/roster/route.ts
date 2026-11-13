@@ -195,10 +195,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       ensureRulesSchema()
       const exp = db.all<{ e: string | null }>(sql`SELECT pro_exp e FROM players WHERE id = ${row.playerId}`)[0]?.e ?? null
       const t = taxiCheck(row.sport, exp)
-      if (!t.ok && !isCommish) return NextResponse.json({ error: `Not taxi-eligible (Comm. Res. VII): ${t.why}` }, { status: 400 })
+      // the Commission may confirm eligibility exceptions for a club, but not for the commissioner's own club
+      if (!t.ok && !(isCommish && team.userId !== uid)) return NextResponse.json({ error: `Not taxi-eligible (Comm. Res. VII): ${t.why}` }, { status: 400 })
       const pname = db.all<{ n: string }>(sql`SELECT name n FROM players WHERE id = ${row.playerId}`)[0]?.n ?? ''
       const lockErr = await taxiPlaceError(id, { id: row.playerId, name: pname }, row.sport, league?.season ?? '')
-      if (lockErr && !isCommish) return NextResponse.json({ error: lockErr }, { status: 400 })
+      // the lock (and no return after removal) binds every club, the commissioner's included
+      if (lockErr) return NextResponse.json({ error: lockErr }, { status: 400 })
     }
     if (row.slot === 'TAXI' && body.slot !== 'TAXI' && isYsf(team.leagueId)) {
       // once off the Taxi Squad, a player can't go back on this season
