@@ -5,7 +5,12 @@ const DOC_ID = '11aq9kXeGiEYDE4FjLkpUm-7umKq-TiwvQnAb-lpUMfA'
 const KEEP = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'ul', 'ol', 'li', 'table', 'tbody', 'tr', 'td', 'th', 'br'])
 
 export type Article = { title: string; html: string }
-export type Resolution = { title: string; kind: 'directive' | 'resolution' | 'notice'; status: 'Passed' | 'Failed' | 'Vote not recorded' | 'Issued'; html: string }
+export type Vote = { owner: string; club: string | null; vote: string }
+export type Resolution = {
+  title: string; kind: 'directive' | 'resolution' | 'notice'; status: 'Passed' | 'Failed' | 'Vote not recorded' | 'Issued' | 'Open'; html: string
+  // from the ySF Portal's proposal record, when there is one: the text as voted, the result and each club's vote
+  text?: string; type?: string; emergency?: boolean; tally?: string; votes?: Vote[]; date?: string
+}
 export const DOC_URL = `https://docs.google.com/document/d/${DOC_ID}/edit`
 
 function clean(raw: string): string {
@@ -62,9 +67,52 @@ export async function loadConstitution(): Promise<{ articles: Article[]; resolut
     const status: Resolution['status'] = kind !== 'resolution' ? 'Issued'
       : /failing|not in favor|fail(s|ed) to/i.test(t) ? 'Failed'
       : /votes\s*\d+\s*[-–]\s*\d+\s*in favor|Enacted (on )?[A-Z][a-z]+ \d/.test(t) ? 'Passed' : 'Vote not recorded'
-    // confirmed in force by the Commission though the document has no vote recorded (2026-11-12)
-    const inForce = /^(Comm\. Res\. VII|Fed\. Res\. III)\b/.test(title) && status === 'Vote not recorded'
-    resolutions.push({ title: title.replace(/\s*[—-]\s+/, ' — ').replace(/\s*\(/, ' ('), kind, status: inForce ? 'Passed' : status, html })
+    resolutions.push({ title: title.replace(/\s*[—-]\s+/, ' — ').replace(/\s*\(/, ' ('), kind, status, html, date: docDate(t) })
   }
-  return { articles, resolutions }
+  return { articles, resolutions: withPortal(resolutions) }
+}
+
+// ── ySF Portal proposals (members-only; snapshot in data/ysf-proposals.json) ─────────────────
+// The portal records each vote; it overrides the document's outcome and carries resolutions the
+// document doesn't have yet.
+import fs from 'fs'
+import path from 'path'
+// git-ignored runtime data like the database; refreshed from the portal in the owner's signed-in browser
+const portalRecords = (): PortalRec[] => { try { return JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', 'ysf-proposals.json'), 'utf8')) } catch { return [] } }
+type PortalRec = { id: number; title: string; badges: string[]; meta: string; body: string; tally: string | null; votes: string[][] }
+const OWNER_CLUB: Record<string, string> = {
+  'Abraham Mitchel': 'Mitchel B.J.C.', 'Aidan Waltemeyer': 'Waltemeyer United', 'Benjamin Schoenfeld': 'Benfica A.S.C.', 'Daniel Ogden': 'Ogden-upon-York S.C.',
+  'Dylan Ferrante': 'A.C. Ferrante', 'Gabriel Shatunovsky': 'Real Meir C.K.', 'Jack Allaman': 'Allaman A.C.', 'Jacob Wilsey': 'Wilsey Warriors F.C.',
+  'Justin Kremer': 'Kreme Machine United', 'Natalie Ogden': 'Inter Nat S.C.', 'Neal Saste': 'Saste Snipers United', 'Robert Clinkscale': 'Real Clink', 'Robert Clinkscale IV': 'Real Clink',
+}
+const MONTHS = 'January|February|March|April|May|June|July|August|September|October|November|December'
+const ABBR: Record<string, string> = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' }
+function docDate(t: string): string | undefined {
+  const m = new RegExp(`(?:Proposed|Announced|conducted)\\s+(${MONTHS}) (\\d{1,2}),? (\\d{4})`).exec(t)
+  return m ? `${m[3]}-${ABBR[m[1].slice(0, 3)]}-${m[2].padStart(2, '0')}` : undefined
+}
+const resKey = (t: string) => /^(Comm\.|Fed\.)\s*(Res\.|Directive|Notice)\s*([IVXL]+)\b/.exec(t)?.slice(1).join(' ') ?? t
+function fromPortal(p: PortalRec): Partial<Resolution> {
+  const st = p.badges.find(b => /Passed|Failed|Open/.test(b)) as 'Passed' | 'Failed' | 'Open' | undefined
+  const d = /· (\w{3}) (\d{1,2}), (\d{4})/.exec(p.meta)
+  return {
+    status: st ?? 'Vote not recorded', text: p.body, type: p.badges.find(b => /Rule|Amendment/.test(b)), emergency: p.badges.includes('Emergency'),
+    tally: p.tally ?? undefined, votes: p.votes.filter(v => v.length >= 2).map(([o, v]) => ({ owner: o, club: OWNER_CLUB[o] ?? null, vote: v })),
+    date: d ? `${d[3]}-${ABBR[d[1]]}-${d[2].padStart(2, '0')}` : undefined,
+  }
+}
+function withPortal(docRes: Resolution[]): Resolution[] {
+  const portal = portalRecords()
+  const used = new Set<number>()
+  const out = docRes.map(r => {
+    const p = portal.find(x => resKey(x.title) === resKey(r.title))
+    if (!p) return r
+    used.add(p.id)
+    return { ...r, ...fromPortal(p), date: fromPortal(p).date ?? r.date }
+  })
+  for (const p of portal) if (!used.has(p.id))
+    out.push({ title: p.title.replace(/\s*[:—-]\s+/, ' — '), kind: 'resolution', html: '', status: 'Vote not recorded', ...fromPortal(p) } as Resolution)
+  // undated items keep their place in the document; open proposals first, then oldest to newest
+  for (let i = 1; i < out.length; i++) if (!out[i].date) out[i].date = out[i - 1].date
+  return out.map((r, i) => ({ r, i })).sort((a, b) => (a.r.status === 'Open' ? 0 : 1) - (b.r.status === 'Open' ? 0 : 1) || (a.r.date ?? '').localeCompare(b.r.date ?? '') || a.i - b.i).map(x => x.r)
 }

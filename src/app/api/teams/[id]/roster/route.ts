@@ -16,7 +16,7 @@ import { playerKickoff } from '@/lib/locks'
 import { placeOnWaivers, onWaivers } from '@/lib/waivers'
 import { isTeamManager } from '@/lib/permissions'
 import { teamManagers } from '@/db/schema'
-import { isYsf, taxiCheck, claimLimitError, eligCapError, ensureRulesSchema, hasDesignation, irLockError } from '@/lib/ysf-rules'
+import { isYsf, taxiCheck, claimLimitError, eligCapError, ensureRulesSchema, hasDesignation, irLockError, taxiPlaceError } from '@/lib/ysf-rules'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -194,6 +194,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const exp = db.all<{ e: string | null }>(sql`SELECT pro_exp e FROM players WHERE id = ${row.playerId}`)[0]?.e ?? null
       const t = taxiCheck(row.sport, exp)
       if (!t.ok && !isCommish) return NextResponse.json({ error: `Not taxi-eligible (Comm. Res. VII): ${t.why}` }, { status: 400 })
+      const pname = db.all<{ n: string }>(sql`SELECT name n FROM players WHERE id = ${row.playerId}`)[0]?.n ?? ''
+      const lockErr = await taxiPlaceError(id, { id: row.playerId, name: pname }, row.sport, league?.season ?? '')
+      if (lockErr && !isCommish) return NextResponse.json({ error: lockErr }, { status: 400 })
+    }
+    if (row.slot === 'TAXI' && body.slot !== 'TAXI' && isYsf(team.leagueId)) {
+      // once off the Taxi Squad, a player can't go back on this season
+      ensureRulesSchema()
+      db.run(sql`INSERT OR IGNORE INTO ysf_taxi_removed (team_id, player_id, sport, season, removed_at) VALUES (${id}, ${row.playerId}, ${row.sport}, ${league?.season ?? ''}, ${new Date().toISOString()})`)
     }
     if (body.slot === 'TAXI' && (league?.taxiEligibility ?? 'ALL') === 'ROOKIES' && !row.isRookie) {
       return NextResponse.json({ error: 'Only rookies may be placed on the taxi squad in this league' }, { status: 400 })
