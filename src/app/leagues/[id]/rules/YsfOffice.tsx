@@ -4,12 +4,16 @@ import Link from 'next/link'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { siteFeed } from '@/lib/ysf-data'
 import { PageTitle, th, td } from '@/components/ysf/ui'
+import { loadConstitution, DOC_URL } from '@/lib/ysf-constitution'
+
+// full-text styling for the official document's HTML
+const DOC = 'text-[15px] leading-relaxed text-ink-800 [&_p]:mt-2 [&_b]:font-bold [&_b]:text-black [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mt-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mt-1 [&_li]:mt-1 [&_h2]:ui [&_h2]:text-[14px] [&_h2]:font-bold [&_h2]:tracking-[.1em] [&_h2]:mt-5 [&_h2]:text-black [&_h3]:font-bold [&_h3]:mt-4 [&_h3]:text-black [&_h4]:font-semibold [&_h4]:mt-3 [&_table]:w-full [&_table]:mt-2 [&_td]:border [&_td]:border-ink-100 [&_td]:px-2 [&_td]:py-1'
 
 const TABS: [string, string][] = [['constitution', 'CONSTITUTION'], ['scoring', 'SCORING'], ['rosters', 'ROSTERS & SEASONS'], ['resolutions', 'RESOLUTIONS']]
 const LG_KEY: Record<string, string> = { ysf_fl: 'fl', ysf_hl: 'hl', ysf_ba: 'ba', ysf_lb: 'lb' }
 
 export default async function YsfOffice({ league, tab }: { league: any; tab?: string }) {
-  const c = await siteFeed<any>('constitution.json')
+  const [c, doc] = await Promise.all([siteFeed<any>('constitution.json'), loadConstitution()])
   const t = TABS.find(x => x[0] === tab)?.[0] ?? 'constitution'
   const base = `/leagues/${league.id}/rules`
   if (!c) return <><PageTitle title="LEAGUE OFFICE" /><div className="card p-8 text-center font-semibold text-ink-500">The Constitution couldn’t be loaded</div></>
@@ -26,6 +30,16 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
 
       {t === 'constitution' && (
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
+          {doc?.articles.length ? (
+          <article className="flex flex-col gap-8">
+            {doc.articles.map((a, i) => (
+              <section key={i} id={`art${i + 1}`}>
+                <h2 className="disp text-[26px] sm:text-[32px] font-extrabold leading-none border-b-2 border-black pb-2">ARTICLE {['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][i]} · {U(a.title)}</h2>
+                <div className={`${DOC} mt-3`} dangerouslySetInnerHTML={{ __html: a.html }} />
+              </section>
+            ))}
+          </article>
+          ) : (
           <article className="flex flex-col gap-8">
             {(c.articles ?? []).map((a: any) => (
               <section key={a.id} id={a.id}>
@@ -39,6 +53,7 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
               </section>
             ))}
           </article>
+          )}
           <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
             <div className="card overflow-hidden">
               <div className="ui px-4 py-2.5 bg-black text-white text-[12px] font-bold tracking-[.12em]">QUICK REFERENCE</div>
@@ -51,9 +66,9 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
             </div>
             <div className="card overflow-hidden">
               <div className="ui px-4 py-2.5 border-b-2 border-black text-[12px] font-bold tracking-[.12em]">ARTICLES</div>
-              {(c.articles ?? []).map((a: any) => <a key={a.id} href={`#${a.id}`} className="block px-4 py-2 border-t border-ink-50 text-[14px] hover:bg-ink-50"><b>{a.number}.</b> {a.title}</a>)}
+              {(doc?.articles.length ? doc.articles.map((a, i) => ({ id: `art${i + 1}`, number: ['I', 'II', 'III', 'IV', 'V', 'VI'][i], title: a.title })) : (c.articles ?? [])).map((a: any) => <a key={a.id} href={`#${a.id}`} className="block px-4 py-2 border-t border-ink-50 text-[14px] hover:bg-ink-50"><b>{a.number}.</b> {a.title}</a>)}
             </div>
-            {c.doc_url && <a href={c.doc_url} target="_blank" rel="noreferrer" className="ui text-[12px] font-bold tracking-[.12em]">OFFICIAL DOCUMENT →</a>}
+            <a href={DOC_URL} target="_blank" rel="noreferrer" className="ui text-[12px] font-bold tracking-[.12em]">OFFICIAL DOCUMENT →</a>
           </aside>
         </div>
       )}
@@ -109,13 +124,22 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
       )}
 
       {t === 'resolutions' && (
-        <section className="flex flex-col gap-3">
-          {resolutions.map(r => (
+        <section className="flex flex-col gap-4">
+          {(doc?.resolutions ?? []).map((r, i) => {
+            const bg = r.status === 'Passed' ? '#177245' : r.status === 'Failed' ? '#ba0c2f' : r.status === 'Issued' ? '#000' : '#8A8A8A'
+            return (
+              <article key={i} className="card p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h2 className="disp text-[20px] sm:text-[24px] font-extrabold leading-tight min-w-0 flex-1">{r.title}</h2>
+                  <span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none text-white flex-none" style={{ background: bg }}>{r.status.toUpperCase()}</span>
+                </div>
+                <div className={`${DOC} mt-2`} dangerouslySetInnerHTML={{ __html: r.html }} />
+              </article>
+            )
+          })}
+          {!doc && resolutions.map(r => (
             <div key={r.id} className="card p-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="disp text-[20px] font-extrabold leading-tight">{r.title}</span>
-                <span className="ui text-[11px] tracking-[.1em] text-ink-500">{U(`${r.type} · ${r.date} · ${r.proposer}`)}</span>
-              </div>
+              <div className="disp text-[20px] font-extrabold leading-tight">{r.title}</div>
               <p className="text-[15px] leading-relaxed text-ink-800 mt-2"><span className="ysf-case">{r.content}</span></p>
             </div>
           ))}
