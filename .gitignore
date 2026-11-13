@@ -15,3 +15,6 @@ prisma/dev.db-journal
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
 node_modules/.cache/
+
+.next-build/
+ysf-data.tar.gz
