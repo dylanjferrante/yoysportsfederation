@@ -380,13 +380,18 @@ export function seasonAnchor(season: string, seasonStart: string = 'FOOTBALL'): 
   const yr = parseInt(season?.slice(0, 4)) || new Date().getFullYear()
   const first = (PHASE_ORDER_FROM[seasonStart] ?? PHASE_ORDER_FROM.FOOTBALL)[0]
   const [mo, day] = PHASE_ANCHOR_DATE[first] ?? PHASE_ANCHOR_DATE.FOOTBALL
-  return new Date(yr, mo, day).getTime()
+  // Weeks run Monday–Sunday (ySF matchup periods do): start on the Monday on or before the anchor date.
+  const d = new Date(yr, mo, day)
+  return new Date(yr, mo, day - ((d.getDay() + 6) % 7)).getTime()
 }
+
+// Calendar-day arithmetic, so a daylight-saving change never moves a week's start off midnight.
+const addDays = (t: number, n: number) => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n) }
 
 export function weekDateRange(season: string, week: number, seasonStart: string = 'FOOTBALL'): { start: Date; end: Date } {
   const anchor = seasonAnchor(season, seasonStart)
-  const start = new Date(anchor + (week - 1) * 7 * 86_400_000)
-  const end = new Date(start.getTime() + 6 * 86_400_000)
+  const start = addDays(anchor, (week - 1) * 7)
+  const end = addDays(start.getTime(), 6)
   return { start, end }
 }
 
@@ -401,8 +406,8 @@ export function weekDateRangeWithBreaks(season: string, week: number, breaks: nu
   const anchor = seasonAnchor(season, seasonStart)
   const before = breaks.filter(b => b < week).length
   const spanWeeks = 1 + (breaks.includes(week) ? 1 : 0)
-  const start = new Date(anchor + (week - 1 + before) * 7 * 86_400_000)
-  const end = new Date(start.getTime() + (spanWeeks * 7 - 1) * 86_400_000)
+  const start = addDays(anchor, (week - 1 + before) * 7)
+  const end = addDays(start.getTime(), spanWeeks * 7 - 1)
   return { start, end, spanWeeks }
 }
 

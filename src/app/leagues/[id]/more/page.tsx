@@ -75,7 +75,6 @@ export default async function MorePage({ params }: { params: Promise<{ id: strin
       <div className="grid gap-6 md:grid-cols-2 items-start">
         <Group title="FEDERATION" items={[
           { href: `${b}/teams`, label: 'All Clubs', extra: String(clubs.length), icon: <Icon bg="#00333F" k="clubs" /> },
-          { href: `${b}/matchday`, label: 'Matchday', icon: <Icon bg="#ba0c2f" k="live" /> },
           { href: `${b}/transactions`, label: 'Moves', icon: <Icon bg="#000" k="moves" /> },
           { href: `${b}/cup`, label: 'Cup Race', extra: fav ? `${fav.abbr} ${pct(fav.p_win_fed_cup)}` : undefined, icon: <Icon bg="#B8860B" k="cup" /> },
           { href: `${b}/power`, label: 'Rankings', icon: <Icon bg="#7700B5" k="rank" /> },

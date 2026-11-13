@@ -17,7 +17,7 @@ export default function PairCards({ leagueId, pairings, clubs, only }: { leagueI
             {[p.a, p.b].map((id, i) => (
               <div key={id} className={`flex items-center gap-2.5 flex-1 min-w-0 ${i ? 'flex-row-reverse text-right' : ''}`} style={{ [i ? 'borderRight' : 'borderLeft']: `4px solid ${clubs[id]?.color ?? '#000'}`, [i ? 'paddingRight' : 'paddingLeft']: 8 } as any}>
                 <span className="w-10 h-10 inline-flex items-center justify-center flex-none"><img src={clubs[id]?.logo ?? ''} alt="" className="w-10 h-10 object-contain" /></span>
-                <div className="min-w-0"><div className="disp text-[22px] font-extrabold leading-none">{ab(id)}</div><div className="text-[11px] text-ink-500 truncate">{clubs[id]?.name}</div></div>
+                <div className="min-w-0"><div className="disp text-[22px] font-extrabold leading-none">{ab(id)}</div><div className="text-[11px] text-ink-500 leading-tight">{clubs[id]?.name}</div></div>
               </div>
             )).reduce((acc: any[], el, i) => i ? [...acc, <span key="vs" className="ui text-[12px] text-ink-500">VS</span>, el] : [el], [])}
           </div>
@@ -25,7 +25,7 @@ export default function PairCards({ leagueId, pairings, clubs, only }: { leagueI
             const lg = YSF_LEAGUES.find(x => x.sport === l.sport)!
             const aw = l.a != null && l.b != null && l.a > l.b, bw = l.a != null && l.b != null && l.b > l.a
             return (
-              <Link key={l.sport} href={`/leagues/${leagueId}/matchup/${l.matchupId}`} className="flex items-center gap-3 px-4 py-3 border-b border-ink-100 hover:bg-ink-50">
+              <Link key={l.sport + (l.season ?? '')} href={`/leagues/${leagueId}/matchup/${l.matchupId}`} className="flex items-center gap-3 px-4 py-3 border-b border-ink-100 hover:bg-ink-50">
                 <span className="disp text-[26px] tabular-nums flex-1" style={{ fontWeight: aw ? 800 : 500 }}>{fmt(l.a)}</span>
                 <span className="flex items-center gap-1.5 text-[12px] text-ink-500 whitespace-nowrap">
                   <img src={YSF_ART.leagueSymbol(lg.key, 'white')} alt={lg.code} className="w-5 h-5 object-contain" />
