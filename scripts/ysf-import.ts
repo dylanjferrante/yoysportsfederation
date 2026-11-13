@@ -142,6 +142,9 @@ async function main() {
   // Keep commissioner draft settings (pick timer, start time) across re-imports.
   const draftSettings = new Map((db.prepare(`SELECT id, pick_seconds, starts_at FROM drafts WHERE league_id=?`).all(LEAGUE_ID) as any[]).map(r => [r.id, r]))
 
+  // Keep each club's id across re-imports: lineup history, trades, engine points and links all key on it
+  const keepTeamId = new Map((db.prepare(`SELECT t.id, u.email FROM teams t JOIN users u ON u.id = t.user_id WHERE t.league_id = ?`).all(LEAGUE_ID) as any[]).map(r => [String(r.email).replace('@ysf.local', ''), r.id]))
+
   // ── wipe the previous ySF import (other leagues untouched) ──
   const wipe = db.transaction(() => {
     const L = LEAGUE_ID
@@ -230,7 +233,7 @@ async function main() {
   const insMember = db.prepare(`INSERT OR IGNORE INTO league_members (id,league_id,user_id,role) VALUES (?,?,?,?)`)
   const insTeam = db.prepare(`INSERT INTO teams (id,name,abbreviation,logo,alt_logo,wordmark,user_id,league_id,primary_color,secondary_color) VALUES (?,?,?,?,?,?,?,?,?,?)`)
   for (const [k, c] of Object.entries(clubs)) {
-    teamId[k] = id()
+    teamId[k] = keepTeamId.get(k) ?? id()
     insMember.run(id(), LEAGUE_ID, userId[k], k === COMMISSIONER ? 'COMMISSIONER' : 'MEMBER')
     const b = brand[k] ?? {}
     const art = (f?: string) => (f ? `${BASE}/logos/clubs/${f}` : null)
@@ -526,6 +529,17 @@ async function main() {
     const mine = (db.prepare(`SELECT COALESCE(SUM(13 - finish_position),0) p FROM team_records WHERE league_id=? AND season=? AND team_id=? AND finish_position IS NOT NULL`).get(LEAGUE_ID, SEASON, teamId[k]) as any).p
     if (mine !== ft.total_fed_pts) { cupOff++; console.log(`  ✗ Cup ${clubs[k].abbr}: ySF ${ft.total_fed_pts} · Nexus ${mine}`) }
   }
+  // the matchups above are ysffantasy.com's official scores; when the app's engine is the score
+  // source, re-score this season so the import doesn't undo it (official figures are kept alongside)
+  try {
+    const eng = await import('../src/lib/ysf-engine')
+    if (eng.scoreSource() === 'engine') {
+      const { db: d2 } = await import('../src/db'); const { leagues: L2 } = await import('../src/db/schema'); const { eq: eq2 } = await import('drizzle-orm')
+      const [lg] = await d2.select().from(L2).where(eq2(L2.id, LEAGUE_ID)).limit(1)
+      const res = await eng.runEngine(lg, { write: true })
+      console.log(`  Engine: re-scored ${res.length} matchups (score source: engine)`)
+    }
+  } catch (e) { console.log(`  Engine re-score skipped: ${String(e)}`) }
   console.log(`\nImported "yoy Sports Federation" (league id "${LEAGUE_ID}", ${SEASON})`)
   console.log(`  ${Object.keys(teamId).length} clubs · ${rostered} roster spots (${created} new player rows) · ${nMatch} matchups`)
   console.log(`  ${trades.trades.length} trades · ${nTx} signings/claims/releases · ${nPicks} future picks · 2025-26: ${trPrev?.trades?.length ?? 0} trades, ${nPrevTx} moves`)
