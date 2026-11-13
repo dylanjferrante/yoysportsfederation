@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { logActivity, notify } from '@/lib/activity'
 import { sendPush } from '@/lib/push'
+import { isYsf, claimLimitError, eligCapError } from '@/lib/ysf-rules'
 
 const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
@@ -44,8 +45,11 @@ async function awardClaims(league: any, pending: any[]) {
   const recKey = (teamId: string, sport: string) => `${teamId}:${sport}`
   const budget: Record<string, number> = {}
   const priority: Record<string, number> = {}
+  const winPct: Record<string, number> = {}
   for (const r of recs) {
     if (!tById[r.teamId]) continue
+    const g = (r.wins ?? 0) + (r.losses ?? 0) + (r.ties ?? 0)
+    winPct[recKey(r.teamId, r.sport)] = g ? ((r.wins ?? 0) + (r.ties ?? 0) / 2) / g : 0.5
     budget[recKey(r.teamId, r.sport)] = r.faabRemaining ?? 0
     priority[recKey(r.teamId, r.sport)] = r.waiverPriority ?? 99
   }
@@ -66,6 +70,8 @@ async function awardClaims(league: any, pending: any[]) {
     const sport = byPlayer[playerId][0].sport ?? 'NFL'
     const ranked = byPlayer[playerId].slice().sort((a, b) => {
       if (isFaab && (b.bidAmount ?? 0) !== (a.bidAmount ?? 0)) return (b.bidAmount ?? 0) - (a.bidAmount ?? 0)
+      // Art. IV §A: tied FAAB bids go to the club with the worse record
+      if (isYsf(league.id)) { const d = (winPct[recKey(a.teamId, a.sport ?? sport)] ?? 0.5) - (winPct[recKey(b.teamId, b.sport ?? sport)] ?? 0.5); if (d) return d }
       return (priority[recKey(a.teamId, a.sport ?? sport)] ?? 99) - (priority[recKey(b.teamId, b.sport ?? sport)] ?? 99)
     })
 
@@ -78,6 +84,16 @@ async function awardClaims(league: any, pending: any[]) {
       if (isFaab && (c.bidAmount ?? 0) > (budget[recKey(c.teamId, c.sport ?? sport)] ?? 0)) {
         await db.update(waiverClaims).set({ status: 'FAILED', processedAt: new Date().toISOString() }).where(eq(waiverClaims.id, c.id))
         continue
+      }
+      if (isYsf(league.id)) {
+        // Fed. Res. III weekly claim limit and Art. V eligibility maxima, as of processing
+        const [addP] = await db.select().from(players).where(eq(players.id, playerId)).limit(1)
+        const cur = await db.select({ pid: rosters.playerId, position: players.position, eligible: players.eligiblePositions }).from(rosters)
+          .innerJoin(players, eq(rosters.playerId, players.id)).where(and(eq(rosters.teamId, c.teamId), eq(rosters.sport, c.sport ?? sport)))
+        if (claimLimitError(league.id, c.teamId, c.sport ?? sport) || eligCapError(c.sport ?? sport, [...cur.filter(r => r.pid !== c.dropPlayerId), { position: addP?.position ?? null, eligible: addP?.eligiblePositions ?? null }])) {
+          await db.update(waiverClaims).set({ status: 'FAILED', processedAt: new Date().toISOString() }).where(eq(waiverClaims.id, c.id))
+          continue
+        }
       }
       winner = c; break
     }

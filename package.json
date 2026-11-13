@@ -28,7 +28,9 @@
     "ysf:score": "tsx scripts/ysf-score.ts",
     "fantrax:capture": "tsx scripts/fantrax-capture.ts",
     "nhl:sync": "tsx scripts/nhl-sync.ts",
-    "ysf:refresh": "tsx scripts/nhl-sync.ts && tsx scripts/ysf-sync.ts --stats && tsx scripts/fantrax-capture.ts && tsx scripts/ysf-score.ts --write"
+    "ysf:injuries": "tsx scripts/ysf-injuries.ts",
+    "ysf:eligibility": "tsx scripts/ysf-eligibility.ts",
+    "ysf:refresh": "tsx scripts/nhl-sync.ts && tsx scripts/ysf-sync.ts --stats && tsx scripts/ysf-injuries.ts && tsx scripts/fantrax-capture.ts && tsx scripts/ysf-score.ts --write"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

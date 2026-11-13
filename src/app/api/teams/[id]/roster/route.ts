@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, matchups, activity, dailyLineups, gameSchedule } from '@/db/schema'
-import { eq, and, inArray, or } from 'drizzle-orm'
+import { eq, and, inArray, or, sql } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { slotEligible, irEligible, defaultIrDesignations, lineupCadenceFor } from '@/lib/defaults'
@@ -16,6 +16,7 @@ import { playerKickoff } from '@/lib/locks'
 import { placeOnWaivers, onWaivers } from '@/lib/waivers'
 import { isTeamManager } from '@/lib/permissions'
 import { teamManagers } from '@/db/schema'
+import { isYsf, taxiCheck, claimLimitError, eligCapError, ensureRulesSchema, hasDesignation, irLockError } from '@/lib/ysf-rules'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -174,12 +175,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (ko != null && Date.now() >= ko)
         return NextResponse.json({ error: `${row.position} is locked — their game has already started` }, { status: 400 })
     }
+    if (isYsf(team.leagueId) && !isCommish && !(['IR', 'IL', 'DL'].includes(row.slot) && !['IR', 'IL', 'DL'].includes(body.slot))) {
+      const lock = await irLockError(id, row.sport)
+      if (lock) return NextResponse.json({ error: lock }, { status: 400 })
+    }
     const positions = [row.position, ...safeParse<string[]>(row.eligible, [])]
     if (!positions.some(p => slotEligible(p, body.slot!))) return NextResponse.json({ error: `Not eligible for ${body.slot}` }, { status: 400 })
-    if (['IR', 'IL', 'DL'].includes(body.slot)) {
+    if (['IR', 'IL', 'DL'].includes(body.slot) && isYsf(team.leagueId)) {
+      if (!hasDesignation(row.status)) return NextResponse.json({ error: 'IR needs an official injury or suspension designation (Constitution, Art. V fn. 5)' }, { status: 400 })
+    } else if (['IR', 'IL', 'DL'].includes(body.slot)) {
       const config = safeParse<Record<string, string[]>>(league?.irEligibleDesignations, defaultIrDesignations([row.sport]))
       if (!irEligible(row.sport, row.status, config))
         return NextResponse.json({ error: `Player's status (${row.status || 'ACTIVE'}) is not IR-eligible in this league` }, { status: 400 })
+    }
+    if (body.slot === 'TAXI' && row.slot !== 'TAXI' && isYsf(team.leagueId)) {
+      // Comm. Res. VII: under 1 year (NFL/NBA/MLB service) or 84 or fewer NHL games; the Commission may confirm exceptions
+      ensureRulesSchema()
+      const exp = db.all<{ e: string | null }>(sql`SELECT pro_exp e FROM players WHERE id = ${row.playerId}`)[0]?.e ?? null
+      const t = taxiCheck(row.sport, exp)
+      if (!t.ok && !isCommish) return NextResponse.json({ error: `Not taxi-eligible (Comm. Res. VII): ${t.why}` }, { status: 400 })
     }
     if (body.slot === 'TAXI' && (league?.taxiEligibility ?? 'ALL') === 'ROOKIES' && !row.isRookie) {
       return NextResponse.json({ error: 'Only rookies may be placed on the taxi squad in this league' }, { status: 400 })
@@ -309,6 +323,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         return t >= since && new RegExp(`\\(${pl.sport}\\)`).test(r.message ?? '') && /\b(added|claimed)\b/i.test(r.message ?? '')
       }).length
       if (used >= tl.max) return NextResponse.json({ error: `Transaction limit reached: ${tl.max} ${pl.sport} move${tl.max > 1 ? 's' : ''} per ${tl.period.toLowerCase()}` }, { status: 400 })
+    }
+    if (isYsf(team.leagueId)) {
+      // Fed. Res. III weekly claim limits and Art. V position-eligibility maxima
+      const irl = await irLockError(id, pl.sport)
+      if (irl && league?.commissionerId !== uid) return NextResponse.json({ error: irl }, { status: 400 })
+      const lim = claimLimitError(team.leagueId, id, pl.sport)
+      if (lim && league?.commissionerId !== uid) return NextResponse.json({ error: lim }, { status: 400 })
+      const cur = await db.select({ rid: rosters.id, position: players.position, eligible: players.eligiblePositions }).from(rosters)
+        .innerJoin(players, eq(rosters.playerId, players.id)).where(and(eq(rosters.teamId, id), eq(rosters.sport, pl.sport)))
+      const after = [...cur.filter(r => r.rid !== body.dropRosterId), { position: pl.position, eligible: pl.eligiblePositions }]
+      const capErr = eligCapError(pl.sport, after)
+      if (capErr) return NextResponse.json({ error: capErr }, { status: 400 })
     }
     const limits = safeParse<Record<string, Record<string, { maxRostered?: number }>>>(league?.positionLimits, {})
     const cap = limits[pl.sport]?.[pl.position]?.maxRostered

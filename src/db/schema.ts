@@ -347,6 +347,7 @@ export const players = sqliteTable('players', {
   sport: text('sport').notNull(),
   position: text('position').notNull(),
   eligiblePositions: text('eligible_positions').default('[]'),
+  proExp: text('pro_exp'), // ySF taxi eligibility: { years } NFL/NBA · { gp } NHL · { debut, maxDays } MLB
   realTeam: text('real_team').notNull(),
   realTeamAbbr: text('real_team_abbr'),
   status: text('status').default('ACTIVE'),
@@ -546,9 +547,10 @@ export const trades = sqliteTable('trades', {
   leagueId: text('league_id').references(() => leagues.id),
   initiatorId: text('initiator_id').notNull().references(() => teams.id),
   recipientId: text('recipient_id').references(() => teams.id), // primary partner (null for >2-team)
-  status: text('status').default('PENDING'), // PENDING | ACCEPTED | REJECTED | CANCELLED | VETOED
+  status: text('status').default('PENDING'), // PENDING | REVIEW | ACCEPTED | REJECTED | CANCELLED | VETOED | FAILED
   note: text('note'),
   reviewDeadline: text('review_deadline'),
+  complaintAt: text('complaint_at'), // ySF: a bad-faith complaint was filed (starts the 36-hour veto clock)
   processedAt: text('processed_at'),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
@@ -563,6 +565,8 @@ export const tradeItems = sqliteTable('trade_items', {
   direction: text('direction'), // legacy GIVING | RECEIVING (kept for display fallback)
   playerId: text('player_id').references(() => players.id),
   pickId: text('pick_id').references(() => draftPicks.id),
+  faabSport: text('faab_sport'),     // FAAB moving between clubs (Art. IV §A): which league's budget
+  faabAmount: integer('faab_amount'),
 })
 
 // Per-participant approval for a (possibly multi-team) trade.

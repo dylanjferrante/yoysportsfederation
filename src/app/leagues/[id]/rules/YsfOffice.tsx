@@ -5,11 +5,32 @@ import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { siteFeed } from '@/lib/ysf-data'
 import { PageTitle, th, td } from '@/components/ysf/ui'
 import { loadConstitution, DOC_URL } from '@/lib/ysf-constitution'
+import { auditLeague } from '@/lib/ysf-audit'
+import { LEAGUE_OF } from '@/lib/ysf-rules'
+import { db } from '@/db'
+import { sql } from 'drizzle-orm'
 
 // full-text styling for the official document's HTML
 const DOC = 'text-[15px] leading-relaxed text-ink-800 [&_p]:mt-2 [&_b]:font-bold [&_b]:text-black [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mt-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mt-1 [&_li]:mt-1 [&_h2]:ui [&_h2]:text-[14px] [&_h2]:font-bold [&_h2]:tracking-[.1em] [&_h2]:mt-5 [&_h2]:text-black [&_h3]:font-bold [&_h3]:mt-4 [&_h3]:text-black [&_h4]:font-semibold [&_h4]:mt-3 [&_table]:w-full [&_table]:mt-2 [&_td]:border [&_td]:border-ink-100 [&_td]:px-2 [&_td]:py-1'
 
-const TABS: [string, string][] = [['constitution', 'CONSTITUTION'], ['scoring', 'SCORING'], ['rosters', 'ROSTERS & SEASONS'], ['resolutions', 'RESOLUTIONS']]
+const TABS: [string, string][] = [['constitution', 'CONSTITUTION'], ['scoring', 'SCORING'], ['rosters', 'ROSTERS & SEASONS'], ['resolutions', 'RESOLUTIONS'], ['compliance', 'COMPLIANCE']]
+const SPORT_KEY: Record<string, string> = { NFL: 'fl', NHL: 'hl', NBA: 'ba', MLB: 'lb' }
+const etStamp = (d: Date | null) => d ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d) + ' ET' : '—'
+// each rule the app enforces, where it comes from, and where it's enforced
+const RULEBOOK: [string, string, string][] = [
+  ['Taxi Squads: ySFFL 3 · ySFHL 4 · ySFBA 3 · ySFLB 5', 'Comm. Res. VII', 'Lineup moves'],
+  ['Taxi Squad eligibility: under 1 year (NFL, NBA, MLB service time); 84 or fewer NHL games', 'Comm. Res. VII', 'Lineup moves'],
+  ['Max 3 QB-eligible (ySFFL) · 4 G-eligible (ySFHL) · 13 P-eligible (ySFLB)', 'Art. V', 'Adds, claims, trades'],
+  ['IR: ySFFL 2 · ySFHL 3 · ySFBA 3 · ySFLB 4, official designation only', 'Art. V fn. 5', 'Lineup moves'],
+  ['A healthy player on IR locks the roster until he’s moved off', 'Art. V fn. 5', 'Adds, claims, lineup moves'],
+  ['Claims: ySFBA 3 · ySFHL 4 per Monday–Sunday week, from the Rookie Draft on', 'Fed. Res. III', 'Adds, claims'],
+  ['ySFLB starting pitchers: 10 games per matchup, prorated by length', 'Fed. Res. III', 'Scoring engine'],
+  ['FAAB $250 per league; ties go to the worse record; FAAB may be traded', 'Art. IV §A', 'Claims, trades'],
+  ['No-trade window from the deadline to the end of the playoffs locks players, picks and FAAB', 'Art. IV §B, Comm. Notice II', 'Trades'],
+  ['48-hour review before a trade takes effect', 'Art. IV §B, Comm. Notice IV', 'Trades'],
+  ['Bad-faith complaints; Commission veto (unanimous, 36 hours); Federation override (⅔)', 'Art. IV §B', 'Trades'],
+  ['Commission club in the trade: Federation veto (⅔ of the other clubs)', 'Art. IV §B', 'Trades'],
+]
 const LG_KEY: Record<string, string> = { ysf_fl: 'fl', ysf_hl: 'hl', ysf_ba: 'ba', ysf_lb: 'lb' }
 
 export default async function YsfOffice({ league, tab }: { league: any; tab?: string }) {
@@ -123,6 +144,8 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
         </div>
       )}
 
+      {t === 'compliance' && <Compliance season={league.season} />}
+
       {t === 'resolutions' && (
         <section className="flex flex-col gap-4">
           {(doc?.resolutions ?? []).map((r, i) => {
@@ -146,5 +169,65 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
         </section>
       )}
     </>
+  )
+}
+
+async function Compliance({ season }: { season?: string }) {
+  const { findings, windows } = await auditLeague(season)
+  const clubs = new Map(db.all<{ id: string; name: string; logo: string | null }>(sql`SELECT id, name, logo FROM teams WHERE league_id = 'ysf'`).map(c => [c.id, c]))
+  const now = Date.now()
+  return (
+    <div className="flex flex-col gap-6">
+      <section className="grid gap-4 lg:grid-cols-2 items-start">
+        {['NFL', 'NHL', 'NBA', 'MLB'].map(sp => {
+          const L = YSF_LEAGUES.find(l => l.key === SPORT_KEY[sp])
+          const fs = findings.filter(f => f.sport === sp).sort((a, b) => (clubs.get(a.teamId)?.name ?? '').localeCompare(clubs.get(b.teamId)?.name ?? ''))
+          return (
+            <div key={sp} className="card overflow-hidden">
+              <div className="flex items-center gap-2.5 px-4 py-3 text-white" style={{ background: L?.color ?? '#000' }}>
+                {L && <img src={YSF_ART.leagueSymbol(L.key, 'color')} alt="" className="w-7 h-7 object-contain" />}
+                <span className="disp text-[22px] font-extrabold ysf-case">{LEAGUE_OF[sp]}</span>
+                <span className="ui ml-auto inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none bg-white" style={{ color: L?.color ?? '#000' }}>{fs.length ? `${fs.length} ISSUE${fs.length > 1 ? 'S' : ''}` : 'CLEAR'}</span>
+              </div>
+              {fs.length ? (
+                <table className="w-full border-collapse table-fixed">
+                  <thead><tr><th className={`${th} w-[34%]`}>CLUB</th><th className={th}>RULE</th><th className={`${th} hidden sm:table-cell w-[22%]`}>SOURCE</th></tr></thead>
+                  <tbody>{fs.map((f, i) => { const c = clubs.get(f.teamId); return (
+                    <tr key={i}>
+                      <td className={`${td} !whitespace-normal break-words`}><span className="inline-flex items-center gap-1.5">{c?.logo && <img src={c.logo} alt="" className="w-5 h-5 object-contain flex-none" />}<span>{c?.name ?? '—'}</span></span></td>
+                      <td className={`${td} !whitespace-normal break-words`}><div>{f.rule}</div><div className="text-[13px] font-normal text-ink-600 mt-0.5"><span className="ysf-case">{f.detail}</span></div></td>
+                      <td className={`${td} hidden sm:table-cell !whitespace-normal font-normal text-[13px]`}>{f.source}</td>
+                    </tr>) })}</tbody>
+                </table>
+              ) : <div className="px-4 py-4 text-[15px] font-semibold text-ink-500">No violations</div>}
+            </div>
+          )
+        })}
+      </section>
+
+      <section className="card">
+        <div className="ui px-4 py-2.5 border-b-2 border-black text-[12px] font-bold tracking-[.12em]">TRADE DEADLINES</div>
+        <table className="w-full border-collapse">
+          <thead><tr><th className={th}>LEAGUE</th><th className={th}>DEADLINE</th><th className={`${th} hidden sm:table-cell`}>REOPENS</th><th className={`${th} text-right`}>TRADES</th></tr></thead>
+          <tbody>{windows.map(w => { const L = YSF_LEAGUES.find(l => l.key === SPORT_KEY[w.sport]); const open = !w.locked && (!w.deadline || now <= w.deadline.getTime()); return (
+            <tr key={w.sport}>
+              <td className={td}><span className="inline-flex items-center gap-1.5">{L && <img src={YSF_ART.leagueSymbol(L.key, 'white')} alt="" className="w-5 h-5 object-contain" />}<span className="ysf-case">{LEAGUE_OF[w.sport]}</span></span></td>
+              <td className={`${td} !whitespace-normal break-words font-normal`}>{etStamp(w.deadline)}</td>
+              <td className={`${td} hidden sm:table-cell font-normal`}>{etStamp(w.reopens)}</td>
+              <td className={`${td} text-right`}><span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none text-white" style={{ background: open ? '#177245' : w.locked ? '#ba0c2f' : '#8A8A8A' }}>{open ? 'OPEN' : w.locked ? 'LOCKED' : 'CLOSED'}</span></td>
+            </tr>) })}</tbody>
+        </table>
+      </section>
+
+      <section className="card">
+        <div className="ui px-4 py-2.5 border-b-2 border-black text-[12px] font-bold tracking-[.12em]">RULE BOOK</div>
+        <table className="w-full border-collapse table-fixed">
+          <thead><tr><th className={th}>RULE</th><th className={`${th} w-[28%] sm:w-[22%]`}>SOURCE</th><th className={`${th} hidden sm:table-cell w-[22%]`}>CHECKED ON</th></tr></thead>
+          <tbody>{RULEBOOK.map(([r, src, where]) => (
+            <tr key={r}><td className={`${td} !whitespace-normal break-words`}><span className="ysf-case">{r}</span></td><td className={`${td} !whitespace-normal break-words font-normal text-[13px]`}>{src}</td><td className={`${td} hidden sm:table-cell !whitespace-normal font-normal text-[13px]`}>{where}</td></tr>
+          ))}</tbody>
+        </table>
+      </section>
+    </div>
   )
 }

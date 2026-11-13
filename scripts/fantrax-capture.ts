@@ -44,7 +44,9 @@ async function main() {
     const nm = names[L.sport]
     let n = 0
     db.transaction(() => {
-      for (const [fxTeam, t] of Object.entries<any>(r.rosters ?? {})) for (const it of t.rosterItems ?? []) {
+      for (const [fxTeam, t] of Object.entries<any>(r.rosters ?? {})) for (const it0 of t.rosterItems ?? []) {
+        // the roster feed lists D/STs by team id ("20080"); the player index and history key them "20080#1090"
+        const it = !String(it0.id).includes('#') && nm[`${it0.id}#1090`] ? { ...it0, id: `${it0.id}#1090` } : it0
         const p = nm[it.id] ?? {}
         const name = String(p.name ?? it.id).includes(', ') ? String(p.name).split(', ').reverse().join(' ') : String(p.name ?? it.id)
         ins.run({ season: L.season, sport: L.sport, lid: L.lid, period, date, mp, team: teamOf.get(fxTeam) ?? null, fxteam: fxTeam, pid: it.id,
