@@ -356,9 +356,40 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const clockAt = (pk: number) => pickClock(order, pk, slots, draft.type)
   const sportsFilter = draft.scope === 'OVERALL' ? SPORTS : [draft.scope]
 
-  const body = await req.json() as { action: string; playerId?: string; direction?: string; bid?: number; order?: string[] }
+  const body = await req.json() as { action: string; playerId?: string; direction?: string; bid?: number; order?: string[]; pickSeconds?: number; startsAt?: string | null; addSeconds?: number }
 
   const newDeadline = (secs = draft.pickSeconds ?? 90) => new Date(Date.now() + secs * 1000).toISOString()
+
+  // Commissioner draft settings — pick timer and start time — changeable before and during the draft.
+  // A new timer applies from the current pick on (the clock on the club now picking restarts).
+  if (body.action === 'SETTINGS') {
+    if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
+    const set: Record<string, any> = {}
+    if (body.pickSeconds != null) {
+      const secs = Math.round(Number(body.pickSeconds))
+      if (!Number.isFinite(secs) || secs < 15 || secs > 7 * 86400) return NextResponse.json({ error: 'Pick timer must be between 15 seconds and 7 days' }, { status: 400 })
+      set.pickSeconds = secs
+      if (draft.status === 'IN_PROGRESS') set.pickDeadline = newDeadline(secs)
+    }
+    if (body.startsAt !== undefined) {
+      if (draft.status !== 'PENDING') return NextResponse.json({ error: 'The start time can only change before the draft starts' }, { status: 400 })
+      if (body.startsAt && isNaN(Date.parse(body.startsAt))) return NextResponse.json({ error: 'Invalid start time' }, { status: 400 })
+      set.startsAt = body.startsAt ? new Date(body.startsAt).toISOString() : null
+    }
+    if (Object.keys(set).length) await db.update(drafts).set(set).where(eq(drafts.id, id))
+    publishDraft(id)
+    return NextResponse.json({ ok: true })
+  }
+  // Live clock control: reset the current pick's clock, or add time to it.
+  if (body.action === 'RESET_CLOCK' || body.action === 'ADD_TIME') {
+    if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
+    if (draft.status !== 'IN_PROGRESS') return NextResponse.json({ error: 'Draft not active' }, { status: 400 })
+    const base = body.action === 'ADD_TIME' && draft.pickDeadline ? Math.max(Date.now(), Date.parse(draft.pickDeadline)) : Date.now()
+    const secs = body.action === 'ADD_TIME' ? Math.max(1, Math.round(Number(body.addSeconds) || 60)) : (draft.pickSeconds ?? 90)
+    await db.update(drafts).set({ pickDeadline: new Date(base + secs * 1000).toISOString() }).where(eq(drafts.id, id))
+    publishDraft(id)
+    return NextResponse.json({ ok: true })
+  }
 
   // Commissioner sets a manual draft order (only before the draft starts).
   if (body.action === 'SET_ORDER') {

@@ -135,6 +135,12 @@ async function main() {
   db.pragma('foreign_keys = ON')
   const id = () => nanoid()
 
+  // Never rebuild mid-draft: the import recreates the league and would erase picks in progress.
+  const liveDraft = db.prepare(`SELECT id FROM drafts WHERE league_id=? AND status IN ('IN_PROGRESS','PAUSED') LIMIT 1`).get(LEAGUE_ID) as any
+  if (liveDraft) { console.error(`A draft is in progress (${liveDraft.id}). Finish or reset it before re-importing.`); process.exit(1) }
+  // Keep commissioner draft settings (pick timer, start time) across re-imports.
+  const draftSettings = new Map((db.prepare(`SELECT id, pick_seconds, starts_at FROM drafts WHERE league_id=?`).all(LEAGUE_ID) as any[]).map(r => [r.id, r]))
+
   // ── wipe the previous ySF import (other leagues untouched) ──
   const wipe = db.transaction(() => {
     const L = LEAGUE_ID
@@ -375,8 +381,10 @@ async function main() {
     if (!rd || rd.state === 'completed' || !rd.picks?.length) continue
     const draftId = `${LEAGUE_ID}-${SEASON}-${s.sport.toLowerCase()}-rookie`
     const startsAt = rd.draft_date ? new Date(rd.draft_date.replace(/\.\d+(?=[+-])/, '').replace(/([+-]\d\d)(\d\d)$/, '$1:$2')).toISOString() : null
-    db.prepare(`INSERT INTO drafts (id,league_id,kind,scope,season,type,rounds,status,starts_at,current_pick) VALUES (?,?,?,?,?,?,?,?,?,0)`)
-      .run(draftId, LEAGUE_ID, 'ROOKIE', s.sport, SEASON, 'LINEAR', rd.rounds, 'PENDING', startsAt)
+    const prev = draftSettings.get(draftId)
+    // ySF default pick timer: 5 minutes (commissioners can change it in the draft room)
+    db.prepare(`INSERT INTO drafts (id,league_id,kind,scope,season,type,rounds,status,starts_at,current_pick,pick_seconds) VALUES (?,?,?,?,?,?,?,?,?,0,?)`)
+      .run(draftId, LEAGUE_ID, 'ROOKIE', s.sport, SEASON, 'LINEAR', rd.rounds, 'PENDING', prev?.starts_at ?? startsAt, prev?.pick_seconds ?? 300)
     const year = parseInt(SEASON.slice(0, 4))
     for (const p of rd.picks) {
       const owner = teamId[p.ysf_id], orig = teamId[p.via_ysf_id ?? p.ysf_id]

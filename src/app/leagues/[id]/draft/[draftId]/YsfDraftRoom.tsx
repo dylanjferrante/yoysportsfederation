@@ -19,6 +19,9 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
   const [pf, setPf] = useState('ALL')
   const [q, setQ] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
+  const [timerSel, setTimerSel] = useState<number | null>(null)
+  const [startSel, setStartSel] = useState<string | null>(null)
 
   const load = useCallback(() => fetch(`/api/drafts/${draftId}`).then(r => r.json()).then(setS), [draftId])
   useEffect(() => { load() }, [load])
@@ -60,6 +63,11 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
   const nextMine = myPicks.find(b => !b.player && b.pickNumber >= Math.max(1, s.current))
   const away = nextMine ? board.filter(b => !b.player && b.pickNumber < nextMine.pickNumber && b.pickNumber >= Math.max(1, s.current)).length : 0
   const label = (b: any) => `${b.round}.${String(b.pickInRound).padStart(2, '0')}`
+  const dur = (secs: number) => secs < 60 ? `${secs} sec` : secs < 3600 ? `${Math.round(secs / 60)} min` : secs % 3600 ? `${(secs / 3600).toFixed(1)} hr` : `${secs / 3600} hr`
+  const clockTxt = (secs: number) => secs >= 3600 ? `${Math.floor(secs / 3600)}:${String(Math.floor(secs / 60) % 60).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+  const TIMERS = [30, 60, 90, 120, 180, 300, 600, 900, 1800, 3600, 7200, 14400, 28800, 86400]
+  const pickSecs = d.pickSeconds ?? 90
+  const localInput = (iso: string | null) => { if (!iso) return ''; const t = new Date(iso); const z = (n: number) => String(n).padStart(2, '0'); return `${t.getFullYear()}-${z(t.getMonth() + 1)}-${z(t.getDate())}T${z(t.getHours())}:${z(t.getMinutes())}` }
   const starts = d.startsAt ? new Date(d.startsAt) : null
   const startsTxt = starts ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(starts) + ' ET' : ''
   const until = starts ? Math.max(0, starts.getTime() - now) : 0
@@ -73,7 +81,7 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
   return (
     <>
       <PageTitle eyebrow={`${L.code} · ${d.season.replace('-', '–')} ${d.kind === 'ROOKIE' ? 'rookie draft' : 'draft'}`} title="DRAFT ROOM" right={
-        <div className="flex items-center gap-3"><div className="text-right ui text-[12px] text-ink-500 leading-relaxed">{U(startsTxt)}<br />{rounds} ROUNDS · {d.type === 'LINEAR' ? 'NON-SNAKE' : d.type}</div>
+        <div className="flex items-center gap-3"><div className="text-right ui text-[12px] text-ink-500 leading-relaxed">{U(startsTxt)}<br />{rounds} ROUNDS · {d.type === 'LINEAR' ? 'NON-SNAKE' : d.type} · {dur(pickSecs).toUpperCase()} PER PICK</div>
           <img src={YSF_ART.leagueSymbol(L.key, 'white')} alt={L.code} className="w-14 h-14 object-contain" /></div>} />
 
       <section className="grid grid-cols-1 sm:grid-cols-2 rounded overflow-hidden text-white">
@@ -83,7 +91,7 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
             <div className="min-w-0"><div className="ui text-[12px] opacity-90">ON THE CLOCK · PICK {label(cur)} ({cur.pickNumber} OVERALL)</div>
               <div className="disp text-[34px] font-extrabold leading-[.95]">{clockTeam.name}</div>
               {cur.via && <div className="text-[13px] opacity-90 mt-1">via {cur.teamAbbr}</div>}</div>
-            <div className="ml-auto disp text-[40px] font-extrabold tabular-nums">{left != null ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : ''}</div>
+            <div className="ml-auto disp text-[40px] font-extrabold tabular-nums">{left != null ? clockTxt(left) : ''}</div>
           </> : d.status === 'COMPLETED' ? <div className="disp text-[30px] font-extrabold">DRAFT COMPLETE</div>
             : <div><div className="ui text-[12px] opacity-90">{d.status === 'PAUSED' ? 'PAUSED' : 'DRAFT STARTS IN'}</div><div className="disp text-[40px] font-extrabold leading-none tabular-nums">{d.status === 'PAUSED' ? '—' : dhm}</div></div>}
         </div>
@@ -93,6 +101,7 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
           <div className="flex flex-wrap gap-2">
             {s.myTeamId && <button disabled={busy} onClick={() => act({ action: 'TOGGLE_AUTOPICK' }, s.myAutopick ? 'Auto-pick off' : 'Auto-pick on: your queue first, then the best available')} className={`${btn} h-10 px-3.5 border border-white`} style={{ background: s.myAutopick ? '#fff' : 'transparent', color: s.myAutopick ? '#000' : '#fff' }}>AUTO-PICK {s.myAutopick ? 'ON' : 'OFF'}</button>}
             {mineOnClock && <button disabled={busy} onClick={() => act({ action: 'AUTO_PICK' })} className={`${btn} h-10 px-3.5 border border-white text-white`}>PICK FROM QUEUE</button>}
+            {s.isCommish && <button onClick={() => { setShowSettings(!showSettings); setTimerSel(pickSecs); setStartSel(localInput(d.startsAt)) }} className={`${btn} h-10 px-3.5 border border-white`} style={{ background: showSettings ? '#fff' : 'transparent', color: showSettings ? '#000' : '#fff' }}>DRAFT SETTINGS</button>}
             {s.isCommish && d.status === 'PENDING' && <button disabled={busy} onClick={() => act({ action: 'START' }, 'Draft started')} className={`${btn} h-10 px-3.5 bg-white text-black`}>START DRAFT</button>}
             {s.isCommish && live && <button disabled={busy} onClick={() => act({ action: 'PAUSE' })} className={`${btn} h-10 px-3.5 border border-ink-500 text-ink-200`}>PAUSE</button>}
             {s.isCommish && d.status === 'PAUSED' && <button disabled={busy} onClick={() => act({ action: 'RESUME' })} className={`${btn} h-10 px-3.5 bg-white text-black`}>RESUME</button>}
@@ -100,6 +109,37 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
           </div>
         </div>
       </section>
+
+      {s.isCommish && showSettings && (
+        <section className="card p-4 sm:p-5 flex flex-col gap-4" style={{ borderTop: '4px solid #000' }}>
+          <div className="ui text-[12px] font-bold tracking-[.12em]">DRAFT SETTINGS · COMMISSIONER</div>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+            <div className="flex flex-col gap-2">
+              <span className="ui text-[11px] text-ink-500">PICK TIMER</span>
+              <div className="flex flex-wrap gap-1">{TIMERS.map(t => (
+                <button key={t} onClick={() => setTimerSel(t)} className={`${btn} h-9 px-2.5 border`} style={{ borderColor: timerSel === t ? '#000' : '#C7C7C7', background: timerSel === t ? '#000' : '#fff', color: timerSel === t ? '#fff' : '#000' }}>{dur(t).toUpperCase()}</button>))}</div>
+              <label className="flex items-center gap-2 text-[13px] text-ink-500">Custom <input type="number" min={1} value={timerSel ? Math.round(timerSel / 60) : ''} onChange={e => setTimerSel(Math.max(1, Math.round(+e.target.value || 0)) * 60)} className="w-20 h-9 px-2 border border-black rounded font-bold text-black" /> minutes</label>
+              <button disabled={busy || !timerSel || timerSel === pickSecs} onClick={() => act({ action: 'SETTINGS', pickSeconds: timerSel }, `Pick timer set to ${dur(timerSel!)}${live ? ' (current pick restarted)' : ''}`)} className={`${btn} h-10 px-4 bg-black text-white self-start`}>SAVE TIMER</button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="ui text-[11px] text-ink-500">START TIME</span>
+              <input type="datetime-local" disabled={d.status !== 'PENDING'} value={startSel ?? ''} onChange={e => setStartSel(e.target.value)} className="h-11 px-3 border border-black rounded font-semibold disabled:opacity-50" />
+              <span className="text-[13px] text-ink-500">{d.status === 'PENDING' ? `Currently ${startsTxt}` : 'Locked once the draft starts'}</span>
+              <button disabled={busy || d.status !== 'PENDING' || !startSel || startSel === localInput(d.startsAt)} onClick={() => act({ action: 'SETTINGS', startsAt: new Date(startSel!).toISOString() }, 'Start time updated')} className={`${btn} h-10 px-4 bg-black text-white self-start`}>SAVE START TIME</button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="ui text-[11px] text-ink-500">LIVE CLOCK</span>
+              <div className="flex flex-wrap gap-1.5">
+                <button disabled={busy || !live} onClick={() => act({ action: 'RESET_CLOCK' }, 'Clock reset')} className={`${btn} h-10 px-3 border border-black bg-white text-black`}>RESET CLOCK</button>
+                <button disabled={busy || !live} onClick={() => act({ action: 'ADD_TIME', addSeconds: 60 }, 'Added 1 minute')} className={`${btn} h-10 px-3 border border-black bg-white text-black`}>+1 MIN</button>
+                <button disabled={busy || !live} onClick={() => act({ action: 'ADD_TIME', addSeconds: 300 }, 'Added 5 minutes')} className={`${btn} h-10 px-3 border border-black bg-white text-black`}>+5 MIN</button>
+                {live && <button disabled={busy} onClick={() => act({ action: 'PAUSE' }, 'Draft paused')} className={`${btn} h-10 px-3 border border-black bg-white text-black`}>PAUSE DRAFT</button>}
+                {d.status === 'PAUSED' && <button disabled={busy} onClick={() => act({ action: 'RESUME' }, 'Draft resumed')} className={`${btn} h-10 px-3 bg-black text-white`}>RESUME DRAFT</button>}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="disp text-[28px] font-extrabold m-0">DRAFT BOARD</h2>
