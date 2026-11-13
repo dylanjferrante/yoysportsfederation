@@ -13,7 +13,7 @@ import { bearerUserId } from '@/lib/mobileAuth'
 import { realOpponents } from '@/lib/realschedule'
 import { scheduleOpponents, scheduleKickoffs } from '@/lib/schedule'
 import { playerKickoff } from '@/lib/locks'
-import { placeOnWaivers, onWaivers } from '@/lib/waivers'
+import { placeOnWaivers, onWaivers, settleYsfWaivers } from '@/lib/waivers'
 import { isTeamManager } from '@/lib/permissions'
 import { teamManagers } from '@/db/schema'
 import { isYsf, taxiCheck, claimLimitError, eligCapError, ensureRulesSchema, hasDesignation, irLockError, taxiPlaceError } from '@/lib/ysf-rules'
@@ -156,7 +156,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!isCommish && body.date && cadenceEarly === 'DAILY') {
       // Daily lineups lock per day: past days are final, and a day locks for a player once his game that day starts.
       const ymd = body.date.replace(/-/g, '')
-      const now = new Date(); const todayYmd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+      const todayYmd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date()).replace(/-/g, '') // Eastern
       if (ymd < todayYmd) return NextResponse.json({ error: 'That day is final' }, { status: 400 })
       const abbr = row.realTeamAbbr ?? ''
       const [g] = abbr ? await db.select({ epoch: gameSchedule.gameTimeEpoch, status: gameSchedule.status }).from(gameSchedule)
@@ -172,7 +172,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const wk = cur?.week ?? 1
       const realKo = (await scheduleKickoffs(row.sport, league?.season ?? '', wk))?.[row.realTeamAbbr ?? '']
       const ko = realKo ?? playerKickoff(row.sport, row.realTeamAbbr, league?.season ?? '', wk)
-      if (ko != null && Date.now() >= ko)
+      // ySFFL (Fantrax): lineups lock 5 minutes before kickoff
+      const lead = isYsf(team.leagueId) && row.sport === 'NFL' ? 5 * 60_000 : 0
+      if (ko != null && Date.now() >= ko - lead)
         return NextResponse.json({ error: `${row.position} is locked — their game has already started` }, { status: 400 })
     }
     if (isYsf(team.leagueId) && !isCommish && !(['IR', 'IL', 'DL'].includes(row.slot) && !['IR', 'IL', 'DL'].includes(body.slot))) {
@@ -318,11 +320,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .select({ id: rosters.id }).from(rosters)
       .innerJoin(teams, eq(rosters.teamId, teams.id))
       .where(and(eq(rosters.playerId, body.playerId), eq(teams.leagueId, team.leagueId))).limit(1)
+    if (isYsf(team.leagueId)) await settleYsfWaivers(league)
     if (existing.length) return NextResponse.json({ error: 'Player is already rostered' }, { status: 400 })
     if (await onWaivers(team.leagueId, body.playerId)) return NextResponse.json({ error: 'Player is on waivers — submit a waiver claim instead' }, { status: 400 })
     const txLimits = safeParse<Record<string, { max: number; period: string }>>(league?.transactionLimits, {})
     const tl = txLimits[pl.sport]
-    if (tl && tl.max > 0) {
+    if (tl && tl.max > 0 && !isYsf(team.leagueId)) {
       const since = tl.period === 'DAILY' ? Date.now() - 86_400_000 : tl.period === 'WEEKLY' ? Date.now() - 7 * 86_400_000 : 0
       const rows = await db.select({ message: activity.message, createdAt: activity.createdAt }).from(activity)
         .where(and(eq(activity.teamId, id), inArray(activity.type, ['ROSTER', 'WAIVER'])))
@@ -346,7 +349,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     const limits = safeParse<Record<string, Record<string, { maxRostered?: number }>>>(league?.positionLimits, {})
     const cap = limits[pl.sport]?.[pl.position]?.maxRostered
-    if (cap != null) {
+    if (cap != null && !isYsf(team.leagueId)) {
       const atPos = await db.select({ id: rosters.id }).from(rosters)
         .innerJoin(players, eq(rosters.playerId, players.id))
         .where(and(eq(rosters.teamId, id), eq(players.sport, pl.sport), eq(players.position, pl.position)))
@@ -357,9 +360,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
       if (count >= cap) return NextResponse.json({ error: `Roster limit reached: max ${cap} at ${pl.position}` }, { status: 400 })
     }
-    if (body.dropRosterId) await db.delete(rosters).where(and(eq(rosters.id, body.dropRosterId), eq(rosters.teamId, id)))
+    let droppedName = ''
+    if (body.dropRosterId) {
+      // the dropped player goes on waivers, the same as a plain drop
+      const [d] = await db.select({ playerId: rosters.playerId, name: players.name, sport: players.sport }).from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
+        .where(and(eq(rosters.id, body.dropRosterId), eq(rosters.teamId, id))).limit(1)
+      await db.delete(rosters).where(and(eq(rosters.id, body.dropRosterId), eq(rosters.teamId, id)))
+      if (d) { droppedName = d.name; if (league?.waiverType !== 'FREE_AGENT') await placeOnWaivers(team.leagueId, d.playerId, d.sport, id, league?.waiverPeriodDays ?? 0) }
+    }
     await db.insert(rosters).values({ id: nanoid(), teamId: id, playerId: body.playerId, sport: pl.sport, slot: 'BN', acquisitionType: 'FA' }).onConflictDoNothing()
-    await logActivity(team.leagueId, 'ROSTER', `${team.name} added ${pl.name} (${pl.sport})`, id)
+    await logActivity(team.leagueId, 'ROSTER', `${team.name} added ${pl.name} (${pl.sport})${droppedName ? `, dropped ${droppedName}` : ''}`, id)
     return NextResponse.json({ ok: true })
   }
 

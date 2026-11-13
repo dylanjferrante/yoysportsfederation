@@ -10,7 +10,7 @@ import { slotEligible } from '@/lib/defaults'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 
 type Game = { opp: string; home: boolean; epoch: number | null; status: string; gameId: string } | null
-type RP = { rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null }
+type RP = { rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null }
 type FA = { playerId: string; name: string; position: string; pos: string; team: string | null; gp: number; points: number; injury: string | null; pending: boolean }
 type Club = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null }
 type Data = {
@@ -25,7 +25,10 @@ const ORDER: Record<string, string[]> = {
   NBA: ['PG', 'SG', 'SF', 'PF', 'C', 'UTIL'], MLB: ['C', '1B', '2B', '3B', 'SS', 'OF', 'UTIL', 'SP', 'RP'],
 }
 const SLOT_LABEL: Record<string, string> = { 'RB/WR/TE': 'FLEX', DEF: 'D/ST' }
-const INJ: Record<string, string> = { Out: 'O', OUT: 'O', Questionable: 'Q', QUESTIONABLE: 'Q', Doubtful: 'D', DOUBTFUL: 'D', 'Day-To-Day': 'DTD', DTD: 'DTD', 'Injured Reserve': 'IR', IR: 'IR', INJURED_RESERVE: 'IR', SUSPENDED: 'SUSP', Probable: 'P' }
+// official designation → tag (the news note shows on hover)
+const injTag = (s: string) => { const x = s.toLowerCase().replace(/[-_]/g, ' ')
+  if (/^(\d+) day il$/.test(x)) return `IL${x.split(' ')[0]}`
+  return ({ out: 'O', questionable: 'Q', doubtful: 'D', probable: 'P', 'day to day': 'DTD', dtd: 'DTD', 'injured reserve': 'IR', ir: 'IR', ltir: 'LTIR', suspension: 'SUSP', suspended: 'SUSP', pup: 'PUP', nfi: 'NFI' } as Record<string, string>)[x] ?? 'INJ' }
 const lg = (sport: string) => YSF_LEAGUES.find(l => l.sport === sport) ?? YSF_LEAGUES[0]
 const posFix = (p: string) => p.replace(/\bDEF\b/g, 'D/ST')
 const meta = (code: string, team: string | null, pos: string) => `(${code}-${team || 'FA'}, ${posFix(pos)})`
@@ -49,6 +52,7 @@ export default function MyClub({ leagueId }: { leagueId: string }) {
   const [sel, setSel] = useState<string | null>(null)
   const [dropAsk, setDropAsk] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [statSpan, setStatSpan] = useState<'season' | 'week'>('season')
 
   const load = useCallback(async (s?: string | null, d?: string | null) => {
     const q = new URLSearchParams(); if (s) q.set('sport', s); if (d) q.set('date', d)
@@ -134,6 +138,11 @@ export default function MyClub({ leagueId }: { leagueId: string }) {
 
   const Lineup = (
     <section className="flex flex-col gap-4">
+      <div className="flex gap-1 p-1 bg-white border border-ink-100 rounded-xl self-start">
+        {([['season', 'SEASON'], ['week', 'THIS WEEK']] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setStatSpan(k)} className={`${btn} h-9 px-3 text-[12px]`} style={{ background: statSpan === k ? '#000' : '#fff', color: statSpan === k ? '#fff' : '#4A4A4A' }}>{l}</button>
+        ))}
+      </div>
       {data.dates.length > 0 && (
         <div className="grid grid-cols-7 gap-1">
           {data.dates.map(d => {
@@ -157,24 +166,25 @@ export default function MyClub({ leagueId }: { leagueId: string }) {
           <div className="ui flex flex-wrap items-center gap-x-[10px] px-4 py-2 bg-ink-50 text-[12px] font-bold tracking-[.12em] min-h-[40px]">
             <span className="flex-1 whitespace-nowrap">{g.label} <span className="text-ink-500 font-medium">{g.count}</span></span>
             <span className="hidden sm:inline w-[108px] text-ink-500 font-medium">OPP</span>
-            <span className="hidden sm:inline w-[56px] text-right text-ink-500 font-medium">FPTS</span>
+            <span className="hidden sm:inline w-[56px] text-right text-ink-500 font-medium">{statSpan === 'week' ? 'WK PTS' : 'FPTS'}</span>
             <span className="hidden sm:inline w-[46px] text-right text-ink-500 font-medium">AVG</span>
             <span className="w-[152px] ml-auto flex justify-end">{g.drop && <button disabled={busy} onClick={g.drop} className={`${btn} h-[30px] px-3 bg-black text-white`}>MOVE HERE</button>}</span>
           </div>
           {g.rows.map(row => {
             const p = row.p, a: any = actionsFor(row), gc = gameCell(p), isSel = !!p && p.rosterId === sel
-            const inj = p?.injury ? (INJ[p.injury] ?? p.injury.slice(0, 4).toUpperCase()) : null
+            const inj = p?.injury ? injTag(p.injury) : null
             return (
               <div key={row.key} className="flex flex-wrap items-center gap-x-[10px] gap-y-[6px] px-4 py-2 border-t border-ink-50" style={{ background: isSel ? '#F2F2F2' : '#fff', boxShadow: isSel ? 'inset 4px 0 0 #000' : 'none' }}>
                 <span className="ui w-[56px] flex-none inline-flex items-center justify-center leading-none h-[28px] rounded-[3px] text-[12px] font-bold" style={{ background: row.starter ? L.color : '#E5E5E5', color: row.starter ? '#fff' : '#1F1F1F' }}>{row.label === 'BN' ? 'BN' : row.label}</span>
                 <span className="flex-[1_1_230px] min-w-0 font-bold" style={{ color: p ? '#000' : '#8A8A8A' }}>
                   {p ? p.name : 'Empty'}
-                  {inj && <> <span className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{inj}</span></>}
+                  {inj && <> <span title={(p as any)?.injuryNote ?? p?.injury ?? ''} className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{inj}</span></>}
                   {p && <span className="block font-normal text-[13px] text-ink-500">{meta(data.code, p.team, p.pos)}</span>}
                 </span>
                 <span className="w-[108px] flex-none leading-tight"><span className="block font-bold text-[14px]" style={{ color: gc.ink }}>{gc.opp}</span><span className="block text-[12px]" style={{ color: gc.sub, fontWeight: gc.w }}>{gc.when}</span></span>
-                <span className="hidden sm:inline w-[56px] flex-none text-right font-bold tabular-nums">{p ? (p.points == null ? '—' : p.points.toFixed(1)) : ''}</span>
-                <span className="w-[46px] flex-none text-right font-semibold tabular-nums text-ink-800">{p ? (p.gp ? (p.points! / p.gp).toFixed(1) : '—') : ''}</span>
+                {(() => { const pts = statSpan === 'week' ? p?.wkPoints ?? null : p?.points ?? null, gp = statSpan === 'week' ? p?.wkGp ?? 0 : p?.gp ?? 0; return <>
+                <span className="hidden sm:inline w-[56px] flex-none text-right font-bold tabular-nums">{p ? (pts == null ? '—' : pts.toFixed(1)) : ''}</span>
+                <span className="w-[46px] flex-none text-right font-semibold tabular-nums text-ink-800">{p ? (gp && pts != null ? (pts / gp).toFixed(1) : '—') : ''}</span></> })()}
                 <span className="w-[152px] flex-none ml-auto flex gap-[6px] justify-end">
                   {a.lock && <span className="ui inline-flex items-center justify-center leading-none h-[32px] px-[10px] rounded bg-ink-50 text-ink-500 text-[11px] font-bold">{a.lock}</span>}
                   {a.here && <button disabled={busy} onClick={a.here} className={`${btn} h-[32px] px-3 bg-black text-white`}>{a.hereLabel}</button>}
@@ -302,7 +312,7 @@ function AddDrop({ data, L, busy, setBusy, leagueId, reload, toast }: { data: Da
         {rows.map(p => (
           <div key={p.playerId} className="border-t border-ink-50">
             <div className="flex items-center gap-2.5 px-4 py-2">
-              <span className="flex-1 min-w-0 font-bold">{p.name}{p.injury && <> <span className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{INJ[p.injury] ?? p.injury.slice(0, 4).toUpperCase()}</span></>}<span className="block font-normal text-[13px] text-ink-500">{meta(data.code, p.team, p.pos)}</span></span>
+              <span className="flex-1 min-w-0 font-bold">{p.name}{p.injury && <> <span className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{injTag(p.injury)}</span></>}<span className="block font-normal text-[13px] text-ink-500">{meta(data.code, p.team, p.pos)}</span></span>
               <span className="hidden sm:inline w-10 text-right tabular-nums text-ink-500 font-semibold">{p.gp || '—'}</span>
               <span className="w-[58px] text-right tabular-nums font-bold">{p.points.toFixed(1)}</span>
               <span className="w-[50px] text-right tabular-nums font-semibold">{p.gp ? (p.points / p.gp).toFixed(1) : '—'}</span>
@@ -332,7 +342,7 @@ function AddDrop({ data, L, busy, setBusy, leagueId, reload, toast }: { data: Da
 }
 
 // ───────────────────────── Trade ─────────────────────────
-type Item = { id: string; kind: 'player' | 'pick'; sport: string; label: string }
+type Item = { id: string; kind: 'player' | 'pick' | 'faab'; sport: string; label: string; amount?: number }
 function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string; toast: (s: string) => void; onSent: () => void }) {
   const [partner, setPartner] = useState(data.clubs[0]?.id ?? '')
   const [assets, setAssets] = useState<Record<string, Item[]>>({})
@@ -358,20 +368,39 @@ function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string
     .map(i => { const on = list.some(x => x.id === i.id); return { i, on, toggle: () => set(on ? list.filter(x => x.id !== i.id) : [...list, i]) } })
   const LgSel = ({ cur, set }: { cur: string; set: (s: string) => void }) => (
     <div className="flex flex-wrap gap-1 px-4 pb-3">
-      {[...data.sports.map(s => s.sport), 'PICKS'].map(s => { const on = cur === s; const c = s === 'PICKS' ? '#000' : lg(s).color; return (
-        <button key={s} onClick={() => set(s)} className={`${btn} h-8 px-2.5 border text-[11px]`} style={{ borderColor: on ? c : '#C7C7C7', background: on ? c : '#fff', color: on ? '#fff' : '#000' }}><span className="ysf-case">{s === 'PICKS' ? 'PICKS' : codeOf(s)}</span></button>) })}
+      {[...data.sports.map(s => s.sport), 'PICKS', 'FAAB'].map(s => { const on = cur === s; const c = s === 'PICKS' || s === 'FAAB' ? '#000' : lg(s).color; return (
+        <button key={s} onClick={() => set(s)} className={`${btn} h-8 px-2.5 border text-[11px]`} style={{ borderColor: on ? c : '#C7C7C7', background: on ? c : '#fff', color: on ? '#fff' : '#000' }}><span className="ysf-case">{s === 'PICKS' || s === 'FAAB' ? s : codeOf(s)}</span></button>) })}
     </div>
   )
   const propose = async () => {
     if (!give.length || !get.length) return
     setBusy(true)
-    const items = [...give.map(i => ({ [i.kind === 'pick' ? 'pickId' : 'playerId']: i.id, direction: 'GIVING' })), ...get.map(i => ({ [i.kind === 'pick' ? 'pickId' : 'playerId']: i.id, direction: 'RECEIVING' }))]
+    const one = (i: Item, from: string, to: string) => i.kind === 'faab' ? { faabSport: i.sport, faabAmount: i.amount, fromTeamId: from, toTeamId: to } : { [i.kind === 'pick' ? 'pickId' : 'playerId']: i.id, fromTeamId: from, toTeamId: to }
+    const items = [...give.map(i => one(i, data.team.id, partner)), ...get.map(i => one(i, partner, data.team.id))]
     const r = await fetch('/api/trades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leagueId, recipientTeamId: partner, items }) })
     const j = await r.json().catch(() => ({}))
     setBusy(false)
     if (!r.ok) return toast(j.error || 'Trade could not be sent')
     toast(`Trade offer sent to ${club?.abbreviation}`); setGive([]); setGet([]); onSent()
   }
+  // FAAB can be traded (Art. IV §A): an amount from any league's budget
+  const FaabRows = ({ tid, list, set }: { tid: string; list: Item[]; set: (x: Item[]) => void }) => (
+    <div className="flex flex-col">
+      {data.sports.map(sp => {
+        const cur = list.find(x => x.kind === 'faab' && x.sport === sp.sport)
+        return (
+          <label key={sp.sport} className="grid grid-cols-[minmax(0,1fr)_110px] gap-2.5 items-center px-4 py-2 border-t border-ink-50">
+            <span className="font-bold"><span className="ysf-case">{sp.code}</span> FAAB</span>
+            <span className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-ink-500">$</span>
+              <input type="number" min={0} max={250} inputMode="numeric" defaultValue={cur?.amount ?? ''} key={`${tid}-${sp.sport}-${cur?.amount ?? 0}`}
+                onBlur={e => { const v = Math.max(0, Math.floor(+e.target.value || 0)); const rest = list.filter(x => !(x.kind === 'faab' && x.sport === sp.sport))
+                  set(v ? [...rest, { id: `faab-${tid}-${sp.sport}`, kind: 'faab', sport: sp.sport, amount: v, label: `$${v} ${sp.code} FAAB` }] : rest) }}
+                className="input w-full pl-6 text-right font-bold" placeholder="0" /></span>
+          </label>
+        )
+      })}
+    </div>
+  )
   const Panel = ({ tid, kick, name, logo, cc, l, setL, list, set }: any) => (
     <div className="card overflow-hidden" style={{ borderTop: `4px solid ${cc}` }}>
       <div className="flex items-center gap-2.5 px-4 py-3">
@@ -380,8 +409,9 @@ function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string
         <span className="ui ml-auto text-[12px] font-bold">{list.length} SELECTED</span>
       </div>
       <LgSel cur={l} set={setL} />
-      {!assets[tid] && <div className="px-4 py-3 text-ink-400">Loading…</div>}
-      {side(tid, l, list, set).map(({ i, on, toggle }) => (
+      {l === 'FAAB' && <FaabRows tid={tid} list={list} set={set} />}
+      {l !== 'FAAB' && !assets[tid] && <div className="px-4 py-3 text-ink-400">Loading…</div>}
+      {l !== 'FAAB' && side(tid, l, list, set).map(({ i, on, toggle }) => (
         <button key={i.id} onClick={toggle} className="grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 items-center w-full text-left px-4 py-2 border-t border-ink-50" style={{ background: on ? '#F2F2F2' : '#fff' }}>
           <span className="w-5 h-5 rounded-[3px] border-2 border-black inline-flex items-center justify-center text-[13px] leading-none" style={{ background: on ? '#000' : '#fff', color: '#fff' }}>{on ? '✓' : ''}</span>
           <span className="font-bold min-w-0">{i.label}</span>
@@ -405,7 +435,7 @@ function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
           {[[`${data.team.abbreviation} GIVES`, give], [`${club?.abbreviation ?? ''} GIVES`, get]].map(([k, list]: any) => (
             <div key={k}><div className="ui text-[11px] text-ink-500 mb-1.5">{k}</div>
-              {list.length ? list.map((i: Item) => <div key={i.id} className="flex items-center gap-2 py-1"><span className="ui inline-flex items-center justify-center leading-none h-[22px] px-1.5 rounded-[2px] text-white text-[11px] font-bold" style={{ background: i.sport === 'PICKS' ? '#000' : lg(i.sport).color }}><span className="ysf-case">{i.sport === 'PICKS' ? 'PICK' : codeOf(i.sport)}</span></span><span className="font-bold">{i.label}</span></div>)
+              {list.length ? list.map((i: Item) => <div key={i.id} className="flex items-center gap-2 py-1"><span className="ui inline-flex items-center justify-center leading-none h-[22px] px-1.5 rounded-[2px] text-white text-[11px] font-bold" style={{ background: i.sport === 'PICKS' || i.kind === 'faab' ? '#000' : lg(i.sport).color }}><span className="ysf-case">{i.sport === 'PICKS' ? 'PICK' : i.kind === 'faab' ? 'FAAB' : codeOf(i.sport)}</span></span><span className="font-bold">{i.label}</span></div>)
                 : <div className="text-ink-400 font-semibold">Nothing selected</div>}</div>
           ))}
         </div>
@@ -420,7 +450,7 @@ function Pending({ data, leagueId, reload, toast }: { data: Data; leagueId: stri
   const [trades, setTrades] = useState<any[] | null>(null)
   const loadT = useCallback(async () => {
     const r = await fetch('/api/trades'); const j = await r.json().catch(() => [])
-    setTrades((Array.isArray(j) ? j : []).filter((t: any) => t.leagueId === leagueId && t.status === 'PENDING'))
+    setTrades((Array.isArray(j) ? j : []).filter((t: any) => t.leagueId === leagueId && (t.status === 'PENDING' || t.status === 'REVIEW')))
   }, [leagueId])
   useEffect(() => { loadT() }, [loadT])
   const cancelClaim = async (id: string) => {
@@ -456,14 +486,14 @@ function Pending({ data, leagueId, reload, toast }: { data: Data; leagueId: stri
           const mineSent = t.initiatorTeam?.id === data.team.id
           const other = mineSent ? t.recipientTeam : t.initiatorTeam
           const side = (fromMe: boolean) => t.items.filter((it: any) => (it.fromTeamId === data.team.id) === fromMe)
-            .map((it: any) => it.player ? `${it.player.name} (${code(it.player.sport)})` : it.pick ? `${it.pick.year} ${code(it.pick.sport)} Round ${it.pick.round} pick` : '').join(', ')
+            .map((it: any) => it.player ? `${it.player.name} (${code(it.player.sport)})` : it.pick ? `${it.pick.year} ${code(it.pick.sport)} Round ${it.pick.round} pick` : it.faabAmount ? `$${it.faabAmount} ${code(it.faabSport)} FAAB` : '').join(', ')
           return (
             <div key={t.id} className="grid grid-cols-[40px_minmax(0,1fr)_auto] gap-3 items-center px-4 py-3 border-t border-ink-50" style={{ borderLeft: `4px solid ${other?.primaryColor ?? '#000'}` }}>
               <span className="w-8 h-8 inline-flex items-center justify-center">{other?.logo && <img src={other.logo} alt="" className="w-8 h-8 object-contain" />}</span>
-              <span className="min-w-0"><span className="ui text-[11px] text-ink-500">{mineSent ? `SENT TO ${other?.abbreviation} · AWAITING RESPONSE` : `FROM ${other?.abbreviation}`}</span>
+              <span className="min-w-0"><span className="ui text-[11px] text-ink-500">{t.status === 'REVIEW' ? `WITH ${other?.abbreviation} · IN REVIEW UNTIL ${new Date(t.reviewDeadline).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).toUpperCase()} ET` : mineSent ? `SENT TO ${other?.abbreviation} · AWAITING RESPONSE` : `FROM ${other?.abbreviation}`}</span>
                 <span className="block font-bold">You give: {side(true) || '—'}</span><span className="block font-bold">You get: {side(false) || '—'}</span></span>
               <span className="flex gap-1.5">
-                {mineSent ? <button onClick={() => act(t.id, 'CANCEL')} className={`${btn} h-8 px-3 border border-black bg-white text-black`}>WITHDRAW</button>
+                {t.status === 'REVIEW' ? null : mineSent ? <button onClick={() => act(t.id, 'CANCEL')} className={`${btn} h-8 px-3 border border-black bg-white text-black`}>WITHDRAW</button>
                   : <><button onClick={() => act(t.id, 'ACCEPT')} className={`${btn} h-8 px-3 bg-black text-white`}>ACCEPT</button><button onClick={() => act(t.id, 'REJECT')} className={`${btn} h-8 px-3 border border-black bg-white text-black`}>REJECT</button></>}
               </span>
             </div>

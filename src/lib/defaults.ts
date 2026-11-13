@@ -419,10 +419,11 @@ export function formatWeekRangeWithBreaks(season: string, week: number, breaks: 
 
 // ── Per-sport trade deadlines ────────────────────────────────────────────────
 
-export type TradeDeadlineMode = 'WEEK' | 'SPORT_PLAYOFFS' | 'SPORT_CHAMPIONSHIP' | 'FEDERATION_CHAMPIONSHIP' | 'NONE'
-export type TradeDeadline = { mode: TradeDeadlineMode; week?: number }
+export type TradeDeadlineMode = 'DATE' | 'WEEK' | 'SPORT_PLAYOFFS' | 'SPORT_CHAMPIONSHIP' | 'FEDERATION_CHAMPIONSHIP' | 'NONE'
+export type TradeDeadline = { mode: TradeDeadlineMode; week?: number; date?: string }
 
 export const TRADE_DEADLINE_MODES: { value: TradeDeadlineMode; label: string; help: string }[] = [
+  { value: 'DATE', label: 'Specific date and time', help: 'Trades lock at the date and time set (Eastern).' },
   { value: 'WEEK', label: 'Specific week', help: 'Trades lock after the chosen regular-season week.' },
   { value: 'SPORT_PLAYOFFS', label: "Sport's playoffs begin", help: "Trades lock once that sport's regular season ends." },
   { value: 'SPORT_CHAMPIONSHIP', label: "After sport's championship", help: 'Trades stay open through the entire postseason for that sport.' },

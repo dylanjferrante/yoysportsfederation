@@ -2,7 +2,7 @@
 // against the rule book in ysf-rules.ts, plus each league's no-trade window and trades under review.
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
-import { RULES, LEAGUE_OF, eligTokens, taxiCheck, hasDesignation, injuriesFresh, inSeason, claimWeek, etMidnightUtc, tradeWindow, taxiRemoved, type Window } from '@/lib/ysf-rules'
+import { RULES, LEAGUE_OF, eligTokens, taxiCheck, hasDesignation, injuriesFresh, inSeason, claimWeek, etMidnightUtc, tradeWindow, taxiRemoved, taxiSlots, irSlots, eligMax, weeklyClaims, rookieDraftAt, type Window } from '@/lib/ysf-rules'
 
 export type Finding = { sport: string; teamId: string; rule: string; source: string; detail: string }
 const MON: Record<string, number> = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 }
@@ -28,12 +28,12 @@ export async function auditLeague(season0?: string): Promise<{ findings: Finding
   for (const [k, list] of groups) {
     const [teamId, sport] = k.split('|')
     const label = (r: any) => playerLabel(sport, r.name, r.team, r.position, r.elig)
-    for (const [pos, max] of Object.entries(RULES.eligMax[sport] ?? {})) {
+    for (const [pos, max] of Object.entries(eligMax(sport))) {
       const n = list.filter(r => eligTokens(r.position, r.elig).has(pos)).length
       if (n > max) out.push({ sport, teamId, rule: `Max ${max} ${pos}-eligible`, source: 'Art. V', detail: `${n} rostered` })
     }
     const taxi = list.filter(r => r.slot === 'TAXI')
-    if (taxi.length > (RULES.taxi[sport] ?? 0)) out.push({ sport, teamId, rule: `Taxi Squad max ${RULES.taxi[sport]}`, source: 'Comm. Res. VII', detail: `${taxi.length} on the Taxi Squad` })
+    if (taxi.length > taxiSlots(sport)) out.push({ sport, teamId, rule: `Taxi Squad max ${taxiSlots(sport)}`, source: 'Comm. Res. VII', detail: `${taxi.length} on the Taxi Squad` })
     for (const r of taxi) {
       const c = taxiCheck(sport, r.exp); if (!c.ok) out.push({ sport, teamId, rule: 'Taxi Squad eligibility', source: 'Comm. Res. VII', detail: `${label(r)}: ${c.why}` })
       if (taxiRemoved(teamId, r.name, r.pid, sport, season)) out.push({ sport, teamId, rule: 'Placed back on the Taxi Squad', source: 'Comm. Res. VII', detail: `${label(r)} was taken off the Taxi Squad earlier this season` })
@@ -42,7 +42,7 @@ export async function auditLeague(season0?: string): Promise<{ findings: Finding
       if (first?.p != null && first.p > 1) out.push({ sport, teamId, rule: 'Placed on the Taxi Squad after the lock', source: 'Comm. Res. VII', detail: `${label(r)} went on the Taxi Squad ${first.d ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(first.d + 'T12:00:00Z')) : `in week ${first.p}`}` })
     }
     const ir = list.filter(r => ['IR', 'IL', 'DL'].includes(r.slot))
-    if (ir.length > (RULES.ir[sport] ?? 0)) out.push({ sport, teamId, rule: `IR max ${RULES.ir[sport]}`, source: 'Art. V', detail: `${ir.length} on IR` })
+    if (ir.length > irSlots(sport)) out.push({ sport, teamId, rule: `IR max ${irSlots(sport)}`, source: 'Art. V', detail: `${ir.length} on IR` })
     if (fresh && season_[sport]) for (const r of ir) if (!hasDesignation(r.status)) out.push({ sport, teamId, rule: 'IR needs a designation', source: 'Art. V fn. 5', detail: `${label(r)} is no longer injured` })
     const activeMax = Object.entries(cfg[sport] ?? {}).reduce((a, [s, n]) => a + (['IR', 'IL', 'DL', 'TAXI'].includes(s) ? 0 : n), 0)
     const active = list.filter(r => !['IR', 'IL', 'DL', 'TAXI'].includes(r.slot)).length
@@ -56,16 +56,16 @@ export async function auditLeague(season0?: string): Promise<{ findings: Finding
     const m = /(\w{3}) (\d+), (\d{4}), (\d+):(\d+)(AM|PM)/.exec(c.date ?? ''); if (!m) continue
     const day = etMidnightUtc(+m[3], MON[m[1]], +m[2])
     const at = new Date(day.getTime() + (((+m[4] % 12) + (m[6] === 'PM' ? 12 : 0)) * 60 + +m[5]) * 60_000)
-    if (at < new Date(RULES.rookieDraft[c.sport])) continue
+    if (at < (rookieDraftAt(c.sport) ?? new Date(0))) continue
     const wk = claimWeek(at).start.toISOString()
     weeks.set(`${c.sport}|${c.t}|${wk}`, (weeks.get(`${c.sport}|${c.t}|${wk}`) ?? 0) + 1)
   }
   for (const [k, n] of weeks) {
     const [sport, teamId, wk] = k.split('|')
-    if (n <= RULES.weeklyClaims[sport]) continue
+    if (!weeklyClaims(sport) || n <= weeklyClaims(sport)) continue
     const d = new Date(wk), e = new Date(d.getTime() + 6 * 86_400_000)
     const f = (x: Date, y = false) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', ...(y ? { year: 'numeric' } : {}) }).format(x)
-    out.push({ sport, teamId, rule: `Max ${RULES.weeklyClaims[sport]} claims per week`, source: 'Fed. Res. III', detail: `${n} claims, ${f(d)}–${f(e, true)}` })
+    out.push({ sport, teamId, rule: `Max ${weeklyClaims(sport)} claims per week`, source: 'Fed. Res. III', detail: `${n} claims, ${f(d)}–${f(e, true)}` })
   }
 
   const windows: Window[] = []

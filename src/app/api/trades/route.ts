@@ -10,7 +10,7 @@ import { logActivity, notify } from '@/lib/activity'
 import { safeParse } from '@/lib/utils'
 import { resolveTradeDeadlineWeek } from '@/lib/defaults'
 import { teamRecords } from '@/db/schema'
-import { isYsf, lockedSports, LEAGUE_OF } from '@/lib/ysf-rules'
+import { isYsf, lockedSports, LEAGUE_OF, rookieDraftAt } from '@/lib/ysf-rules'
 import { settleTrades } from '@/lib/trades'
 
 const tradeItemSchema = z.object({
@@ -115,6 +115,15 @@ export async function POST(req: Request) {
       // Art. IV §B(2): a league's no-trade window locks its players, picks and FAAB, even in interleague deals
       const locked = await lockedSports(dealSports)
       if (locked.length) return NextResponse.json({ error: `${locked.map(s => LEAGUE_OF[s]).join(', ')} ${locked.length > 1 ? 'are' : 'is'} in the no-trade window — its players, picks and FAAB are locked until its championship ends (Art. IV §B)` }, { status: 400 })
+      // draft picks: only the next Tradeable Future Pick Years drafts per league (League Settings; Fantrax: 1)
+      if (dealPickIds.length) {
+        const yrs = league?.tradeablePickYears ?? 1
+        for (const pk of await db.select({ year: draftPicks.year, sport: draftPicks.sport }).from(draftPicks).where(inArray(draftPicks.id, dealPickIds))) {
+          if (!pk.sport) continue
+          const d = rookieDraftAt(pk.sport), next = d ? (d > new Date() ? d.getUTCFullYear() : d.getUTCFullYear() + 1) : new Date().getUTCFullYear()
+          if (pk.year > next + yrs - 1) return NextResponse.json({ error: `Only ${yrs === 1 ? `the ${next}` : `the next ${yrs}`} ${LEAGUE_OF[pk.sport]} Rookie Draft${yrs === 1 ? '' : 's'}’ picks can be traded` }, { status: 400 })
+        }
+      }
       // FAAB can only be traded from what a club has left
       const owed: Record<string, number> = {}
       for (const it of faabItems) owed[`${it.fromTeamId}|${it.faabSport}`] = (owed[`${it.fromTeamId}|${it.faabSport}`] ?? 0) + it.faabAmount!

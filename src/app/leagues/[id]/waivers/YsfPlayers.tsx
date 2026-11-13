@@ -10,6 +10,7 @@ import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 import { loadClubs } from '@/lib/ysf-data'
 import { PageTitle, th, td } from '@/components/ysf/ui'
 import ClaimButton from './ClaimButton'
+import { settleYsfWaivers, nextNflRun, lastNflRun } from '@/lib/waivers'
 
 const PER = 60
 type Row = { id: string; name: string; position: string; elig: string | null; team: string | null; status: string | null; injury: string | null; owner: string | null; slot: string | null; clears: string | null; gp: number | null; pts: number | null }
@@ -25,14 +26,22 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
   const sort = ['pts', 'ppg', 'gp', 'name'].includes(sp.sort ?? '') ? sp.sort! : 'pts'
   const page = Math.max(1, Number(sp.p) || 1)
 
+  await settleYsfWaivers(league)
   const rows = db.all<Row>(sql`
     SELECT p.id, p.name, p.position, p.eligible_positions elig, p.real_team_abbr team, p.status, p.injury_note injury,
       (SELECT r.team_id FROM rosters r JOIN teams t ON t.id = r.team_id WHERE r.player_id = p.id AND t.league_id = ${league.id} LIMIT 1) owner,
       (SELECT r.slot FROM rosters r JOIN teams t ON t.id = r.team_id WHERE r.player_id = p.id AND t.league_id = ${league.id} LIMIT 1) slot,
-      (SELECT w.clears_at FROM waiver_wire w WHERE w.player_id = p.id AND w.league_id = ${league.id} AND w.clears_at > datetime('now') LIMIT 1) clears,
+      (SELECT w.clears_at FROM waiver_wire w WHERE w.player_id = p.id AND w.league_id = ${league.id} LIMIT 1) clears,
       s.gp, s.points pts
     FROM players p LEFT JOIN player_season_stats s ON s.player_id = p.id AND s.league_id = ${league.id} AND s.season = ${league.season}
     WHERE p.sport = ${L.sport}`)
+  // ySFFL: free agents whose game this week has started are on waivers until Wednesday's run
+  if (L.sport === 'NFL') {
+    const since = Math.floor(lastNflRun().getTime() / 1000), until = Math.floor(Date.now() / 1000) + 300
+    const locked = new Set(db.all<{ t: string }>(sql`SELECT home_abbr t FROM game_schedule WHERE sport = 'NFL' AND game_time_epoch BETWEEN ${since} AND ${until} UNION SELECT away_abbr FROM game_schedule WHERE sport = 'NFL' AND game_time_epoch BETWEEN ${since} AND ${until}`).map(r => r.t))
+    const wed = nextNflRun(new Date(), 0).toISOString()
+    for (const r of rows) if (!r.owner && !r.clears && r.team && locked.has(r.team)) r.clears = wed
+  }
   const posOf = (r: Row) => { try { const e = JSON.parse(r.elig ?? '[]') as string[]; return e.length ? e : [r.position] } catch { return [r.position] } }
   let list = rows.filter(r => (avail === 'all' || (avail === 'fa' ? !r.owner : !!r.owner)) && (!pos || posOf(r).includes(pos)) && (!q || r.name.toLowerCase().includes(q.toLowerCase())))
   const ppg = (r: Row) => (r.gp ? (r.pts ?? 0) / r.gp : 0)
