@@ -31,6 +31,8 @@ const pct = (x: number) => x >= 0.995 ? 'all but certain' : x < 0.005 ? 'under 1
 const ord = (n: number) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')
 const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
 const say = (n: number) => words[n] ?? String(n)
+// "an 88%", "an 11%", "a 51%"
+const an = (t: string) => (/^(8|11[^0-9]|18[^0-9])/.test(t) ? 'an ' : 'a ') + t
 // pick a phrasing that changes from day to day but stays the same for a given story on a given day
 const pick = <T,>(seed: string, xs: T[]) => xs[[...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % xs.length]
 const player = (p: { sport: string; name: string; team: string | null; pos: string }) => `${p.name} (${code(p.sport)}-${p.team || 'FA'}, ${p.pos.replace(/,/g, '/').replace(/\bDEF\b/g, 'D/ST')})`
@@ -53,6 +55,13 @@ function extremes(d: Desk, sport: string) {
   const hi = all.reduce((a, b) => b.s > a.s ? b : a), lo = all.reduce((a, b) => b.s < a.s ? b : a)
   const avg = all.reduce((a, b) => a + b.s, 0) / all.length
   return { hi, lo, avg }
+}
+
+function winChance(d: Desk, l: { sport: string; matchupId: string }, clubId: string): number | null {
+  const wp = d.model?.leagues[l.sport]?.matchups[l.matchupId]
+  if (!wp) return null
+  const home = (l as any).home ?? db.all<{ h: string }>(sql`SELECT home_team_id h FROM matchups WHERE id = ${l.matchupId}`)[0]?.h
+  return home === clubId ? wp.homeWin : 1 - wp.homeWin
 }
 
 function scoreOf(d: Desk, clubId: string, sport: string) {
@@ -87,9 +96,9 @@ function dailyWrap(d: Desk): Story | null {
   const tight = [...lines].sort((a, b) => a.rel - b.rel)[0]
   if (tight) {
     const [hi, lo] = (tight.l.a ?? 0) >= (tight.l.b ?? 0) ? [tight.p.a, tight.p.b] : [tight.p.b, tight.p.a]
-    const wp = d.model?.leagues[tight.l.sport]?.matchups[tight.l.matchupId]
+    const ch = winChance(d, tight.l, hi)
     body.push(`The closest race of the week is in ${code(tight.l.sport)}, where ${C[hi]?.name} leads ${C[lo]?.name} by ${n1(tight.gap)} (${n1(Math.max(tight.l.a ?? 0, tight.l.b ?? 0))}–${n1(Math.min(tight.l.a ?? 0, tight.l.b ?? 0))}).` +
-      (wp ? ` The ySF model makes it ${pct(tight.p.a === hi ? wp.homeWin : 1 - wp.homeWin)} for ${C[hi]?.abbreviation} to hold on.` : ''))
+      (ch != null ? ` The ySF model makes it ${pct(ch)} for ${C[hi]?.abbreviation} to hold on.` : ''))
   }
   // a season high for the headliner?
   const prevBest = d.best.get(`${t.sport}|${t.name}`)
@@ -165,12 +174,11 @@ function notebook(d: Desk, sp: string): Story | null {
   for (const { p, l } of live.slice(0, 6)) {
     const [hi, lo, hs, ls] = (l.a ?? 0) >= (l.b ?? 0) ? [p.a, p.b, l.a ?? 0, l.b ?? 0] : [p.b, p.a, l.b ?? 0, l.a ?? 0]
     const rh = rowOf(d, sp, hi), rl = rowOf(d, sp, lo)
-    const wp = d.model?.leagues[sp]?.matchups[l.matchupId]
-    const pHi = wp ? (p.a === hi ? wp.homeWin : 1 - wp.homeWin) : null
+    const pHi = winChance(d, l, hi)
     const verb = l.status === 'FINAL' ? (hs - ls < (hs + ls) * 0.03 ? 'held off' : 'beat') : hs === ls ? 'is level with' : hs - ls < (hs + ls) * 0.03 ? 'is narrowly ahead of' : 'leads'
     const stakes = rh && rl && Math.abs(rh.rk - rl.rk) <= 2 && Math.min(rh.rk, rl.rk) <= 6 ? ` — a meeting of the ${ord(Math.min(rh.rk, rl.rk))}- and ${ord(Math.max(rh.rk, rl.rk))}-place clubs` : ''
     body.push(`${C[hi]?.name}${rh ? ` (${rh.rec})` : ''} ${verb} ${C[lo]?.name}${rl ? ` (${rl.rec})` : ''}, ${n1(hs)}–${n1(ls)}${stakes}.` +
-      (pHi != null && l.status !== 'FINAL' ? ` The model gives ${C[hi]?.abbreviation} a ${pct(pHi)} chance to finish it off.` : '') +
+      (pHi != null && l.status !== 'FINAL' ? ` The model gives ${C[hi]?.abbreviation} ${an(pct(pHi))} chance to finish it off.` : '') +
       (() => { const st = streakText(streak(d, hi, sp)); return st ? ` ${C[hi]?.abbreviation} ${st}.` : '' })())
   }
   // the season's marks
@@ -332,7 +340,7 @@ export async function buildDesk(league: any, day: string, live = false): Promise
       if (!final && !hs && !as) continue
       const [x, y] = [m.h, m.a!].sort(), key = x + '|' + y
       const p = pairs.get(key) ?? { a: x, b: y, lines: [], summary: '' }
-      p.lines.push({ sport: L.sport, label: `${L.sport === 'NFL' ? 'Week' : 'Period'} ${m.week - start + 1}`, status: final ? 'FINAL' : 'LIVE', a: m.h === x ? hs : as, b: m.h === x ? as : hs, matchupId: m.id })
+      p.lines.push({ sport: L.sport, label: `${L.sport === 'NFL' ? 'Week' : 'Period'} ${m.week - start + 1}`, status: final ? 'FINAL' : 'LIVE', a: m.h === x ? hs : as, b: m.h === x ? as : hs, matchupId: m.id, home: m.h } as any)
       pairs.set(key, p)
     }
   }
