@@ -220,3 +220,16 @@ export async function writeBackIssues(days = 14, now = new Date()): Promise<numb
   }
   return n
 }
+
+// the front page's top stories: today's daily wrap first, then the newest real stories (no
+// transaction briefs), one per section where possible — five at most
+export function topStories(all: Article[]) {
+  const real = all.filter(a => !['move', 'report'].includes(a.kind))
+  const day0 = real[0]?.published.slice(0, 10)
+  const out: Article[] = []
+  const daily = real.find(a => a.kind === 'daily' && a.published.slice(0, 10) === day0)
+  if (daily) out.push(daily)
+  for (const a of real) { if (out.length >= 5) break; if (!out.includes(a) && a.kind !== 'daily' && !out.some(o => o.sport === a.sport)) out.push(a) }
+  for (const a of real) { if (out.length >= 5) break; if (!out.includes(a) && a.kind !== 'daily') out.push(a) }
+  return out
+}

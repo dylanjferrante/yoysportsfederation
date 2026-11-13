@@ -13,7 +13,7 @@ function Tile({ b, idx, pinned }: { b: TickerBlock; idx?: number; pinned?: boole
   return (
     <span data-lg={pinned ? undefined : idx} className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 min-h-[40px] sm:min-h-[56px] whitespace-nowrap font-display text-[11px] sm:text-[13px] font-bold tracking-[.06em]" style={{ background: b.bg, color: b.fg }}>
       {b.logo && <span className="w-[22px] h-[22px] sm:w-[30px] sm:h-[30px] inline-flex items-center justify-center flex-none"><img src={b.logo} alt="" className="w-[20px] h-[20px] sm:w-[26px] sm:h-[26px] object-contain" /></span>}
-      <span className="ysf-case">{b.name}</span>
+      <span className={pinned && b.logo ? 'ysf-case hidden sm:inline' : 'ysf-case'}>{b.name}</span>
     </span>
   )
 }
@@ -104,7 +104,7 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
           <div className="hidden sm:flex px-4 items-center flex-none border-r border-[#333]"><img src={YSF_ART.primaryOnBlack} alt="yoy Sports Federation" className="h-[34px] w-auto" /></div>
           <div className="flex-1 min-w-0 overflow-hidden flex items-center relative">
             <span ref={lpin} className="absolute left-0 top-0 bottom-0 z-[3] inline-flex"><Tile b={pinnedBlock} pinned /></span>
-            <span ref={gpin} className="absolute top-0 bottom-0 z-[2] inline-flex" style={{ visibility: pinnedGroup ? 'visible' : 'hidden' }}>{pinnedGroup && <Tag label={pinnedGroup.label} bd={pinnedGroup.bd} />}</span>
+            <span ref={gpin} className="absolute top-0 bottom-0 z-[2] hidden sm:inline-flex" style={{ visibility: pinnedGroup ? 'visible' : 'hidden' }}>{pinnedGroup && <Tag label={pinnedGroup.label} bd={pinnedGroup.bd} />}</span>
             <div ref={track} className="ysf-marq flex items-center w-max whitespace-nowrap" style={{ animationDuration: `${dur}s` }}>
               <Fragment>{run(0)}</Fragment><Fragment>{run(1)}</Fragment>
             </div>

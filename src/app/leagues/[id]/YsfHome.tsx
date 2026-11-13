@@ -4,23 +4,9 @@ import { loadStandings, type ClubInfo } from '@/lib/ysf-data'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import HomeStandings from './HomeStandings'
 import { writeStories, ord, pct } from '@/lib/ysf-stories'
-import { listNews, type Article } from '@/lib/ysf-news'
+import { listNews, topStories } from '@/lib/ysf-news'
 import { kicker, by, SECTIONS } from './news/YsfNews'
 import NewsCarousel, { type Slide } from './NewsCarousel'
-
-// the front page's top stories: today's daily wrap first, then the newest real stories (no
-// transaction briefs), one per section where possible — five at most
-function topStories(all: Article[]) {
-  const real = all.filter(a => !['move', 'report'].includes(a.kind))
-  const day0 = real[0]?.published.slice(0, 10)
-  const out: Article[] = []
-  const daily = real.find(a => a.kind === 'daily' && a.published.slice(0, 10) === day0)
-  if (daily) out.push(daily)
-  for (const a of real) { if (out.length >= 5) break; if (!out.includes(a) && a.kind !== 'daily' && !out.some(o => o.sport === a.sport)) out.push(a) }
-  for (const a of real) { if (out.length >= 5) break; if (!out.includes(a) && a.kind !== 'daily') out.push(a) }
-  return out
-}
-
 
 export default async function YsfHome({ league }: { league: any }) {
   const s = await loadStandings(league)
