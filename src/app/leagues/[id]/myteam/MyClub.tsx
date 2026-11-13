@@ -43,7 +43,9 @@ export default function MyClub({ leagueId }: { leagueId: string }) {
   const [data, setData] = useState<Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [tab, setTab] = useState<'lineup' | 'players' | 'trade' | 'pending'>('lineup')
+  // ?tab=trade / pending / players opens that tab (links from the Trades and Players pages)
+  const initialTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+  const [tab, setTab] = useState<'lineup' | 'players' | 'trade' | 'pending'>((['players', 'trade', 'pending'] as const).find(t => t === initialTab) ?? 'lineup')
   const [sel, setSel] = useState<string | null>(null)
   const [dropAsk, setDropAsk] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
