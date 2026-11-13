@@ -129,7 +129,7 @@ _Done when:_ golden tests cover each league's scoring rules, a D/ST tier edge, a
 
 ### W4 · Shadow scoring against Fantrax (proof before cutover)
 
-1. **Lineup capture job:** fetch Fantrax rosters for all 48 club-league rosters every 15 minutes on game days. Store the slot each player had **at his game's lock time** in `lineup_days`. This is the only way to know past lineups, because Fantrax won't return them.
+1. **Lineup capture job:** fetch Fantrax rosters for all 48 club-league rosters every 15 minutes on game days. Store the slot each player had **at his game's lock time** in `lineup_days`. Fantrax's API won't return past lineups, so from now on we record them ourselves.
 2. **Backfill from Fantrax downloads** (the owner exports what the public API won't give):
    - **Transaction history** per league, including lineup changes if the export has them. This rebuilds every roster and slot change with timestamps.
    - **Per-period matchup or roster pages with each player's fantasy points.** These give the exact starters per day and Fantrax's own per-player points.
