@@ -217,13 +217,17 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
   const titles = trophies.length
   return (
     <>
-      <nav aria-label="Clubs" className="flex flex-wrap gap-1.5">
+      {/* club picker: every crest in one evenly spaced row (two rows of six on phones); the club
+          being viewed is outlined in its colour, the rest are quiet until hovered */}
+      <nav aria-label="Clubs" className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 sm:gap-2">
         {s.cup.map(r => r.teamId).sort((a, b) => C[a].name.localeCompare(C[b].name)).map(id => {
           const c = C[id], on = id === teamId
           return (
-            <Link key={id} href={`/leagues/${league.id}/teams/${id}`} className="inline-flex items-center gap-2 h-10 pl-2 pr-3 rounded border-2 font-display text-[13px] font-bold tracking-[.06em] leading-none"
-              style={{ borderColor: c.color ?? '#000', background: on ? c.color ?? '#000' : '#fff', color: on ? '#fff' : '#000' }}>
-              <span className="w-6 h-6 inline-flex items-center justify-center"><img src={(on ? c.altLogo || c.logo : c.logo)!} alt="" className="w-6 h-6 object-contain" /></span>{c.abbreviation}
+            <Link key={id} href={`/leagues/${league.id}/teams/${id}`} title={c.name} aria-label={c.name} aria-current={on ? 'page' : undefined}
+              className={`flex flex-col items-center justify-center gap-1 py-2 rounded-lg border-2 transition ${on ? '' : 'border-transparent opacity-60 grayscale-[35%] hover:opacity-100 hover:grayscale-0 hover:bg-ink-50'}`}
+              style={on ? { borderColor: c.color ?? '#000', background: '#fff' } : undefined}>
+              <span className="w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center"><img src={c.logo!} alt="" className="w-full h-full object-contain" /></span>
+              <span className="font-display text-[10px] sm:text-[11px] font-bold tracking-[.06em] leading-none" style={{ color: on ? c.color ?? '#000' : '#4A4A4A' }}>{c.abbreviation}</span>
             </Link>
           )
         })}
@@ -232,7 +236,7 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
       <section className="rounded p-5 sm:p-7 text-white flex flex-wrap items-center gap-5 sm:gap-6" style={{ background: club.color ?? '#000' }}>
         <span className="w-24 h-24 sm:w-36 sm:h-36 inline-flex items-center justify-center flex-none"><img src={(club.altLogo || club.logo)!} alt={`${club.name} crest`} className="w-full h-full object-contain" /></span>
         <div className="min-w-0 flex-1 basis-[260px]">
-          <div className="ui text-[12px] sm:text-[13px] tracking-[.16em] opacity-90">{U(`${ownerRow?.owner ?? ''} · ${club.abbreviation} · est. 2025–26`)}</div>
+          <div className="ui text-[12px] sm:text-[13px] tracking-[.16em] opacity-90">{U(`${ownerRow?.owner ?? ''} · ${club.abbreviation} · `)}<span className="whitespace-nowrap">{U('est. 2025–26')}</span></div>
           <h1 className="disp text-[34px] sm:text-[48px] lg:text-[72px] font-extrabold leading-[.85] mt-1 break-words">{U(club.name)}</h1>
           <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 mt-4">
             {[['CUP RANK', ord(cupRow.rk)], ['CUP PTS', cupRow.pts], ['RECORD', cupRow.rec], ['CUP %', pct(cupRow.cupPct)], ['TITLES', titles]].map(([k, v]) => (
