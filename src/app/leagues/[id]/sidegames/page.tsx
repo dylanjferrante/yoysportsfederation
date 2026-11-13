@@ -61,44 +61,44 @@ export default function SideGames() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Side Games</h1>
-        <p className="text-sm text-slate-500">High-score pool · survivor · weekly pick&apos;em</p>
+        <h1 className="disp text-[40px] sm:text-[64px] font-extrabold leading-[.85] uppercase">Side Games</h1>
+        <p className="text-sm text-ink-500">High-score pool · survivor · weekly pick&apos;em</p>
       </div>
 
       <div className="flex gap-1.5 flex-wrap mb-3">
-        {SPORTS.map(s => <button key={s} onClick={() => setSport(s)} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${sport === s ? `${sportMeta(s).bg} text-white` : 'bg-slate-100 text-slate-600'}`}>{sportMeta(s).emoji} {s}</button>)}
+        {SPORTS.map(s => <button key={s} onClick={() => setSport(s)} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${sport === s ? `${sportMeta(s).bg} text-white` : 'bg-ink-50 text-ink-600'}`}>{sportMeta(s).emoji} {s}</button>)}
       </div>
       {d?.isCommissioner && (
         <div className="flex flex-wrap items-center gap-2 mb-3 text-xs">
-          <span className="text-slate-400 font-medium">Commissioner — enabled games:</span>
+          <span className="text-ink-400 font-medium">Commissioner — enabled games:</span>
           {([['highScore', 'High-Score Pool'], ['survivor', 'Survivor'], ['pickem', "Pick'em"]] as const).map(([k, lbl]) => (
-            <button key={k} onClick={() => toggleGame(k, !cfg[k])} className={`px-2 py-1 rounded-full font-medium ${cfg[k] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400 line-through'}`}>
+            <button key={k} onClick={() => toggleGame(k, !cfg[k])} className={`px-2 py-1 rounded-full font-medium ${cfg[k] ? 'bg-emerald-100 text-[#177245]' : 'bg-ink-50 text-ink-400 line-through'}`}>
               {cfg[k] ? '✓ ' : ''}{lbl}
             </button>
           ))}
         </div>
       )}
-      <div className="flex gap-1 border-b border-slate-200 mb-5">
+      <div className="flex gap-1 border-b border-ink-100 mb-5">
         {gameOn.HIGH && <button onClick={() => setGame('HIGH')} className={game === 'HIGH' ? 'tab-active' : 'tab-inactive'}>High-Score Pool</button>}
         {gameOn.SURVIVOR && <button onClick={() => setGame('SURVIVOR')} className={game === 'SURVIVOR' ? 'tab-active' : 'tab-inactive'}>Survivor</button>}
         {gameOn.PICKEM && <button onClick={() => setGame('PICKEM')} className={game === 'PICKEM' ? 'tab-active' : 'tab-inactive'}>Pick&apos;em</button>}
-        {!gameOn.HIGH && !gameOn.SURVIVOR && !gameOn.PICKEM && <span className="py-2 text-sm text-slate-400">No side games are enabled.</span>}
+        {!gameOn.HIGH && !gameOn.SURVIVOR && !gameOn.PICKEM && <span className="py-2 text-sm text-ink-400">No side games are enabled.</span>}
       </div>
 
-      {!d ? <div className="card p-10 text-center text-slate-400 text-sm">Loading…</div> : (
+      {!d ? <div className="card p-10 text-center text-ink-400 text-sm">Loading…</div> : (
         <>
           {gameOn.HIGH && game === 'HIGH' && (
             <div className="card overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100">
-                <h2 className="font-semibold text-slate-900">High-Score Pool</h2>
-                <p className="text-xs text-slate-400">Each week, the club with the single highest score earns a point. Auto-scored.</p>
+              <div className="px-4 py-3 border-b border-ink-50">
+                <h2 className="font-semibold text-black">High-Score Pool</h2>
+                <p className="text-xs text-ink-400">Each week, the club with the single highest score earns a point. Auto-scored.</p>
               </div>
-              {d.standings.highScore.length === 0 ? <p className="px-4 py-8 text-center text-slate-400 text-sm">No completed weeks yet.</p> : (
-                <ol className="divide-y divide-slate-50">
+              {d.standings.highScore.length === 0 ? <p className="px-4 py-8 text-center text-ink-400 text-sm">No completed weeks yet.</p> : (
+                <ol className="divide-y divide-ink-50">
                   {d.standings.highScore.map((r, i) => (
                     <li key={r.teamId} className="flex items-center gap-3 px-4 py-2 text-sm">
-                      <span className="text-slate-300 tabular-nums w-5">{i + 1}</span>
-                      <Link href={`/leagues/${id}/teams/${r.teamId}`} className="font-medium text-slate-800 hover:text-blue-600 flex-1">{r.team}</Link>
+                      <span className="text-ink-200 tabular-nums w-5">{i + 1}</span>
+                      <Link href={`/leagues/${id}/teams/${r.teamId}`} className="font-medium text-black hover:text-black flex-1">{r.team}</Link>
                       <span className="font-bold tabular-nums" style={{ color: meta.hex }}>{r.weeks} {r.weeks === 1 ? 'week' : 'weeks'}</span>
                     </li>
                   ))}
@@ -110,17 +110,17 @@ export default function SideGames() {
           {gameOn.SURVIVOR && game === 'SURVIVOR' && (
             <div className="space-y-5">
               <div className="card overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <h2 className="font-semibold text-slate-900">Survivor standings</h2>
-                  <p className="text-xs text-slate-400">Pick one winner each week — a club can only be used once. One loss and you&apos;re out.</p>
+                <div className="px-4 py-3 border-b border-ink-50">
+                  <h2 className="font-semibold text-black">Survivor standings</h2>
+                  <p className="text-xs text-ink-400">Pick one winner each week — a club can only be used once. One loss and you&apos;re out.</p>
                 </div>
-                {d.standings.survivor.length === 0 ? <p className="px-4 py-8 text-center text-slate-400 text-sm">No picks yet.</p> : (
-                  <ul className="divide-y divide-slate-50">
+                {d.standings.survivor.length === 0 ? <p className="px-4 py-8 text-center text-ink-400 text-sm">No picks yet.</p> : (
+                  <ul className="divide-y divide-ink-50">
                     {d.standings.survivor.map(s => (
                       <li key={s.userId} className="px-4 py-2 text-sm flex items-center gap-3">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.alive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>{s.alive ? 'ALIVE' : `OUT W${s.outWeek}`}</span>
-                        <span className="font-medium text-slate-800 flex-1">{s.name}</span>
-                        <span className="text-xs text-slate-400">{s.survived} survived</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.alive ? 'bg-emerald-100 text-[#177245]' : 'bg-red-100 text-red-600'}`}>{s.alive ? 'ALIVE' : `OUT W${s.outWeek}`}</span>
+                        <span className="font-medium text-black flex-1">{s.name}</span>
+                        <span className="text-xs text-ink-400">{s.survived} survived</span>
                       </li>
                     ))}
                   </ul>
@@ -133,17 +133,17 @@ export default function SideGames() {
           {gameOn.PICKEM && game === 'PICKEM' && (
             <div className="space-y-5">
               <div className="card overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <h2 className="font-semibold text-slate-900">Pick&apos;em standings</h2>
-                  <p className="text-xs text-slate-400">Pick the winner of every matchup. Most correct wins.</p>
+                <div className="px-4 py-3 border-b border-ink-50">
+                  <h2 className="font-semibold text-black">Pick&apos;em standings</h2>
+                  <p className="text-xs text-ink-400">Pick the winner of every matchup. Most correct wins.</p>
                 </div>
-                {d.standings.pickem.length === 0 ? <p className="px-4 py-8 text-center text-slate-400 text-sm">No picks yet.</p> : (
-                  <ul className="divide-y divide-slate-50">
+                {d.standings.pickem.length === 0 ? <p className="px-4 py-8 text-center text-ink-400 text-sm">No picks yet.</p> : (
+                  <ul className="divide-y divide-ink-50">
                     {d.standings.pickem.map((p, i) => (
                       <li key={p.userId} className="px-4 py-2 text-sm flex items-center gap-3">
-                        <span className="text-slate-300 tabular-nums w-5">{i + 1}</span>
-                        <span className="font-medium text-slate-800 flex-1">{p.name}</span>
-                        <span className="font-bold tabular-nums text-slate-900">{p.correct}<span className="text-slate-400 font-normal">/{p.decided}</span></span>
+                        <span className="text-ink-200 tabular-nums w-5">{i + 1}</span>
+                        <span className="font-medium text-black flex-1">{p.name}</span>
+                        <span className="font-bold tabular-nums text-black">{p.correct}<span className="text-ink-400 font-normal">/{p.decided}</span></span>
                       </li>
                     ))}
                   </ul>
@@ -165,20 +165,20 @@ function PickBoard({ d, game, pickFor, submit, accent }: {
   accent: string
 }) {
   const open = d.board.filter(w => w.games.some(g => !g.complete))
-  if (open.length === 0) return <div className="card p-6 text-center text-slate-400 text-sm">No upcoming matchups to pick.</div>
+  if (open.length === 0) return <div className="card p-6 text-center text-ink-400 text-sm">No upcoming matchups to pick.</div>
   return (
     <div className="card overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 font-semibold text-slate-900">Make your picks</div>
-      <div className="divide-y divide-slate-100">
+      <div className="px-4 py-3 border-b border-ink-50 font-semibold text-black">Make your picks</div>
+      <div className="divide-y divide-ink-50">
         {open.map(w => (
           <div key={w.week} className="p-4">
-            <p className="text-xs font-bold uppercase text-slate-400 mb-2">Week {w.week}</p>
+            <p className="text-xs font-bold uppercase text-ink-400 mb-2">Week {w.week}</p>
             <div className="space-y-2">
               {w.games.filter(g => !g.complete).map(g => {
                 const picked = pickFor(game, g.id)
                 const Btn = ({ teamId, name }: { teamId: string; name: string }) => (
                   <button onClick={() => submit(game, w.week, g.id, teamId)}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition ${picked === teamId ? 'text-white border-transparent' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition ${picked === teamId ? 'text-white border-transparent' : 'bg-white border-ink-100 text-ink-800 hover:border-ink-200'}`}
                     style={picked === teamId ? { background: accent } : undefined}>
                     {picked === teamId ? '✓ ' : ''}{name}
                   </button>
@@ -186,7 +186,7 @@ function PickBoard({ d, game, pickFor, submit, accent }: {
                 return (
                   <div key={g.id} className="flex items-center gap-2">
                     <Btn teamId={g.home} name={g.homeName} />
-                    <span className="text-[10px] text-slate-300">vs</span>
+                    <span className="text-[10px] text-ink-200">vs</span>
                     <Btn teamId={g.away} name={g.awayName} />
                   </div>
                 )

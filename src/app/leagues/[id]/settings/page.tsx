@@ -145,9 +145,9 @@ function SettingsInner() {
     fetch(`/api/leagues/${params.id}/dynasty`).then(r => r.json()).then(d => setDynasty(d.draft ?? null))
   }, [params.id])
 
-  if (!league) return <div className="flex items-center justify-center min-h-64 text-slate-400">Loading…</div>
+  if (!league) return <div className="flex items-center justify-center min-h-64 text-ink-400">Loading…</div>
   if (session?.user?.id !== league.commissionerId)
-    return <div className="max-w-2xl mx-auto px-4 py-16 text-center text-slate-500">Only the commissioner can access settings.</div>
+    return <div className="max-w-2xl mx-auto px-4 py-16 text-center text-ink-500">Only the commissioner can access settings.</div>
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
 
@@ -271,10 +271,10 @@ function SettingsInner() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-8">
-        <Link href={`/leagues/${params.id}`} className="btn-ghost text-slate-500">← Back</Link>
+        <Link href={`/leagues/${params.id}`} className="btn-ghost text-ink-500">← Back</Link>
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Commissioner Settings</h1>
-          <p className="text-sm text-slate-500">{league.name}</p>
+          <h1 className="disp text-[40px] sm:text-[64px] font-extrabold leading-[.85] uppercase">Commissioner Settings</h1>
+          <p className="text-sm text-ink-500">{league.name}</p>
         </div>
         <div className="ml-auto flex items-center gap-3">
           {saved && <span className="text-green-600 text-sm font-medium">✓ Saved</span>}
@@ -285,12 +285,12 @@ function SettingsInner() {
       {setupMode && (() => {
         const idx = Math.max(SETUP_STEPS.indexOf(tab), 0)
         return (
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 mb-6">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 mb-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-semibold text-blue-900">Setting up your federation — step {idx + 1} of {SETUP_STEPS.length}: {SETUP_STEPS[idx]}</p>
               <Link href={`/leagues/${params.id}`} className="text-xs text-blue-700 underline">Skip for now</Link>
             </div>
-            <div className="h-1.5 rounded-full bg-blue-100 overflow-hidden">
+            <div className="h-1.5 rounded bg-blue-100 overflow-hidden">
               <div className="h-full bg-blue-500 transition-all" style={{ width: `${((idx + 1) / SETUP_STEPS.length) * 100}%` }} />
             </div>
             <p className="text-xs text-blue-700 mt-2">Review each section and save as you go. Everything here can be changed later.</p>
@@ -298,7 +298,7 @@ function SettingsInner() {
         )
       })()}
 
-      <div className="flex gap-0 border-b border-slate-200 mb-6 overflow-x-auto">
+      <div className="flex gap-0 border-b border-ink-100 mb-6 overflow-x-auto">
         {TABS.map(t => <button key={t} onClick={() => setTab(t)} className={tab === t ? 'tab-active' : 'tab-inactive'}>{t}</button>)}
       </div>
 
@@ -306,7 +306,7 @@ function SettingsInner() {
         {/* General */}
         {tab === 'General' && (
           <>
-            <h3 className="font-semibold text-slate-900">General</h3>
+            <h3 className="font-semibold text-black">General</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="label">League Name</label><input className="input" value={form.name ?? ''} onChange={e => set('name', e.target.value)} /></div>
               <div><label className="label">League Abbreviation</label><input className="input" maxLength={5} placeholder="NXS" value={form.abbreviation ?? ''} onChange={e => set('abbreviation', e.target.value)} /></div>
@@ -336,34 +336,34 @@ function SettingsInner() {
                 <div className="flex items-center gap-3">
                   <input className="input flex-1" placeholder="https://…/logo.png" value={form.logoUrl ?? ''} onChange={e => set('logoUrl', e.target.value)} />
                   {form.logoUrl
-                    ? <img src={form.logoUrl} alt="" className="w-12 h-12 object-contain bg-slate-100 flex-shrink-0" />
-                    : <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0"></div>}
+                    ? <img src={form.logoUrl} alt="" className="w-12 h-12 object-contain bg-ink-50 flex-shrink-0" />
+                    : <div className="w-12 h-12 rounded-lg bg-ink-50 flex items-center justify-center text-xl flex-shrink-0"></div>}
                 </div>
               </div>
               <div>
                 <label className="label">Secondary Logo (icon, optional)</label>
                 <div className="flex items-center gap-3">
                   <input className="input flex-1" placeholder="https://…/icon.png" value={form.logoSecondary ?? ''} onChange={e => set('logoSecondary', e.target.value)} />
-                  {form.logoSecondary && <img src={form.logoSecondary} alt="" className="w-12 h-12 object-contain bg-slate-100 flex-shrink-0" />}
+                  {form.logoSecondary && <img src={form.logoSecondary} alt="" className="w-12 h-12 object-contain bg-ink-50 flex-shrink-0" />}
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">Compact mark used in the ticker, nav and standings; falls back to the primary logo.</p>
+                <p className="text-[11px] text-ink-400 mt-1">Compact mark used in the ticker, nav and standings; falls back to the primary logo.</p>
               </div>
               <div>
                 <label className="label">Wordmark (optional)</label>
                 <div className="flex items-center gap-3">
                   <input className="input flex-1" placeholder="https://…/wordmark.png" value={form.wordmark ?? ''} onChange={e => set('wordmark', e.target.value)} />
-                  {form.wordmark && form.wordmark.startsWith('http') && <img src={form.wordmark} alt="" className="h-10 object-contain bg-slate-100 flex-shrink-0 px-1" />}
+                  {form.wordmark && form.wordmark.startsWith('http') && <img src={form.wordmark} alt="" className="h-10 object-contain bg-ink-50 flex-shrink-0 px-1" />}
                 </div>
               </div>
               <div className="flex gap-4 items-end sm:col-span-2">
-                <div><label className="label">League Primary</label><input type="color" className="h-10 w-16 rounded border border-slate-200" value={form.primaryColor ?? '#0f172a'} onChange={e => set('primaryColor', e.target.value)} /></div>
-                <div><label className="label">League Secondary</label><input type="color" className="h-10 w-16 rounded border border-slate-200" value={form.secondaryColor ?? '#3b82f6'} onChange={e => set('secondaryColor', e.target.value)} /></div>
+                <div><label className="label">League Primary</label><input type="color" className="h-10 w-16 rounded border border-ink-100" value={form.primaryColor ?? '#0f172a'} onChange={e => set('primaryColor', e.target.value)} /></div>
+                <div><label className="label">League Secondary</label><input type="color" className="h-10 w-16 rounded border border-ink-100" value={form.secondaryColor ?? '#3b82f6'} onChange={e => set('secondaryColor', e.target.value)} /></div>
                 <div className="flex-1 h-10 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${form.primaryColor ?? '#0f172a'}, ${form.secondaryColor ?? '#3b82f6'})` }}>Brand preview</div>
               </div>
               <div className="sm:col-span-2"><label className="label">Description</label><textarea className="input h-20 resize-none" value={form.description ?? ''} onChange={e => set('description', e.target.value)} /></div>
             </div>
             <div className="pt-2">
-              <h4 className="font-semibold text-slate-900 mb-2 text-sm">Dues Tracker</h4>
+              <h4 className="font-semibold text-black mb-2 text-sm">Dues Tracker</h4>
               <DuesPanel leagueId={params.id as string} isCommissioner />
             </div>
             <ImportHistoryPanel leagueId={params.id as string} onImported={reloadFranchises} />
@@ -377,12 +377,12 @@ function SettingsInner() {
         {/* Franchises */}
         {tab === 'Clubs' && (
           <>
-            <h3 className="font-semibold text-slate-900">Clubs</h3>
-            <p className="text-sm text-slate-500">Edit any club&apos;s identity, branding, and owner. Changes save per club.</p>
+            <h3 className="font-semibold text-black">Clubs</h3>
+            <p className="text-sm text-ink-500">Edit any club&apos;s identity, branding, and owner. Changes save per club.</p>
             {teamError && <p className="text-sm text-red-600">{teamError}</p>}
 
             {/* Divisions */}
-            <div className="rounded-xl border border-slate-200 p-3">
+            <div className="rounded-lg border border-ink-100 p-3">
               <div className="flex items-center gap-3">
                 <label className="label mb-0">Divisions</label>
                 <select className="select w-40" value={form.divisions ?? 0} onChange={e => set('divisions', +e.target.value)}>
@@ -399,12 +399,12 @@ function SettingsInner() {
                   </span>
                 })()}
               </div>
-              <p className="text-xs text-slate-500 mt-1">Assign each club to a division below. Divisions must have an equal number of clubs before settings can be saved.</p>
+              <p className="text-xs text-ink-500 mt-1">Assign each club to a division below. Divisions must have an equal number of clubs before settings can be saved.</p>
               {(form.divisions ?? 0) > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
                   {Array.from({ length: form.divisions }, (_, i) => i + 1).map(d => (
                     <div key={d} className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500 w-12">Div {d}</span>
+                      <span className="text-xs text-ink-500 w-12">Div {d}</span>
                       <input className="input text-sm" placeholder={`Division ${d} name`} value={divisionNames[d] ?? ''} onChange={e => setDivisionNames(prev => ({ ...prev, [d]: e.target.value }))} />
                     </div>
                   ))}
@@ -413,15 +413,15 @@ function SettingsInner() {
             </div>
             <div className="space-y-4">
               {franchises.map(f => (
-                <div key={f.id} className="rounded-xl border border-slate-200 p-4">
+                <div key={f.id} className="rounded-lg border border-ink-100 p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-11 h-11 flex items-center justify-center text-lg font-bold flex-shrink-0 overflow-hidden"
                       style={{ background: f.primaryColor, color: f.secondaryColor }}>
                       {f.logo ? <img src={f.logo} alt="" className="w-full h-full object-contain" /> : (f.abbreviation || f.name || '?').slice(0, 4).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-slate-900 truncate">{f.name || 'Unnamed club'}</p>
-                      <p className="text-xs text-slate-400 truncate">{f.ownerName} · {f.ownerEmail}</p>
+                      <p className="font-semibold text-black truncate">{f.name || 'Unnamed club'}</p>
+                      <p className="text-xs text-ink-400 truncate">{f.ownerName} · {f.ownerEmail}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -436,13 +436,13 @@ function SettingsInner() {
                     <div className="flex gap-3">
                       <div>
                         <label className="label">Primary</label>
-                        <input type="color" className="h-10 w-14 rounded border border-slate-200 bg-white p-0.5" value={f.primaryColor} onChange={e => setFranchise(f.id, { primaryColor: e.target.value })} />
+                        <input type="color" className="h-10 w-14 rounded border border-ink-100 bg-white p-0.5" value={f.primaryColor} onChange={e => setFranchise(f.id, { primaryColor: e.target.value })} />
                       </div>
                       <div>
                         <label className="label">Secondary</label>
-                        <input type="color" className="h-10 w-14 rounded border border-slate-200 bg-white p-0.5" value={f.secondaryColor} onChange={e => setFranchise(f.id, { secondaryColor: e.target.value })} />
+                        <input type="color" className="h-10 w-14 rounded border border-ink-100 bg-white p-0.5" value={f.secondaryColor} onChange={e => setFranchise(f.id, { secondaryColor: e.target.value })} />
                       </div>
-                      <label className="flex items-center gap-2 text-xs text-slate-600 self-end pb-2"><input type="checkbox" checked={!!f.logoBg} onChange={e => setFranchise(f.id, { logoBg: e.target.checked })} /> Logo on primary bg</label>
+                      <label className="flex items-center gap-2 text-xs text-ink-600 self-end pb-2"><input type="checkbox" checked={!!f.logoBg} onChange={e => setFranchise(f.id, { logoBg: e.target.checked })} /> Logo on primary bg</label>
                     </div>
                     <div><label className="label">Owner Name</label><input className="input" value={f.ownerName} onChange={e => setFranchise(f.id, { ownerName: e.target.value })} /></div>
                     <div><label className="label">Owner Email</label><input className="input" type="email" value={f.ownerEmail} onChange={e => setFranchise(f.id, { ownerEmail: e.target.value })} /></div>
@@ -465,7 +465,7 @@ function SettingsInner() {
                           </select>
                         ))}
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1">Rival matchups get a rivalry storyline in the wire — great for leagues without divisions.</p>
+                      <p className="text-[11px] text-ink-400 mt-1">Rival matchups get a rivalry storyline in the wire — great for leagues without divisions.</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-3 mt-3">
@@ -490,8 +490,8 @@ function SettingsInner() {
                     return (
                     <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
                       {reusing
-                        ? <p className="text-xs text-slate-600"><strong>{f.name}</strong> is finishing {already.length ? `${already.length} sport${already.length > 1 ? 's' : ''} already handed off` : ''}. Pick the remaining sports to hand to its replacement now — {f.name} keeps the rest until those seasons finish.</p>
-                        : <p className="text-xs text-slate-600">Archive <strong>{f.name}</strong> (its records and past seasons are kept) and create a replacement club. Choose which sports transfer now — {f.name} stays in the standings for any sport it still needs to finish.</p>}
+                        ? <p className="text-xs text-ink-600"><strong>{f.name}</strong> is finishing {already.length ? `${already.length} sport${already.length > 1 ? 's' : ''} already handed off` : ''}. Pick the remaining sports to hand to its replacement now — {f.name} keeps the rest until those seasons finish.</p>
+                        : <p className="text-xs text-ink-600">Archive <strong>{f.name}</strong> (its records and past seasons are kept) and create a replacement club. Choose which sports transfer now — {f.name} stays in the standings for any sport it still needs to finish.</p>}
                       {!reusing && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <input className="input text-sm" autoComplete="off" placeholder="New club name" value={replaceForm.name} onChange={e => setReplaceForm(v => ({ ...v, name: e.target.value }))} />
@@ -501,13 +501,13 @@ function SettingsInner() {
                         </div>
                       )}
                       <div>
-                        <p className="text-xs font-medium text-slate-700 mb-1">Transfer these sports&apos; roster, picks &amp; FAAB now</p>
+                        <p className="text-xs font-medium text-ink-800 mb-1">Transfer these sports&apos; roster, picks &amp; FAAB now</p>
                         <div className="flex flex-wrap gap-2">
                           {remaining.map(s => {
                             const on = replaceForm.transferSports.includes(s)
-                            return <button key={s} type="button" onClick={() => toggleSp(s)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${on ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>{on ? '✓ ' : ''}{s}</button>
+                            return <button key={s} type="button" onClick={() => toggleSp(s)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${on ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-white border-ink-100 text-ink-500 hover:border-ink-200'}`}>{on ? '✓ ' : ''}{s}</button>
                           })}
-                          {remaining.length === 0 && <span className="text-xs text-slate-400">All sports already handed off.</span>}
+                          {remaining.length === 0 && <span className="text-xs text-ink-400">All sports already handed off.</span>}
                         </div>
                         {remaining.length > 0 && <button type="button" onClick={() => setReplaceForm(v => ({ ...v, transferSports: v.transferSports.length === remaining.length ? [] : [...remaining] }))} className="text-[11px] text-amber-700 underline mt-1">{replaceForm.transferSports.length === remaining.length ? 'Clear all' : 'Select all (full handoff)'}</button>}
                       </div>
@@ -521,13 +521,13 @@ function SettingsInner() {
                   })()}
                 </div>
               ))}
-              {franchises.length === 0 && <p className="text-slate-400 text-sm py-6 text-center">No clubs yet.</p>}
+              {franchises.length === 0 && <p className="text-ink-400 text-sm py-6 text-center">No clubs yet.</p>}
             </div>
 
             {/* Add franchise */}
-            <div className="rounded-xl border border-dashed border-slate-300 p-4">
-              <p className="font-semibold text-slate-900 text-sm mb-1">Add a club</p>
-              <p className="text-xs text-slate-500 mb-3">Creates the club and its owner. {franchises.length}/{form.maxTeams ?? 12} clubs used.</p>
+            <div className="rounded-lg border border-dashed border-ink-200 p-4">
+              <p className="font-semibold text-black text-sm mb-1">Add a club</p>
+              <p className="text-xs text-ink-500 mb-3">Creates the club and its owner. {franchises.length}/{form.maxTeams ?? 12} clubs used.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label className="label">Club Name</label><input className="input" value={newFr.name} onChange={e => setNewFr(v => ({ ...v, name: e.target.value }))} placeholder="New Dynasty" /></div>
                 <div><label className="label">Abbreviation</label><input className="input" maxLength={4} value={newFr.abbreviation} onChange={e => setNewFr(v => ({ ...v, abbreviation: e.target.value }))} placeholder="ND" /></div>
@@ -545,15 +545,15 @@ function SettingsInner() {
         {/* Sports & Schedule */}
         {tab === 'Sports & Schedule' && (
           <>
-            <h3 className="font-semibold text-slate-900">Sports & Schedule</h3>
+            <h3 className="font-semibold text-black">Sports & Schedule</h3>
             <div>
               <label className="label">Active Sports</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {ALL_SPORTS.map(s => (
                   <button key={s} onClick={() => toggleSport(s)}
-                    className={`p-3 rounded-xl border-2 text-center ${sportsEnabled.includes(s) ? 'border-blue-500 bg-blue-50' : 'border-slate-200 opacity-60'}`}>
+                    className={`p-3 rounded-lg border-2 text-center ${sportsEnabled.includes(s) ? 'border-blue-500 bg-blue-50' : 'border-ink-100 opacity-60'}`}>
                     <div className="text-2xl">{sportMeta(s).emoji}</div>
-                    <div className="text-xs font-semibold text-slate-700">{s}</div>
+                    <div className="text-xs font-semibold text-ink-800">{s}</div>
                   </button>
                 ))}
               </div>
@@ -569,7 +569,7 @@ function SettingsInner() {
                   <select className="select" value={opts.some(o => o.key === form.seasonStart) ? form.seasonStart : opts[0].key} onChange={e => set('seasonStart', e.target.value)}>
                     {opts.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                   </select>
-                  <p className="text-xs text-slate-400 mt-1">Sets the default order sports run; only anchors for your enabled sports are shown. Fine-tune each sport&apos;s start week below.</p>
+                  <p className="text-xs text-ink-400 mt-1">Sets the default order sports run; only anchors for your enabled sports are shown. Fine-tune each sport&apos;s start week below.</p>
                 </div>
               )
             })()}
@@ -577,7 +577,7 @@ function SettingsInner() {
             {/* Editable weekly schedule */}
             <div>
               <label className="label">Weekly Schedule</label>
-              <p className="text-xs text-slate-500 mb-2">Set when each sport&apos;s regular season starts and how many weeks it runs. Dates are based on the season&apos;s calendar. Playoffs begin the week after each sport&apos;s regular season ends.</p>
+              <p className="text-xs text-ink-500 mb-2">Set when each sport&apos;s regular season starts and how many weeks it runs. Dates are based on the season&apos;s calendar. Playoffs begin the week after each sport&apos;s regular season ends.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const startWk = startWeeksObj[s] || (buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj).find(e => e.sport === s)?.startWeek ?? 1)
@@ -585,25 +585,25 @@ function SettingsInner() {
                   const endWk = startWk + len - 1
                   const meta = sportMeta(s)
                   return (
-                    <div key={s} className="rounded-lg border border-slate-200 p-3">
+                    <div key={s} className="rounded-lg border border-ink-100 p-3">
                       <div className="flex flex-wrap items-end gap-3">
                         <span className={`inline-flex items-center gap-1.5 font-semibold w-20 ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
-                        <label className="text-xs text-slate-500">Start week
+                        <label className="text-xs text-ink-500">Start week
                           <select className="select w-24 py-1.5 mt-0.5" value={startWk}
                             onChange={e => setStartWeeksObj(d => ({ ...d, [s]: +e.target.value }))}>
                             {Array.from({ length: 40 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
                           </select>
                         </label>
-                        <label className="text-xs text-slate-500"># Weeks
+                        <label className="text-xs text-ink-500"># Weeks
                           <select className="select w-24 py-1.5 mt-0.5" value={len}
                             onChange={e => setSeasonWeeksObj(d => ({ ...d, [s]: +e.target.value }))}>
                             {Array.from({ length: 27 }, (_, i) => i + 4).map(n => <option key={n} value={n}>{n}</option>)}
                           </select>
                         </label>
                       </div>
-                      <div className="mt-2 text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span>Reg. season: <strong className="text-slate-700">Week {startWk}</strong> ({formatWeekRange(form.season, startWk, { seasonStart: form.seasonStart })}) → <strong className="text-slate-700">Week {endWk}</strong> ({formatWeekRange(form.season, endWk, { year: true, seasonStart: form.seasonStart })})</span>
-                        <span className="text-slate-400">Playoffs begin Week {endWk + 1} ({formatWeekRange(form.season, endWk + 1, { seasonStart: form.seasonStart })})</span>
+                      <div className="mt-2 text-[11px] text-ink-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span>Reg. season: <strong className="text-ink-800">Week {startWk}</strong> ({formatWeekRange(form.season, startWk, { seasonStart: form.seasonStart })}) → <strong className="text-ink-800">Week {endWk}</strong> ({formatWeekRange(form.season, endWk, { year: true, seasonStart: form.seasonStart })})</span>
+                        <span className="text-ink-400">Playoffs begin Week {endWk + 1} ({formatWeekRange(form.season, endWk + 1, { seasonStart: form.seasonStart })})</span>
                       </div>
                     </div>
                   )
@@ -613,7 +613,7 @@ function SettingsInner() {
 
             <div>
               <label className="label">Break Weeks (per sport, optional)</label>
-              <p className="text-xs text-slate-500 mb-2">All-star break / Winter Olympics. These are <strong>not empty byes</strong> — that week&apos;s matchup spans the break (a longer 2-week window) and later weeks shift out. Pick the weeks below.</p>
+              <p className="text-xs text-ink-500 mb-2">All-star break / Winter Olympics. These are <strong>not empty byes</strong> — that week&apos;s matchup spans the break (a longer 2-week window) and later weeks shift out. Pick the weeks below.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const wks = (breakWeeks[s] ?? [])
@@ -625,17 +625,17 @@ function SettingsInner() {
                     return { ...d, [s]: cur.includes(w) ? cur.filter(x => x !== w) : [...cur, w].sort((a, b) => a - b) }
                   })
                   return (
-                    <details key={s} className="rounded-lg border border-slate-200">
+                    <details key={s} className="rounded-lg border border-ink-100">
                       <summary className="flex items-center gap-3 px-3 py-2 cursor-pointer select-none">
                         <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
-                        <span className="text-sm text-slate-500">{wks.length ? `${wks.length} break week${wks.length > 1 ? 's' : ''}: ${wks.map(w => `Wk ${w}`).join(', ')}` : 'No breaks — choose weeks'}</span>
+                        <span className="text-sm text-ink-500">{wks.length ? `${wks.length} break week${wks.length > 1 ? 's' : ''}: ${wks.map(w => `Wk ${w}`).join(', ')}` : 'No breaks — choose weeks'}</span>
                       </summary>
-                      <div className="max-h-56 overflow-y-auto border-t border-slate-100 divide-y divide-slate-50">
+                      <div className="max-h-56 overflow-y-auto border-t border-ink-50 divide-y divide-ink-50">
                         {weekNums.map(w => (
-                          <label key={w} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-slate-50">
+                          <label key={w} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-ink-50">
                             <input type="checkbox" checked={wks.includes(w)} onChange={() => toggleWk(w)} className="w-4 h-4" />
-                            <span className="w-16 font-medium text-slate-700">Week {w}</span>
-                            <span className="text-slate-400">{formatWeekRange(form.season, w, { seasonStart: form.seasonStart })}</span>
+                            <span className="w-16 font-medium text-ink-800">Week {w}</span>
+                            <span className="text-ink-400">{formatWeekRange(form.season, w, { seasonStart: form.seasonStart })}</span>
                           </label>
                         ))}
                       </div>
@@ -647,16 +647,16 @@ function SettingsInner() {
 
             <div>
               <label className="label">Division Logos (per sport, optional)</label>
-              <p className="text-xs text-slate-500 mb-2">When a logo is set it replaces the sport emoji across the league. Check the box to sit it on the sport&apos;s primary color.</p>
+              <p className="text-xs text-ink-500 mb-2">When a logo is set it replaces the sport emoji across the league. Check the box to sit it on the sport&apos;s primary color.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const primary = champColors[s]?.p ?? '#0f172a'
                   return (
-                    <div key={s} className="space-y-1.5 border-b border-slate-50 pb-2 last:border-0">
+                    <div key={s} className="space-y-1.5 border-b border-ink-50 pb-2 last:border-0">
                       <div className="flex items-center gap-2">
                         <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
                         <input className="input flex-1 text-sm" placeholder="Primary logo URL" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
-                        <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap cursor-pointer">
+                        <label className="flex items-center gap-1 text-xs text-ink-500 whitespace-nowrap cursor-pointer">
                           <input type="checkbox" checked={!!divisionLogoBg[s]} onChange={e => setDivisionLogoBg(d => ({ ...d, [s]: e.target.checked }))} />
                           Primary bg
                         </label>
@@ -665,7 +665,7 @@ function SettingsInner() {
                       <div className="flex items-center gap-2 pl-14">
                         <input className="input flex-1 text-sm" placeholder="Secondary / icon logo URL" value={divisionLogosAlt[s] ?? ''} onChange={e => setDivisionLogosAlt(d => ({ ...d, [s]: e.target.value }))} />
                         <input className="input flex-1 text-sm" placeholder="Wordmark URL" value={divisionWordmarks[s] ?? ''} onChange={e => setDivisionWordmarks(d => ({ ...d, [s]: e.target.value }))} />
-                        {divisionLogosAlt[s] && <img src={divisionLogosAlt[s]} alt="" className="w-8 h-8 object-contain bg-slate-100" />}
+                        {divisionLogosAlt[s] && <img src={divisionLogosAlt[s]} alt="" className="w-8 h-8 object-contain bg-ink-50" />}
                       </div>
                     </div>
                   )
@@ -674,15 +674,15 @@ function SettingsInner() {
             </div>
 
             {/* Custom sport names + championship naming (premium) */}
-            <div className="border-t border-slate-100 pt-4">
+            <div className="border-t border-ink-50 pt-4">
               <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-slate-900 text-sm">Sport &amp; Championship Naming</h4>
+                <h4 className="font-semibold text-black text-sm">Sport &amp; Championship Naming</h4>
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Premium</span>
               </div>
-              <p className="text-xs text-slate-500 mb-2">Rename each sport and its championship, and add a trophy/championship image.</p>
+              <p className="text-xs text-ink-500 mb-2">Rename each sport and its championship, and add a trophy/championship image.</p>
               <div className="space-y-3">
                 {orderedEnabled.map(s => (
-                  <div key={s} className="rounded-lg border border-slate-200 p-2.5">
+                  <div key={s} className="rounded-lg border border-ink-100 p-2.5">
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-xs font-bold ${sportMeta(s).color}`}>{sportMeta(s).emoji} {s}</span>
                     </div>
@@ -692,9 +692,9 @@ function SettingsInner() {
                       <input className="input text-sm" placeholder="Championship name" value={champNames[s] ?? ''} onChange={e => setChampNames(d => ({ ...d, [s]: e.target.value }))} />
                       <div className="flex items-center gap-2">
                         <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos[s] ?? ''} onChange={e => setChampLogos(d => ({ ...d, [s]: e.target.value }))} />
-                        {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 object-contain bg-slate-100" />}
-                        <input type="color" title="Championship primary color" className="h-9 w-9 rounded border border-slate-200" value={champColors[s]?.p ?? '#b45309'} onChange={e => setChampColors(d => ({ ...d, [s]: { ...d[s], p: e.target.value } }))} />
-                        <input type="color" title="Championship secondary color" className="h-9 w-9 rounded border border-slate-200" value={champColors[s]?.s ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, [s]: { ...d[s], s: e.target.value } }))} />
+                        {champLogos[s] && <img src={champLogos[s]} alt="" className="w-7 h-7 object-contain bg-ink-50" />}
+                        <input type="color" title="Championship primary color" className="h-9 w-9 rounded border border-ink-100" value={champColors[s]?.p ?? '#b45309'} onChange={e => setChampColors(d => ({ ...d, [s]: { ...d[s], p: e.target.value } }))} />
+                        <input type="color" title="Championship secondary color" className="h-9 w-9 rounded border border-ink-100" value={champColors[s]?.s ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, [s]: { ...d[s], s: e.target.value } }))} />
                       </div>
                     </div>
                   </div>
@@ -706,9 +706,9 @@ function SettingsInner() {
                     <input className="input text-sm" placeholder={`Championship name (e.g. ${form.name ?? 'Nexus'} Cup)`} value={champNames['FED'] ?? ''} onChange={e => setChampNames(d => ({ ...d, FED: e.target.value }))} />
                     <div className="flex items-center gap-2">
                       <input className="input text-sm flex-1" placeholder="Trophy image URL" value={champLogos['FED'] ?? ''} onChange={e => setChampLogos(d => ({ ...d, FED: e.target.value }))} />
-                      {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-7 h-7 object-contain bg-slate-100" />}
-                      <input type="color" title="Federation championship primary color" className="h-9 w-9 rounded border border-slate-200" value={champColors['FED']?.p ?? '#b45309'} onChange={e => setChampColors(d => ({ ...d, FED: { ...d.FED, p: e.target.value } }))} />
-                      <input type="color" title="Federation championship secondary color" className="h-9 w-9 rounded border border-slate-200" value={champColors['FED']?.s ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, FED: { ...d.FED, s: e.target.value } }))} />
+                      {champLogos['FED'] && <img src={champLogos['FED']} alt="" className="w-7 h-7 object-contain bg-ink-50" />}
+                      <input type="color" title="Federation championship primary color" className="h-9 w-9 rounded border border-ink-100" value={champColors['FED']?.p ?? '#b45309'} onChange={e => setChampColors(d => ({ ...d, FED: { ...d.FED, p: e.target.value } }))} />
+                      <input type="color" title="Federation championship secondary color" className="h-9 w-9 rounded border border-ink-100" value={champColors['FED']?.s ?? '#f59e0b'} onChange={e => setChampColors(d => ({ ...d, FED: { ...d.FED, s: e.target.value } }))} />
                     </div>
                   </div>
                 </div>
@@ -720,9 +720,9 @@ function SettingsInner() {
         {/* Roster */}
         {tab === 'Roster' && (
           <>
-            <div className="rounded-xl border border-slate-200 p-3 max-w-md">
-              <p className="text-sm font-semibold text-slate-800">Taxi Squad Eligibility</p>
-              <p className="text-xs text-slate-500 mb-2">Who may occupy a taxi-squad slot (applies to every sport).</p>
+            <div className="rounded-lg border border-ink-100 p-3 max-w-md">
+              <p className="text-sm font-semibold text-black">Taxi Squad Eligibility</p>
+              <p className="text-xs text-ink-500 mb-2">Who may occupy a taxi-squad slot (applies to every sport).</p>
               <select className="select" value={form.taxiEligibility ?? 'ALL'} onChange={e => set('taxiEligibility', e.target.value)}>
                 <option value="ALL">Any player</option>
                 <option value="ROOKIES">Rookies only</option>
@@ -733,9 +733,9 @@ function SettingsInner() {
 
             {/* NFL defense mode: team defense (DST) vs individual defenders (IDP) */}
             {subSport === 'NFL' && (
-              <div className="rounded-xl border border-slate-200 p-3">
-                <p className="text-sm font-semibold text-slate-800">NFL Defense Format</p>
-                <p className="text-xs text-slate-500 mb-2">Choose team defense (one DST per lineup) or IDP (individual defenders with their own slots & scoring). Switching updates the NFL roster slots and scoring.</p>
+              <div className="rounded-lg border border-ink-100 p-3">
+                <p className="text-sm font-semibold text-black">NFL Defense Format</p>
+                <p className="text-xs text-ink-500 mb-2">Choose team defense (one DST per lineup) or IDP (individual defenders with their own slots & scoring). Switching updates the NFL roster slots and scoring.</p>
                 <div className="flex gap-2">
                   {([['TEAM', 'Team Defense (DST)'], ['IDP', 'Individual Defenders (IDP)']] as const).map(([mode, label]) => {
                     const active = (form.defenseMode ?? 'TEAM') === mode
@@ -746,7 +746,7 @@ function SettingsInner() {
                           setRosterObj(r => ({ ...r, NFL: nflRosterFor(mode) }))
                           setScoringObj(s => ({ ...s, NFL: nflScoringFor(mode) }))
                         }}
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border ${active ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border ${active ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-ink-100 text-ink-500 hover:border-ink-200'}`}>
                         {active ? '✓ ' : ''}{label}
                       </button>
                     )
@@ -756,14 +756,14 @@ function SettingsInner() {
             )}
 
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900">{subSport} Roster Positions</h3>
+              <h3 className="font-semibold text-black">{subSport} Roster Positions</h3>
               <button onClick={() => setRosterObj(r => ({ ...r, [subSport]: { ...(subSport === 'NFL' ? nflRosterFor(form.defenseMode ?? 'TEAM') : DEFAULT_ROSTER[subSport]) } }))} className="btn-ghost text-xs">Reset to default</button>
             </div>
-            <p className="text-xs text-slate-500">Set how many <strong>start</strong> at each position. <strong>Max starters</strong> and <strong>max rostered</strong> are optional caps (leave blank for no limit).</p>
+            <p className="text-xs text-ink-500">Set how many <strong>start</strong> at each position. <strong>Max starters</strong> and <strong>max rostered</strong> are optional caps (leave blank for no limit).</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-ink-400 border-b border-ink-50">
                     <th className="py-1.5 pr-2">Position</th>
                     <th className="py-1.5 px-2 w-24">Starters</th>
                     <th className="py-1.5 px-2 w-28">Max Starters</th>
@@ -776,8 +776,8 @@ function SettingsInner() {
                     const lim = posLimits[subSport]?.[pos] ?? {}
                     const setLim = (patch: any) => setPosLimits(p => ({ ...p, [subSport]: { ...(p[subSport] ?? {}), [pos]: { ...lim, ...patch } } }))
                     return (
-                      <tr key={pos} className="border-b border-slate-50">
-                        <td className="py-1.5 pr-2 font-medium text-slate-700">{pos}</td>
+                      <tr key={pos} className="border-b border-ink-50">
+                        <td className="py-1.5 pr-2 font-medium text-ink-800">{pos}</td>
                         <td className="py-1.5 px-2"><input type="number" min={0} max={30} value={count} onChange={e => setRosterObj(r => ({ ...r, [subSport]: { ...r[subSport], [pos]: +e.target.value } }))} className="input w-20 py-1" /></td>
                         <td className="py-1.5 px-2"><input type="number" min={0} max={30} placeholder="—" value={lim.maxStarters ?? ''} onChange={e => setLim({ maxStarters: e.target.value === '' ? undefined : +e.target.value })} className="input w-24 py-1" /></td>
                         <td className="py-1.5 px-2"><input type="number" min={0} max={40} placeholder="—" value={lim.maxRostered ?? ''} onChange={e => setLim({ maxRostered: e.target.value === '' ? undefined : +e.target.value })} className="input w-24 py-1" /></td>
@@ -801,17 +801,17 @@ function SettingsInner() {
 
             {/* MLB weekly starting-pitcher cap */}
             {subSport === 'MLB' && (
-              <div className="border-t border-slate-100 pt-4">
-                <h4 className="font-semibold text-slate-900 text-sm">Weekly Starting-Pitcher Cap</h4>
-                <p className="text-xs text-slate-500 mb-2">Limit how many starting pitchers count per club each week. Once the cap is hit, additional SP stats don&apos;t score. Set 0 for no limit.</p>
+              <div className="border-t border-ink-50 pt-4">
+                <h4 className="font-semibold text-black text-sm">Weekly Starting-Pitcher Cap</h4>
+                <p className="text-xs text-ink-500 mb-2">Limit how many starting pitchers count per club each week. Once the cap is hit, additional SP stats don&apos;t score. Set 0 for no limit.</p>
                 <input type="number" min={0} max={20} className="input w-28" value={form.mlbSpCap ?? 0} onChange={e => set('mlbSpCap', +e.target.value)} />
               </div>
             )}
 
             {/* IR-eligible designations */}
-            <div className="border-t border-slate-100 pt-4">
-              <h4 className="font-semibold text-slate-900 text-sm">{subSport} IR-Eligible Designations</h4>
-              <p className="text-xs text-slate-500 mb-2">Only players carrying one of these injury designations may be placed in an IR slot.</p>
+            <div className="border-t border-ink-50 pt-4">
+              <h4 className="font-semibold text-black text-sm">{subSport} IR-Eligible Designations</h4>
+              <p className="text-xs text-ink-500 mb-2">Only players carrying one of these injury designations may be placed in an IR slot.</p>
               <div className="flex flex-wrap gap-2">
                 {(IR_DESIGNATIONS[subSport] ?? []).map(d => {
                   const on = (irDesigObj[subSport] ?? []).includes(d)
@@ -821,7 +821,7 @@ function SettingsInner() {
                         const cur = prev[subSport] ?? []
                         return { ...prev, [subSport]: on ? cur.filter(x => x !== d) : [...cur, d] }
                       })}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${on ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${on ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-ink-100 text-ink-500 hover:border-ink-200'}`}>
                       {on ? '✓ ' : ''}{d}
                     </button>
                   )
@@ -830,21 +830,21 @@ function SettingsInner() {
             </div>
 
             {/* Roster overflow */}
-            <div className="border-t border-slate-100 pt-4">
+            <div className="border-t border-ink-50 pt-4">
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={!!form.allowRosterOverflow} onChange={e => set('allowRosterOverflow', e.target.checked)} />
-                <span className="font-semibold text-slate-900">Allow roster overflow</span>
+                <span className="font-semibold text-black">Allow roster overflow</span>
               </label>
-              <p className="text-xs text-slate-500 mt-1">When on, a club may exceed a reserve area&apos;s limit — e.g. swapping an IR/taxi player into the lineup pushes the displaced starter onto an already-full bench. When off, moves that would overflow the bench, taxi, or IR are blocked.</p>
+              <p className="text-xs text-ink-500 mt-1">When on, a club may exceed a reserve area&apos;s limit — e.g. swapping an IR/taxi player into the lineup pushes the displaced starter onto an already-full bench. When off, moves that would overflow the bench, taxi, or IR are blocked.</p>
             </div>
 
             {/* Salary cap */}
-            <div className="border-t border-slate-100 pt-4">
+            <div className="border-t border-ink-50 pt-4">
               <label className="flex items-center gap-2 mb-2">
                 <input type="checkbox" checked={!!form.salaryCapEnabled} onChange={e => set('salaryCapEnabled', e.target.checked)} />
-                <span className="font-semibold text-slate-900">Enable salary cap</span>
+                <span className="font-semibold text-black">Enable salary cap</span>
               </label>
-              <p className="text-xs text-slate-500 mb-2">Track player salaries and contract years for a dynasty cap. Each club&apos;s total salary may not exceed the cap.</p>
+              <p className="text-xs text-ink-500 mb-2">Track player salaries and contract years for a dynasty cap. Each club&apos;s total salary may not exceed the cap.</p>
               {form.salaryCapEnabled && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -869,17 +869,17 @@ function SettingsInner() {
           <>
             <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900">{subSport} Scoring</h3>
+              <h3 className="font-semibold text-black">{subSport} Scoring</h3>
               <button onClick={() => setScoringObj(s => ({ ...s, [subSport]: { ...DEFAULT_SCORING[subSport] } }))} className="btn-ghost text-xs">Reset to default</button>
             </div>
             <div className="space-y-5">
               {groupScoring(subSport, scoringObj[subSport] ?? {}).map(group => (
                 <div key={group.group}>
-                  <p className="text-xs font-bold text-slate-500 uppercase mb-2">{group.group}</p>
+                  <p className="text-xs font-bold text-ink-500 uppercase mb-2">{group.group}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {group.items.map(item => (
                       <div key={item.key} className="flex items-center gap-2">
-                        <span className="text-sm text-slate-600 flex-1 min-w-0 truncate">{item.label}</span>
+                        <span className="text-sm text-ink-600 flex-1 min-w-0 truncate">{item.label}</span>
                         <input type="number" step="0.01" value={item.value}
                           onChange={e => setScoringObj(s => ({ ...s, [subSport]: { ...s[subSport], [item.key]: +e.target.value } }))}
                           className="input w-20 text-right text-sm" />
@@ -906,21 +906,21 @@ function SettingsInner() {
                 const upd = (i: number, patch: any) => setTiers(cat, tiers.map((t, j) => j === i ? { ...t, ...patch } : t))
                 const numOrNull = (v: string) => v === '' ? null : +v
                 return (
-                  <div className="border-t border-slate-100 pt-4">
+                  <div className="border-t border-ink-50 pt-4">
                     <label className="flex items-center gap-2">
                       <input type="checkbox" checked={on} onChange={e => setTiers(cat, e.target.checked ? def : null)} />
-                      <span className="font-semibold text-slate-900">Custom {label} tiers</span>
+                      <span className="font-semibold text-black">Custom {label} tiers</span>
                     </label>
-                    <p className="text-[11px] text-slate-400 mt-1 mb-2">Blank min/max is open-ended. When on, these replace the preset {label.toLowerCase()} bands.</p>
+                    <p className="text-[11px] text-ink-400 mt-1 mb-2">Blank min/max is open-ended. When on, these replace the preset {label.toLowerCase()} bands.</p>
                     {on && (
                       <div className="space-y-1.5">
-                        <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_1.5rem] items-center gap-1.5 text-[10px] uppercase text-slate-400"><span>Min</span><span /><span>Max</span><span /><span>Pts</span><span /></div>
+                        <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_1.5rem] items-center gap-1.5 text-[10px] uppercase text-ink-400"><span>Min</span><span /><span>Max</span><span /><span>Pts</span><span /></div>
                         {tiers.map((t, i) => (
                           <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto_1fr_1.5rem] items-center gap-1.5">
                             <input type="number" placeholder="—" value={t.min ?? ''} onChange={e => upd(i, { min: numOrNull(e.target.value) })} className="input py-1 text-right text-sm" />
-                            <span className="text-slate-300 text-xs">to</span>
+                            <span className="text-ink-200 text-xs">to</span>
                             <input type="number" placeholder="—" value={t.max ?? ''} onChange={e => upd(i, { max: numOrNull(e.target.value) })} className="input py-1 text-right text-sm" />
-                            <span className="text-slate-300 text-xs">=</span>
+                            <span className="text-ink-200 text-xs">=</span>
                             <input type="number" step="0.5" value={t.points ?? 0} onChange={e => upd(i, { points: +e.target.value })} className="input py-1 text-right text-sm" />
                             <button onClick={() => setTiers(cat, tiers.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">×</button>
                           </div>
@@ -939,16 +939,16 @@ function SettingsInner() {
         {/* Draft */}
         {tab === 'Draft' && (
           <>
-            <h3 className="font-semibold text-slate-900">Draft</h3>
+            <h3 className="font-semibold text-black">Draft</h3>
 
             {/* Initial (dynasty) draft — locked once completed */}
             {(() => {
               const locked = dynasty?.status === 'COMPLETED'
               return (
-                <div className={`rounded-xl border p-3 ${locked ? 'border-slate-200 bg-slate-50' : 'border-blue-200 bg-blue-50/40'}`}>
+                <div className={`rounded-lg border p-3 ${locked ? 'border-ink-100 bg-ink-50' : 'border-blue-200 bg-blue-50/40'}`}>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-slate-800">Initial Dynasty Draft</span>
-                    {dynasty && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${locked ? 'bg-slate-200 text-slate-600' : dynasty.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{dynasty.status}</span>}
+                    <span className="text-sm font-semibold text-black">Initial Dynasty Draft</span>
+                    {dynasty && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${locked ? 'bg-ink-100 text-ink-600' : dynasty.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-[#177245]'}`}>{dynasty.status}</span>}
                     {locked && <button onClick={async () => {
                       if (!confirm('Reset the dynasty draft?\n\nThis clears EVERY dynasty pick AND wipes every club\'s entire roster. This cannot be undone.')) return
                       if (!confirm('Are you absolutely sure? Type-of-no-return: all drafted rosters will be wiped and the draft reopened to PENDING.')) return
@@ -957,7 +957,7 @@ function SettingsInner() {
                       const d = await (await fetch(`/api/leagues/${params.id}/dynasty`)).json(); setDynasty(d.draft ?? null)
                     }} className="ml-auto btn-secondary text-xs text-red-600 border-red-200">Reset draft</button>}
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">{locked ? 'These settings are locked because the dynasty draft is complete. Reset the draft to make changes.' : 'Configure the one-time initial draft. Settings lock automatically once it finishes.'}</p>
+                  <p className="text-xs text-ink-500 mt-1">{locked ? 'These settings are locked because the dynasty draft is complete. Reset the draft to make changes.' : 'Configure the one-time initial draft. Settings lock automatically once it finishes.'}</p>
                 </div>
               )
             })()}
@@ -1009,12 +1009,12 @@ function SettingsInner() {
 
             <label className="flex items-start gap-2.5 cursor-pointer">
               <input type="checkbox" className="mt-0.5" checked={!!form.autoPickEnabled} onChange={e => set('autoPickEnabled', e.target.checked)} />
-              <span><span className="text-sm font-medium text-slate-800">Auto-pick when the timer expires</span><span className="block text-xs text-slate-500">If a manager runs out of time, their queue (or the best available player) is drafted automatically instead of stalling the draft.</span></span>
+              <span><span className="text-sm font-medium text-black">Auto-pick when the timer expires</span><span className="block text-xs text-ink-500">If a manager runs out of time, their queue (or the best available player) is drafted automatically instead of stalling the draft.</span></span>
             </label>
 
             {/* Rookie draft date(s) — per sport when drafts run per sport */}
-            <div className="border-t border-slate-100 pt-4">
-              <p className="text-sm font-semibold text-slate-700 mb-1">Rookie Draft {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? 'Dates (per sport)' : 'Date'}</p>
+            <div className="border-t border-ink-50 pt-4">
+              <p className="text-sm font-semibold text-ink-800 mb-1">Rookie Draft {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? 'Dates (per sport)' : 'Date'}</p>
               {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? (
                 <div className="space-y-2">
                   {orderedEnabled.map(s => (
@@ -1029,15 +1029,15 @@ function SettingsInner() {
               )}
             </div>
 
-            <div className="border-t border-slate-100 pt-4">
-              <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 mb-4">
-                <p className="text-sm font-semibold text-slate-700">Initial dynasty draft</p>
-                <p className="text-xs text-slate-500 mt-1">
+            <div className="border-t border-ink-50 pt-4">
+              <div className="rounded-lg bg-ink-50 border border-ink-50 p-4 mb-4">
+                <p className="text-sm font-semibold text-ink-800">Initial dynasty draft</p>
+                <p className="text-xs text-ink-500 mt-1">
                   One combined cross-sport draft. Its length is automatically the total roster spots a club fills
-                  (starters + bench + taxi, every sport): <span className="font-bold text-slate-800">{dynastyDraftRounds(rosterObj)} rounds</span>.
+                  (starters + bench + taxi, every sport): <span className="font-bold text-black">{dynastyDraftRounds(rosterObj)} rounds</span>.
                 </p>
               </div>
-              <p className="text-sm font-semibold text-slate-700 mb-2">Per-sport rookie-draft rounds</p>
+              <p className="text-sm font-semibold text-ink-800 mb-2">Per-sport rookie-draft rounds</p>
               <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
               <div className="mt-3">
                 <label className="label">{subSport} Rookie Rounds</label>
@@ -1051,7 +1051,7 @@ function SettingsInner() {
         {/* Waivers */}
         {tab === 'Waivers' && (
           <>
-            <h3 className="font-semibold text-slate-900">Waivers</h3>
+            <h3 className="font-semibold text-black">Waivers</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Waiver Type</label>
@@ -1075,7 +1075,7 @@ function SettingsInner() {
                   <select className="select" value={form.waiverPeriodDays ?? 2} onChange={e => set('waiverPeriodDays', +e.target.value)}>
                     {[0, 1, 2, 3, 4, 5, 7].map(n => <option key={n} value={n}>{n === 0 ? 'None — clears immediately' : `${n} day${n > 1 ? 's' : ''}`}</option>)}
                   </select>
-                  <p className="text-[11px] text-slate-400 mt-1">How long a dropped player sits on waivers before clearing to free agency.</p>
+                  <p className="text-[11px] text-ink-400 mt-1">How long a dropped player sits on waivers before clearing to free agency.</p>
                 </div>
               )}
             </div>
@@ -1083,13 +1083,13 @@ function SettingsInner() {
             {/* Per-sport waiver processing time */}
             <div>
               <label className="label">Waiver Processing Time (per sport)</label>
-              <p className="text-xs text-slate-500 mb-2">Set the day and time each sport&apos;s waiver claims are processed.</p>
+              <p className="text-xs text-ink-500 mb-2">Set the day and time each sport&apos;s waiver claims are processed.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const wr = waiverSchedObj[s] ?? { day: 3, hour: 3 }
                   const meta = sportMeta(s)
                   return (
-                    <div key={s} className="flex items-center gap-3 rounded-lg border border-slate-200 p-2">
+                    <div key={s} className="flex items-center gap-3 rounded-lg border border-ink-100 p-2">
                       <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
                       <select className="select flex-1" value={wr.day} onChange={e => setWaiverSchedObj(p => ({ ...p, [s]: { ...wr, day: +e.target.value } }))}>
                         {WAIVER_DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
@@ -1106,18 +1106,18 @@ function SettingsInner() {
             </div>
 
             {/* Per-sport transaction limits */}
-            <div className="border-t border-slate-100 pt-4">
+            <div className="border-t border-ink-50 pt-4">
               <label className="label">Transaction Limits (per sport)</label>
-              <p className="text-xs text-slate-500 mb-2">Cap how many adds/claims a club can make in each sport. Leave at 0 for unlimited.</p>
+              <p className="text-xs text-ink-500 mb-2">Cap how many adds/claims a club can make in each sport. Leave at 0 for unlimited.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const lim = txLimits[s] ?? { max: 0, period: 'WEEKLY' }
                   const meta = sportMeta(s)
                   return (
-                    <div key={s} className="flex items-center gap-3 rounded-lg border border-slate-200 p-2">
+                    <div key={s} className="flex items-center gap-3 rounded-lg border border-ink-100 p-2">
                       <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
                       <input type="number" min={0} className="input w-24 text-sm" value={lim.max} onChange={e => setTxLimits(p => ({ ...p, [s]: { ...lim, max: Math.max(0, +e.target.value) } }))} />
-                      <span className="text-xs text-slate-400">moves per</span>
+                      <span className="text-xs text-ink-400">moves per</span>
                       <select className="select w-auto text-sm" value={lim.period} onChange={e => setTxLimits(p => ({ ...p, [s]: { ...lim, period: e.target.value } }))}>
                         <option value="DAILY">day</option>
                         <option value="WEEKLY">week</option>
@@ -1136,7 +1136,7 @@ function SettingsInner() {
         {/* Trades */}
         {tab === 'Trades' && (
           <>
-            <h3 className="font-semibold text-slate-900">Trades</h3>
+            <h3 className="font-semibold text-black">Trades</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Trade Review</label>
@@ -1150,7 +1150,7 @@ function SettingsInner() {
             {/* Per-sport trade deadlines */}
             <div>
               <label className="label">Trade Deadlines (per sport)</label>
-              <p className="text-xs text-slate-400 mb-2">Set when trades lock for each sport — a specific week, or relative to that sport's or the federation's championship.</p>
+              <p className="text-xs text-ink-400 mb-2">Set when trades lock for each sport — a specific week, or relative to that sport's or the federation's championship.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const d = deadlinesObj[s] ?? { mode: 'SPORT_PLAYOFFS' }
@@ -1159,7 +1159,7 @@ function SettingsInner() {
                   const setD = (patch: any) => setDeadlinesObj(prev => ({ ...prev, [s]: { ...d, ...patch } }))
                   const mode = TRADE_DEADLINE_MODES.find(m => m.value === d.mode)
                   return (
-                    <div key={s} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-100 p-2.5">
+                    <div key={s} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-50 p-2.5">
                       <span className={`text-xs font-bold px-2 py-1 rounded ${sportMeta(s).light} w-14 text-center`}>{sportMeta(s).emoji} {s}</span>
                       <select className="select flex-1 w-full sm:w-auto sm:min-w-44 text-sm py-1.5" value={d.mode} onChange={e => setD({ mode: e.target.value })}>
                         {TRADE_DEADLINE_MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -1169,7 +1169,7 @@ function SettingsInner() {
                       )}
                       {/* Every sport but the last in the season order can reopen trading after its deadline. */}
                       {d.mode !== 'NONE' && s !== orderedEnabled[orderedEnabled.length - 1] && (
-                        <label className="flex items-center gap-1 text-[11px] text-slate-500">
+                        <label className="flex items-center gap-1 text-[11px] text-ink-500">
                           reopen
                           <select className="select w-auto text-xs py-1" value={reopenObj[s] ?? 'FED_SEASON'} onChange={e => setReopenObj(prev => ({ ...prev, [s]: e.target.value }))}>
                             <option value="CHAMPIONSHIP">after {s} championship</option>
@@ -1177,7 +1177,7 @@ function SettingsInner() {
                           </select>
                         </label>
                       )}
-                      <span className="text-[11px] text-slate-400 w-full sm:w-auto sm:ml-auto">
+                      <span className="text-[11px] text-ink-400 w-full sm:w-auto sm:ml-auto">
                         {d.mode === 'NONE' ? 'No deadline' : `Locks after week ${resolved}`} · {mode?.help}
                       </span>
                     </div>
@@ -1186,7 +1186,7 @@ function SettingsInner() {
               </div>
             </div>
 
-            <div className="p-4 bg-blue-50 rounded-xl text-sm text-blue-800 border border-blue-100">
+            <div className="p-4 bg-blue-50 rounded-lg text-sm text-blue-800 border border-blue-100">
               <strong>Cross-sport trades</strong> are always enabled — clubs can package players and draft picks from any sport in one deal. A deal is blocked only if <em>any</em> sport in it is past its deadline.
             </div>
           </>
@@ -1195,7 +1195,7 @@ function SettingsInner() {
         {/* Playoffs */}
         {tab === 'Playoffs' && (
           <>
-            <h3 className="font-semibold text-slate-900">Playoffs</h3>
+            <h3 className="font-semibold text-black">Playoffs</h3>
             {(() => {
               const teams = form.playoffTeams ?? 6
               const maxR = maxPlayoffRounds(teams)
@@ -1220,7 +1220,7 @@ function SettingsInner() {
                       <select className="select" value={rounds} onChange={e => set('playoffRounds', +e.target.value)}>
                         {Array.from({ length: maxR }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} round{n > 1 ? 's' : ''}</option>)}
                       </select>
-                      <p className="text-[11px] text-slate-400 mt-1">{teams} teams → up to {maxR} round{maxR > 1 ? 's' : ''}.</p>
+                      <p className="text-[11px] text-ink-400 mt-1">{teams} teams → up to {maxR} round{maxR > 1 ? 's' : ''}.</p>
                     </div>
                     {fmt !== 'H2H' && (
                       <div><label className="label">Weeks Per {fmt === 'CHAMP_MULTI' ? 'Championship' : 'Round'}</label>
@@ -1230,31 +1230,31 @@ function SettingsInner() {
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500">{PLAYOFF_FORMATS.find(f => f.value === fmt)?.help} <strong className="text-slate-700">Postseason spans {totalWeeks} week{totalWeeks > 1 ? 's' : ''}.</strong></p>
+                  <p className="text-xs text-ink-500">{PLAYOFF_FORMATS.find(f => f.value === fmt)?.help} <strong className="text-ink-800">Postseason spans {totalWeeks} week{totalWeeks > 1 ? 's' : ''}.</strong></p>
                 </>
               )
             })()}
-            <div className="border-t border-slate-100 pt-4">
-              <p className="text-sm font-semibold text-slate-700">Per-sport playoff start</p>
-              <p className="text-xs text-slate-500 mb-3">Each sport runs on its own calendar, so <strong>playoffs begin the week after that sport's regular season ends</strong> — they don't all start the same week. Adjust each sport's start week and length in the <strong>Sports &amp; Schedule</strong> tab.</p>
+            <div className="border-t border-ink-50 pt-4">
+              <p className="text-sm font-semibold text-ink-800">Per-sport playoff start</p>
+              <p className="text-xs text-ink-500 mb-3">Each sport runs on its own calendar, so <strong>playoffs begin the week after that sport's regular season ends</strong> — they don't all start the same week. Adjust each sport's start week and length in the <strong>Sports &amp; Schedule</strong> tab.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const startWk = startWeeksObj[s] || (buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj).find(e => e.sport === s)?.startWeek ?? 1)
                   const len = seasonWeeksObj[s] ?? DEFAULT_SEASON_WEEKS[s] ?? 18
                   const playoffStart = startWk + len
                   return (
-                    <div key={s} className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 p-2.5">
+                    <div key={s} className="flex flex-wrap items-center gap-3 rounded-lg border border-ink-50 p-2.5">
                       <span className={`text-xs font-bold px-2 py-1 rounded w-14 text-center ${sportMeta(s).light}`}>{sportMeta(s).emoji} {s}</span>
-                      <span className="text-[11px] text-slate-500">Weeks {startWk}–{startWk + len - 1}</span>
-                      <span className="text-[11px] text-slate-400 sm:ml-auto"><strong className="text-slate-600">Playoffs begin week {playoffStart}</strong> ({formatWeekRange(form.season, playoffStart, { seasonStart: form.seasonStart })})</span>
+                      <span className="text-[11px] text-ink-500">Weeks {startWk}–{startWk + len - 1}</span>
+                      <span className="text-[11px] text-ink-400 sm:ml-auto"><strong className="text-ink-600">Playoffs begin week {playoffStart}</strong> ({formatWeekRange(form.season, playoffStart, { seasonStart: form.seasonStart })})</span>
                     </div>
                   )
                 })}
               </div>
             </div>
 
-            <div className="border-t border-slate-100 pt-4 space-y-3">
-              <p className="text-sm font-semibold text-slate-700">Bracket options</p>
+            <div className="border-t border-ink-50 pt-4 space-y-3">
+              <p className="text-sm font-semibold text-ink-800">Bracket options</p>
               <div className="max-w-xs">
                 <label className="label">Seeding tiebreaker</label>
                 <select className="select" value={form.playoffTiebreaker ?? 'POINTS_FOR'} onChange={e => set('playoffTiebreaker', e.target.value)}>
@@ -1263,33 +1263,33 @@ function SettingsInner() {
                   <option value="RECORD">Win % (record)</option>
                   <option value="COIN_FLIP">Coin flip (random)</option>
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1">Breaks ties between clubs with the same number of wins when seeding the bracket.</p>
+                <p className="text-[11px] text-ink-400 mt-1">Breaks ties between clubs with the same number of wins when seeding the bracket.</p>
               </div>
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input type="checkbox" className="mt-0.5" checked={!!form.playoffReseed} onChange={e => set('playoffReseed', e.target.checked)} />
-                <span><span className="text-sm font-medium text-slate-800">Re-seed after round 1</span><span className="block text-xs text-slate-500">Re-pair survivors by seed each round (1 plays the lowest remaining seed, 2 the next, …) instead of a fixed bracket.</span></span>
+                <span><span className="text-sm font-medium text-black">Re-seed after round 1</span><span className="block text-xs text-ink-500">Re-pair survivors by seed each round (1 plays the lowest remaining seed, 2 the next, …) instead of a fixed bracket.</span></span>
               </label>
               <div>
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={!!form.consolationBracket} onChange={e => set('consolationBracket', e.target.checked)} />
-                  <span><span className="text-sm font-medium text-slate-800">Consolation bracket</span><span className="block text-xs text-slate-500">Clubs knocked out in the first playoff round drop into a consolation bracket, seeded by their playoff seed. Size is set automatically by the playoff field.</span></span>
+                  <span><span className="text-sm font-medium text-black">Consolation bracket</span><span className="block text-xs text-ink-500">Clubs knocked out in the first playoff round drop into a consolation bracket, seeded by their playoff seed. Size is set automatically by the playoff field.</span></span>
                 </label>
               </div>
               <div>
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={!!form.losersBracket} onChange={e => set('losersBracket', e.target.checked)} />
-                  <span><span className="text-sm font-medium text-slate-800">Losers bracket</span><span className="block text-xs text-slate-500">The bottom clubs by record play their own bracket.</span></span>
+                  <span><span className="text-sm font-medium text-black">Losers bracket</span><span className="block text-xs text-ink-500">The bottom clubs by record play their own bracket.</span></span>
                 </label>
                 {form.losersBracket && (
                   <div className="mt-2 ml-7 space-y-2">
                     <div className="flex items-center gap-2">
-                      <label className="text-xs text-slate-500 w-28">Bottom clubs</label>
+                      <label className="text-xs text-ink-500 w-28">Bottom clubs</label>
                       <select className="select w-auto text-sm" value={form.losersTeams ?? (form.playoffTeams ?? 6)} onChange={e => set('losersTeams', +e.target.value)}>
                         {EVEN_TEAM_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </div>
                     <div className="flex items-center gap-2">
-                      <label className="text-xs text-slate-500 w-28">Advances</label>
+                      <label className="text-xs text-ink-500 w-28">Advances</label>
                       <select className="select w-auto text-sm" value={form.losersAdvance ?? 'WINNER'} onChange={e => set('losersAdvance', e.target.value)}>
                         <option value="WINNER">Winner advances (bracket champ)</option>
                         <option value="LOSER">Loser advances (last-place race)</option>
@@ -1305,14 +1305,14 @@ function SettingsInner() {
         {/* Federation */}
         {tab === 'Federation' && (
           <>
-            <h3 className="font-semibold text-slate-900">Federation Scoring</h3>
-            <p className="text-sm text-slate-500">Each club earns federation points based on where it finishes in every sport. Edit the points awarded per finishing position.</p>
+            <h3 className="font-semibold text-black">Federation Scoring</h3>
+            <p className="text-sm text-ink-500">Each club earns federation points based on where it finishes in every sport. Edit the points awarded per finishing position.</p>
             <div>
               <label className="label">Placement Points (1st → last)</label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {Array.from({ length: form.maxTeams ?? 12 }, (_, i) => (
                   <div key={i} className="flex items-center gap-1">
-                    <span className="text-xs text-slate-400 w-6">{i + 1}.</span>
+                    <span className="text-xs text-ink-400 w-6">{i + 1}.</span>
                     <input type="number" className="input text-sm py-1" value={fed.placement?.[i] ?? 0}
                       onChange={e => setFed((f: any) => { const p = [...(f.placement ?? [])]; p[i] = +e.target.value; return { ...f, placement: p } })} />
                   </div>
@@ -1359,7 +1359,7 @@ function SettingsInner() {
 }
 
 export default function CommissionerSettings() {
-  return <Suspense fallback={<div className="max-w-5xl mx-auto px-4 py-8 text-slate-400">Loading settings…</div>}><SettingsInner /></Suspense>
+  return <Suspense fallback={<div className="max-w-5xl mx-auto px-4 py-8 text-ink-400">Loading settings…</div>}><SettingsInner /></Suspense>
 }
 
 const IMPORT_TEMPLATE = {
@@ -1424,21 +1424,21 @@ function ImportHistoryPanel({ leagueId, onImported }: { leagueId: string; onImpo
   }
 
   return (
-    <div className="mt-8 border border-slate-200 rounded-xl p-4 bg-slate-50/60">
-      <h4 className="font-semibold text-slate-800 text-sm">Import legacy league history</h4>
-      <p className="text-xs text-slate-500 mt-1">Bring a former league&apos;s past seasons in from a JSON file — champions and per-club, per-sport records feed the History page and all-time standings. Clubs are matched by name; any not already here are created as archived historical clubs.</p>
+    <div className="mt-8 border border-ink-100 rounded-lg p-4 bg-ink-50/60">
+      <h4 className="font-semibold text-black text-sm">Import legacy league history</h4>
+      <p className="text-xs text-ink-500 mt-1">Bring a former league&apos;s past seasons in from a JSON file — champions and per-club, per-sport records feed the History page and all-time standings. Clubs are matched by name; any not already here are created as archived historical clubs.</p>
       {!open
         ? <button onClick={() => setOpen(true)} className="btn-secondary text-sm mt-3">Import history…</button>
         : (
           <div className="mt-3 space-y-3">
-            <button onClick={downloadTemplate} className="text-xs text-blue-600 underline">Download the JSON template</button>
+            <button onClick={downloadTemplate} className="text-xs text-black underline">Download the JSON template</button>
             <div>
               <label className="label">History file (.json)</label>
-              <input type="file" accept="application/json,.json" onChange={e => { const f = e.target.files?.[0]; if (f) loadFile(f) }} className="block text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-200 file:text-slate-700 file:text-sm" />
-              {fileName && <p className="text-xs text-slate-400 mt-1">{fileName}</p>}
+              <input type="file" accept="application/json,.json" onChange={e => { const f = e.target.files?.[0]; if (f) loadFile(f) }} className="block text-sm text-ink-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-ink-100 file:text-ink-800 file:text-sm" />
+              {fileName && <p className="text-xs text-ink-400 mt-1">{fileName}</p>}
             </div>
             {parseErr && <p className="text-sm text-red-600">{parseErr}</p>}
-            {preview && <p className="text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2">Preview — {preview}</p>}
+            {preview && <p className="text-sm text-ink-800 bg-white border border-ink-100 rounded-lg px-3 py-2">Preview — {preview}</p>}
             {result && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{result}</p>}
             <div className="flex gap-2">
               <button onClick={() => { setOpen(false); setDoc(null); setFileName(''); setPreview(null); setParseErr(''); setResult('') }} className="btn-secondary text-sm">Close</button>
@@ -1463,15 +1463,15 @@ function ForceWaiversPanel({ leagueId }: { leagueId: string }) {
     setMsg(res.ok ? `Processed ${d.processed ?? 0} claim(s) — ${d.awarded ?? 0} awarded.` : (typeof d.error === 'string' ? d.error : 'Could not process waivers'))
   }
   return (
-    <div className="border-t border-slate-100 pt-4">
-      <h4 className="font-semibold text-slate-900 text-sm">Force process waivers</h4>
-      <p className="text-xs text-slate-500 mt-1">Immediately award every pending waiver claim now, outside the scheduled run. Kept here in settings on purpose — it settles all pending claims at once.</p>
-      {msg && <p className="text-sm text-slate-700 mt-2">{msg}</p>}
+    <div className="border-t border-ink-50 pt-4">
+      <h4 className="font-semibold text-black text-sm">Force process waivers</h4>
+      <p className="text-xs text-ink-500 mt-1">Immediately award every pending waiver claim now, outside the scheduled run. Kept here in settings on purpose — it settles all pending claims at once.</p>
+      {msg && <p className="text-sm text-ink-800 mt-2">{msg}</p>}
       {!confirm
         ? <button onClick={() => setConfirm(true)} className="btn-secondary text-sm mt-2">Process pending waivers now…</button>
         : (
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-slate-600">Award all pending claims immediately?</span>
+            <span className="text-sm text-ink-600">Award all pending claims immediately?</span>
             <button onClick={() => setConfirm(false)} className="btn-secondary text-xs">Cancel</button>
             <button onClick={run} disabled={busy} className="btn-primary text-xs bg-amber-600 hover:bg-amber-700 disabled:opacity-50">{busy ? 'Processing…' : 'Yes, process now'}</button>
           </div>
@@ -1497,18 +1497,18 @@ function DangerZone({ leagueId, leagueName }: { leagueId: string; leagueName: st
   }
 
   return (
-    <div className="mt-8 border border-red-200 rounded-xl p-4 bg-red-50/40">
+    <div className="mt-8 border border-red-200 rounded-lg p-4 bg-red-50/40">
       <h4 className="font-semibold text-red-700 text-sm">Danger Zone</h4>
-      <p className="text-xs text-slate-500 mt-1">Permanently delete this league and every club, roster, draft, trade, matchup and record in it. This cannot be undone.</p>
+      <p className="text-xs text-ink-500 mt-1">Permanently delete this league and every club, roster, draft, trade, matchup and record in it. This cannot be undone.</p>
       {!open
         ? <button onClick={() => setOpen(true)} className="btn-secondary text-red-600 border-red-200 mt-3">Delete this league…</button>
         : (
           <div className="mt-3 space-y-3">
             <div>
-              <label className="label">Type <strong className="text-slate-700">{leagueName}</strong> to confirm</label>
+              <label className="label">Type <strong className="text-ink-800">{leagueName}</strong> to confirm</label>
               <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder={leagueName} />
             </div>
-            <label className="flex items-center gap-2 text-sm text-slate-700 select-none">
+            <label className="flex items-center gap-2 text-sm text-ink-800 select-none">
               <input type="checkbox" checked={ack} onChange={e => setAck(e.target.checked)} className="w-4 h-4" />
               I understand this permanently deletes the league for everyone.
             </label>
@@ -1551,8 +1551,8 @@ function LiveStatsPanel({ leagueId }: { leagueId: string }) {
   const pct = status && status.cap ? Math.min(100, Math.round((status.used / status.cap) * 100)) : 0
   return (
     <>
-      <h3 className="font-semibold text-slate-900">Live Stats</h3>
-      <p className="text-sm text-slate-500">Real game stats are pulled from the sports data provider (Tank01) and used to score matchups. The simulator only fills players with no real stat line yet.</p>
+      <h3 className="font-semibold text-black">Live Stats</h3>
+      <p className="text-sm text-ink-500">Real game stats are pulled from the sports data provider (Tank01) and used to score matchups. The simulator only fills players with no real stat line yet.</p>
 
       {status && !status.configured && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -1563,13 +1563,13 @@ function LiveStatsPanel({ leagueId }: { leagueId: string }) {
       {status && (
         <div className="card p-4 space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-slate-700">Monthly API usage</span>
-            <span className="tabular-nums text-slate-600">{status.used} / {status.cap} calls</span>
+            <span className="font-medium text-ink-800">Monthly API usage</span>
+            <span className="tabular-nums text-ink-600">{status.used} / {status.cap} calls</span>
           </div>
-          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full bg-slate-800" style={{ width: `${pct}%` }} />
+          <div className="h-2 rounded bg-ink-50 overflow-hidden">
+            <div className="h-full bg-black" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-xs text-slate-400">The pull job is hard-capped at this budget so a free-tier key is never exceeded.</p>
+          <p className="text-xs text-ink-400">The pull job is hard-capped at this budget so a free-tier key is never exceeded.</p>
         </div>
       )}
 
@@ -1577,15 +1577,15 @@ function LiveStatsPanel({ leagueId }: { leagueId: string }) {
         <label className="card p-4 flex items-start gap-3 cursor-pointer">
           <input type="checkbox" checked={status.live} disabled={!status.configured} onChange={e => toggleLive(e.target.checked)} className="w-4 h-4 mt-0.5" />
           <span>
-            <span className="block text-sm font-medium text-slate-800">Live in-game scoring</span>
-            <span className="block text-xs text-slate-500">Pull in-progress games (not just finished) so scores update during the day. Uses many more API calls — recommended only on a paid tier or with budget headroom. Off = daily finalize.</span>
+            <span className="block text-sm font-medium text-black">Live in-game scoring</span>
+            <span className="block text-xs text-ink-500">Pull in-progress games (not just finished) so scores update during the day. Uses many more API calls — recommended only on a paid tier or with budget headroom. Off = daily finalize.</span>
           </span>
         </label>
       )}
 
       <div className="card p-4 space-y-3">
         <div className="flex items-center gap-3">
-          <label className="text-sm text-slate-600">Lookback</label>
+          <label className="text-sm text-ink-600">Lookback</label>
           <select className="input w-auto py-1 text-sm" value={days} onChange={e => setDays(+e.target.value)}>
             {[1, 2, 3, 5, 7].map(d => <option key={d} value={d}>{d} day{d === 1 ? '' : 's'}</option>)}
           </select>
@@ -1593,8 +1593,8 @@ function LiveStatsPanel({ leagueId }: { leagueId: string }) {
             {pulling ? 'Pulling…' : 'Pull finished games now'}
           </button>
         </div>
-        {result && <p className="text-sm text-slate-600">{result}</p>}
-        <p className="text-xs text-slate-400">
+        {result && <p className="text-sm text-ink-600">{result}</p>}
+        <p className="text-xs text-ink-400">
           For automatic daily updates, schedule <code className="font-mono">/api/cron/stats</code> (protected by <code className="font-mono">CRON_SECRET</code>) to run nightly after games finish — e.g. a cron job curling it at 1am, or <code className="font-mono">npm run stats:pull</code>.
         </p>
       </div>
@@ -1607,7 +1607,7 @@ function SubSportSelector({ subTabs, subSport, setSubSport }: { subTabs: string[
     <div className="flex gap-2 flex-wrap">
       {subTabs.map(s => (
         <button key={s} onClick={() => setSubSport(s)}
-          className={`px-3 py-1 rounded-full text-xs font-semibold ${subSport === s ? `${sportMeta(s).bg} text-white` : 'bg-slate-100 text-slate-600'}`}>
+          className={`px-3 py-1 rounded-full text-xs font-semibold ${subSport === s ? `${sportMeta(s).bg} text-white` : 'bg-ink-50 text-ink-600'}`}>
           {sportMeta(s).emoji} {s}
         </button>
       ))}
