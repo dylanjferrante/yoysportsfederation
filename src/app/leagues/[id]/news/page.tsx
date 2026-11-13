@@ -3,6 +3,7 @@ import { leagues } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { PageTitle } from '@/components/ysf/ui'
 import { buildLeagueNews } from '@/lib/leaguenews'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -11,11 +12,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: `${league?.name ?? 'League'} · News` }
 }
 
-const CAT: Record<string, { label: string; cls: string }> = {
-  INJURY: { label: 'Injury', cls: 'bg-red-50 text-red-600' },
-  PERFORMANCE: { label: 'Performance', cls: 'bg-emerald-50 text-emerald-600' },
-  TRANSACTION: { label: 'Move', cls: 'bg-blue-50 text-blue-600' },
-  NOTE: { label: 'Note', cls: 'bg-slate-100 text-slate-500' },
+const CAT: Record<string, { label: string; cls: string; bg: string }> = {
+  INJURY: { label: 'Injury', cls: '', bg: '#ba0c2f' },
+  PERFORMANCE: { label: 'Performance', cls: '', bg: '#177245' },
+  TRANSACTION: { label: 'Move', cls: '', bg: '#2F5D8A' },
+  NOTE: { label: 'Note', cls: '', bg: '#4A4A4A' },
 }
 
 function ago(iso: string | null): string {
@@ -36,15 +37,12 @@ export default async function NewsPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">League News</h1>
-        <p className="text-slate-500 text-sm">Injuries and updates for players rostered across the league.</p>
-      </div>
+      <div className="mb-6"><PageTitle eyebrow="Rostered players · injuries and updates" title="NEWS" /></div>
 
       {items.length === 0 ? (
-        <div className="card p-10 text-center text-slate-400 text-sm">No news right now — everyone&apos;s healthy and quiet.</div>
+        <div className="card p-10 text-center text-ink-500 font-semibold">No news right now</div>
       ) : (
-        <div className="card divide-y divide-slate-100 overflow-hidden">
+        <div className="card divide-y divide-ink-50 overflow-hidden">
           {items.map(n => {
             const cat = CAT[n.category] ?? CAT.NOTE
             const c = n.club
@@ -53,23 +51,22 @@ export default async function NewsPage({ params }: { params: Promise<{ id: strin
             return (
               <div key={n.id} className="flex gap-3 px-3 sm:px-4 py-3">
                 {n.photoUrl
-                  ? <img src={n.photoUrl} alt="" className="w-10 h-10 rounded-full object-cover bg-slate-100 flex-shrink-0" />
-                  : <span className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 flex-shrink-0">{n.playerName.split(' ').map(w => w[0]).slice(0, 2).join('')}</span>}
+                  ? <img src={n.photoUrl} alt="" className="w-10 h-10 rounded object-cover bg-ink-50 flex-shrink-0" />
+                  : <span className="w-10 h-10 rounded bg-ink-50 flex items-center justify-center ui text-[10px] font-bold text-ink-500 flex-shrink-0">{n.playerName.split(' ').map(w => w[0]).slice(0, 2).join('')}</span>}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${cat.cls}`}>{cat.label}</span>
-                    <Link href={`/players/${n.playerId}`} className="font-semibold text-slate-900 hover:text-blue-600 truncate">{n.playerName}</Link>
-                    <span className="text-[11px] text-slate-400">{n.position} · {n.realTeam}</span>
-                    <span className="text-[11px] text-slate-300 ml-auto flex-shrink-0">{ago(n.createdAt)}</span>
+                    <span className="ui inline-flex items-center justify-center h-[20px] px-2 rounded-[2px] text-[10px] font-bold leading-none" style={{ background: cat.bg, color: '#fff' }}>{cat.label.toUpperCase()}</span>
+                    <span className="text-[14px] truncate"><b>{n.playerName}</b> <span className="text-ink-500">| {n.realTeam}, {n.position}</span></span>
+                    <span className="text-[11px] text-ink-400 ml-auto flex-shrink-0">{ago(n.createdAt)}</span>
                   </div>
-                  {n.headline && <p className="text-sm text-slate-700 mt-0.5">{n.headline}</p>}
-                  {n.body && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.body}</p>}
+                  {n.headline && <p className="text-[14px] text-black mt-1">{n.headline}</p>}
+                  {n.body && <p className="text-[13px] text-ink-500 mt-0.5 line-clamp-2">{n.body}</p>}
                   {c && (
-                    <Link href={`/leagues/${id}/teams/${c.id}`} className="inline-flex items-center gap-1.5 mt-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-800">
+                    <Link href={`/leagues/${id}/teams/${c.id}`} className="inline-flex items-center gap-1.5 mt-1.5 text-[12px] font-semibold text-black">
                       {(c.altLogo || c.logo)
                         ? <span className="w-4 h-4 inline-flex items-center justify-center flex-shrink-0"><img src={c.logo || c.altLogo || ''} alt="" className="w-full h-full object-contain" /></span>
                         : <span className="w-4 h-4 rounded flex items-center justify-center text-[7px] font-bold" style={{ background: primary, color: '#fff' }}>{(c.abbreviation || '?').slice(0, 2)}</span>}
-                      Rostered by {c.name}
+                      {c.name}
                     </Link>
                   )}
                 </div>

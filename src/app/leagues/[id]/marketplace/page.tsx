@@ -1,5 +1,8 @@
 'use client'
 
+import { PageTitle } from '@/components/ysf/ui'
+import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
+const lgOf = (sp: string) => YSF_LEAGUES.find(l => l.sport === sp)!
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
@@ -25,32 +28,28 @@ export default function Marketplace() {
 
   return (
     <div>
-      <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Trade Block</h1>
-        <p className="text-sm text-slate-500">Players around the league flagged as available · {rows.length} listed</p>
-      </div>
+      <div className="mb-6"><PageTitle eyebrow={`${rows.length} players listed`} title="TRADE BLOCK" /></div>
 
       <div className="flex gap-1.5 flex-wrap mb-4">
-        <button onClick={() => setSport('ALL')} className={`px-2.5 py-1 rounded-md text-xs font-medium ${sport === 'ALL' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>All sports</button>
+        <button onClick={() => setSport('ALL')} className="inline-flex items-center justify-center h-9 px-3 rounded-lg font-display text-[12px] font-bold leading-none border" style={{ background: sport === 'ALL' ? '#000' : '#fff', color: sport === 'ALL' ? '#fff' : '#000', borderColor: sport === 'ALL' ? '#000' : '#C7C7C7' }}>ALL</button>
         {SPORTS.map(s => (
-          <button key={s} onClick={() => setSport(s)} className={`px-2.5 py-1 rounded-md text-xs font-medium ${sport === s ? `${sportMeta(s).bg} text-white` : 'bg-slate-100 text-slate-600'}`}>{sportMeta(s).emoji} {s}</button>
+          <button key={s} onClick={() => setSport(s)} className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg font-display text-[12px] font-bold leading-none border" style={{ background: sport === s ? lgOf(s).color : '#fff', color: sport === s ? '#fff' : '#000', borderColor: sport === s ? lgOf(s).color : '#C7C7C7' }}><img src={YSF_ART.leagueSymbol(lgOf(s).key, sport === s ? 'color' : 'white')} alt="" className="w-5 h-5 object-contain" /><span className="ysf-case">{lgOf(s).code}</span></button>
         ))}
       </div>
 
       <div className="card">
         {filtered.length === 0 ? (
-          <p className="px-4 py-10 text-center text-slate-400 text-sm">No players on the trade block yet. Owners can flag players from their team page.</p>
+          <p className="px-4 py-10 text-center text-ink-500 font-semibold">No players on the trade block</p>
         ) : (
-          <ul className="divide-y divide-slate-50">
+          <ul className="divide-y divide-ink-50">
             {filtered.map(r => (
               <li key={r.rosterId} className="flex items-center gap-3 px-4 py-2.5">
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(r.sport).light}`}>{abbr(r.sport)}</span>
+                <img src={YSF_ART.leagueSymbol(lgOf(r.sport).key, 'white')} alt={lgOf(r.sport).code} className="w-6 h-6 object-contain" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-slate-900 truncate">{r.name} <span className="text-xs text-slate-400">{r.position} · {r.realTeam}</span></p>
-                  <p className="text-xs text-slate-400">on <Link href={`/leagues/${id}/teams/${r.teamId}`} className="text-blue-600 hover:underline">{r.teamName}</Link></p>
+                  <p className="text-[14px] truncate"><b>{r.name}</b> <span className="text-ink-500">| {r.realTeam}, {r.position}</span></p>
+                  <p className="text-[12px] text-ink-500"><Link href={`/leagues/${id}/teams/${r.teamId}`} className="font-semibold text-black">{r.teamName}</Link></p>
                 </div>
-                <span className="text-xs text-slate-500 tabular-nums">val {crossSportValue(r.sport, r.projectedPoints)}</span>
-                <Link href={`/trade/new?partner=${r.teamId}`} className="btn-secondary text-xs">Offer</Link>
+                <Link href={`/leagues/${id}/myteam?tab=trade`} className="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-black text-white font-display text-[12px] font-bold tracking-[.06em] leading-none">OFFER</Link>
               </li>
             ))}
           </ul>
