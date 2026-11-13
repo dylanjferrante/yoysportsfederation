@@ -17,13 +17,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: `${league?.name ?? 'League'} · Scores` }
 }
 
-export default async function ScoresPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ season?: string; w?: string; lg?: string }> }) {
+export default async function ScoresPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ season?: string; w?: string; lg?: string; s?: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
   const sp = await searchParams
   const { season: viewSeason, isPast } = viewSeasonOf(league, sp)
-  if (id === YSF_LEAGUE_ID && !isPast) return <YsfScores league={league} week={sp.w ? Number(sp.w) : undefined} lg={sp.lg} />
+  if (id === YSF_LEAGUE_ID && !isPast) return <YsfScores league={league} week={sp.w ? Number(sp.w) : undefined} lg={sp.lg} season={sp.s} />
   if (!isPast) await advanceLeague(league)
 
   const session = await getServerSession(authOptions)

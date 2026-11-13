@@ -12,6 +12,8 @@ import { oppLabel } from '@/lib/realschedule'
 import { weekDates, teamDayLineups } from '@/lib/dailylineup'
 import MatchupChat from './MatchupChat'
 import BoxScores from './BoxScores'
+import YsfMatchup from './YsfMatchup'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 
 const isStarter = (slot: string) => !RESERVE_SLOTS.includes(slot)
 
@@ -32,11 +34,12 @@ function gameLabel(bucket: Bucket, gs: { kickoff: number | null; status: string 
   return 'Scheduled'
 }
 
-export default async function MatchupPage({ params }: { params: Promise<{ id: string; matchupId: string }> }) {
+export default async function MatchupPage({ params, searchParams }: { params: Promise<{ id: string; matchupId: string }>; searchParams: Promise<{ day?: string }> }) {
   const { id, matchupId } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   const [m] = await db.select().from(matchups).where(eq(matchups.id, matchupId)).limit(1)
   if (!league || !m) notFound()
+  if (id === YSF_LEAGUE_ID) return <YsfMatchup league={league} m={m} day={(await searchParams).day} />
   const meta = sportMeta(m.sport)
   const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})
   const scoring = safeParse<Record<string, Record<string, number>>>(league.scoringSettings, {})[m.sport] ?? {}
