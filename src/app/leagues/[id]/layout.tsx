@@ -13,6 +13,7 @@ import { U, YSF_LEAGUE_ID } from '@/lib/ysf'
 import { YsfFooter } from '@/components/ysf/ui'
 import YsfTicker from '@/components/ysf/YsfTicker'
 import { buildTicker } from '@/lib/ysf-ticker'
+import AppTabBar from '@/components/ysf/AppTabBar'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,7 +29,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
 
-  const franchises = await db.select({ id: teams.id, userId: teams.userId }).from(teams).where(and(eq(teams.leagueId, id), eq(teams.archived, false)))
+  const franchises = await db.select({ id: teams.id, userId: teams.userId, logo: teams.logo }).from(teams).where(and(eq(teams.leagueId, id), eq(teams.archived, false)))
   const myTeamId = session?.user?.id ? franchises.find(f => f.userId === session.user!.id)?.id ?? null : null
   const sportsEnabled = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
   const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
@@ -54,7 +55,10 @@ export default async function LeagueLayout({ children, params }: { children: Rea
       <SportNamingProvider value={{ sportAbbr, sportNames }}>
         <main className="max-w-[1240px] mx-auto px-4 sm:px-5 pt-6 sm:pt-8 pb-12 flex flex-col gap-7 sm:gap-9">{children}</main>
         <YsfFooter />
-        <YsfTicker blocks={await buildTicker(league).catch(() => [])} />
+        <div className="sticky bottom-0 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <YsfTicker blocks={await buildTicker(league).catch(() => [])} />
+          <AppTabBar leagueId={id} myLogo={franchises.find(f => f.id === myTeamId)?.logo ?? null} />
+        </div>
       </SportNamingProvider>
     )
   }

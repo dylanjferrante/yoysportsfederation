@@ -85,7 +85,7 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
   ))
 
   return (
-    <div className="sticky bottom-0 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="relative">
       <button type="button" onClick={toggle} aria-label={hidden ? 'Show ticker' : 'Hide ticker'}
         className="absolute right-4 bottom-full w-11 h-6 rounded-t-md bg-black text-white text-[13px] leading-none inline-flex items-center justify-center">{hidden ? '▴' : '▾'}</button>
       {!hidden && (

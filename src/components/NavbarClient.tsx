@@ -36,7 +36,7 @@ export default function NavbarClient({ clubs, leagueId }: { clubs: Club[]; leagu
       label: 'More', menu: [
         { label: 'Matchday', href: `${base}/matchday` }, { label: 'Votes', href: `${base}/proposals` },
         { label: 'Draft', href: `${base}/draft` }, { label: 'Playoffs', href: `${base}/playoffs` },
-        { label: 'Odds', href: `${base}/odds` }, { label: 'News', href: `${base}/news` },
+        { label: 'Cup Race', href: `${base}/cup` }, { label: 'News', href: `${base}/news` },
         { label: 'Trade Block', href: `${base}/marketplace` }, { label: 'History', href: `${base}/history` },
         { label: 'Records', href: `${base}/records` }, { label: 'Seasons', href: `${base}/seasons` },
         { label: 'Rules', href: `${base}/rules` }, { label: 'Chat', href: `${base}/chat` },
