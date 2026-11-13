@@ -12,7 +12,7 @@ import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { loadClubs, periodLabel, siteFeed } from '@/lib/ysf-data'
 import { weekDateRange } from '@/lib/defaults'
 import { statType, statCell, compactCols, maxCompact } from '@/lib/ysf-statline'
-import { gameInfo } from '@/lib/ysf-gamelines'
+import { gameInfo, refreshLive, tankTeam, loadGameLines, toFantraxStats, type Sport } from '@/lib/ysf-gamelines'
 
 type Line = { team_id: string; date: string | null; slot: string; status: string; name: string; pro_team: string | null; positions: string | null; fpts: number | null; opp: string | null; fx_player_id: string; stats: string | null }
 const SLOT: Record<string, string> = { RWT: 'FLEX', Flx: 'FLEX', UT: 'UTIL', Util: 'UTIL', Skt: 'SKT' }
@@ -53,18 +53,45 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
       for (let d = new Date(pd.start + 'T12:00:00'); d <= new Date(pd.end + 'T12:00:00'); d.setDate(d.getDate() + 1)) days.push(d.toISOString().slice(0, 10))
     }
   }
-  const final = (l: Line) => m.isComplete || (daily && !!l.date && l.date < today)
+  const final = (l: Line) => m.isComplete || (daily && !!l.date && l.date < today) || !!(l as any).live
   const sel = daily ? (day && days.includes(day) ? day : days.filter(d => d <= today).pop() ?? days[0]) : null
   // a day not played yet shows the latest lineup on record, without points
   const lineupDay = daily ? (dataDays.filter(d => d <= sel!).pop() ?? dataDays[dataDays.length - 1]) : null
   const upcoming = daily && !!sel && sel >= today && !m.isComplete
-  const shown = daily ? lines.filter(l => l.date === lineupDay).map(l => upcoming && l.date !== sel ? { ...l, fpts: null, opp: null, stats: null, date: sel } : l) : lines
+  const pickShown = () => daily ? lines.filter(l => l.date === lineupDay).map(l => upcoming && l.date !== sel ? { ...l, fpts: null, opp: null, stats: null, date: sel } : l) : lines
+  let shown = pickShown()
   let span = season.replace('-', '–')
   if (daily && days.length) span = `${md(new Date(days[0] + 'T12:00:00'))}–${md(new Date(days[days.length - 1] + 'T12:00:00'), true)}`
   else if (!daily && isCur) { const { start } = weekDateRange(season, m.week); const s0 = new Date(start); s0.setDate(s0.getDate() + 3); const e0 = new Date(start); e0.setDate(e0.getDate() + 9); span = `${md(s0)}–${md(e0, true)}` }
 
   // real-game info per player: finals from box scores, live and upcoming from the schedule
   const sched = pd ? db.all<{ id: string; status: string | null; epoch: string | null }>(sql`SELECT id, status, game_time_epoch AS epoch FROM game_schedule WHERE sport = ${m.sport} AND game_date >= ${pd.start.replace(/-/g, '')} AND game_date <= ${pd.end.replace(/-/g, '')}`) : []
+  // live games of the players on show: pull their box scores (score, period, clock)
+  const shownTeams = new Set(lines.filter(l => !daily || l.date === lineupDay).map(l => l.pro_team && tankTeam(m.sport, l.pro_team)).filter(Boolean))
+  const nowSec = Date.now() / 1000
+  const liveIds = sched.filter(g => !/final|completed|postponed|cancel/i.test(g.status ?? '') && (/progress|live/i.test(g.status ?? '') || (g.epoch && Number(g.epoch) < nowSec)) && g.id.slice(9).split('@').some(t => shownTeams.has(t))).map(g => g.id)
+  await refreshLive(m.sport, liveIds)
+  // the unfinished part of the period is scored by the app from live and final box scores
+  if (!m.isComplete && pd) {
+    const scoring = (JSON.parse(league.scoringSettings ?? '{}')[m.sport] ?? {}) as Record<string, number>
+    const from = daily ? today : pd.start, to = daily ? today : pd.end
+    const gl = loadGameLines(m.sport as Sport, from, to, scoring, true)
+    const byTank = new Map<string, typeof gl>(); for (const g of gl) byTank.set(g.tankId, [...(byTank.get(g.tankId) ?? []), g])
+    const ids = [...new Set(lines.map(l => l.fx_player_id))]
+    const map = new Map<string, string>()
+    try { for (const r of db.all<{ fx_id: string; tank_id: string }>(sql`SELECT fx_id, tank_id FROM player_id_map WHERE sport = ${m.sport}`)) map.set(r.fx_id, r.tank_id) } catch { /* not built yet */ }
+    const dstOf = (l: Line) => l.fx_player_id.includes('#') && l.pro_team == null ? gl.filter(g => g.dstTeam && l.name.startsWith(g.team)) : null
+    lines = lines.map(l => {
+      if (daily ? l.date !== today : false) return l
+      const mine = (map.get(l.fx_player_id) ? byTank.get(map.get(l.fx_player_id)!) : dstOf(l) ?? undefined) ?? []
+      if (!mine.length) return daily ? { ...l, fpts: null, stats: null } : { ...l, fpts: null, stats: null }
+      const stats: Record<string, number> = {}
+      for (const g of mine) for (const [k, v] of Object.entries(g.stats)) stats[k] = (stats[k] ?? 0) + v
+      return { ...l, fpts: +mine.reduce((a, g) => a + g.pts, 0).toFixed(2), stats: JSON.stringify(toFantraxStats(m.sport, stats)), opp: l.opp || 'live', live: true } as Line
+    })
+    void ids
+    shown = pickShown()
+  }
   const game = (l: Line) => {
     const from = daily ? l.date ?? sel ?? '' : pd?.start ?? '', to = daily ? l.date ?? sel ?? '' : pd?.end ?? ''
     return (from && gameInfo(m.sport, l.pro_team, from, to, sched)) || (l.opp ? l.opp.replace(/<br\/>/g, ' ').replace(/ F$/, ' · Final') : null)
@@ -167,17 +194,17 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
         // starters together in position order, then bench, IR and taxi; a header row wherever the stat type changes
         const n = maxCompact(m.sport)
         const groups = [{ s: '1', a: sa.act, b: sb.act }, ...['2', '3', '9'].map(g => ({ s: g, a: sa.groups.find(x => x.s === g)!.ls, b: sb.groups.find(x => x.s === g)!.ls }))].filter(g => g.a.length || g.b.length)
-        const th = 'px-1.5 py-1.5 ui text-[10px] font-medium text-ink-500 whitespace-nowrap'
+        const th = 'px-1 py-1.5 ui text-[10px] font-medium text-ink-500 whitespace-nowrap'
         const cell = (st: Record<string, string> | null, key: string, played: boolean) => { const v = played ? statCell(st, key) : ''; return <span className={v && v !== '0' ? '' : 'text-ink-200'}>{v === '' ? '–' : v}</span> }
         const PlayerCell = ({ l, right }: { l?: Line; right?: boolean }) => (
-          <td className={`px-2 py-2 min-w-[140px] ${right ? 'text-right' : ''}`}>{l ? <>
-            <span className="block text-[13px] leading-tight"><b>{l.name}</b> <span className="text-ink-500">| {l.pro_team ? `${l.pro_team}, ` : ''}{(l.positions ?? l.slot).replace(/,/g, '/')}</span></span>
+          <td className={`px-2 py-2 whitespace-nowrap ${right ? 'text-right' : ''}`}>{l ? <>
+            <span className="block text-[13px] leading-tight whitespace-nowrap"><b>{l.name}</b> <span className="text-ink-500">| {l.pro_team ? `${l.pro_team}, ` : ''}{(l.positions ?? l.slot).replace(/,/g, '/')}</span></span>
             <span className="block text-[11px] text-ink-500 leading-tight mt-0.5">{game(l) ?? '–'}</span>
           </> : <span className="text-ink-200 text-[12px]">Empty</span>}</td>
         )
         const StatCells = ({ l, cols, right }: { l?: Line; cols: [string, string][]; right?: boolean }) => {
           const st = l ? statsOf(l) : null, played = !!l && !!(l.opp || l.fpts) && final(l)
-          const cells = cols.map(([lab, key]) => <td key={lab} className="px-1.5 py-2 text-right tabular-nums text-[12px]">{l ? cell(st, key, played) : ''}</td>)
+          const cells = cols.map(([lab, key]) => <td key={lab} className="px-1 py-2 text-right tabular-nums text-[11px]">{l ? cell(st, key, played) : ''}</td>)
           const pad = Array.from({ length: n - cols.length }, (_, i) => <td key={'p' + i} />)
           return <>{right ? [...cells, ...pad] : [...pad, ...cells]}</>
         }
