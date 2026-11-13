@@ -50,7 +50,9 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
 
   // my club: roster in this league (to drop) and FAAB left
   const me = session?.user?.id ? db.all<{ id: string }>(sql`SELECT id FROM teams WHERE league_id = ${league.id} AND user_id = ${session.user.id} LIMIT 1`)[0] : undefined
-  const myRoster = me ? db.all<{ id: string; name: string; slot: string; team: string | null; position: string }>(sql`SELECT p.id, p.name, r.slot, p.real_team_abbr team, p.position FROM rosters r JOIN players p ON p.id = r.player_id WHERE r.team_id = ${me.id} AND r.sport = ${L.sport} ORDER BY r.slot`) : []
+  // claims I already have in (from here or My Club) show as PENDING, not another CLAIM button
+  const myClaims = new Set(me ? db.all<{ p: string }>(sql`SELECT add_player_id p FROM waiver_claims WHERE team_id = ${me.id} AND status = 'PENDING'`).map(r => r.p) : [])
+  const myRoster = me ? db.all<{ id: string; rid: string; name: string; slot: string; team: string | null; position: string }>(sql`SELECT p.id, r.id rid, p.name, r.slot, p.real_team_abbr team, p.position FROM rosters r JOIN players p ON p.id = r.player_id WHERE r.team_id = ${me.id} AND r.sport = ${L.sport} ORDER BY r.slot`) : []
   const faab = me ? (db.all<{ f: number }>(sql`SELECT faab_remaining f FROM team_records WHERE team_id = ${me.id} AND season = ${league.season} AND sport = ${L.sport} LIMIT 1`)[0]?.f ?? 0) : 0
 
   const base = `/leagues/${league.id}/waivers`
@@ -105,7 +107,7 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
                   <td className={`${td} text-right hidden sm:table-cell font-normal`}>{r.gp ?? 0}</td>
                   <td className={`${td} text-right`}>{(r.pts ?? 0).toFixed(1)}</td>
                   <td className={`${td} text-right hidden sm:table-cell font-normal`}>{ppg(r).toFixed(1)}</td>
-                  <td className={`${td} text-right`}>{!r.owner && me && <ClaimButton leagueId={league.id} player={{ id: r.id, name: r.name, team: r.team, pos: posOf(r).join('/') }} code={L.code} waivers={!!r.clears} faab={faab} roster={myRoster} />}</td>
+                  <td className={`${td} text-right`}>{!r.owner && me && myClaims.has(r.id) && <span className="ui inline-flex items-center justify-center h-8 px-3 rounded-lg border border-black text-[12px] font-bold leading-none">PENDING</span>}{!r.owner && me && !myClaims.has(r.id) && <ClaimButton leagueId={league.id} teamId={me.id} player={{ id: r.id, name: r.name, team: r.team, pos: posOf(r).join('/') }} code={L.code} waivers={!!r.clears} faab={faab} roster={myRoster} />}</td>
                 </tr>
               )
             })}

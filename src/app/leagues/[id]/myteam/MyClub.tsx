@@ -11,7 +11,7 @@ import { YSF_LEAGUES, YSF_ART, U, injTag } from '@/lib/ysf'
 
 type Game = { opp: string; home: boolean; epoch: number | null; status: string; gameId: string } | null
 type RP = { rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null }
-type FA = { playerId: string; name: string; position: string; pos: string; team: string | null; gp: number; points: number; injury: string | null; pending: boolean }
+type FA = { playerId: string; name: string; position: string; pos: string; team: string | null; gp: number; points: number; injury: string | null; pending: boolean; clears: string | null }
 type Club = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null }
 type Data = {
   team: Club; sports: { sport: string; code: string }[]; sport: string; code: string; cadence: 'DAILY' | 'WEEKLY'; week: number | null; dates: string[]; date: string | null; today: string
@@ -293,13 +293,16 @@ function AddDrop({ data, L, busy, setBusy, leagueId, reload, toast }: { data: Da
       .sort((a, b) => { const x = v(a), y = v(b); return (x < y ? -1 : x > y ? 1 : 0) * dir }).slice(0, 100)
   }, [data.freeAgents, pf, q, srt, dir])
   const sortBy = (k: typeof srt) => { if (srt === k) setDir(-dir); else { setSrt(k); setDir(k === 'name' ? 1 : -1) } }
+  // waiver players are claimed (FAAB bid, processed at the waiver run); free agents are added now
   const submit = async (p: FA) => {
     if (full && !drop) return toast('Your roster is full — choose a player to drop')
     setBusy(true)
     const dropP = data.roster.find(r => r.rosterId === drop)
-    const r = await fetch(`/api/leagues/${leagueId}/waivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'SUBMIT', addPlayerId: p.playerId, dropPlayerId: dropP?.playerId, bidAmount: bid }) })
+    const r = p.clears
+      ? await fetch(`/api/leagues/${leagueId}/waivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'SUBMIT', addPlayerId: p.playerId, dropPlayerId: dropP?.playerId, bidAmount: bid }) })
+      : await fetch(`/api/teams/${data.team.id}/roster`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ADD', playerId: p.playerId, dropRosterId: dropP?.rosterId }) })
     const j = await r.json().catch(() => ({}))
-    toast(r.ok ? `Claim submitted: ${p.name} for $${bid}` : (j.error || 'Claim failed'))
+    toast(r.ok ? (p.clears ? `Claim submitted: ${p.name} for $${bid}` : `${p.name} added`) : (j.error || (p.clears ? 'Claim failed' : 'Add failed')))
     setOpen(null); setBusy(false); await reload()
   }
   const H = ({ k, l, w, right }: { k: typeof srt; l: string; w?: string; right?: boolean }) => (
@@ -318,16 +321,16 @@ function AddDrop({ data, L, busy, setBusy, leagueId, reload, toast }: { data: Da
         {rows.map(p => (
           <div key={p.playerId} className="border-t border-ink-50">
             <div className="flex items-center gap-2.5 px-4 py-2">
-              <span className="flex-1 min-w-0 font-bold">{p.name}{p.injury && <> <span className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{injTagOf(p.injury)}</span></>}<span className="block font-normal text-[13px] text-ink-500">{meta(data.code, p.team, p.pos)}</span></span>
+              <span className="flex-1 min-w-0 font-bold">{p.name}{p.injury && <> <span className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{injTagOf(p.injury)}</span></>}<span className="block font-normal text-[13px] text-ink-500">{meta(data.code, p.team, p.pos)}</span><span className={`mt-1 ui inline-flex items-center h-[20px] px-1.5 rounded-[2px] text-[10px] font-bold leading-none text-white ${p.clears ? 'bg-[#2F5D8A]' : 'bg-black'}`}>{p.clears ? `WAIVERS · ${new Date(p.clears).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'FREE AGENT'}</span></span>
               <span className="hidden sm:inline w-10 text-right tabular-nums text-ink-500 font-semibold">{p.gp || '—'}</span>
               <span className="w-[58px] text-right tabular-nums font-bold">{p.points.toFixed(1)}</span>
               <span className="w-[50px] text-right tabular-nums font-semibold">{p.gp ? (p.points / p.gp).toFixed(1) : '—'}</span>
-              <button disabled={busy || p.pending} onClick={() => { setOpen(open === p.playerId ? null : p.playerId); setBid(1); setDrop('') }} className={`${btn} w-[84px] h-8 border border-black`} style={{ background: open === p.playerId ? '#000' : '#fff', color: open === p.playerId ? '#fff' : '#000' }}>{p.pending ? 'PENDING' : open === p.playerId ? 'CLAIMING' : 'CLAIM'}</button>
+              <button disabled={busy || p.pending} onClick={() => { setOpen(open === p.playerId ? null : p.playerId); setBid(1); setDrop('') }} className={`${btn} w-[84px] h-8 border border-black`} style={{ background: open === p.playerId ? '#000' : '#fff', color: open === p.playerId ? '#fff' : '#000' }}>{p.pending ? 'PENDING' : p.clears ? 'CLAIM' : 'ADD'}</button>
             </div>
             {open === p.playerId && (
               <div className="flex flex-wrap gap-3 items-end px-4 pt-3 pb-4 bg-ink-50">
-                <label className="flex flex-col gap-1.5"><span className="ui text-[11px] text-ink-500">BID (OF ${data.faab})</span>
-                  <input type="number" min={0} max={data.faab} value={bid} onChange={e => setBid(Math.max(0, Math.min(data.faab, Math.floor(+e.target.value || 0))))} className="w-[110px] h-11 px-3 border border-black rounded-lg font-bold" /></label>
+                {p.clears && <label className="flex flex-col gap-1.5"><span className="ui text-[11px] text-ink-500">BID (OF ${data.faab})</span>
+                  <input type="number" min={0} max={data.faab} value={bid} onChange={e => setBid(Math.max(0, Math.min(data.faab, Math.floor(+e.target.value || 0))))} className="w-[110px] h-11 px-3 border border-black rounded-lg font-bold" /></label>}
                 <label className="flex flex-col gap-1.5 flex-1 min-w-[220px]"><span className="ui text-[11px] text-ink-500">{full ? `DROP (ROSTER FULL)` : 'DROP'}</span>
                   <select value={drop} onChange={e => setDrop(e.target.value)} className="h-11 px-3 border border-black rounded-lg bg-white font-semibold">
                     <option value="">{full ? 'Choose a player to drop' : 'No drop'}</option>
@@ -335,7 +338,7 @@ function AddDrop({ data, L, busy, setBusy, leagueId, reload, toast }: { data: Da
                   </select></label>
                 <div className="flex gap-2">
                   <button onClick={() => setOpen(null)} className={`${btn} h-11 px-4 border border-black bg-white text-black text-[13px]`}>CANCEL</button>
-                  <button disabled={busy} onClick={() => submit(p)} className={`${btn} h-11 px-4 text-white text-[13px]`} style={{ background: full && !drop ? '#8A8A8A' : '#000' }}>SUBMIT CLAIM</button>
+                  <button disabled={busy} onClick={() => submit(p)} className={`${btn} h-11 px-4 text-white text-[13px]`} style={{ background: full && !drop ? '#8A8A8A' : '#000' }}>{p.clears ? 'SUBMIT CLAIM' : 'ADD PLAYER'}</button>
                 </div>
               </div>
             )}

@@ -14,6 +14,8 @@ const nextConfig = {
       // the federation is the site: Nexus's multi-league dashboard and player index go to their ySF pages
       { source: '/dashboard', destination: '/leagues/ysf', permanent: false },
       { source: '/players', destination: '/leagues/ysf/waivers', permanent: false },
+      { source: '/trade', destination: '/leagues/ysf/trade', permanent: false },
+      { source: '/trade/new', destination: '/leagues/ysf/myteam?tab=trade', permanent: false },
     ]
   },
 }

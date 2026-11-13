@@ -8,6 +8,7 @@ import { safeParse, orderedSports } from '@/lib/utils'
 import { lineupCadenceFor, weekDateRange } from '@/lib/defaults'
 import { weekDates } from '@/lib/dailylineup'
 import { bearerUserId } from '@/lib/mobileAuth'
+import { lastNflRun, nextNflRun } from '@/lib/waivers'
 
 // Everything the My Club page needs for one league (sport): this week's matchup, the lineup
 // (per day for daily leagues) with each player's game, lock state and season stats, FAAB,
@@ -121,7 +122,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .from(playerSeasonStats).innerJoin(players, eq(playerSeasonStats.playerId, players.id))
     .where(and(eq(playerSeasonStats.leagueId, id), eq(playerSeasonStats.season, season), eq(playerSeasonStats.sport, sport), rostered.length ? notInArray(players.id, rostered) : undefined))
     .orderBy(desc(playerSeasonStats.points)).limit(250)
-  const freeAgents = faRows.map(f => ({ playerId: f.playerId, name: f.name, position: f.position, pos: posOf(f.position, f.eligible), team: f.team, gp: f.gp ?? 0, points: f.points ?? 0,
+  // on waivers (claim, processed at the waiver run) vs free agents (add straight away): dropped players
+  // until they clear, and in ySFFL anyone whose game this week has kicked off (until Wednesday's run)
+  const wire = new Map(db.all<{ p: string; c: string }>(sql`SELECT player_id p, clears_at c FROM waiver_wire WHERE league_id = ${id} AND sport = ${sport} AND clears_at > ${now.toISOString()}`).map(r => [r.p, r.c]))
+  let nflLocked = new Set<string>()
+  if (sport === 'NFL' && id === 'ysf') {
+    const since = Math.floor(lastNflRun(now).getTime() / 1000), until = Math.floor(now.getTime() / 1000) + 300
+    nflLocked = new Set(db.all<{ t: string }>(sql`SELECT home_abbr t FROM game_schedule WHERE sport = 'NFL' AND game_time_epoch BETWEEN ${since} AND ${until} UNION SELECT away_abbr FROM game_schedule WHERE sport = 'NFL' AND game_time_epoch BETWEEN ${since} AND ${until}`).map(r => r.t))
+  }
+  const nflRun = nextNflRun(now, 0).toISOString()
+  const clearsOf = (pid: string, team: string | null) => wire.get(pid) ?? (team && nflLocked.has(team) ? nflRun : null)
+  const freeAgents = faRows.map(f => ({ clears: clearsOf(f.playerId, f.team), playerId: f.playerId, name: f.name, position: f.position, pos: posOf(f.position, f.eligible), team: f.team, gp: f.gp ?? 0, points: f.points ?? 0,
     injury: f.status && !/^(active|healthy)$/i.test(f.status) ? f.status : null, injuryNote: f.injury || null, pending: claims.some(c => c.add?.id === f.playerId) }))
 
   // trade partners + my picks for this sport

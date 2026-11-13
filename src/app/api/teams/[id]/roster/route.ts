@@ -8,7 +8,7 @@ import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { slotEligible, irEligible, defaultIrDesignations, lineupCadenceFor } from '@/lib/defaults'
 import { weekDates, gameDateOf, teamDayLineups } from '@/lib/dailylineup'
-import { logActivity } from '@/lib/activity'
+import { logActivity, moveData } from '@/lib/activity'
 import { bearerUserId } from '@/lib/mobileAuth'
 import { realOpponents } from '@/lib/realschedule'
 import { scheduleOpponents, scheduleKickoffs } from '@/lib/schedule'
@@ -308,7 +308,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await db.delete(rosters).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
     if (dropped) {
       if (league?.waiverType !== 'FREE_AGENT') await placeOnWaivers(team.leagueId, dropped.playerId, dropped.sport, id, league?.waiverPeriodDays ?? 0)
-      await logActivity(team.leagueId, 'ROSTER', `${team.name} dropped ${dropped.name} (${dropped.sport})`, id)
+      await logActivity(team.leagueId, 'ROSTER', `${team.name} dropped ${dropped.name} (${dropped.sport})`, id, await moveData(dropped.playerId, 'DROPPED'))
     }
     return NextResponse.json({ ok: true })
   }
@@ -361,15 +361,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (count >= cap) return NextResponse.json({ error: `Roster limit reached: max ${cap} at ${pl.position}` }, { status: 400 })
     }
     let droppedName = ''
+    let droppedId: string | null = null
     if (body.dropRosterId) {
       // the dropped player goes on waivers, the same as a plain drop
       const [d] = await db.select({ playerId: rosters.playerId, name: players.name, sport: players.sport }).from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
         .where(and(eq(rosters.id, body.dropRosterId), eq(rosters.teamId, id))).limit(1)
       await db.delete(rosters).where(and(eq(rosters.id, body.dropRosterId), eq(rosters.teamId, id)))
-      if (d) { droppedName = d.name; if (league?.waiverType !== 'FREE_AGENT') await placeOnWaivers(team.leagueId, d.playerId, d.sport, id, league?.waiverPeriodDays ?? 0) }
+      if (d) { droppedName = d.name; droppedId = d.playerId; if (league?.waiverType !== 'FREE_AGENT') await placeOnWaivers(team.leagueId, d.playerId, d.sport, id, league?.waiverPeriodDays ?? 0) }
     }
     await db.insert(rosters).values({ id: nanoid(), teamId: id, playerId: body.playerId, sport: pl.sport, slot: 'BN', acquisitionType: 'FA' }).onConflictDoNothing()
-    await logActivity(team.leagueId, 'ROSTER', `${team.name} added ${pl.name} (${pl.sport})${droppedName ? `, dropped ${droppedName}` : ''}`, id)
+    await logActivity(team.leagueId, 'ROSTER', `${team.name} added ${pl.name} (${pl.sport})`, id, await moveData(pl.id, 'SIGNED'))
+    if (droppedId) await logActivity(team.leagueId, 'ROSTER', `${team.name} dropped ${droppedName} (${pl.sport})`, id, await moveData(droppedId, 'DROPPED'))
     return NextResponse.json({ ok: true })
   }
 

@@ -200,7 +200,7 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
   const drafts = [...draftsMap.values()].map(d => ({ ...d, rows: d.rows.sort((a, b) => pkNum(a.pk) - pkNum(b.pk)) })).sort((a, b) => (b.when > a.when ? 1 : -1))
   const moves = mv.filter(x => x.kind !== 'DRAFTED').slice(0, 300).map(m => ({
     when: m.when, sport: m.sport, kind: m.kind,
-    player: m.player ?? m.text ?? '', team: m.player ? m.team || 'FA' : '', pos: m.player ? dst(m.pos ?? '') : '',
+    player: m.player || m.text || '', team: m.player ? m.team || 'FA' : '', pos: m.player ? dst(m.pos ?? '') : '',
     detail: m.bid != null && m.kind !== 'TRADED' ? `$${m.bid}` : m.kind === 'TRADED' && m.from ? `from ${C[m.from]?.abbreviation ?? ''}` : '',
   }))
 

@@ -178,7 +178,7 @@ export async function POST(req: Request) {
       id: nanoid(), tradeId, teamId: t.id, userId: t.userId, status: 'PENDING',
     })))
 
-    await notify(partnerRows.map(t => t.userId).filter(Boolean) as string[], `${mine.name} sent you a trade proposal`, `/trade`, 'TRADE')
+    await notify(partnerRows.map(t => t.userId).filter(Boolean) as string[], `${mine.name} sent you a trade proposal`, `/leagues/${mine.leagueId}/myteam?tab=pending`, 'TRADE')
 
     return NextResponse.json(trade, { status: 201 })
   } catch (e) {

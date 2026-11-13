@@ -70,7 +70,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if (action === 'REJECT') {
     if (!myTeam) return NextResponse.json({ error: 'Not a participant' }, { status: 403 })
-    if (initiatorTeam?.userId) await notify(initiatorTeam.userId, `${myTeam.name} rejected your trade proposal`, `/trade`, 'TRADE')
+    if (initiatorTeam?.userId) await notify(initiatorTeam.userId, `${myTeam.name} rejected your trade proposal`, `/leagues/${trade.leagueId}/myteam?tab=pending`, 'TRADE')
     return finish('REJECTED')
   }
 

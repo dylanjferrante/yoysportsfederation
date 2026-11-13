@@ -70,7 +70,7 @@ export default function MovesTable({ leagueId, rows, clubs, codes, fixedSport }:
                     </td>
                     <td className="px-2 py-2.5"><span className="ui inline-flex items-center justify-center min-w-[84px] h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none" style={{ background: p.bg, color: p.fg, border: p.bd ? `1px solid ${p.bd}` : undefined }}>{r.kind}</span></td>
                     <td className="px-2 py-2.5 text-[13px] font-bold tabular-nums whitespace-nowrap">{r.pick ?? ''}</td>
-                    <td className="px-2 py-2.5 font-semibold">{r.player ?? r.text}</td>
+                    <td className="px-2 py-2.5 font-semibold">{r.player || r.text}</td>
                     <td className="px-2 py-2.5 text-[13px] whitespace-nowrap">{r.player ? r.team || 'FA' : ''}</td>
                     <td className="px-2 py-2.5 text-[13px] whitespace-nowrap">{r.player ? r.pos.replace(/\bDEF\b/g, 'D/ST') : ''}</td>
                     <td className="px-2 py-2.5 text-[13px] text-ink-500">{r.via ? `via ${clubs[r.via]?.name ?? r.via}` : r.from ? clubs[r.from]?.name ?? r.from : ''}</td>

@@ -230,9 +230,9 @@ export async function loadMoves(leagueId: string, currentSeason = '2026-27') {
     const d = safeParse<any>(r.data, null)
     const when = (r.createdAt ?? '').replace(' ', 'T')
     const season = d?.season ?? currentSeason
-    if (r.type === 'TRADE') { trades.push({ id: r.id, when, sides: d?.sides ?? [], text: r.message, season }); continue }
-    if (!['WAIVER', 'ROSTER', 'DRAFT'].includes(r.type) || d?.kind === 'LINEUP_CHANGE' || (r.type === 'DRAFT' && !d)) continue
-    moves.push({ id: r.id, when, sport: d?.sport ?? '', teamId: r.teamId ?? '', kind: d?.kind ?? 'MOVE', player: d?.player ?? '', team: d?.team ?? '', pos: d?.pos ?? '', bid: d?.bid ?? null, text: r.message, season, pick: d?.pick ? fedPick(d.pick) : undefined })
+    if (r.type === 'TRADE' && d?.kind !== 'TRADED') { trades.push({ id: r.id, when, sides: d?.sides ?? [], text: r.message, season }); continue }
+    if (!['WAIVER', 'ROSTER', 'DRAFT', 'TRADE'].includes(r.type) || d?.kind === 'LINEUP_CHANGE' || (r.type === 'DRAFT' && !d)) continue
+    moves.push({ id: r.id, when, sport: d?.sport ?? '', teamId: r.teamId ?? '', kind: d?.kind ?? 'MOVE', player: d?.player ?? '', team: d?.team ?? '', pos: d?.pos ?? '', bid: d?.bid ?? null, text: d?.text ?? r.message, season, pick: d?.pick ? fedPick(d.pick) : undefined, from: d?.from ?? undefined })
   }
   // trades as Fantrax recorded them: every player and draft pick that changed hands
   const code = (sp: string) => YSF_LEAGUES.find(l => l.sport === sp)?.code ?? sp

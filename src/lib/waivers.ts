@@ -3,7 +3,7 @@ import { teams, rosters, players, teamRecords, waiverClaims, waiverWire } from '
 import { eq, and, lte } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
-import { logActivity, notify } from '@/lib/activity'
+import { logActivity, notify, moveData } from '@/lib/activity'
 import { sendPush } from '@/lib/push'
 import { isYsf, claimLimitError, eligCapError, etMidnightUtc } from '@/lib/ysf-rules'
 
@@ -196,11 +196,12 @@ async function awardClaims(league: any, pending: any[]) {
 
     const tName = tById[winner.teamId]?.name ?? 'A franchise'
     const claimMsg = `${tName} claimed ${add?.name ?? 'a player'}${add?.sport ? ` (${add.sport})` : ''}${isFaab ? ` for $${winner.bidAmount}` : ''}` + (droppedName ? `, dropped ${droppedName}` : '')
-    await logActivity(league.id, 'WAIVER', claimMsg, winner.teamId)
+    await logActivity(league.id, 'WAIVER', claimMsg, winner.teamId, await moveData(playerId, 'CLAIMED', { bid: isFaab ? winner.bidAmount : null }))
+    if (winner.dropPlayerId) await logActivity(league.id, 'WAIVER', `${tName} dropped ${droppedName ?? 'a player'}`, winner.teamId, await moveData(winner.dropPlayerId, 'DROPPED'))
     const owner = tById[winner.teamId]?.userId
     if (owner) {
       const wmsg = `You won ${add?.name ?? 'a player'} on waivers${isFaab ? ` for $${winner.bidAmount}` : ''}`
-      await notify(owner, wmsg, `/teams/${winner.teamId}`, 'WAIVER')
+      await notify(owner, wmsg, `/leagues/${league.id}/myteam`, 'WAIVER')
       await sendPush([owner], '✅ Waiver claim won', wmsg, { type: 'WAIVER', leagueId: league.id })
     }
     awarded.push(playerId)

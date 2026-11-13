@@ -3,7 +3,7 @@ import { trades, teams, rosters, tradeItems, draftPicks, players, teamRecords, l
 import { eq, inArray, and } from 'drizzle-orm'
 import { reviewState, LEAGUE_OF } from '@/lib/ysf-rules'
 import { nanoid } from 'nanoid'
-import { logActivity, notify } from '@/lib/activity'
+import { logActivity, notify, moveData } from '@/lib/activity'
 import { sendPush } from '@/lib/push'
 
 export async function executeTrade(tradeId: string): Promise<boolean> {
@@ -29,7 +29,7 @@ export async function executeTrade(tradeId: string): Promise<boolean> {
       const [existing] = await db.select({ salary: rosters.salary, contractYears: rosters.contractYears }).from(rosters).where(eq(rosters.playerId, it.playerId)).limit(1)
       await db.delete(rosters).where(eq(rosters.playerId, it.playerId))
       await db.insert(rosters).values({ id: nanoid(), teamId: to, playerId: it.playerId, sport: pl?.sport ?? 'NFL', slot: 'BN', acquisitionType: 'TRADE', salary: existing?.salary ?? 0, contractYears: existing?.contractYears ?? null }).onConflictDoNothing()
-      await logActivity(trade.leagueId!, 'TRADE', `${nameOf(from)} traded ${pl?.name ?? 'a player'} (${pl?.sport ?? '—'}) to ${nameOf(to)}`, to ?? null)
+      await logActivity(trade.leagueId!, 'TRADE', `${nameOf(from)} traded ${pl?.name ?? 'a player'} (${pl?.sport ?? '—'}) to ${nameOf(to)}`, to ?? null, await moveData(it.playerId, 'TRADED', { from }))
     }
     if (it.faabSport && it.faabAmount && from && to && lg) {
       for (const [tid, d] of [[from, -it.faabAmount], [to, it.faabAmount]] as [string, number][]) {
@@ -41,14 +41,14 @@ export async function executeTrade(tradeId: string): Promise<boolean> {
     if (it.pickId && to) {
       const [pk] = await db.select({ year: draftPicks.year, sport: draftPicks.sport, round: draftPicks.round }).from(draftPicks).where(eq(draftPicks.id, it.pickId)).limit(1)
       await db.update(draftPicks).set({ currentTeamId: to }).where(eq(draftPicks.id, it.pickId))
-      await logActivity(trade.leagueId!, 'TRADE', `${nameOf(from)} traded a ${pk?.year ?? ''} ${pk?.sport ?? 'OVERALL'} round ${pk?.round ?? '?'} pick to ${nameOf(to)}`, to ?? null)
+      await logActivity(trade.leagueId!, 'TRADE', `${nameOf(from)} traded a ${pk?.year ?? ''} ${pk?.sport ?? 'OVERALL'} round ${pk?.round ?? '?'} pick to ${nameOf(to)}`, to ?? null, { kind: 'TRADED', sport: pk?.sport ?? '', from, text: `${pk?.year ?? ''} Rookie Draft pick (Round ${pk?.round ?? '?'})` })
     }
   }
 
   await db.update(trades).set({ status: 'ACCEPTED', processedAt: new Date().toISOString() }).where(eq(trades.id, tradeId))
   const partyNames = teamRows.map(t => t.name).join(' / ')
   const partyUsers = teamRows.map(t => t.userId).filter(Boolean) as string[]
-  await notify(partyUsers, `Your trade is complete: ${partyNames}`, `/trade`, 'TRADE')
+  await notify(partyUsers, `Your trade is complete: ${partyNames}`, `/leagues/${trade.leagueId}/trade`, 'TRADE')
   await sendPush(partyUsers, '🔁 Trade complete', `${partyNames} — assets have moved.`, { type: 'TRADE', leagueId: trade.leagueId })
   return true
 }

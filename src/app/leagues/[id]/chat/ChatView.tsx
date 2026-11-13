@@ -4,7 +4,8 @@ import { PageTitle } from '@/components/ysf/ui'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
 
-type Msg = { id: string; body: string; createdAt: string | null; userId: string | null; author: string | null; team: string | null; mine: boolean }
+// system: a Federation move (trade, claim, signing) from the activity log, linking to where it lives
+type Msg = { id: string; body: string; createdAt: string | null; userId?: string | null; author?: string | null; team?: string | null; mine?: boolean; system?: string; link?: string }
 
 function initials(name: string | null) {
   if (!name) return '?'
@@ -48,18 +49,26 @@ export default function ChatView({ leagueId, leagueName }: { leagueId: string; l
 
   return (
     <div className="flex flex-col" style={{ minHeight: '60vh' }}>
-      <div className="mb-4"><PageTitle eyebrow="The Federation" title="CHAT" /></div>
+      <div className="mb-4"><PageTitle eyebrow="The Federation" title="CHAT" right={<Link href={`/leagues/${leagueId}/myteam?tab=trade`} className="inline-flex items-center justify-center h-10 px-4 rounded-lg bg-black text-white font-display text-[13px] font-bold tracking-[.08em] leading-none">PROPOSE TRADE</Link>} /></div>
 
       <div className="card flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.length === 0 ? (
             <p className="text-center text-ink-500 font-semibold py-10">No messages yet</p>
           ) : messages.map((m, i) => {
-            const showHead = i === 0 || messages[i - 1].userId !== m.userId
+            const when = m.createdAt ? new Date(m.createdAt.replace(' ', 'T') + (/[Z+]/.test(m.createdAt) ? '' : 'Z')).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+            if (m.system) return (
+              <Link key={m.id} href={m.link ?? '#'} className="block mx-auto max-w-[92%] rounded-lg border-2 border-black px-3 py-2 text-center hover:bg-ink-50">
+                <span className="ui text-[11px] font-bold tracking-[.12em]">{m.system}</span>
+                <span className="block text-[14px] mt-0.5"><span className="ysf-case">{m.body}</span></span>
+                <span className="block text-[11px] text-ink-400 mt-0.5">{when}</span>
+              </Link>
+            )
+            const showHead = i === 0 || messages[i - 1].system || messages[i - 1].userId !== m.userId
             return (
               <div key={m.id} className={`flex gap-2.5 ${m.mine ? 'flex-row-reverse' : ''}`}>
                 {showHead
-                  ? <div className="w-8 h-8 rounded flex items-center justify-center ui text-[10px] font-bold text-white flex-shrink-0" style={{ background: colorFor(m.userId) }}>{initials(m.team ?? m.author)}</div>
+                  ? <div className="w-8 h-8 rounded flex items-center justify-center ui text-[10px] font-bold text-white flex-shrink-0" style={{ background: colorFor(m.userId ?? null) }}>{initials(m.team ?? m.author ?? null)}</div>
                   : <div className="w-8 flex-shrink-0" />}
                 <div className={`max-w-[75%] ${m.mine ? 'text-right' : ''}`}>
                   {showHead && <p className="ui text-[11px] text-ink-500 mb-0.5">{m.team ?? m.author}{m.team && m.author ? ` · ${m.author}` : ''}</p>}
