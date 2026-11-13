@@ -34,12 +34,10 @@ export default function NavbarClient({ clubs, leagueId, strip }: { clubs: Club[]
     { label: 'Trades', href: `${base}/trade` },
     {
       label: 'More', menu: [
-        { label: 'Votes', href: `${base}/proposals` },
-        { label: 'Draft', href: `${base}/draft` }, { label: 'Playoffs', href: `${base}/playoffs` },
-        { label: 'Cup Race', href: `${base}/cup` }, { label: 'News', href: `${base}/news` },
-        { label: 'Trade Block', href: `${base}/marketplace` }, { label: 'History', href: `${base}/history` },
-        { label: 'Records', href: `${base}/records` }, { label: 'Seasons', href: `${base}/seasons` },
-        { label: 'Rules', href: `${base}/rules` }, { label: 'Chat', href: `${base}/chat` },
+        { label: 'Cup Race', href: `${base}/cup` }, { label: 'Playoffs', href: `${base}/playoffs` },
+        { label: 'Draft', href: `${base}/draft` }, { label: 'History', href: `${base}/history` },
+        { label: 'Records', href: `${base}/records` }, { label: 'League Office', href: `${base}/rules` },
+        { label: 'Votes', href: `${base}/proposals` }, { label: 'Chat', href: `${base}/chat` },
       ],
     },
   ]
@@ -89,7 +87,6 @@ export default function NavbarClient({ clubs, leagueId, strip }: { clubs: Club[]
               {open === 'me' && (
                 <div className="absolute right-0 mt-2 w-52 bg-white text-black border border-ink-100 shadow-lg py-1 z-50" style={{ borderRadius: 4 }}>
                   <p className="px-4 py-2 text-xs text-ink-400 border-b border-ink-100">{session.user?.email}</p>
-                  <Link href={`${base}/myteam`} className="block px-4 py-2 text-sm hover:bg-ink-50">My Club</Link>
                   <Link href="/leagues" className="block px-4 py-2 text-sm hover:bg-ink-50">All leagues</Link>
                   <Link href="/account" className="block px-4 py-2 text-sm hover:bg-ink-50">Account settings</Link>
                   <button onClick={() => signOut({ callbackUrl: '/' })} className="w-full text-left px-4 py-2 text-sm text-[#ba0c2f] hover:bg-ink-50 border-t border-ink-100">Sign out</button>

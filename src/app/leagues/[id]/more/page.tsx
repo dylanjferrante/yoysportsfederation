@@ -78,22 +78,23 @@ export default async function MorePage({ params }: { params: Promise<{ id: strin
           { href: `${b}/transactions`, label: 'Moves', icon: <Icon bg="#000" k="moves" /> },
           { href: `${b}/cup`, label: 'Cup Race', extra: fav ? `${fav.abbr} ${pct(fav.p_win_fed_cup)}` : undefined, icon: <Icon bg="#B8860B" k="cup" /> },
           { href: `${b}/power`, label: 'Rankings', icon: <Icon bg="#7700B5" k="rank" /> },
-          { href: `${b}/history`, label: 'History & Records', icon: <Icon bg="#0D00B2" k="history" /> },
+          { href: `${b}/playoffs`, label: 'Playoffs', icon: <Icon bg="#B8860B" k="cup" /> },
+          { href: `${b}/history`, label: 'History', icon: <Icon bg="#0D00B2" k="history" /> },
+          { href: `${b}/records`, label: 'Records', icon: <Icon bg="#0D00B2" k="history" /> },
           { href: `${b}/report`, label: 'Federation Report', icon: <Icon bg="#4A4A4A" k="report" /> },
         ]} />
         <Group title="LEAGUES" items={YSF_LEAGUES.map(l => ({ href: `${b}/sports/${l.sport}`, label: l.name, icon: <span className="w-8 h-8 inline-flex items-center justify-center flex-none"><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt="" className="w-8 h-8 object-contain" /></span> }))} />
         <Group title="LEAGUE OFFICE" items={[
-          { href: `${b}/rules`, label: 'Constitution', icon: <Icon bg="#177245" k="const" /> },
-          { href: `${b}/proposals`, label: 'Votes & Resolutions', icon: <Icon bg="#3A6B9E" k="prop" /> },
-          { href: `${b}/news`, label: 'Memos', icon: <Icon bg="#e86100" k="memo" /> },
+          { href: `${b}/rules`, label: 'Constitution & Resolutions', icon: <Icon bg="#177245" k="const" /> },
+          { href: `${b}/proposals`, label: 'Votes', icon: <Icon bg="#3A6B9E" k="prop" /> },
           { href: `${b}/draft`, label: 'Rookie Drafts', extra: next && nextL ? `${nextL.code} ${fmt(next.scheduledAt)}` : undefined, icon: <Icon bg="#ba0c2f" k="draft" /> },
         ]} />
         <Group title="MARKET" items={[
           { href: `${b}/waivers`, label: 'Players', icon: <Icon bg="#000" k="players" /> },
           { href: `${b}/trade`, label: 'Trades', icon: <Icon bg="#00333F" k="trade" /> },
-          { href: `${b}/marketplace`, label: 'Trade Block', icon: <Icon bg="#4A4A4A" k="trade" /> },
         ]} />
         <Group title="ACCOUNT" items={[
+          { href: `${b}/chat`, label: 'Chat', icon: <Icon bg="#e86100" k="memo" /> },
           { href: '/account', label: session?.user?.name ?? 'Sign in', extra: mine?.abbreviation, icon: <Icon bg="#00333F" k="user" /> },
         ]} />
       </div>

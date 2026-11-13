@@ -79,7 +79,7 @@ export function writeStories(s: { clubs: Record<string, ClubInfo>; cup: CupRow[]
   if (extra?.trades?.length || extra?.moves?.length) {
     const tr = extra.trades ?? []
     const bigBid = (extra.moves ?? []).filter(m => m.bid != null).sort((a, b) => (b.bid ?? 0) - (a.bid ?? 0))[0]
-    const trText = tr.slice(0, 2).map(t => t.sides.map(sd => `${ab(sd.teamId)} got ${list(sd.gets.map(g => g.name))}`).join('; ')).join('. ')
+    const trText = tr.slice(0, 2).map(t => t.sides.filter(sd => sd.gets.length).map(sd => `${ab(sd.teamId)} got ${list(sd.gets.map(g => g.name))}`).join('; ')).join('. ')
     sections.push({ topic: 'MOVES', clubs: [...new Set(tr.slice(0, 2).flatMap(t => t.sides.map(sd => sd.teamId)))],
       body: `${tr.length ? `${tr.length} trade${tr.length === 1 ? '' : 's'} this season. ${trText}.` : ''}${bigBid ? ` The top FAAB bid: ${ab(bigBid.teamId)}'s $${bigBid.bid} for ${bigBid.player} (${code(bigBid.sport)}-${bigBid.team}, ${bigBid.pos}).` : ''}`.trim() })
   }
