@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     // surfaced directly. In production this would be emailed, not returned.
     return NextResponse.json({ ...generic, resetUrl: `/auth/reset?token=${token}` })
   } catch (e) {
-    if (e instanceof z.ZodError) return NextResponse.json({ error: e.errors }, { status: 400 })
+    if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues }, { status: 400 })
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

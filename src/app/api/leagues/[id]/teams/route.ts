@@ -28,7 +28,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   let body: z.infer<typeof addSchema>
   try { body = addSchema.parse(await req.json()) }
-  catch (e) { if (e instanceof z.ZodError) return NextResponse.json({ error: e.errors }, { status: 400 }); return NextResponse.json({ error: 'Bad request' }, { status: 400 }) }
+  catch (e) { if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues }, { status: 400 }); return NextResponse.json({ error: 'Bad request' }, { status: 400 }) }
 
   const existingTeams = await db.select({ id: teams.id }).from(teams).where(eq(teams.leagueId, id))
   if (existingTeams.length >= (league.maxTeams ?? 12))

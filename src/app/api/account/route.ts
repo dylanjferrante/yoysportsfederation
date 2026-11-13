@@ -45,7 +45,7 @@ export async function PATCH(req: Request) {
     if (Object.keys(update).length) await db.update(users).set(update).where(eq(users.id, me.id))
     return NextResponse.json({ ok: true, nameChanged: 'name' in update, emailChanged: 'email' in update })
   } catch (e) {
-    if (e instanceof z.ZodError) return NextResponse.json({ error: e.errors }, { status: 400 })
+    if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues }, { status: 400 })
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

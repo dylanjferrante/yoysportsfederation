@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   let body: z.infer<typeof schema>
   try { body = schema.parse(await req.json()) }
-  catch (e) { if (e instanceof z.ZodError) return NextResponse.json({ error: e.errors }, { status: 400 }); return NextResponse.json({ error: 'Bad request' }, { status: 400 }) }
+  catch (e) { if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues }, { status: 400 }); return NextResponse.json({ error: 'Bad request' }, { status: 400 }) }
 
   const [oldTeam] = await db.select().from(teams).where(and(eq(teams.id, body.archiveTeamId), eq(teams.leagueId, id))).limit(1)
   if (!oldTeam) return NextResponse.json({ error: 'Club to archive not found in this league' }, { status: 404 })
