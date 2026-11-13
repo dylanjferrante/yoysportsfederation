@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Tabs, th, td } from '@/components/ysf/ui'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
+import MyClub from '../../myteam/MyClub'
 
 type Cell = { matchupId: string; span: number; label: string; opp: string; result: string; tone: 'win' | 'loss' | 'tie' | 'live' | 'future'; playoff: boolean } | null
 export type LeagueSeason = {
@@ -27,8 +28,13 @@ const KIND: Record<string, string> = { CLAIMED: 'CLAIM', SIGNED: 'SIGN', DROPPED
 const fmt = (iso: string) => { const d = new Date(/T|Z/.test(iso) ? iso : iso.replace(' ', 'T') + 'Z'); return isNaN(+d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
 const badge = 'ui inline-flex items-center justify-center leading-none h-[22px] px-1.5 rounded-[2px] text-[11px] font-bold'
 
-export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
-  const [tab, setTab] = useState('cal')
+// `own`: the signed-in member's club — each league tab carries that league's editable lineup, and
+// ADD / DROP, TRADE and PENDING join the same tab row (?tab=players|trade|pending opens one).
+export default function ClubTabs({ data: d, own = false, start = 'cal' }: { data: ClubTabsData; own?: boolean; start?: string }) {
+  const [tab, setTab] = useState(() => {
+    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+    return own && q && ['players', 'trade', 'pending'].includes(q) ? q : start
+  })
   const [season, setSeason] = useState<Record<string, string>>({})
   const scroller = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -47,7 +53,7 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
     <>
       <div className="flex flex-wrap items-center gap-3 min-w-0">
         <div className="min-w-0 max-w-full flex-1">
-          <Tabs value={tab} onChange={setTab} items={[{ id: 'cal', label: 'CALENDAR' }, ...YSF_LEAGUES.map(l => ({ id: l.sport, label: l.code })), { id: 'dr', label: 'DRAFTS' }, { id: 'tx', label: 'MOVES' }, { id: 'h2h', label: 'HEAD-TO-HEAD' }]} />
+          <Tabs value={tab} onChange={setTab} items={[{ id: 'cal', label: 'CALENDAR' }, ...YSF_LEAGUES.map(l => ({ id: l.sport, label: l.code })), ...(own ? [{ id: 'players', label: 'ADD / DROP' }, { id: 'trade', label: 'TRADE' }, { id: 'pending', label: 'PENDING' }] : []), { id: 'dr', label: 'DRAFTS' }, { id: 'tx', label: 'MOVES' }, { id: 'h2h', label: 'HEAD-TO-HEAD' }]} />
         </div>
         {L && lg && lg.seasons.length > 1 && (
           <label className="inline-flex items-center gap-2">
@@ -89,6 +95,8 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
         </section>
       )}
 
+      {own && (tab === 'players' || tab === 'trade' || tab === 'pending') && <MyClub key={tab} leagueId={d.leagueId} embedded view={tab} />}
+
       {L && lg && S && (
         <section className="flex flex-col gap-4 min-w-0">
           <div className="card p-4 sm:p-5 flex flex-wrap items-center gap-4" style={{ borderTop: `4px solid ${L.color}` }}>
@@ -101,8 +109,10 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
             </div>
           </div>
 
+          {own && isCur && <MyClub key={L.sport} leagueId={d.leagueId} embedded sport={L.sport} view="lineup" />}
+
           <div className="grid gap-4 lg:grid-cols-2 items-start">
-            {isCur && (
+            {isCur && !own && (
               <div className="card overflow-hidden">
                 {lg.roster.map(g => (
                   <div key={g.label}>

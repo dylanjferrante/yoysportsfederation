@@ -29,7 +29,7 @@ export default async function MyTeamPage({ params }: { params: Promise<{ id: str
   }
   if (id === YSF_LEAGUE_ID) {
     const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
-    if (league) return <YsfClub league={league} teamId={myTeam.id} manage={<MyClub leagueId={id} embedded />} />
+    if (league) return <YsfClub league={league} teamId={myTeam.id} own />
   }
   return <MyClub leagueId={id} />
 }

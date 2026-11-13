@@ -24,13 +24,13 @@ const span = (a: Date, b: Date) => `${fmtD(a)}–${a.getMonth() === b.getMonth()
 const dst = (x: string) => x.replace(/\bDEF\b/g, 'D/ST')
 const n1 = (x: number) => x.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
-// `manage` (the signed-in member's own club): the lineup / add-drop / trade / pending tools, shown under
-// the club band in place of the this-week cards — so My Club and the club page are the same page.
-export default async function YsfClub({ league, teamId, manage }: { league: any; teamId: string; manage?: React.ReactNode }) {
+// `own` (the signed-in member's club): the lineup, add / drop, trade and pending tools join the club
+// tabs — so My Club and your club's page are the same page.
+export default async function YsfClub({ league, teamId, own = false }: { league: any; teamId: string; own?: boolean }) {
   const s = await loadStandings(league)
   const C = s.clubs, club = C[teamId]
   if (!club) return <div className="card p-8 text-center font-semibold text-ink-500">Club not found</div>
-  const [own] = await db.select({ owner: users.name }).from(teams).leftJoin(users, eq(teams.userId, users.id)).where(eq(teams.id, teamId)).limit(1)
+  const [ownerRow] = await db.select({ owner: users.name }).from(teams).leftJoin(users, eq(teams.userId, users.id)).where(eq(teams.id, teamId)).limit(1)
   const cupRow = s.cup.find(r => r.teamId === teamId)!
   const history = await db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, league.id))
   const trophies = history.filter(h => h.championTeamId === teamId)
@@ -232,8 +232,8 @@ export default async function YsfClub({ league, teamId, manage }: { league: any;
       <section className="rounded p-5 sm:p-7 text-white flex flex-wrap items-center gap-5 sm:gap-6" style={{ background: club.color ?? '#000' }}>
         <span className="w-24 h-24 sm:w-36 sm:h-36 inline-flex items-center justify-center flex-none"><img src={(club.altLogo || club.logo)!} alt={`${club.name} crest`} className="w-full h-full object-contain" /></span>
         <div className="min-w-0 flex-1 basis-[260px]">
-          <div className="ui text-[12px] sm:text-[13px] tracking-[.16em] opacity-90">{U(`${own?.owner ?? ''} · ${club.abbreviation} · est. 2025–26`)}</div>
-          <h1 className="disp text-[38px] sm:text-[72px] font-extrabold leading-[.85] mt-1 break-words">{U(club.name)}</h1>
+          <div className="ui text-[12px] sm:text-[13px] tracking-[.16em] opacity-90">{U(`${ownerRow?.owner ?? ''} · ${club.abbreviation} · est. 2025–26`)}</div>
+          <h1 className="disp text-[34px] sm:text-[48px] lg:text-[72px] font-extrabold leading-[.85] mt-1 break-words">{U(club.name)}</h1>
           <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 mt-4">
             {[['CUP RANK', ord(cupRow.rk)], ['CUP PTS', cupRow.pts], ['RECORD', cupRow.rec], ['CUP %', pct(cupRow.cupPct)], ['TITLES', titles]].map(([k, v]) => (
               <div key={k as string} className="bg-white text-black rounded px-3 py-2 sm:min-w-[96px] text-center"><div className="ui text-[10px] font-bold tracking-[.1em]">{k}</div><div className="disp text-[22px] sm:text-[26px] font-extrabold leading-none mt-0.5">{v}</div></div>
@@ -248,9 +248,7 @@ export default async function YsfClub({ league, teamId, manage }: { league: any;
         )}
       </section>
 
-      {manage}
-
-      {!manage && thisWeek.length > 0 && (
+      {thisWeek.length > 0 && (
         <section className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
           {thisWeek.map(w => {
             const L = YSF_LEAGUES.find(l => l.sport === w.sport)!
@@ -271,7 +269,7 @@ export default async function YsfClub({ league, teamId, manage }: { league: any;
         </section>
       )}
 
-      <ClubTabs data={{ leagueId: league.id, clubName: club.name, clubAb: club.abbreviation, season: league.season, calendar, leagues, drafts, moves, h2h }} />
+      <ClubTabs own={own} start={own ? YSF_LEAGUES.find(L => cur[L.sport] != null)?.sport ?? 'cal' : 'cal'} data={{ leagueId: league.id, clubName: club.name, clubAb: club.abbreviation, season: league.season, calendar, leagues, drafts, moves, h2h }} />
     </>
   )
 }

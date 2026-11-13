@@ -38,7 +38,10 @@ const fits = (p: { pos: string; position: string }, slot: string) => RESERVE.inc
 const btn = 'inline-flex items-center justify-center leading-none rounded font-display font-bold tracking-[.08em] text-[12px] disabled:opacity-40'
 
 // `embedded`: shown inside the club page (which has its own club band), so no MY CLUB heading.
-export default function MyClub({ leagueId, embedded = false }: { leagueId: string; embedded?: boolean }) {
+// `sport` / `view`: the club page's own tabs choose the league and the tool, so this hides its
+// league buttons and tool tabs.
+type View = 'lineup' | 'players' | 'trade' | 'pending'
+export default function MyClub({ leagueId, embedded = false, sport: fixedSport, view }: { leagueId: string; embedded?: boolean; sport?: string; view?: View }) {
   const [sport, setSport] = useState<string | null>(null)
   const [date, setDate] = useState<string | null>(null)
   const [data, setData] = useState<Data | null>(null)
@@ -46,7 +49,8 @@ export default function MyClub({ leagueId, embedded = false }: { leagueId: strin
   const [busy, setBusy] = useState(false)
   // ?tab=trade / pending / players opens that tab (links from the Trades and Players pages)
   const initialTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
-  const [tab, setTab] = useState<'lineup' | 'players' | 'trade' | 'pending'>((['players', 'trade', 'pending'] as const).find(t => t === initialTab) ?? 'lineup')
+  const [tabState, setTab] = useState<View>((['players', 'trade', 'pending'] as const).find(t => t === initialTab) ?? 'lineup')
+  const tab = view ?? tabState
   const [sel, setSel] = useState<string | null>(null)
   const [dropAsk, setDropAsk] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -59,7 +63,7 @@ export default function MyClub({ leagueId, embedded = false }: { leagueId: strin
     if (!r.ok) { setErr(j.error || 'Could not load your club'); return }
     setErr(null); setData(j); setSport(j.sport); setDate(j.date)
   }, [leagueId])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(fixedSport ?? null) }, [load, fixedSport])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3200); return () => clearTimeout(t) }, [toast])
 
   const L = data ? lg(data.sport) : YSF_LEAGUES[0]
@@ -217,8 +221,8 @@ export default function MyClub({ leagueId, embedded = false }: { leagueId: strin
         </div>
       )}
 
-      <div className="flex flex-wrap justify-between items-center gap-3">
-        <div className="flex flex-wrap gap-2">
+      {!(fixedSport && view) && <div className="flex flex-wrap justify-between items-center gap-3">
+        {!fixedSport && (view === undefined || view === 'lineup' || view === 'players') && <div className="flex flex-wrap gap-2">
           {data.sports.map(s => {
             const l = lg(s.sport), on = s.sport === data.sport
             return (
@@ -228,14 +232,15 @@ export default function MyClub({ leagueId, embedded = false }: { leagueId: strin
               </button>
             )
           })}
-        </div>
-        <div role="tablist" className="flex gap-1 p-1 bg-white border border-ink-100 rounded-xl overflow-x-auto">
+        </div>}
+        {!view && <div role="tablist" className="flex gap-1 p-1 bg-white border border-ink-100 rounded-xl overflow-x-auto">
           {([['lineup', 'LINEUP'], ['players', 'ADD / DROP'], ['trade', 'TRADE'], ['pending', 'PENDING']] as const).map(([k, l]) => (
             <button key={k} role="tab" onClick={() => setTab(k)} className={tab === k ? 'tab-active' : 'tab-inactive'}>{l}{k === 'pending' && data.claims.length ? ` (${data.claims.length})` : ''}</button>
           ))}
-        </div>
-      </div>
+        </div>}
+      </div>}
 
+      {(tab === 'lineup' || tab === 'players') && <>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-ink-100 border border-ink-100 rounded overflow-hidden">
         {[['ROSTER', `${active} / ${activeMax}`], ['STARTERS', `${starters} / ${starterKeys.reduce((a, k) => a + (data.slots[k] ?? 0), 0)}`], ['BENCH', String(data.roster.filter(p => p.slot === 'BN').length)], ['FAAB', `$${data.faab}`]].map(([k, v]) => (
           <div key={k} className="bg-white px-4 py-3"><div className="ui text-[11px] text-ink-500">{k}</div><div className="disp text-[26px] font-extrabold leading-tight">{v}</div></div>
@@ -258,6 +263,7 @@ export default function MyClub({ leagueId, embedded = false }: { leagueId: strin
       ) : (
         <div className="ui bg-black text-white rounded px-4 py-3.5 text-[13px] font-bold">OFFSEASON · NO MATCHUP THIS WEEK</div>
       )}
+      </>}
 
       {tab === 'lineup' && Lineup}
       {tab === 'players' && <AddDrop data={data} L={L} busy={busy} setBusy={setBusy} leagueId={leagueId} reload={() => load(sport, date)} toast={setToast} />}

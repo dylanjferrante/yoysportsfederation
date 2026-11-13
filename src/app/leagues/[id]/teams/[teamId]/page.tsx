@@ -7,7 +7,6 @@ import { leagues, teams } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { YSF_LEAGUE_ID } from '@/lib/ysf'
 import YsfClub from './YsfClub'
-import MyClub from '../../myteam/MyClub'
 
 // A club page. The ySF league uses the ySF Site Redesign club page; your own club also gets the My Club
 // tools (lineup, add / drop, trade, pending), the same page as My Club. ?season=<past season> shows
@@ -22,7 +21,7 @@ export default async function LeagueClubPage({ params, searchParams }: { params:
       const session = await getServerSession(authOptions)
       const [t] = await db.select({ userId: teams.userId }).from(teams).where(eq(teams.id, teamId)).limit(1)
       const mine = !!session?.user?.id && t?.userId === session.user.id
-      return <YsfClub league={league} teamId={teamId} manage={mine ? <MyClub leagueId={id} embedded /> : undefined} />
+      return <YsfClub league={league} teamId={teamId} own={mine} />
     }
   }
   return <FranchiseView teamId={teamId} />
