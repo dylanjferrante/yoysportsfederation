@@ -46,7 +46,8 @@ async function main() {
     }
     // NFL periods' dates from the ySF schedule
     const pm = feed[sport].schedule_meta.periods as Record<string, { start: string; end: string; complete: boolean }>
-    const rows = db.prepare(`SELECT f.period, f.date, f.matchup_period, f.team_id, f.name, f.pro_team, f.slot, f.status, f.fpts, m.tank_id FROM fantrax_player_periods f LEFT JOIN player_id_map m ON m.sport = f.sport AND m.fx_id = f.fx_player_id WHERE f.season=? AND f.sport=?`).all(SEASON, sport) as any[]
+    const rows = db.prepare(`SELECT f.period, f.date, f.matchup_period, f.team_id, f.name, f.pro_team, f.slot, f.status, f.fpts, f.fx_player_id, m.tank_id FROM fantrax_player_periods f LEFT JOIN player_id_map m ON m.sport = f.sport AND m.fx_id = f.fx_player_id WHERE f.season=? AND f.sport=?`).all(SEASON, sport) as any[]
+    if (sport === 'NHL') { const nm = new Map((db.prepare(`SELECT fx_id, nhl_id FROM player_id_map WHERE sport='NHL' AND nhl_id IS NOT NULL`).all() as any[]).map(r => [r.fx_id, 'nhl:' + r.nhl_id])); for (const r of rows) r.tank_id = nm.get(r.fx_player_id) ?? r.tank_id }
     const byTank = new Map<string, typeof lines>(); for (const g of lines) byTank.set(g.tankId, [...(byTank.get(g.tankId) ?? []), g])
     let ok = 0, off = 0, unmatched = 0, zeroBoth = 0
     const diffs: any[] = [], unm = new Map<string, number>()

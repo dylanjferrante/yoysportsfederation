@@ -58,7 +58,43 @@ const DEF_KEYS = new Set(['interception', 'sack', 'fumbleRecovery', 'defensiveTD
 const CACHE = () => path.join(process.cwd(), 'data', 'tank01-cache')
 
 // Every cached final game for a sport between two dates (inclusive, YYYY-MM-DD).
+// ySFHL: the NHL's official feed (scripts/nhl-sync.ts) for final games — exact power-play and
+// short-handed points — and Tank01 for games still in progress. Player ids are "nhl:<id>" there.
+function nhlOfficial(from: string, to: string, scoring: Record<string, number>): { lines: GameLine[]; games: Set<string> } {
+  const dir = path.join(process.cwd(), 'data', 'nhl-cache')
+  const lines: GameLine[] = [], games = new Set<string>()
+  if (!fs.existsSync(dir)) return { lines, games }
+  const ymd = (d: string) => d.replace(/-/g, '')
+  for (const f of fs.readdirSync(dir)) {
+    const d = f.slice(0, 8); if (d < ymd(from) || d > ymd(to)) continue
+    let g: any; try { g = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) } catch { continue }
+    games.add(`${d}_${g.away}@${g.home}`)
+    for (const l of g.lines) {
+      const st: Record<string, number> = l.goalie
+        ? { saves: l.goalie.sv, goalsAllowed: l.goalie.ga, wins: l.goalie.dec === 'W' ? 1 : 0, overtimeLoss: l.goalie.dec === 'O' ? 1 : 0, shutout: l.goalie.dec === 'W' && l.goalie.ga === 0 ? 1 : 0, goals: l.g, assists: l.a }
+        : { goals: l.g, assists: l.a, shotsOnGoal: l.sog, hits: l.hit, blockedShots: l.blk, ppGoals: l.ppg, ppAssists: l.ppa, shGoals: l.shg, shAssists: l.sha }
+      for (const k of Object.keys(st)) if (!st[k]) delete st[k]
+      lines.push({ sport: 'NHL', gameId: f.replace(/\.json$/, ''), date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}`, tankId: `nhl:${l.id}`, name: l.name, team: l.team, stats: st, pts: +scorePlayer(st, scoring).toFixed(2) })
+    }
+  }
+  return { lines, games }
+}
+
 export function loadGameLines(sport: Sport, from: string, to: string, scoring: Record<string, number>, withLive = false): GameLine[] {
+  if (sport === 'NHL' && !process.env.YSF_NHL_TANK01) {
+    const off = nhlOfficial(from, to, scoring)
+    if (off.games.size) {
+      // games the official feed doesn't have yet (in progress) come from Tank01 (NHL ↔ Tank01 team codes differ)
+      const NHL2T: Record<string, string> = { TBL: 'TB', NJD: 'NJ', LAK: 'LA', SJS: 'SJ', WSH: 'WSH' }
+      const have = new Set([...off.games].map(k => k.replace(/[A-Z]{2,3}/g, t => NHL2T[t] ?? t)))
+      const t = loadGameLinesTank01(sport, from, to, scoring, withLive).filter(g => !have.has(g.gameId.split('_').slice(0, 2).join('_')))
+      return [...off.lines, ...t]
+    }
+  }
+  return loadGameLinesTank01(sport, from, to, scoring, withLive)
+}
+
+function loadGameLinesTank01(sport: Sport, from: string, to: string, scoring: Record<string, number>, withLive = false): GameLine[] {
   const dir = path.join(CACHE(), sport)
   if (!fs.existsSync(dir)) return []
   const out: GameLine[] = []
