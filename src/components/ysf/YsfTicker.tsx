@@ -104,7 +104,7 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
           <div className="hidden sm:flex px-4 items-center flex-none border-r border-[#333]"><img src={YSF_ART.primaryOnBlack} alt="yoy Sports Federation" className="h-[34px] w-auto" /></div>
           <div className="flex-1 min-w-0 overflow-hidden flex items-center relative">
             <span ref={lpin} className="absolute left-0 top-0 bottom-0 z-[3] inline-flex"><Tile b={pinnedBlock} pinned /></span>
-            <span ref={gpin} className="absolute top-0 bottom-0 z-[2] hidden sm:inline-flex" style={{ visibility: pinnedGroup ? 'visible' : 'hidden' }}>{pinnedGroup && <Tag label={pinnedGroup.label} bd={pinnedGroup.bd} />}</span>
+            <span ref={gpin} className="absolute top-0 bottom-0 z-[2] inline-flex" style={{ visibility: pinnedGroup ? 'visible' : 'hidden' }}>{pinnedGroup && <Tag label={pinnedGroup.label} bd={pinnedGroup.bd} />}</span>
             <div ref={track} className="ysf-marq flex items-center w-max whitespace-nowrap" style={{ animationDuration: `${dur}s` }}>
               <Fragment>{run(0)}</Fragment><Fragment>{run(1)}</Fragment>
             </div>

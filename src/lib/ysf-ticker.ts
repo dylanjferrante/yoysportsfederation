@@ -6,7 +6,6 @@ import { eq } from 'drizzle-orm'
 import { loadStandings, loadWeek, loadMoves, periodLabel } from '@/lib/ysf-data'
 import { writeStories, pct } from '@/lib/ysf-stories'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
-import { listNews, topStories, type Article } from '@/lib/ysf-news'
 
 export type TickerMark = { src: string; bg: string }
 export type TickerSide = { mark: TickerMark; ab: string; v: string | null; win: boolean }
@@ -29,22 +28,11 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
   const mark = (id: string): TickerMark => ({ src: C[id]?.altLogo || C[id]?.logo || '', bg: C[id]?.color ?? '#000' })
   const cupMark: TickerMark = { src: YSF_ART.cupSymbol, bg: '#fff' }
   const story = writeStories(s)
-  // ySF News: the top stories lead the Federation block; each league carries its newest stories
-  let news: Article[] = []
-  try { news = listNews(120) } catch { /* no news table yet */ }
-  const byAbbr = new Map(Object.values(C).map(c => [c.abbreviation, c.id]))
-  const newsItem = (a: Article): TickerItem => {
-    const club = a.clubs.map(x => byAbbr.get(x)).find(Boolean)
-    const L = YSF_LEAGUES.find(l => l.sport === a.sport)
-    return { marks: [club ? mark(club) : L ? { src: YSF_ART.leagueSymbol(L.key, 'color'), bg: L.color } : cupMark], text: a.headline, ago: ago(a.published) }
-  }
-  const fresh = (a: Article) => Date.now() - Date.parse(a.published) < 3 * 86400000
   const blocks: TickerBlock[] = []
 
   // ── Federation ──
   const odds = [...s.cup].sort((a, b) => b.cupPct - a.cupPct).slice(0, 3)
   const fed: TickerGroup[] = [
-    ...(news.length ? [{ label: 'TOP STORIES', bd: '#ba0c2f', items: topStories(news).slice(0, 4).map(newsItem) }] : []),
     { label: 'FED CUP', bd: '#B8860B', items: [
       { marks: [cupMark], text: odds.map((r, i) => `${ab(r.teamId)} ${pct(r.cupPct)}${i === 0 ? ' to win the Cup' : ''}`).join(' | '), ago: 'Today' },
       { marks: [mark(s.cup[0].teamId)], text: story.headline.replace(/^./, c => c.toUpperCase()), ago: 'Today' },
@@ -83,8 +71,6 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
       .filter(m => Date.now() - new Date(m.when + '-05:00').getTime() < 4 * 86400000).slice(0, 4)
     if (recent.length) groups.push({ label: 'MOVES', bd: '#3A6B9E', items: recent.map(m => ({
       marks: [mark(m.teamId)], text: `${ab(m.teamId)} ${m.kind === 'CLAIMED' ? 'claims' : 'signs'} ${m.player} (${L.code}-${m.team}, ${m.pos})${m.bid ? ` | $${m.bid}` : ''}`, ago: ago(m.when) })) })
-    const lnews = news.filter(a => a.sport === L.sport && a.kind !== 'move' && fresh(a)).slice(0, 3)
-    if (lnews.length) groups.push({ label: 'NEWS', bd: '#ba0c2f', items: lnews.map(newsItem) })
     blocks.push({ name: L.code, bg: L.color, fg: '#fff', logo: YSF_ART.leagueSymbol(L.key, 'color'), groups })
   }
   return blocks

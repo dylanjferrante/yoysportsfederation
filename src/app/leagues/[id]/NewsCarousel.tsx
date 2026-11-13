@@ -3,8 +3,9 @@
 // and advance on their own every few seconds until someone touches them.
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import StoryArt, { type ArtTile } from '@/components/ysf/StoryArt'
 
-export type Slide = { id: string; href: string; kicker: string; headline: string; dek: string; by: string; bg: string; img: string }
+export type Slide = { id: string; href: string; kicker: string; headline: string; dek: string; by: string; tiles: ArtTile[] }
 
 export default function NewsCarousel({ slides, more }: { slides: Slide[]; more: string }) {
   const track = useRef<HTMLDivElement>(null)
@@ -43,9 +44,7 @@ export default function NewsCarousel({ slides, more }: { slides: Slide[]; more: 
       <div ref={track} className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {slides.map(s => (
           <Link key={s.id} href={s.href} className="group flex-none w-full snap-start grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] rounded overflow-hidden border border-ink-100">
-            <div className="flex items-center justify-center aspect-[16/9] md:aspect-auto md:min-h-[300px]" style={{ background: s.bg }}>
-              <img src={s.img} alt="" className="h-[60%] max-h-[220px] w-auto max-w-[55%] object-contain" />
-            </div>
+            <StoryArt tiles={s.tiles} className="aspect-[16/9] md:aspect-auto md:min-h-[300px] !rounded-none" />
             <div className="flex flex-col justify-center gap-2 p-5 sm:p-7 min-w-0">
               <div className="ui text-[12px] font-bold tracking-[.14em] text-[#ba0c2f]"><span className="ysf-case">{s.kicker}</span></div>
               <h2 className="disp text-[28px] sm:text-[40px] font-extrabold leading-[.95] group-hover:underline break-words">{s.headline}</h2>

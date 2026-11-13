@@ -257,11 +257,11 @@ function movesWire(d: Desk): Story | null {
 }
 
 // ── a trade ─────────────────────────────────────────────────────────────────
-function tradeStory(d: Desk, t: TradeRow): Story {
+function tradeStory(d: Desk, t: TradeRow, around: MoveRow[][] = []): Story {
   const C = d.clubs, sides = t.sides.filter(s => C[s.teamId])
   const names = sides.map(s => C[s.teamId].name)
   const star = sides.flatMap(s => s.gets.filter(g => g.name).map(g => ({ g, to: s.teamId })))[0]
-  const body = [`${names.join(' and ')} have completed a trade.`, ...sides.map(s => `${C[s.teamId].name} gets ${s.gets.map(g => g.name ? `${g.name} (${code(g.sport)}-${g.team || 'FA'}, ${g.pos})` : '').filter(Boolean).join(', ') || 'future considerations'}.`)]
+  const body = [`${names.join(' and ')} have completed a trade.`, ...sides.map(s => `${C[s.teamId].name} gets ${s.gets.map(g => !g.name ? '' : !g.pos && !g.team ? g.name : `${g.name} (${code(g.sport)}-${g.team || 'FA'}, ${g.pos})`).filter(Boolean).join(', ') || 'future considerations'}.`)]
   // each side's haul, by this season's numbers, and how it fits
   const ppgOf = (g: { name: string; sport: string }) => g.name ? playerSeason(d, g.sport, g.name) : null
   for (const s of sides) {
@@ -280,6 +280,7 @@ function tradeStory(d: Desk, t: TradeRow): Story {
     const ranks = d.cup.find(r => r.teamId === s.teamId)
     if (ranks) body.push(`${C[s.teamId].abbreviation} is ${ord(ranks.rk)} in the Cup race with ${ranks.pts} points.`)
   }
+  for (const b of around) body.push(...tradeFollowUp(d, b))
   return { slot: `trade:${t.id}`, kind: 'trade', sport: 'MOVES', writer: 'hank', headline: star ? `${C[star.to].abbreviation} lands ${star.g.name} in trade with ${C[sides.find(s => s.teamId !== star.to)?.teamId ?? '']?.abbreviation ?? 'a rival'}` : `${sides.map(s => C[s.teamId].abbreviation).join(', ')} make a deal`, dek: `Who got what in the deal between ${names.join(' and ')}.`, body, clubs: sides.map(s => C[s.teamId].abbreviation) }
 }
 
@@ -335,7 +336,7 @@ function moveAnalysis(d: Desk, m: MoveRow): string[] {
       const bids = d.weekMoves.concat(d.moves).filter(x => x.sport === m.sport && x.bid).map(x => x.bid!)
       const big = bids.filter(b => b > m.bid!).length
       const left = d.faab[m.sport]?.[m.teamId]
-      out.push(`The $${m.bid} bid ${big === 0 ? 'is the biggest on the wire in recent days' : `ranks behind ${say(big)} bigger recent bids`}${left != null ? `, and leaves ${club?.abbreviation} with $${left} of FAAB` : ''}.`)
+      out.push(`The $${m.bid} bid ${big === 0 ? 'is the biggest on the wire in recent days' : `ranks behind ${say(big)} bigger recent bid${big === 1 ? '' : 's'}`}${left != null ? `, and leaves ${club?.abbreviation} with $${left} of FAAB` : ''}.`)
     }
   } else {
     const t = tenure(d, m.teamId, m.sport, m.player)
@@ -370,6 +371,61 @@ function moveStory(d: Desk, m: MoveRow): Story | null {
   if (r) body.push(`${club.abbreviation} is ${r.rec} and ${ord(r.rk)} in ${L}.`)
   return { slot: `move:${m.id}`, kind: 'move', sport: m.sport, writer: 'hank', headline: add ? `${club.abbreviation} ${m.bid ? `pays $${m.bid} for` : 'signs'} ${last(m.player)}${paired && !(paired.kind === 'CLAIMED' || paired.kind === 'SIGNED') ? `, cuts ${last(paired.player)}` : ''}` : `${club.abbreviation} parts ways with ${last(m.player)}`,
     dek: add ? `What ${m.player} brings to ${club.name}, and where he fits.` : `${m.player}'s time with ${club.name}, by the numbers.`, body, clubs: [club.abbreviation] }
+}
+
+// a club's moves made close together: each move within an hour of the one before it joins the burst,
+// so a flurry of releases (or a release after a trade) reads as one story, not several
+const HOUR = 3_600_000
+const isAddK = (x: MoveRow) => x.kind === 'CLAIMED' || x.kind === 'SIGNED'
+function bursts(moves: MoveRow[]): MoveRow[][] {
+  const out: MoveRow[][] = []
+  const byClub = new Map<string, MoveRow[]>()
+  for (const m of moves.filter(m => m.player && ['CLAIMED', 'SIGNED', 'DROPPED', 'RELEASED'].includes(m.kind))) {
+    if (!byClub.has(m.teamId)) byClub.set(m.teamId, [])
+    byClub.get(m.teamId)!.push(m)
+  }
+  for (const ms of byClub.values()) {
+    ms.sort((a, b) => Date.parse(a.when) - Date.parse(b.when))
+    let cur: MoveRow[] = []
+    for (const m of ms) {
+      if (cur.length && Date.parse(m.when) - Date.parse(cur[cur.length - 1].when) > HOUR) { out.push(cur); cur = [] }
+      cur.push(m)
+    }
+    if (cur.length) out.push(cur)
+  }
+  return out
+}
+const listOf = (xs: string[]) => xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+const tagOf = (m: MoveRow) => `${m.player} (${code(m.sport)}-${m.team || 'FA'}, ${m.pos})`
+// the moves around a trade, as paragraphs for the trade story
+function tradeFollowUp(d: Desk, b: MoveRow[]): string[] {
+  const club = d.clubs[b[0].teamId]
+  const adds = b.filter(isAddK), drops = b.filter(x => !isAddK(x))
+  const did = [drops.length ? `released ${listOf(drops.map(tagOf))}` : '', adds.length ? `${drops.length ? 'and ' : ''}added ${listOf(adds.map(tagOf))}` : ''].filter(Boolean).join(' ')
+  return [`Within the hour, ${club?.name} ${did} to make the roster work around the deal.`, ...b.slice(0, 6).flatMap(m => moveAnalysis(d, m))]
+}
+// one story for a club's burst of several moves: what it did, then each player in turn
+function burstStory(d: Desk, b: MoveRow[]): Story | null {
+  const club = d.clubs[b[0].teamId]
+  if (!club) return null
+  const adds = b.filter(isAddK), drops = b.filter(x => !isAddK(x))
+  const sports = [...new Set(b.map(m => m.sport))]
+  const where = sports.length === 1 ? ` in ${code(sports[0])}` : ''
+  const spent = adds.reduce((a, m) => a + (m.bid ?? 0), 0)
+  const did = [drops.length ? `releasing ${listOf(drops.map(tagOf))}` : '', adds.length ? `${drops.length ? 'and ' : ''}${spent ? `spending $${spent} to add` : 'adding'} ${listOf(adds.map(tagOf))}` : ''].filter(Boolean).join(' ')
+  const body = [
+    `${club.name} reshaped its roster${where} in one sitting, ${did}.`,
+    // the adds first (what the club is getting), then what it let go
+    ...[...adds, ...drops].slice(0, 6).flatMap(m => moveAnalysis(d, m)),
+  ]
+  if (b.length > 6) body.push(`${club.abbreviation} made ${say(b.length - 6)} more move${b.length - 6 === 1 ? '' : 's'} in the same stretch.`)
+  for (const sp of sports) { const r = rowOf(d, sp, club.id); if (r) body.push(`${club.abbreviation} is ${r.rec} and ${ord(r.rk)} in ${code(sp)}.`) }
+  const lastN = (xs: MoveRow[]) => listOf(xs.slice(0, 3).map(m => last(m.player))) + (xs.length > 3 ? ` and ${say(xs.length - 3)} more` : '')
+  const headline = adds.length && drops.length ? `${club.abbreviation} adds ${lastN(adds)}, cuts ${lastN(drops)}`
+    : drops.length ? `${club.abbreviation} clears out ${lastN(drops)}` : `${club.abbreviation} ${spent ? `spends $${spent} on` : 'brings in'} ${lastN(adds)}`
+  const n = say(b.length)
+  return { slot: `move:${b[0].id}`, kind: 'move', sport: sports.length === 1 ? sports[0] : 'MOVES', writer: 'hank', headline,
+    dek: `${n[0].toUpperCase() + n.slice(1)} moves in under an hour: ${adds.length && drops.length ? `who ${club.name} brought in, who it let go, and why` : drops.length ? `who ${club.name} let go, and what each had given the club` : `what ${club.name} is getting, and where each fits`}.`, body, clubs: [club.abbreviation] }
 }
 
 // ── league story types ──────────────────────────────────────────────────────
@@ -516,17 +572,27 @@ export function deskStories(d: Desk): Story[] {
     if (on(sp, 'notebook') && d.live.includes(sp)) out.push(notebook(d, sp))
     if (on(sp, 'rank')) out.push(powerRankings(d, sp))
   }
-  // the day's two most notable moves get their own stories: the biggest bids, or the releases of the
-  // players who had given their clubs the most (points as a starter, against the league's weekly average)
+  // moves come in bursts (a club's moves within an hour of each other). A burst within an hour of that
+  // club's trade belongs to the trade story; of the rest, the day's two most notable get stories — one
+  // move on its own, several together. A burst is scored on its bids and on what the players it let go
+  // had given the club (points as a starter, against the league's weekly average)
   const avgWk = (sp: string) => extremes(d, sp)?.avg || 100
-  const scored = d.moves.filter(m => m.player).map(m => {
-    const add = m.kind === 'CLAIMED' || m.kind === 'SIGNED'
-    const t = add ? null : tenure(d, m.teamId, m.sport, m.player)
-    return { m, score: add ? (m.bid ?? 0) / 10 : ((t?.pts ?? 0) / avgWk(m.sport)) * 3 }
-  }).filter(x => x.score >= 1.5).sort((a, b) => b.score - a.score)
-  const seen = new Set<string>()
-  for (const { m } of scored) { if (seen.size >= 2 || seen.has(m.teamId + m.sport)) continue; const st = moveStory(d, m); if (st) { out.push(st); seen.add(m.teamId + m.sport) } }
-  for (const t of d.trades) out.push(tradeStory(d, t))
+  const score = (m: MoveRow) => isAddK(m) ? (m.bid ?? 0) / 10 : (((tenure(d, m.teamId, m.sport, m.player)?.pts ?? 0) / avgWk(m.sport)) * 3)
+  const near = (b: MoveRow[], t: TradeRow) => t.sides.some(x => x.teamId === b[0].teamId) &&
+    Date.parse(b[0].when) - Date.parse(t.when) <= HOUR && Date.parse(t.when) - Date.parse(b[b.length - 1].when) <= HOUR
+  const all = bursts(d.moves)
+  const withTrade = new Set<MoveRow[]>()
+  for (const t of d.trades) { const around = all.filter(b => near(b, t)); around.forEach(b => withTrade.add(b)); out.push(tradeStory(d, t, around)) }
+  const ranked = all.filter(b => !withTrade.has(b)).map(b => ({ b, score: b.reduce((a, m) => a + score(m), 0) }))
+    .filter(x => x.score >= 1.5).sort((a, b) => b.score - a.score)
+  let told = 0
+  for (const { b } of ranked) {
+    if (told >= 2) break
+    // a single move, or an add-and-drop pair, keeps the one-move story; anything bigger is one burst story
+    const pairOnly = b.length === 2 && isAddK(b[0]) !== isAddK(b[1])
+    const st = b.length === 1 || pairOnly ? moveStory(d, [...b].sort((x, y) => score(y) - score(x))[0]) : burstStory(d, b)
+    if (st) { out.push(st); told++ }
+  }
   return out.filter((s): s is Story => !!s).map(s => ({ ...s, headline: tidy(s.headline), dek: tidy(s.dek), body: paragraphs(s.body.map(tidy)) }))
 }
 

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { U, YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 import { loadClubs, type ClubInfo } from '@/lib/ysf-data'
 import { listNews, WRITERS, type Article } from '@/lib/ysf-news'
+import StoryArt, { type ArtTile } from '@/components/ysf/StoryArt'
 
 export const SECTIONS = [
   ...YSF_LEAGUES.map(l => ({ id: l.sport, label: l.code, color: l.color, key: l.key as string | null })),
@@ -26,17 +27,16 @@ const ago = (iso: string) => {
 export const stamp = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) + ' ET'
 export const by = (a: Article) => `By ${WRITERS[a.writer]?.name ?? 'ySF News'}`
 
-// story art: the lead club's crest on its colour, or the league's symbol on the league colour
-export function Art({ a, C, big = false }: { a: Article; C: Map<string, ClubInfo>; big?: boolean }) {
-  const club = a.clubs.map(x => C.get(x)).find(Boolean)
+// story art: each club the story is about, crest on its colour (two split on the diagonal, more side
+// by side); a story about no club gets the league's symbol on the league colour
+export function tilesOf(a: Article, C: Map<string, ClubInfo>): ArtTile[] {
+  const clubs = [...new Set(a.clubs)].map(x => C.get(x)).filter((c): c is ClubInfo => !!c)
+  if (clubs.length) return clubs.map(c => ({ bg: c.color ?? '#000', img: (c.altLogo || c.logo) ?? '' }))
   const sec = SECTIONS.find(s => s.id === a.sport)
-  const bg = club?.color ?? sec?.color ?? '#000'
-  const src = club ? (club.altLogo || club.logo) : sec?.key ? YSF_ART.leagueSymbol(sec.key, 'color') : YSF_ART.primaryOnBlack
-  return (
-    <div className={`flex items-center justify-center rounded ${big ? 'aspect-[16/9] lg:aspect-[21/9]' : 'aspect-[16/10]'}`} style={{ background: bg }}>
-      <img src={src ?? ''} alt="" className={big ? 'h-[62%] w-auto max-w-[60%] object-contain' : 'w-[46%] max-h-[64%] object-contain'} />
-    </div>
-  )
+  return [{ bg: sec?.color ?? '#000', img: (sec?.key ? YSF_ART.leagueSymbol(sec.key, 'color') : YSF_ART.primaryOnBlack) ?? '' }]
+}
+export function Art({ a, C, big = false }: { a: Article; C: Map<string, ClubInfo>; big?: boolean }) {
+  return <StoryArt tiles={tilesOf(a, C)} className={big ? 'aspect-[16/9] lg:aspect-[21/9]' : 'aspect-[16/10]'} />
 }
 
 export default async function YsfNews({ league, section }: { league: any; section?: string }) {

@@ -5,7 +5,7 @@ import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import HomeStandings from './HomeStandings'
 import { writeStories, ord, pct } from '@/lib/ysf-stories'
 import { listNews, topStories } from '@/lib/ysf-news'
-import { kicker, by, SECTIONS } from './news/YsfNews'
+import { kicker, by, tilesOf } from './news/YsfNews'
 import NewsCarousel, { type Slide } from './NewsCarousel'
 
 export default async function YsfHome({ league }: { league: any }) {
@@ -19,15 +19,9 @@ export default async function YsfHome({ league }: { league: any }) {
 
   const leader = C[lead.teamId] as ClubInfo
   const byAbbr = new Map(Object.values(C).map(c => [c.abbreviation, c]))
-  const slides: Slide[] = topStories(listNews(80)).map(a => {
-    const club = a.clubs.map(x => byAbbr.get(x)).find(Boolean)
-    const sec = SECTIONS.find(x => x.id === a.sport)
-    return {
-      id: a.id, href: `/leagues/${league.id}/news/${a.id}`, kicker: kicker(a), headline: a.headline, dek: a.dek || a.body[0] || '', by: by(a),
-      bg: club?.color ?? sec?.color ?? '#000',
-      img: (club ? (club.altLogo || club.logo) : sec?.key ? YSF_ART.leagueSymbol(sec.key, 'color') : YSF_ART.primaryOnBlack) ?? '',
-    }
-  })
+  const slides: Slide[] = topStories(listNews(80)).map(a => ({
+    id: a.id, href: `/leagues/${league.id}/news/${a.id}`, kicker: kicker(a), headline: a.headline, dek: a.dek || a.body[0] || '', by: by(a), tiles: tilesOf(a, byAbbr),
+  }))
 
   return (
     <>
