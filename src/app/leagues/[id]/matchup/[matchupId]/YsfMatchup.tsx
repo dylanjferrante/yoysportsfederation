@@ -9,9 +9,9 @@ import { db } from '@/db'
 import { matchups } from '@/db/schema'
 import { and, eq, sql } from 'drizzle-orm'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
-import { loadClubs, periodLabel } from '@/lib/ysf-data'
+import { loadClubs, periodLabel, siteFeed } from '@/lib/ysf-data'
 import { weekDateRange } from '@/lib/defaults'
-import { statType, statCell, maxCols } from '@/lib/ysf-statline'
+import { statType, statCell, compactCols, maxCompact } from '@/lib/ysf-statline'
 
 type Line = { team_id: string; date: string | null; slot: string; status: string; name: string; pro_team: string | null; positions: string | null; fpts: number | null; opp: string | null; fx_player_id: string; stats: string | null }
 const SLOT: Record<string, string> = { RWT: 'FLEX', Flx: 'FLEX', UT: 'UTIL', Util: 'UTIL', Skt: 'SKT' }
@@ -40,10 +40,24 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
   } catch { /* table not loaded yet */ }
   const today = new Date().toISOString().slice(0, 10)
   const daily = m.sport !== 'NFL'
-  const days = daily ? [...new Set(lines.map(l => l.date!).filter(Boolean))].sort() : []
+  // every day of the matchup period (from the ySF schedule), played or not
+  const dataDays = daily ? [...new Set(lines.map(l => l.date!).filter(Boolean))].sort() : []
+  let days = dataDays
+  if (daily) {
+    const key = { NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }[m.sport as string]
+    const feed = await siteFeed<any>(isCur ? `league_${key}.json` : `archives/${season}/${key}.json`)
+    const pd = feed?.schedule_meta?.periods?.[String(period)]
+    if (pd?.start && pd?.end) {
+      days = []
+      for (let d = new Date(pd.start + 'T12:00:00'); d <= new Date(pd.end + 'T12:00:00'); d.setDate(d.getDate() + 1)) days.push(d.toISOString().slice(0, 10))
+    }
+  }
   const final = (l: Line) => m.isComplete || (daily && !!l.date && l.date < today)
   const sel = daily ? (day && days.includes(day) ? day : days.filter(d => d <= today).pop() ?? days[0]) : null
-  const shown = daily ? lines.filter(l => l.date === sel) : lines
+  // a day not played yet shows the latest lineup on record, without points
+  const lineupDay = daily ? (dataDays.filter(d => d <= sel!).pop() ?? dataDays[dataDays.length - 1]) : null
+  const upcoming = daily && !!sel && sel >= today && !m.isComplete
+  const shown = daily ? lines.filter(l => l.date === lineupDay).map(l => upcoming && l.date !== sel ? { ...l, fpts: null, opp: null, stats: null, date: sel } : l) : lines
   let span = season.replace('-', '–')
   if (daily && days.length) span = `${md(new Date(days[0] + 'T12:00:00'))}–${md(new Date(days[days.length - 1] + 'T12:00:00'), true)}`
   else if (!daily && isCur) { const { start } = weekDateRange(season, m.week); const s0 = new Date(start); s0.setDate(s0.getDate() + 3); const e0 = new Date(start); e0.setDate(e0.getDate() + 9); span = `${md(s0)}–${md(e0, true)}` }
@@ -134,78 +148,78 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
           {days.map(d => { const on = d === sel; return (
             <Link key={d} href={`${base}?day=${d}`} scroll={false} className={`flex-none flex flex-col items-center justify-center gap-1 min-w-[96px] h-[54px] px-3 rounded-lg border leading-none ${on ? 'bg-black text-white border-black' : 'bg-white border-ink-100 hover:border-ink-400'}`}>
               <span className="font-display text-[13px] font-bold">{dayLabel(d).toUpperCase()}</span>
-              <span className={`text-[11px] tabular-nums ${on ? 'text-ink-200' : 'text-ink-500'}`}>{d < today || m.isComplete ? `${fmt(total(A, lines.filter(l => l.date === d)))} – ${fmt(total(B, lines.filter(l => l.date === d)))}` : 'Upcoming'}</span>
+              <span className={`text-[11px] tabular-nums ${on ? 'text-ink-200' : 'text-ink-500'}`}>{(d < today || m.isComplete) && dataDays.includes(d) ? `${fmt(total(A, lines.filter(l => l.date === d)))} – ${fmt(total(B, lines.filter(l => l.date === d)))}` : d === today ? 'Today' : d < today ? '–' : 'Upcoming'}</span>
             </Link>) })}
         </div>
       )}
 
       {!lines.length ? (
         <div className="card p-8 text-center font-semibold text-ink-500">Lineups for this matchup haven’t been loaded yet</div>
-      ) : (
-        <section className="card overflow-hidden">
-          <div className={`${GRID} py-2 border-b-2 border-black ui text-[11px] text-ink-500`}>
-            <span><ClubName name={C[A]?.name} /></span><span className="text-right">PTS</span>
-            <span className="text-center">{daily && sel ? dayLabel(sel).toUpperCase() : 'SLOT'}</span>
-            <span>PTS</span><span className="text-right"><ClubName name={C[B]?.name} /></span>
-          </div>
-          {Array.from({ length: rows }, (_, i) => {
-            const a = sa.act[i], b = sb.act[i]
-            return (
-              <div key={i} className={`${GRID} py-2.5 border-b border-ink-50`}>
-                <Player l={a} /><Pts l={a} />
-                <span className="inline-flex items-center justify-center h-7 rounded bg-ink-50 ui text-[11px] font-bold leading-none">{SLOT[(a ?? b)!.slot] ?? (a ?? b)!.slot}</span>
-                <Pts l={b} right /><Player l={b} right />
-              </div>
-            )
-          })}
-          <div className={`${GRID} py-3 bg-ink-50`}>
-            <span className="ui text-[12px] font-bold">{daily ? 'DAY TOTAL' : 'TOTAL'}</span>
-            <span className="disp text-[22px] font-extrabold tabular-nums text-right">{fmt(total(A, shown))}</span><span />
-            <span className="disp text-[22px] font-extrabold tabular-nums">{fmt(total(B, shown))}</span>
-            <span className="ui text-[12px] font-bold text-right">{daily ? 'DAY TOTAL' : 'TOTAL'}</span>
-          </div>
-        </section>
-      )}
-
-      {/* box score: one table per club, stat columns; starters together in position order, a header row wherever the stat type changes */}
-      {lines.length > 0 && [{ tid: A, s: sa }, { tid: B, s: sb }].map(({ tid, s }) => {
-        const nCols = maxCols(m.sport)
-        const groups = [{ s: '1', ls: s.act }, ...s.groups].filter(g => g.ls.length)
-        const th = 'px-2 py-2 ui text-[11px] font-medium text-ink-500 whitespace-nowrap'
+      ) : (() => {
+        // one module: both clubs side by side, each player's stat columns beside his points;
+        // starters together in position order, then bench, IR and taxi; a header row wherever the stat type changes
+        const n = maxCompact(m.sport)
+        const groups = [{ s: '1', a: sa.act, b: sb.act }, ...['2', '3', '9'].map(g => ({ s: g, a: sa.groups.find(x => x.s === g)!.ls, b: sb.groups.find(x => x.s === g)!.ls }))].filter(g => g.a.length || g.b.length)
+        const th = 'px-1.5 py-1.5 ui text-[10px] font-medium text-ink-500 whitespace-nowrap'
+        const cell = (st: Record<string, string> | null, key: string, played: boolean) => { const v = played ? statCell(st, key) : ''; return <span className={v && v !== '0' ? '' : 'text-ink-200'}>{v === '' ? '–' : v}</span> }
+        const PlayerCell = ({ l, right }: { l?: Line; right?: boolean }) => (
+          <td className={`px-2 py-2 min-w-[140px] ${right ? 'text-right' : ''}`}>{l ? <>
+            <span className="block font-bold text-[13px] leading-tight">{l.name}</span>
+            <span className="block text-[11px] text-ink-500 leading-tight"><span className="ysf-case">({L.code}{l.pro_team ? `-${l.pro_team}` : ''}, {l.positions ?? l.slot})</span>{l.opp ? ` · ${l.opp.replace(/ F$/, '')}` : ''}</span>
+          </> : <span className="text-ink-200 text-[12px]">Empty</span>}</td>
+        )
+        const StatCells = ({ l, cols, right }: { l?: Line; cols: [string, string][]; right?: boolean }) => {
+          const st = l ? statsOf(l) : null, played = !!l && !!(l.opp || l.fpts) && final(l)
+          const cells = cols.map(([lab, key]) => <td key={lab} className="px-1.5 py-2 text-right tabular-nums text-[12px]">{l ? cell(st, key, played) : ''}</td>)
+          const pad = Array.from({ length: n - cols.length }, (_, i) => <td key={'p' + i} />)
+          return <>{right ? [...cells, ...pad] : [...pad, ...cells]}</>
+        }
+        const PtsCell = ({ l, starter }: { l?: Line; starter: boolean }) => (
+          <td className={`px-2 py-2 text-center tabular-nums disp ${starter ? 'text-[18px] font-extrabold' : 'text-[15px] text-ink-500'}`}>{l && final(l) && l.fpts != null && (l.opp || l.fpts) ? fmt(l.fpts) : '–'}</td>
+        )
         return (
-          <section key={tid} className="card overflow-hidden">
-            <div className="flex items-center gap-2.5 px-4 py-2.5 border-b-2 border-black">
-              <span className="w-7 h-7 inline-flex items-center justify-center"><img src={C[tid]?.logo ?? ''} alt="" className="w-7 h-7 object-contain" /></span>
-              <span className="font-bold flex-1">{C[tid]?.name}</span>
-              <span className="disp text-[20px] font-extrabold tabular-nums">{fmt(total(tid, shown))}</span>
-            </div>
+          <section className="card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px]">
+              <table className="w-full border-collapse min-w-[760px]">
+                <thead>
+                  <tr className="border-b-2 border-black">
+                    <th className={`${th} text-left`} colSpan={1 + n}><span className="text-[12px] font-bold text-black"><ClubName name={C[A]?.name} /></span></th>
+                    <th className={th}>PTS</th>
+                    <th className={th}>{daily && sel ? dayLabel(sel).toUpperCase() : ''}</th>
+                    <th className={th}>PTS</th>
+                    <th className={`${th} text-right`} colSpan={1 + n}><span className="text-[12px] font-bold text-black"><ClubName name={C[B]?.name} /></span></th>
+                  </tr>
+                </thead>
                 <tbody>
                   {groups.map(g => {
                     let prev = ''
+                    const len = Math.max(g.a.length, g.b.length)
                     return [
-                      <tr key={g.s + 'h'} className="bg-ink-50"><td colSpan={5 + nCols} className="px-3 py-1.5 ui text-[11px] font-bold tracking-[.12em]">{g.s === '1' ? 'STARTERS' : STATUS[g.s]}</td></tr>,
-                      ...g.ls.flatMap(l => {
-                        const st = statsOf(l), t = statType(m.sport, l.slot, st), out = []
+                      g.s !== '1' && <tr key={g.s} className="bg-ink-50"><td colSpan={5 + 2 * n} className="px-3 py-1.5 ui text-[11px] font-bold tracking-[.12em] text-center">{STATUS[g.s]}</td></tr>,
+                      ...Array.from({ length: len }, (_, i) => {
+                        const a = g.a[i], b = g.b[i], ref = (a ?? b)!
+                        const t = statType(m.sport, ref.slot, statsOf(ref)), cols = compactCols(t)
+                        const out = []
                         if (t.id !== prev) {
-                          out.push(<tr key={l.fx_player_id + 'th'} className="border-b border-ink-100">
-                            <th className={`${th} text-left sticky left-0 bg-white`}>{g.s === '1' ? 'SLOT' : ''}</th><th className={`${th} text-left sticky left-[52px] bg-white`}>PLAYER</th><th className={`${th} text-left`}>OPP</th><th className={`${th} text-right`}>FPTS</th>
-                            {t.cols.map(([lab]) => <th key={lab} className={`${th} text-right`}>{lab}</th>)}{Array.from({ length: nCols - t.cols.length }, (_, i) => <th key={'x' + i} />)}<th />
-                          </tr>)
+                          const hs = (x: string) => cols.map(([lab]) => <th key={x + lab} className={`${th} text-right`}>{lab}</th>), pad = (x: string) => Array.from({ length: n - cols.length }, (_, k) => <th key={x + 'p' + k} />)
+                          out.push(<tr key={g.s + i + 'h'} className="border-b border-ink-100"><th className={`${th} text-left`}>PLAYER</th>{[...pad('a'), ...hs('a')]}<th /><th /><th />{[...hs('b'), ...pad('b')]}<th className={`${th} text-right`}>PLAYER</th></tr>)
                           prev = t.id
                         }
-                        const played = !!(l.opp || l.fpts)
-                        out.push(<tr key={l.fx_player_id} className="border-b border-ink-50">
-                          <td className="px-2 py-2 sticky left-0 bg-white w-[52px]">{g.s === '1' && <span className="inline-flex items-center justify-center h-6 min-w-[40px] px-1 rounded bg-ink-50 ui text-[10px] font-bold leading-none">{SLOT[l.slot] ?? l.slot}</span>}</td>
-                          <td className="px-2 py-2 sticky left-[52px] bg-white min-w-[150px]"><span className="block font-bold leading-tight">{l.name}</span><span className="block text-[11px] text-ink-500 leading-tight ysf-case">({L.code}{l.pro_team ? `-${l.pro_team}` : ''}, {l.positions ?? l.slot})</span></td>
-                          <td className="px-2 py-2 text-ink-500 whitespace-nowrap">{l.opp ? l.opp.replace(/ F$/, '') : '–'}</td>
-                          <td className={`px-2 py-2 text-right tabular-nums ${g.s === '1' ? 'font-extrabold' : 'text-ink-500'}`}>{final(l) && l.fpts != null && played ? fmt(l.fpts) : '–'}</td>
-                          {t.cols.map(([lab, key]) => { const v = played ? statCell(st, key) : ''; return <td key={lab} className={`px-2 py-2 text-right tabular-nums ${v && v !== '0' ? '' : 'text-ink-200'}`}>{v === '' ? '–' : v}</td> })}
-                          {Array.from({ length: nCols - t.cols.length }, (_, i) => <td key={'x' + i} />)}<td />
-                        </tr>)
+                        out.push(
+                          <tr key={g.s + i} className="border-b border-ink-50">
+                            <PlayerCell l={a} /><StatCells l={a} cols={cols} /><PtsCell l={a} starter={g.s === '1'} />
+                            <td className="px-1 py-2 text-center">{g.s === '1' && <span className="inline-flex items-center justify-center h-6 min-w-[40px] px-1 rounded bg-ink-50 ui text-[10px] font-bold leading-none">{SLOT[ref.slot] ?? ref.slot}</span>}</td>
+                            <PtsCell l={b} starter={g.s === '1'} /><StatCells l={b} cols={cols} right /><PlayerCell l={b} right />
+                          </tr>)
                         return out
                       }),
+                      g.s === '1' && (
+                        <tr key="tot" className="bg-ink-50 border-b-2 border-black">
+                          <td colSpan={1 + n} className="px-3 py-2.5 ui text-[12px] font-bold">{daily ? 'DAY TOTAL' : 'TOTAL'}</td>
+                          <td className="px-2 text-center disp text-[22px] font-extrabold tabular-nums">{fmt(total(A, shown))}</td><td />
+                          <td className="px-2 text-center disp text-[22px] font-extrabold tabular-nums">{fmt(total(B, shown))}</td>
+                          <td colSpan={1 + n} className="px-3 py-2.5 ui text-[12px] font-bold text-right">{daily ? 'DAY TOTAL' : 'TOTAL'}</td>
+                        </tr>),
                     ]
                   })}
                 </tbody>
@@ -213,7 +227,7 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
             </div>
           </section>
         )
-      })}
+      })()}
     </>
   )
 }

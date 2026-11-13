@@ -46,7 +46,7 @@ export function statLine(sport: string, slot: string, stats: S | null | undefine
 
 // Box-score columns by stat type: [label, key in the Fantrax stats]. Rows of different types
 // (QB/RB/WR vs K vs D/ST, skaters vs goalies, hitters vs pitchers) carry their own header row.
-export type StatType = { id: string; cols: [string, string][] }
+export type StatType = { id: string; cols: [string, string][]; compact?: [string, string][] }
 const T: Record<string, StatType> = {
   nfl: { id: 'nfl', cols: [['PaYd', 'YDS'], ['PaTD', 'TD'], ['Int', 'Int'], ['RuYd', 'YDS#8'], ['RuTD', 'TD#9'], ['Rec', 'REC'], ['ReYd', 'YDS#11'], ['ReTD', 'TD#12'], ['Tgt', 'Tgt'], ['FL', 'FL'], ['2PT', '2Pa+2RR']] },
   k: { id: 'k', cols: [['FGM', 'FGM'], ['FG Yds', 'FGYd'], ['XP', 'XP'], ['XP Miss', 'XPM']] },
@@ -70,3 +70,9 @@ export function statCell(stats: S | null | undefined, key: string): string {
   return stats[key] ?? ''
 }
 export const maxCols = (sport: string) => sport === 'NFL' ? T.nfl.cols.length : sport === 'NHL' ? T.skater.cols.length : sport === 'NBA' ? T.nba.cols.length : T.hitter.cols.length
+
+// Head-to-head columns: the core of each stat type, so both clubs fit side by side.
+const C2: Record<string, string[]> = { nfl: ['PaYd', 'PaTD', 'Int', 'RuYd', 'RuTD', 'Rec', 'ReYd', 'ReTD'], k: ['FGM', 'FG Yds', 'XP'], dst: ['PA', 'YdA', 'Sk', 'TO', 'TD'],
+  skater: ['G', 'A', 'SOG', 'PPP', 'Hit', 'Blk'], goalie: ['W', 'SV', 'GA', 'SO'], nba: ['PTS', 'REB', 'AST', 'STL', 'BLK', 'TO', '3PM'], hitter: ['AB', 'H', 'R', 'HR', 'RBI', 'SB'], pitcher: ['IP', 'K', 'ER', 'W', 'SV'] }
+export const compactCols = (t: StatType): [string, string][] => (C2[t.id] ?? []).map(l => t.cols.find(c => c[0] === l)!).filter(Boolean)
+export const maxCompact = (sport: string) => sport === 'NFL' ? 8 : sport === 'NHL' ? 6 : sport === 'NBA' ? 7 : 6
