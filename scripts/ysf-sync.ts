@@ -33,7 +33,7 @@ const HOST: Record<Sport, string> = {
 }
 // Tank01's season label for each sport's 2026-27 campaign, and when it started.
 const SEASON_KEY: Partial<Record<Sport, string>> = { NBA: '2027', NHL: '2027' }
-const SEASON_START: Partial<Record<Sport, string>> = { NFL: '20260909', NBA: '20261020', NHL: '20261006' }
+const SEASON_START: Partial<Record<Sport, string>> = { NFL: '20260909', NBA: '20261020', NHL: '20260929' }
 
 const CACHE = path.join(ROOT, 'data', 'tank01-cache')
 let calls = 0
