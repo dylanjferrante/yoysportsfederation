@@ -9,6 +9,7 @@
 // mapping is intentionally defensive; run `npx tsx scripts/tank01-probe.ts NFL`
 // to print a live response and confirm/adjust the field names.
 
+import { countCall } from '@/lib/api-usage'
 import type { SportsDataProvider, Sport, ProviderPlayer, ProviderProjection, ProviderStatLine, ProviderTeam } from './types'
 
 const DEFAULT_HOSTS: Record<Sport, string> = {
@@ -58,6 +59,7 @@ async function call<T>(sport: Sport, path: string, query: Record<string, string 
     const res = await fetch(url, {
       headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, 'Content-Type': 'application/json' },
     })
+    countCall('tank01')
     if (res.status === 429 && attempt < MAX_RETRIES) {
       const ra = Number(res.headers.get('retry-after'))
       await sleep(Number.isFinite(ra) && ra > 0 ? ra * 1000 : Math.min(30_000, 1000 * 2 ** attempt))

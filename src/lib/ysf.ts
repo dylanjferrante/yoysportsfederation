@@ -23,3 +23,13 @@ export const U = (s: string) => s.toUpperCase().replace(/YSF/g, 'ySF')
 
 // Today's date in US Eastern time (the Federation's clock), YYYY-MM-DD
 export const etToday = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+
+// Injury designations (ESPN / Tank01 / the league's platform) → short tags shown next to player names
+export const isInjured = (status?: string | null) => !!status && !/^(active|healthy)$/i.test(status.trim())
+export function injTag(status?: string | null): string | null {
+  if (!isInjured(status)) return null
+  const x = status!.toLowerCase().replace(/[-_]/g, ' ').trim()
+  const il = /^(\d+) day il$/.exec(x); if (il) return `IL${il[1]}`
+  return ({ out: 'O', questionable: 'Q', doubtful: 'D', probable: 'P', 'day to day': 'DTD', dtd: 'DTD', 'injured reserve': 'IR', ir: 'IR', ltir: 'LTIR',
+    suspension: 'SUSP', suspended: 'SUSP', pup: 'PUP', nfi: 'NFI', 'not injury related': 'NIR' } as Record<string, string>)[x] ?? 'INJ'
+}

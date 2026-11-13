@@ -100,7 +100,8 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
   const shownTeams = new Set(lines.filter(l => !daily || l.date === lineupDay).map(l => l.pro_team && tankTeam(m.sport, l.pro_team)).filter(Boolean))
   const nowSec = Date.now() / 1000
   const liveIds = sched.filter(g => !/final|completed|postponed|cancel/i.test(g.status ?? '') && (/progress|live/i.test(g.status ?? '') || (g.epoch && Number(g.epoch) < nowSec)) && g.id.slice(9).split('@').some(t => shownTeams.has(t))).map(g => g.id)
-  await refreshLive(m.sport, liveIds)
+  // hockey comes live from the NHL's own feed (scheduler, every 2 minutes); others from Tank01, at most once a minute per game
+  if (m.sport !== 'NHL') await refreshLive(m.sport, liveIds)
   // the unfinished part of the period is scored by the app from live and final box scores
   if (!m.isComplete && pd) {
     const scoring = (JSON.parse(league.scoringSettings ?? '{}')[m.sport] ?? {}) as Record<string, number>

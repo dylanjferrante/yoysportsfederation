@@ -15,6 +15,8 @@ const norm = (n: string) => n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 
 async function main() {
   db.exec(`CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)`)
+  db.exec(`CREATE TABLE IF NOT EXISTS player_injury_log (player_id TEXT NOT NULL, sport TEXT NOT NULL, status TEXT NOT NULL, prev_status TEXT, note TEXT, at TEXT NOT NULL)`)
+  const hadLog = !!(db.prepare(`SELECT value FROM app_settings WHERE key = 'injuries_synced_at'`).get())
   for (const [sport, p] of Object.entries(PATHS)) {
     const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${p}/injuries`)
     if (!r.ok) { console.log(`${sport}: ESPN ${r.status}, skipped`); continue }
@@ -32,10 +34,18 @@ async function main() {
         inj.set(norm(p.longName ?? ''), { status: String(des), note: p.injury?.description ?? '' })
       }
     } catch { /* no Tank01 list for this sport */ }
-    const rows = db.prepare(`SELECT id, name FROM players WHERE sport = ?`).all(sport) as any[]
+    const rows = db.prepare(`SELECT id, name, status FROM players WHERE sport = ?`).all(sport) as any[]
     const upd = db.prepare(`UPDATE players SET status = ?, injury_note = ? WHERE id = ?`)
-    let n = 0
-    db.transaction(() => { for (const pl of rows) { const x = inj.get(norm(pl.name)); upd.run(x?.status ?? 'ACTIVE', x?.note || null, pl.id); if (x) n++ } })()
+    const logIt = db.prepare(`INSERT INTO player_injury_log (player_id, sport, status, prev_status, note, at) VALUES (?, ?, ?, ?, ?, ?)`)
+    const now = new Date().toISOString()
+    let n = 0, changed = 0
+    db.transaction(() => { for (const pl of rows) {
+      const x = inj.get(norm(pl.name)), st = x?.status ?? 'ACTIVE'
+      upd.run(st, x?.note || null, pl.id); if (x) n++
+      // a change of designation (including a return to health) goes in the log — skipped on the very first sync
+      if (hadLog && (pl.status ?? 'ACTIVE').toLowerCase() !== st.toLowerCase()) { logIt.run(pl.id, sport, st, pl.status ?? 'ACTIVE', x?.note || null, now); changed++ }
+    } })()
+    if (changed) console.log(`${sport}: ${changed} designation changes`)
     console.log(`${sport}: ${inj.size} on the injury report, ${n} matched`)
   }
   db.prepare(`INSERT INTO app_settings (key, value) VALUES ('injuries_synced_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(new Date().toISOString())

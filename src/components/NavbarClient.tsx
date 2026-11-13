@@ -36,7 +36,7 @@ export default function NavbarClient({ clubs, leagueId, strip }: { clubs: Club[]
       label: 'More', menu: [
         { label: 'Cup Race', href: `${base}/cup` }, { label: 'Playoffs', href: `${base}/playoffs` },
         { label: 'Draft', href: `${base}/draft` }, { label: 'History', href: `${base}/history` },
-        { label: 'Records', href: `${base}/records` }, { label: 'League Office', href: `${base}/rules` },
+        { label: 'Records', href: `${base}/records` }, { label: 'Injuries', href: `${base}/news` }, { label: 'League Office', href: `${base}/rules` },
         { label: 'Votes', href: `${base}/proposals` }, { label: 'Chat', href: `${base}/chat` },
       ],
     },
