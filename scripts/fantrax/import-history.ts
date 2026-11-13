@@ -28,6 +28,12 @@ CREATE TABLE IF NOT EXISTS fantrax_player_periods (
   PRIMARY KEY (fx_league_id, period, fx_team_id, fx_player_id)
 );
 CREATE INDEX IF NOT EXISTS fpp_matchup ON fantrax_player_periods(season, sport, matchup_period, team_id);
+CREATE TABLE IF NOT EXISTS fantrax_trades (
+  season TEXT NOT NULL, sport TEXT NOT NULL, fx_league_id TEXT NOT NULL, seq INTEGER NOT NULL, tx_set TEXT,
+  from_team_id TEXT, to_team_id TEXT, fx_player_id TEXT, name TEXT, pro_team TEXT, positions TEXT,
+  pick TEXT, note TEXT, date TEXT, executed INTEGER, deleted INTEGER,
+  PRIMARY KEY (fx_league_id, seq)
+);
 CREATE TABLE IF NOT EXISTS fantrax_transactions (
   season TEXT NOT NULL, sport TEXT NOT NULL, fx_league_id TEXT NOT NULL, view TEXT NOT NULL, seq INTEGER NOT NULL,
   tx_set TEXT, code TEXT, claim_type TEXT, result TEXT, executed INTEGER, deleted INTEGER,
@@ -63,9 +69,35 @@ async function main() {
   const teamOf: Record<string, string> = {}
   for (const r of db.prepare(`SELECT t.id, u.email FROM teams t JOIN users u ON u.id = t.user_id WHERE t.league_id = 'ysf'`).all() as any[]) teamOf[r.email.replace('@ysf.local', '')] = r.id
 
+  const club = (_: string | undefined, name?: string) => { const y = name ? nameToYsf[name] : undefined; return y ? teamOf[y] ?? null : null }
   const insP = db.prepare(`INSERT OR REPLACE INTO fantrax_player_periods VALUES (@season,@sport,@lid,@period,@date,@mp,@team,@fxteam,@pid,@name,@pro,@pos,@slot,@status,@fpts,@opp,@stats)`)
   const insT = db.prepare(`INSERT OR REPLACE INTO fantrax_transactions VALUES (@season,@sport,@lid,@view,@seq,@set,@code,@ct,@rc,@ex,@del,@team,@fxteam,@pid,@name,@pro,@pos,@date,@period,@cells)`)
 
+  // trades with their draft picks and the Commission's notes (data/fantrax-history/*/trades_all.json)
+  const MONI: Record<string, number> = Object.fromEntries(MON.map((m, i) => [m, i]))
+  const isoOf = (s: string | null) => { const m = s && /(\w{3}) (\d{1,2}), (\d{4}), (\d{1,2}):(\d{2})(AM|PM)/.exec(s); if (!m) return null; let h = +m[4] % 12; if (m[6] === 'PM') h += 12; return `${m[3]}-${String(MONI[m[1]] + 1).padStart(2, '0')}-${m[2].padStart(2, '0')}T${String(h).padStart(2, '0')}:${m[5]}:00` }
+  for (const lid of fs.readdirSync(DIR)) {
+    const tf = path.join(DIR, lid, 'trades_all.json')
+    if (!fs.existsSync(tf)) continue
+    const all = JSON.parse(fs.readFileSync(tf, 'utf8')).data as Record<string, any[]>
+    const ins = db.prepare(`INSERT OR REPLACE INTO fantrax_trades VALUES (@season,@sport,@lid,@seq,@set,@from,@to,@pid,@name,@pro,@pos,@pick,@note,@date,@ex,@del)`)
+    let n = 0
+    db.transaction(() => {
+      for (const [key, rows] of Object.entries(all)) {
+        const [flid, tag] = key.split(':')
+        const [, stag, lg] = /^(\d{4}(?:-\d{2})?)_(FL|HL|BA|LB)$/.exec(tag)!
+        const season = stag.length === 4 ? `${+stag - 1}-${stag.slice(2)}` : stag
+        db.prepare(`DELETE FROM fantrax_trades WHERE fx_league_id = ?`).run(flid)
+        let last: string | null = null
+        rows.forEach((r: any, i: number) => {
+          const date = isoOf(r.date) ?? last; last = date
+          ins.run({ season, sport: SPORT[lg], lid: flid, seq: i, set: r.set, from: club(undefined, r.from), to: club(undefined, r.to), pid: r.id, name: r.id ? (fullName[r.id] ?? r.n) : null, pro: r.tm, pos: r.pos, pick: r.pick, note: r.note, date, ex: r.ex ? 1 : 0, del: r.del ? 1 : 0 })
+          n++
+        })
+      }
+    })()
+    console.log(`trades: ${n} rows (players and picks)`)
+  }
   for (const lid of fs.readdirSync(DIR)) {
     const files = fs.readdirSync(path.join(DIR, lid)).filter(f => f.endsWith('.json')).sort()
     for (const file of files) {

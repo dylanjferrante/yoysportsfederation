@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { PageTitle, Tabs } from '@/components/ysf/ui'
 import MovesTable, { type MoveRowT } from '@/components/ysf/MovesTable'
 import { YSF_LEAGUES } from '@/lib/ysf'
-import { tradeRows, assetName } from '@/lib/ysf-trades'
+import { assetName } from '@/lib/ysf-trades'
 
 type Club = { name: string; abbreviation: string; logo: string | null; color: string | null }
 type Trade = { id: string; when: string; sides: { teamId: string; gets: { name: string; sport: string; team: string; pos: string }[] }[]; text: string; season?: string }
@@ -46,7 +46,7 @@ export function TradeCards({ leagueId, trades, clubs, codes }: { leagueId: strin
 export default function MovesView({ leagueId, moves, trades, clubs, codes, seasons }: { leagueId: string; moves: MoveRowT[]; trades: Trade[]; clubs: Record<string, Club>; codes: Record<string, string>; seasons: string[] }) {
   const [tab, setTab] = useState<'all' | 'tr'>('all')
   const [season, setSeason] = useState(seasons[0])
-  const all = [...moves, ...tradeRows(trades)].sort((a, b) => (b.when > a.when ? 1 : b.when < a.when ? -1 : 0))
+  const all = moves
   return (
     <>
       <PageTitle eyebrow="Trades · waivers & FA · drafts" title="MOVES" right={

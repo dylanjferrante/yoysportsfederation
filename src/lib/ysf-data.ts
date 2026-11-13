@@ -1,7 +1,7 @@
 // Server-side data for the ySF Site Redesign pages (Home, Standings, Scores), from the Nexus DB.
 import { db } from '@/db'
 import { teams, teamRecords, matchups, activity } from '@/db/schema'
-import { and, eq, desc } from 'drizzle-orm'
+import { and, eq, desc, sql } from 'drizzle-orm'
 import { safeParse } from '@/lib/utils'
 import { rankWithinSport } from '@/lib/federation'
 import { simulateSeason } from '@/lib/odds'
@@ -193,8 +193,10 @@ export async function siteClubMap(clubs: Record<string, ClubInfo>): Promise<Reco
 }
 
 // Moves: signings, claims, releases and trades (structured activity rows).
-export type MoveRow = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string; season: string }
+export type MoveRow = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string; season: string; from?: string; via?: string; pick?: string }
 export type TradeRow = { id: string; when: string; sides: { teamId: string; gets: { name: string; sport: string; team: string; pos: string }[] }[]; text: string; season: string }
+// "Pick 2 (1.2)" (2025 Federation Draft) → "R1 · P2 (#2)"
+const fedPick = (s: string) => { const m = /Pick (\d+) \((\d+)\.(\d+)\)/.exec(s); return m ? `R${m[2]} · P${+m[3]} (#${m[1]})` : s }
 export async function loadMoves(leagueId: string, currentSeason = '2026-27') {
   const rows = await db.select().from(activity).where(eq(activity.leagueId, leagueId)).orderBy(desc(activity.createdAt)).limit(8000)
   const moves: MoveRow[] = [], trades: TradeRow[] = []
@@ -204,7 +206,37 @@ export async function loadMoves(leagueId: string, currentSeason = '2026-27') {
     const season = d?.season ?? currentSeason
     if (r.type === 'TRADE') { trades.push({ id: r.id, when, sides: d?.sides ?? [], text: r.message, season }); continue }
     if (!['WAIVER', 'ROSTER', 'DRAFT'].includes(r.type) || d?.kind === 'LINEUP_CHANGE' || (r.type === 'DRAFT' && !d)) continue
-    moves.push({ id: r.id, when, sport: d?.sport ?? '', teamId: r.teamId ?? '', kind: d?.kind ?? 'MOVE', player: d?.player ?? '', team: d?.team ?? '', pos: d?.pos ?? '', bid: d?.bid ?? null, text: r.message, season })
+    moves.push({ id: r.id, when, sport: d?.sport ?? '', teamId: r.teamId ?? '', kind: d?.kind ?? 'MOVE', player: d?.player ?? '', team: d?.team ?? '', pos: d?.pos ?? '', bid: d?.bid ?? null, text: r.message, season, pick: d?.pick ? fedPick(d.pick) : undefined })
   }
+  // trades as Fantrax recorded them: every player and draft pick that changed hands
+  const code = (sp: string) => YSF_LEAGUES.find(l => l.sport === sp)?.code ?? sp
+  try {
+    const tr = db.all<any>(sql`SELECT season, sport, fx_league_id, seq, from_team_id, to_team_id, name, pro_team, positions, pick, date FROM fantrax_trades WHERE executed = 1 AND deleted = 0 AND to_team_id IS NOT NULL`)
+    for (const t of tr) {
+      let text = '', pick: string | undefined, via: string | undefined
+      if (t.pick) {
+        const m = /^(\d{4}) Draft Pick Round (\d+)(?: Pick (\d+))?(?: \((.+)\))?/.exec(t.pick)
+        text = m ? `${m[1]} ${code(t.sport)} Rookie Draft pick` : t.pick
+        if (m) pick = `R${m[2]}${m[3] ? ` · P${m[3]}` : ''}`
+        if (m?.[4]) via = m[4]
+      }
+      moves.push({ id: `fxt-${t.fx_league_id}-${t.seq}`, when: t.date ?? '', sport: t.sport, teamId: t.to_team_id, kind: 'TRADED', player: t.pick ? '' : (t.name ?? ''), team: t.pro_team ?? '', pos: t.positions ?? '', bid: null, text, season: t.season, from: t.from_team_id ?? undefined, pick, via })
+    }
+  } catch { /* history not loaded */ }
+  // rookie-draft selections (drafts run in the app)
+  const picks = db.all<any>(sql`SELECT p.id, p.round, p.pick_number, p.current_team_id, p.original_team_id, d.scope, d.season, d.starts_at, pl.name, pl.real_team_abbr, pl.position, pl.eligible_positions
+    FROM draft_picks p JOIN drafts d ON d.id = p.draft_id LEFT JOIN players pl ON pl.id = p.picked_player_id
+    WHERE p.league_id = ${leagueId} AND d.status = 'COMPLETED' AND p.picked_player_id IS NOT NULL`)
+  const per = new Map<string, number>()
+  for (const p of picks) per.set(p.scope + p.season, Math.max(per.get(p.scope + p.season) ?? 0, p.round))
+  for (const p of picks) {
+    const n = picks.filter(x => x.scope === p.scope && x.season === p.season).length / Math.max(1, per.get(p.scope + p.season) ?? 1)
+    const inRound = ((p.pick_number - 1) % Math.max(1, n)) + 1
+    const t = new Date(new Date(p.starts_at).getTime() + p.pick_number * 60_000)
+    const elig = safeParse<string[]>(p.eligible_positions, [])
+    moves.push({ id: `dp-${p.id}`, when: t.toISOString(), sport: p.scope, teamId: p.current_team_id, kind: 'DRAFTED', player: p.name ?? '', team: p.real_team_abbr ?? '', pos: elig.length ? elig.join('/') : p.position ?? '', bid: null, text: '', season: p.season,
+      pick: `R${p.round} · P${inRound}`, via: p.original_team_id !== p.current_team_id ? p.original_team_id : undefined })
+  }
+  moves.sort((a, b) => (b.when > a.when ? 1 : b.when < a.when ? -1 : 0))
   return { moves, trades }
 }
