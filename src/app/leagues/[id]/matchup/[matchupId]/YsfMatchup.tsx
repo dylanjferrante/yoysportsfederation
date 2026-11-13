@@ -272,13 +272,13 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
                       {[{ g: '1', ls: sd.act }, ...sd.groups.map(x => ({ g: x.s, ls: x.ls }))].filter(x => x.ls.length).map(({ g, ls }) => {
                         let prev = ''
                         return [
-                          <tr key={g} className="bg-ink-50"><td className="sticky left-0 bg-ink-50 px-3 py-1.5 ui text-[11px] font-bold tracking-[.12em]" colSpan={2}>{g === '1' ? 'STARTERS' : STATUS[g]}</td><td colSpan={12} /></tr>,
+                          <tr key={g} className="bg-ink-50"><td className="sticky left-0 z-10 bg-ink-50 px-3 py-1.5 ui text-[11px] font-bold tracking-[.12em]" colSpan={2}>{g === '1' ? 'STARTERS' : STATUS[g]}</td><td colSpan={12} /></tr>,
                           ...ls.flatMap(l => {
                             const st = statsOf(l), t = statType(m.sport, l.slot, st), played = !!(l.opp || l.fpts) && final(l), out = []
-                            if (t.id !== prev) { out.push(<tr key={l.fx_player_id + 'h'} className="border-b border-ink-100"><th className="sticky left-0 bg-white px-3 py-1 ui text-[10px] font-medium text-ink-500 text-left">PLAYER</th><th className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-right">PTS</th>{t.cols.map(([lab]) => <th key={lab} className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-right whitespace-nowrap">{lab}</th>)}</tr>); prev = t.id }
+                            if (t.id !== prev) { out.push(<tr key={l.fx_player_id + 'h'} className="border-b border-ink-100"><th className="sticky left-0 z-10 bg-white px-3 py-1 ui text-[10px] font-medium text-ink-500 text-left shadow-[2px_0_0_#F2F2F2]">PLAYER</th><th className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-right">PTS</th>{t.cols.map(([lab]) => <th key={lab} className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-right whitespace-nowrap">{lab}</th>)}</tr>); prev = t.id }
                             out.push(<tr key={l.fx_player_id} className="border-b border-ink-50">
-                              <td className="sticky left-0 bg-white px-3 py-2 whitespace-nowrap">
-                                <div className="flex items-center gap-2 max-w-[56vw]">
+                              <td className="sticky left-0 z-10 bg-white px-3 py-2 whitespace-nowrap shadow-[2px_0_0_#F2F2F2]">
+                                <div className="flex items-center gap-2 max-w-[48vw]">
                                   {g === '1' && <span className="inline-flex items-center justify-center h-5 min-w-[34px] px-1 rounded bg-ink-50 ui text-[9px] font-bold leading-none flex-none">{SLOT[l.slot] ?? l.slot}</span>}
                                   <span className="min-w-0">
                                     <span className="block text-[13px] leading-tight overflow-hidden text-ellipsis"><b>{l.name}</b> <span className="text-ink-500">| {l.pro_team ? `${l.pro_team}, ` : ''}{(l.positions ?? l.slot).replace(/,/g, '/')}</span></span>
