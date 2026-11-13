@@ -6,6 +6,8 @@ import { sportMeta, safeParse, sportLabel, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import SportIcon from '@/components/SportIcon'
+import YsfPlayoffs from './YsfPlayoffs'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -27,7 +29,9 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
-  const { season: viewSeason, isPast } = viewSeasonOf(league, await searchParams)
+  const sp = await searchParams
+  if (id === YSF_LEAGUE_ID) return <YsfPlayoffs league={league} lg={(sp as any).lg} season={(sp as any).s} />
+  const { season: viewSeason, isPast } = viewSeasonOf(league, sp)
   if (!isPast) await advanceLeague(league)
 
   const sports = orderedSports(safeParse<string[]>(league.sportsEnabled, []), league.seasonStart)
