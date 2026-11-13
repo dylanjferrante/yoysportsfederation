@@ -42,7 +42,7 @@ export default async function PowerPage({ params }: { params: Promise<{ id: stri
             if (!c) return null
             const primary = c.primaryColor || '#0f172a'
             const secondary = c.secondaryColor || '#ffffff'
-            const src = c.altLogo || c.logo
+            const src = c.logo || c.altLogo
             return (
               <Link key={r.teamId} href={`/leagues/${id}/teams/${r.teamId}`} className="flex items-center gap-3 px-3 sm:px-4 py-3 hover:bg-slate-50">
                 <span className="w-6 text-center text-lg font-black text-slate-900 tabular-nums flex-shrink-0">{r.rank}</span>
@@ -52,8 +52,8 @@ export default async function PowerPage({ params }: { params: Promise<{ id: stri
                     : <span className="text-slate-300 text-xs">–</span>}
                 </span>
                 {src
-                  ? <span className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: c.logoBg ? primary : '#f1f5f9' }}><img src={src} alt="" className="w-[82%] h-[82%] object-contain" /></span>
-                  : <span className="w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0" style={{ background: primary, color: secondary }}>{(c.abbreviation || c.name || '?').slice(0, 3).toUpperCase()}</span>}
+                  ? <span className="w-9 h-9 inline-flex items-center justify-center flex-shrink-0"><img src={src} alt="" className="w-full h-full object-contain" /></span>
+                  : <span className="w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0" style={{ background: primary, color: '#fff' }}>{(c.abbreviation || c.name || '?').slice(0, 3).toUpperCase()}</span>}
                 <span className="min-w-0 flex-1">
                   <span className="font-bold text-slate-900 truncate block leading-tight">{c.name}</span>
                   <span className="flex items-center gap-2 mt-0.5">

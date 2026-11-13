@@ -83,7 +83,7 @@ export default function LeagueTabs({
         </button>
         {sportsEnabled.map(s => (
           <button key={s} onClick={() => setTab(s)} className={`inline-flex items-center gap-1.5 ${tab === s ? 'tab-active' : 'tab-inactive'}`}>
-            <SportChip sport={s} logos={divisionLogos} altLogos={divisionLogosAlt} colors={championshipColors} chip={20} size={14} />{sportAbbrLabel(s, sportAbbr)}
+            <SportChip sport={s} logos={divisionLogos} altLogos={divisionLogosAlt} colors={championshipColors} chip={20} size={14} /><span className="ysf-case">{sportAbbrLabel(s, sportAbbr)}</span>
           </button>
         ))}
       </div>
@@ -134,7 +134,7 @@ function Overall({ leagueId, standings, power = [], sportsEnabled, sportNames = 
                         <td className="px-2 py-2">
                           <Link href={`/leagues/${leagueId}/teams/${row.team.id}`} className="flex items-center gap-2 group">
                             {(t?.altLogo || t?.logo)
-                              ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
+                              ? <span className="w-6 h-6 inline-flex items-center justify-center flex-shrink-0"><img src={t.logo || t.altLogo} alt="" className="w-full h-full object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
                             <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
                           </Link>
@@ -162,9 +162,6 @@ function Overall({ leagueId, standings, power = [], sportsEnabled, sportNames = 
           <input type="checkbox" checked={countMode === 'ALL'} onChange={() => setCountMode('ALL')} className="w-4 h-4" />
           <span>All sports</span>
         </label>
-        <span className="text-xs text-slate-400 ml-auto">
-          Champion bonus +{fed.championBonus} · placement {fed.placement?.[0] ?? '—'} → 1
-        </span>
       </div>
 
       <div className="card overflow-x-auto">
@@ -175,9 +172,9 @@ function Overall({ leagueId, standings, power = [], sportsEnabled, sportNames = 
               <th className="text-left px-4 py-3 font-medium">#</th>
               <th className="text-left px-2 py-3 font-medium">Club</th>
               {sportsEnabled.filter((s: string) => included.has(s)).map((s: string) => (
-                <th key={s} className="text-center px-2 py-3 font-medium"><SportChip sport={s} logos={divisionLogos} altLogos={divisionLogosAlt} colors={championshipColors} chip={22} size={16} /></th>
+                <th key={s} className="text-center px-2 py-3 font-medium hidden sm:table-cell"><SportChip sport={s} logos={divisionLogos} altLogos={divisionLogosAlt} colors={championshipColors} chip={22} size={16} /></th>
               ))}
-              <th className="text-center px-4 py-3 font-medium">Fed Pts</th>
+              <th className="text-center px-4 py-3 font-medium">Cup Pts</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -192,16 +189,15 @@ function Overall({ leagueId, standings, power = [], sportsEnabled, sportNames = 
                   <td className="px-2 py-3">
                     <Link href={`/leagues/${leagueId}/teams/${row.team.id}`} className="flex items-center gap-2 group">
                       {(t?.altLogo || t?.logo)
-                        ? <span className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
+                        ? <span className="w-7 h-7 inline-flex items-center justify-center flex-shrink-0"><img src={t.logo || t.altLogo} alt="" className="w-full h-full object-contain" /></span>
                         : <span className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{t?.abbreviation}</span>}
                       <span>
                         <span className="font-medium text-slate-900 group-hover:text-blue-600">{t?.name}</span>
-                        <span className="block text-xs text-slate-400">{t?.owner}</span>
                       </span>
                     </Link>
                   </td>
                   {sportsEnabled.filter((s: string) => included.has(s)).map((s: string) => (
-                    <td key={s} className="text-center px-2 py-3 text-slate-600">{row.perSport[s] ?? '—'}</td>
+                    <td key={s} className="text-center px-2 py-3 text-slate-600 hidden sm:table-cell">{row.perSport[s] ?? '—'}</td>
                   ))}
                   <td className="text-center px-4 py-3 font-bold text-slate-900 text-base">{row.total}</td>
                 </tr>
@@ -241,7 +237,7 @@ function Overall({ leagueId, standings, power = [], sportsEnabled, sportNames = 
                   <td className="px-2 py-2.5">
                     <Link href={`/leagues/${leagueId}/teams/${row.team.id}`} className="flex items-center gap-2 group">
                       {(t?.altLogo || t?.logo)
-                              ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
+                              ? <span className="w-6 h-6 inline-flex items-center justify-center flex-shrink-0"><img src={t.logo || t.altLogo} alt="" className="w-full h-full object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
                       <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
                     </Link>
@@ -382,7 +378,7 @@ function SportView({ leagueId, sport, sportNames = {}, sportAbbr = {}, divisionL
                           <td className="px-2 py-2">
                             <Link href={`/leagues/${leagueId}/teams/${r.teamId}`} className="flex items-center gap-2 group">
                               {(t?.altLogo || t?.logo)
-                              ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
+                              ? <span className="w-6 h-6 inline-flex items-center justify-center flex-shrink-0"><img src={t.logo || t.altLogo} alt="" className="w-full h-full object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
                               <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
                             </Link>
@@ -401,7 +397,7 @@ function SportView({ leagueId, sport, sportNames = {}, sportAbbr = {}, divisionL
           </div>
         )}
         <div className="card overflow-x-auto">
-          <div className="card-header"><h2 className="font-semibold text-slate-900 flex items-center gap-2"><SportChip sport={sport} logos={divisionLogos} altLogos={divisionLogosAlt} colors={championshipColors} chip={24} size={16} /> {sportLabel(sport, sportNames)} {divGroups.length > 0 ? 'Overall ' : ''}Standings</h2></div>
+          <div className="card-header"><h2 className="font-semibold text-slate-900 flex items-center gap-2"><SportChip sport={sport} logos={divisionLogos} altLogos={divisionLogosAlt} colors={championshipColors} chip={24} size={16} /> <span className="ysf-case">{sportLabel(sport, sportNames)}</span> {divGroups.length > 0 ? 'Overall ' : ''}Standings</h2></div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
@@ -436,7 +432,7 @@ function SportView({ leagueId, sport, sportNames = {}, sportAbbr = {}, divisionL
                     <td className="px-2 py-2.5">
                       <Link href={`/leagues/${leagueId}/teams/${r.teamId}`} className="flex items-center gap-2 group">
                         {(t?.altLogo || t?.logo)
-                              ? <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? (t.primaryColor || '#0f172a') : '#f1f5f9' }}><img src={t.altLogo || t.logo} alt="" className="w-[70%] h-[70%] object-contain" /></span>
+                              ? <span className="w-6 h-6 inline-flex items-center justify-center flex-shrink-0"><img src={t.logo || t.altLogo} alt="" className="w-full h-full object-contain" /></span>
                               : <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{t?.abbreviation}</span>}
                         <span className="font-medium text-slate-900 group-hover:text-blue-600 truncate">{t?.name}</span>
                       </Link>
@@ -520,7 +516,7 @@ function SportView({ leagueId, sport, sportNames = {}, sportAbbr = {}, divisionL
         )}
 
         <div className="card">
-          <div className="card-header"><h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)} Roster Slots</h2></div>
+          <div className="card-header"><h2 className="font-semibold text-slate-900"><span className="ysf-case">{sportLabel(sport, sportNames)}</span> Roster Slots</h2></div>
           <div className="card-body space-y-1 text-sm">
             {Object.entries(rosterSettings).length === 0
               ? <p className="text-slate-400">No roster configured.</p>

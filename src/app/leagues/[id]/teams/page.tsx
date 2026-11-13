@@ -48,15 +48,15 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
           const recBySport = Object.fromEntries(recs.filter(r => r.teamId === t.id).map(r => [r.sport, r]))
           return (
             <Link key={t.id} href={`/leagues/${id}/teams/${t.id}${isPast ? `?season=${viewSeason}` : ''}`} className="card overflow-hidden hover:shadow-md transition">
-              <div className="p-3 flex items-center gap-3" style={{ background: primary, color: secondary }}>
-                {t.logo
-                  ? <img src={t.logo} alt="" className="w-12 h-12 object-contain flex-shrink-0 rounded-md p-1.5" style={{ background: t.logoBg ? primary : 'rgba(255,255,255,.12)' }} />
+              <div className="p-3 flex items-center gap-3" style={{ background: primary, color: '#fff' }}>
+                {(t.altLogo || t.logo)
+                  ? <span className="w-12 h-12 inline-flex items-center justify-center flex-shrink-0"><img src={(t.altLogo || t.logo)!} alt="" className="w-full h-full object-contain" /></span>
                   : <span className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 4).toUpperCase()}</span>}
                 <div className="min-w-0">
                   {t.wordmark && t.wordmark.startsWith('http')
                     ? <img src={t.wordmark} alt={t.name} className="h-9 w-auto max-w-[220px] object-contain object-left" />
                     : <p className="font-bold leading-tight truncate">{t.wordmark || t.name}</p>}
-                  <p className="text-xs font-bold opacity-95 truncate">{userName ?? '—'} · {t.abbreviation}</p>
+                  <p className="text-xs font-bold opacity-95 truncate">{t.abbreviation}</p>
                 </div>
               </div>
               <div className="px-3 py-2 flex items-center gap-3 text-xs border-b border-slate-100 bg-slate-50/60">
@@ -69,7 +69,7 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
                   const r = recBySport[s] as Rec | undefined
                   return (
                     <div key={s} className="flex items-center gap-2 text-xs">
-                      <span className="inline-flex items-center gap-1.5 font-semibold w-16"><SportChip sport={s} logos={divisionLogos} colors={championshipColors} chip={18} size={12} />{sportAbbrLabel(s, sportAbbr)}</span>
+                      <span className="inline-flex items-center gap-1.5 font-semibold w-16"><SportChip sport={s} logos={divisionLogos} colors={championshipColors} chip={18} size={12} /><span className="ysf-case">{sportAbbrLabel(s, sportAbbr)}</span></span>
                       {r ? (
                         <>
                           <span className="text-slate-700 w-16">{r.wins}-{r.losses}{r.ties ? `-${r.ties}` : ''}</span>

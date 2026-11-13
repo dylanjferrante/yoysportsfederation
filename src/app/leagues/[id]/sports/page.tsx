@@ -42,12 +42,12 @@ export default async function SportsHubPage({ params }: { params: Promise<{ id: 
           const champ = lastChamp(s)
           return (
             <div key={s} className="card overflow-hidden">
-              <Link href={`/leagues/${id}/sports/${s}`} className="p-4 flex items-center gap-3 hover:opacity-95 transition" style={{ background: primary, color: secondary }}>
+              <Link href={`/leagues/${id}/sports/${s}`} className="p-4 flex items-center gap-3 hover:opacity-95 transition" style={{ background: primary, color: '#fff' }}>
                 {logo
-                  ? <span className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: 'rgba(255,255,255,.14)' }}><img src={logo} alt="" className="w-[80%] h-[80%] object-contain" /></span>
+                  ? <span className="w-11 h-11 inline-flex items-center justify-center flex-shrink-0"><img src={logo} alt="" className="w-full h-full object-contain" /></span>
                   : <span className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{s.slice(0, 3)}</span>}
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-lg leading-tight truncate">{sportLabel(s, sportNames)}</p>
+                  <p className="font-bold text-lg leading-tight truncate"><span className="ysf-case">{sportLabel(s, sportNames)}</span></p>
                   <p className="text-xs font-medium opacity-90 truncate">{standings.length} clubs{champ ? ` · last champ ${teamById.get(champ.championTeamId ?? '')?.abbr ?? '—'}` : ''}</p>
                 </div>
                 <span className="text-xs font-semibold opacity-90 flex-shrink-0">Open →</span>
@@ -65,7 +65,7 @@ export default async function SportsHubPage({ params }: { params: Promise<{ id: 
                       <span className="text-right text-xs text-slate-400 tabular-nums">{i + 1}</span>
                       <span className="flex items-center gap-2 min-w-0">
                         {t?.altLogo || t?.logo
-                          ? <img src={t.altLogo || t.logo!} alt="" className="w-5 h-5 rounded object-contain flex-shrink-0" style={{ background: t.primary ?? '#f1f5f9' }} />
+                          ? <img src={t.logo || t.altLogo!} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
                           : <span className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0" style={{ background: t?.primary ?? '#0f172a' }}>{(t?.abbr || t?.name || '?').slice(0, 2).toUpperCase()}</span>}
                         <span className="truncate text-slate-800">{t?.name ?? '—'}</span>
                       </span>

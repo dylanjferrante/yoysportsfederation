@@ -91,7 +91,7 @@ export default async function DashboardPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-black text-slate-900">{fedPoints}</div>
-                  <div className="text-xs text-slate-400">Fed pts · {myRank ? `#${myRank}/${total}` : '—'}</div>
+                  <div className="text-xs text-slate-400">Cup pts · {myRank ? `#${myRank}/${total}` : '—'}</div>
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

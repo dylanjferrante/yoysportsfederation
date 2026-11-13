@@ -11,12 +11,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 function Logo({ team, size }: { team: any; size: number }) {
-  const src = team?.altLogo || team?.logo
+  const src = team?.logo || team?.altLogo
   const primary = team?.primaryColor || '#0f172a'
   const secondary = team?.secondaryColor || '#fff'
   return src
-    ? <span className="rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ width: size, height: size, background: team?.logoBg ? primary : '#f1f5f9' }}><img src={src} alt="" style={{ width: '80%', height: '80%', objectFit: 'contain' }} /></span>
-    : <span className="rounded-lg flex items-center justify-center flex-shrink-0 font-bold" style={{ width: size, height: size, background: primary, color: secondary, fontSize: Math.round(size * 0.34) }}>{(team?.abbreviation || team?.name || '?').slice(0, 3).toUpperCase()}</span>
+    ? <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}><img src={src} alt="" className="w-full h-full object-contain" /></span>
+    : <span className="rounded-lg flex items-center justify-center flex-shrink-0 font-bold" style={{ width: size, height: size, background: primary, color: '#fff', fontSize: Math.round(size * 0.34) }}>{(team?.abbreviation || team?.name || '?').slice(0, 3).toUpperCase()}</span>
 }
 
 export default async function SportLeaguePage({ params }: { params: Promise<{ id: string; sport: string }> }) {
@@ -71,12 +71,12 @@ export default async function SportLeaguePage({ params }: { params: Promise<{ id
 
       {/* Sport header tile */}
       <div className="card overflow-hidden mb-5">
-        <div className="p-4 flex items-center gap-3" style={{ background: primary, color: secondary }}>
+        <div className="p-4 flex items-center gap-3" style={{ background: primary, color: '#fff' }}>
           {logo
-            ? <span className="w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: 'rgba(255,255,255,.14)' }}><img src={logo} alt="" className="w-[80%] h-[80%] object-contain" /></span>
+            ? <span className="w-14 h-14 inline-flex items-center justify-center flex-shrink-0"><img src={logo} alt="" className="w-full h-full object-contain" /></span>
             : <span className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{sport.slice(0, 3)}</span>}
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold leading-tight truncate">{sportLabel(sport, sportNames)}</h1>
+            <h1 className="text-2xl font-bold leading-tight truncate"><span className="ysf-case">{sportLabel(sport, sportNames)}</span></h1>
             <p className="text-sm font-medium opacity-90">{league.season} · {recs.length} clubs{champNames[sport] ? ` · ${champNames[sport]}` : ''}</p>
           </div>
         </div>

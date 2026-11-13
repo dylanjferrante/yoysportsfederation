@@ -2,39 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ySF tokens — mirrors ysffantasy.com css/tokens.css (2026-27). */
+:root {
+  --ysf-green: #177245; --ysf-blue: #6da7ee; --ysf-orange: #e86100; --ysf-red: #ba0c2f;
+  --ink-1000: #000; --ink-800: #1F1F1F; --ink-600: #4A4A4A; --ink-400: #8A8A8A; --ink-200: #C7C7C7; --ink-100: #E5E5E5; --ink-50: #F2F2F2;
+  --paper: #fff;
+  --font-display: 'shuttleblock', 'Shuttleblock', 'Big Shoulders Display', Impact, sans-serif;
+  --font-body: 'address-sans-pro', 'Address Sans Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
 @layer base {
-  body { @apply bg-slate-50 text-slate-900 antialiased; }
-  h1,h2,h3,h4 { @apply tracking-tight; }
+  html { background: #fff; }
+  body { @apply text-black antialiased; background: #fff; font-family: var(--font-body); font-variant-numeric: tabular-nums; }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: .02em; }
+  h1 { font-weight: 800; }
+  /* Tables read like the ySF site: display-face caps headers over a 2px black rule, hairline rows. */
+  table thead th { font-family: var(--font-display); font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: #4A4A4A; }
+  table thead tr { border-bottom: 2px solid #000; }
+  table tbody td { font-weight: 600; }
+  table tbody tr { border-color: #E5E5E5; }
+  img { object-fit: contain; }
 }
 
 @layer components {
-  .card { @apply bg-white rounded-2xl border border-slate-100 shadow-sm; }
-  .card-header { @apply px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100; }
+  .card { @apply bg-white border border-ink-100; border-radius: 4px; }
+  .card-header { @apply px-4 py-3 sm:px-6 sm:py-4 border-b border-ink-100; }
+  .card-header h2, .card-header h3 { font-family: var(--font-display); letter-spacing: .06em; font-size: 17px; font-weight: 700; }
   .card-body { @apply p-4 sm:p-6; }
 
   /* Wrap a wide table so it scrolls horizontally on small screens instead of
      overflowing the viewport. Bleeds to the card edges for more usable width. */
   .table-scroll { @apply -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto; }
 
-  .btn { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all text-sm; }
-  .btn-primary { @apply btn bg-slate-900 text-white hover:bg-slate-700 px-4 py-2; }
-  .btn-secondary { @apply btn bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 px-4 py-2; }
-  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-500 px-4 py-2; }
-  .btn-ghost { @apply btn text-slate-600 hover:bg-slate-100 px-3 py-1.5; }
+  /* Text inside any box is centered both ways. */
+  .btn { @apply inline-flex items-center justify-center gap-2 transition-all text-sm; font-family: var(--font-display); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; line-height: 1; border-radius: 8px; }
+  .btn-primary { @apply btn bg-black text-white hover:bg-ink-800 px-4 py-2.5; }
+  .btn-secondary { @apply btn bg-white text-black border border-black hover:bg-ink-50 px-4 py-2.5; }
+  .btn-danger { @apply btn bg-[#ba0c2f] text-white hover:opacity-90 px-4 py-2.5; }
+  .btn-ghost { @apply btn text-ink-500 hover:bg-ink-50 px-3 py-2; }
 
-  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+  .badge { @apply inline-flex items-center justify-center gap-1 px-2 py-0.5 text-[11px]; font-family: var(--font-display); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; line-height: 1; border-radius: 2px; }
 
   .input {
-    @apply w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white
-    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-    placeholder:text-slate-400;
+    @apply w-full px-3 py-2 border border-ink-200 rounded-lg text-sm bg-white
+    focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent
+    placeholder:text-ink-400;
   }
-  .label { @apply block text-sm font-medium text-slate-700 mb-1; }
-  .select {
-    @apply input appearance-none cursor-pointer;
-  }
+  .label { @apply block text-sm font-medium text-ink-500 mb-1; }
+  .select { @apply input appearance-none cursor-pointer; }
 
-  .tab { @apply px-4 py-2 text-sm font-medium border-b-2 transition-colors; }
-  .tab-active { @apply tab border-blue-500 text-blue-600; }
-  .tab-inactive { @apply tab border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300; }
+  .tab { @apply inline-flex items-center justify-center px-4 py-2 text-[13px] transition-colors; font-family: var(--font-display); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; line-height: 1; border-radius: 8px; }
+  .tab-active { @apply tab bg-black text-white; }
+  .tab-inactive { @apply tab text-ink-500 hover:bg-ink-50 hover:text-black; }
+
+  /* ySF type helpers */
+  .disp { font-family: var(--font-display); }
+  .ui { font-family: var(--font-display); letter-spacing: .08em; font-weight: 500; }
+  .eyebrow { font-family: var(--font-display); letter-spacing: .18em; font-size: 13px; color: #4A4A4A; }
+  /* .ui and .eyebrow don't force caps — pass text through U() so ySF keeps its lowercase y. */
+  /* Keep the lowercase y in ySF even inside uppercase UI. */
+  .ysf-case { text-transform: none; }
 }

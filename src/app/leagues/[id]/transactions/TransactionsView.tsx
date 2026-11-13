@@ -84,7 +84,7 @@ export default function TransactionsView({ leagueId, leagueName, rows, sportAbbr
                       {r.teamAbbr ?? r.teamName ?? '—'}
                     </span>
                   </td>
-                  <td className="px-3 py-2.5">{r.sport ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(r.sport).light}`}>{sportAbbrLabel(r.sport, sportAbbr)}</span> : <span className="text-slate-300">—</span>}</td>
+                  <td className="px-3 py-2.5">{r.sport ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sportMeta(r.sport).light}`}><span className="ysf-case">{sportAbbrLabel(r.sport, sportAbbr)}</span></span> : <span className="text-slate-300">—</span>}</td>
                   <td className="px-3 py-2.5"><span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">{ICON[r.type] ?? '•'} {r.type}</span></td>
                   <td className="px-3 py-2.5 text-slate-800">{r.player ?? <span className="text-slate-400 whitespace-normal">{r.message}</span>}</td>
                   <td className="px-3 py-2.5 text-slate-500">{r.position ?? '—'}</td>

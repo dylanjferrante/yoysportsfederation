@@ -159,7 +159,7 @@ export default function MockDraft() {
                     {order.map((_, n) => <option key={n} value={n}>{n + 1}</option>)}
                   </select>
                   {(t.altLogo || t.logo)
-                    ? <span className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? t.primaryColor : '#f1f5f9' }}><img src={(t.altLogo || t.logo) as string} alt="" className="w-[80%] h-[80%] object-contain" /></span>
+                    ? <span className="w-5 h-5 inline-flex items-center justify-center flex-shrink-0"><img src={t.logo || t.altLogo as string} alt="" className="w-full h-full object-contain" /></span>
                     : <span className="w-5 h-5 rounded text-white text-[9px] font-bold flex items-center justify-center" style={{ background: t.primaryColor }}>{t.abbreviation?.slice(0, 2)}</span>}
                   <span className="text-sm text-slate-800 flex-1 truncate">{t.name}</span>
                   <button onClick={() => setMySlot(i)} className={`text-[11px] px-2 py-0.5 rounded ${mySlot === i ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>{mySlot === i ? 'You' : 'Take slot'}</button>
@@ -190,7 +190,7 @@ export default function MockDraft() {
                   {order.map((t, i) => (
                     <th key={t.id} className="px-2 py-2 min-w-[8rem]" style={{ background: t.primaryColor, color: '#fff' }}>
                       <div className="flex items-center gap-1 justify-center">
-                        {(t.altLogo || t.logo) && <span className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 overflow-hidden bg-white/20"><img src={(t.altLogo || t.logo) as string} alt="" className="w-[85%] h-[85%] object-contain" /></span>}
+                        {(t.altLogo || t.logo) && <span className="w-4 h-4 inline-flex items-center justify-center flex-shrink-0"><img src={(t.altLogo || t.logo) as string} alt="" className="w-[85%] h-[85%] object-contain" /></span>}
                         <span className="font-bold">{t.abbreviation}</span>
                         {i === mySlot && <span className="text-[9px] bg-white/25 px-1 rounded">YOU</span>}
                       </div>

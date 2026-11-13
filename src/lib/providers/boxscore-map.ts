@@ -162,6 +162,17 @@ function mapMLB(raw: any): Record<string, number> {
   // Base running
   put('stolenBases', num(BR['SB']))
   put('caughtStealing', num(BR['CS']))
+  put('gidp', num(H['GIDP']))
+  // Fielding (Fielding group)
+  const F = grouped ? (raw.Fielding ?? {}) : (raw ?? {})
+  put('errors', num(F['E']))
+  put('outfieldAssists', num(F['Outfield assists']))
+  put('pickoffs', num(F['Pickoffs']))
+  // Hit for the cycle — a single-game event, so derived here rather than at week level.
+  {
+    const h = num(H['H']), d = num(H['2B']), t = num(H['3B']), hr = num(H['HR'])
+    if (h - d - t - hr >= 1 && d >= 1 && t >= 1 && hr >= 1) out.cycle = 1
+  }
 
   // Pitching (Pitching group)
   const ip = inningsOuts(P['InningsPitched'] ?? P['inningsPitched'])
@@ -170,6 +181,13 @@ function mapMLB(raw: any): Record<string, number> {
   put('earnedRunsAllowed', num(P['ER']))
   put('hitsAllowed', num(P['H']))
   put('walksAllowed', num(P['BB']))
+  put('homeRunsAllowed', num(P['HR']))
+  // No-hitter / perfect game: a pitcher who threw all 9+ innings without allowing a hit
+  // (perfect: also no walks, hit batters or runs). Combined no-hitters aren't credited.
+  if (ip >= 9 && P['H'] != null && num(P['H']) === 0) {
+    out.noHitter = 1
+    if (num(P['BB']) === 0 && num(P['HBP']) === 0 && num(P['R']) === 0) out.perfectGame = 1
+  }
 
   // Pitching decisions are per-game events (W/L/S/H). Stored as 0/1 counts so a
   // week with two saves sums to two. Tank01 uses single-letter codes here.

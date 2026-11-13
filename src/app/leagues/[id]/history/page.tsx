@@ -87,9 +87,9 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
                 const secondary = t?.secondaryColor || '#ffffff'
                 const src = t?.altLogo || t?.logo
                 return (
-                  <div key={season} className="flex items-center gap-3 px-4 py-3" style={{ background: primary, color: secondary }}>
+                  <div key={season} className="flex items-center gap-3 px-4 py-3" style={{ background: primary, color: '#fff' }}>
                     {src
-                      ? <span className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: t?.logoBg ? primary : 'rgba(255,255,255,.14)' }}><img src={src} alt="" className="w-[80%] h-[80%] object-contain" /></span>
+                      ? <span className="w-10 h-10 inline-flex items-center justify-center flex-shrink-0"><img src={src} alt="" className="w-full h-full object-contain" /></span>
                       : <span className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(t?.abbreviation || t?.name || '?').slice(0, 3).toUpperCase()}</span>}
                     <div className="min-w-0 flex-1">
                       {t?.wordmark && t.wordmark.startsWith('http')
@@ -112,7 +112,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
             <thead>
               <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
                 <th className="text-left px-4 py-2 font-medium">Season</th>
-                {sports.map(s => <th key={s} className="text-left px-3 py-2 font-medium"><span className="inline-flex items-center gap-1.5"><SportChip sport={s} logos={divisionLogos} colors={champColors} chip={18} size={12} />{sportAbbrLabel(s, sportAbbr)}</span></th>)}
+                {sports.map(s => <th key={s} className="text-left px-3 py-2 font-medium"><span className="inline-flex items-center gap-1.5"><SportChip sport={s} logos={divisionLogos} colors={champColors} chip={18} size={12} /><span className="ysf-case">{sportAbbrLabel(s, sportAbbr)}</span></span></th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -134,11 +134,11 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
           <thead>
             <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
               <th className="text-left px-4 py-2 font-medium">Club</th>
-              {sports.map(s => <th key={s} className="text-center px-3 py-2 font-medium whitespace-nowrap"><span className="inline-flex items-center gap-1"><SportChip sport={s} logos={divisionLogos} colors={champColors} chip={16} size={11} />{sportAbbrLabel(s, sportAbbr)}</span></th>)}
+              {sports.map(s => <th key={s} className="text-center px-3 py-2 font-medium whitespace-nowrap"><span className="inline-flex items-center gap-1"><SportChip sport={s} logos={divisionLogos} colors={champColors} chip={16} size={11} /><span className="ysf-case">{sportAbbrLabel(s, sportAbbr)}</span></span></th>)}
               <th className="text-center px-3 py-2 font-medium">All-Time</th>
               <th className="text-center px-3 py-2 font-medium">Sport Titles</th>
               <th className="text-center px-3 py-2 font-medium">Fed Titles</th>
-              <th className="text-center px-3 py-2 font-medium">Fed Pts</th>
+              <th className="text-center px-3 py-2 font-medium">Cup Pts</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">

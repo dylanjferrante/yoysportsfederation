@@ -2,13 +2,13 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Nexus Fantasy',
-    short_name: 'Nexus',
-    description: 'The cross-sport fantasy platform — NFL, NBA, NHL, and MLB in one federation.',
-    start_url: '/dashboard',
+    name: 'yoy Sports Federation',
+    short_name: 'ySF',
+    description: 'Twelve clubs, four leagues, one Federation Cup.',
+    start_url: '/leagues/ysf',
     display: 'standalone',
-    background_color: '#f8fafc',
-    theme_color: '#0f172a',
+    background_color: '#ffffff',
+    theme_color: '#000000',
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
