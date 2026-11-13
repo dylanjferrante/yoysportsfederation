@@ -8,6 +8,8 @@ import { safeParse, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import ScoresView from './ScoresView'
+import YsfScores from './YsfScores'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -15,11 +17,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: `${league?.name ?? 'League'} · Scores` }
 }
 
-export default async function ScoresPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ season?: string }> }) {
+export default async function ScoresPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ season?: string; w?: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
-  const { season: viewSeason, isPast } = viewSeasonOf(league, await searchParams)
+  const sp = await searchParams
+  const { season: viewSeason, isPast } = viewSeasonOf(league, sp)
+  if (id === YSF_LEAGUE_ID && !isPast) return <YsfScores league={league} week={(sp as any).w ? Number((sp as any).w) : undefined} />
   if (!isPast) await advanceLeague(league)
 
   const session = await getServerSession(authOptions)

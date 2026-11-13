@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 import Link from 'next/link'
 
 const sports = [
@@ -16,7 +18,12 @@ const features = [
   { icon: '', title: 'Custom Playoff Formats',    desc: 'Configure playoff bracket size, start week, and seeding rules per league.' },
 ]
 
+// The app is the yoy Sports Federation: the front door is the ySF home page.
 export default function Landing() {
+  redirect(`/leagues/${YSF_LEAGUE_ID}`)
+}
+
+function NexusLanding() {
   return (
     <div className="min-h-screen">
       {/* Hero */}

@@ -21,7 +21,8 @@ export default function NavbarClient({ clubs, leagueId }: { clubs: Club[]; leagu
 
   const base = `/leagues/${leagueId}`
   const items: Item[] = [
-    { label: 'Standings', href: base },
+    { label: 'Home', href: base },
+    { label: 'Standings', href: `${base}/standings` },
     { label: 'Scores', href: `${base}/scores` },
     { label: 'Leagues', menu: YSF_LEAGUES.map(l => ({ label: l.code, href: `${base}/sports/${l.sport}`, icon: YSF_ART.leagueSymbol(l.key, 'white') })) },
     { label: 'Clubs', menu: [{ label: 'All clubs', href: `${base}/teams` }, ...clubs.map(c => ({ label: c.name, href: `${base}/teams/${c.id}`, icon: c.logo }))] },
