@@ -7,9 +7,9 @@ import Link from 'next/link'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 
 type Club = { name: string; abbreviation: string; logo: string | null; color: string | null }
-export type MoveRowT = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string }
+export type MoveRowT = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string; season?: string }
 const PILL: Record<string, { bg: string; fg: string; bd?: string }> = {
-  SIGNED: { bg: '#000', fg: '#fff' }, CLAIMED: { bg: '#2F5D8A', fg: '#fff' }, RELEASED: { bg: '#F2F2F2', fg: '#4A4A4A' }, MOVE: { bg: '#fff', fg: '#000', bd: '#C7C7C7' },
+  DRAFTED: { bg: '#660066', fg: '#fff' }, SIGNED: { bg: '#000', fg: '#fff' }, CLAIMED: { bg: '#2F5D8A', fg: '#fff' }, RELEASED: { bg: '#F2F2F2', fg: '#4A4A4A' }, MOVE: { bg: '#fff', fg: '#000', bd: '#C7C7C7' },
 }
 // Feed times are US Eastern wall-clock times.
 const toDate = (iso: string) => new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + '-05:00')

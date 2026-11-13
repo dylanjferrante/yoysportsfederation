@@ -12,7 +12,9 @@ export function trophyName(scope: string, season: string): string {
     default: return `${season.replace('-', '–')} Federation Cup`
   }
 }
-export function trophyArt(scope: string): string {
+// Each season's own championship marks (2025-26: Supper Bowl I and the 2026 finals; 2026-27: the current marks).
+export function trophyArt(scope: string, season?: string): string {
   const k = ({ NFL: 'fl', NHL: 'hl', NBA: 'ba', MLB: 'lb' } as Record<string, string>)[scope]
-  return k ? `/ysf/champ/${k}.svg` : '/ysf/fed/cup_symbol.svg'
+  if (!k) return '/ysf/fed/cup_symbol.svg'
+  return season === '2025-26' ? `/ysf/champ/2025-26/${k}.svg` : `/ysf/champ/${k}.svg`
 }

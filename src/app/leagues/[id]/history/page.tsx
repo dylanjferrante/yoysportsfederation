@@ -1,3 +1,5 @@
+import YsfHistory from './YsfHistory'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 import { db } from '@/db'
 import { leagues, teams, teamRecords, leagueHistory, matchups } from '@/db/schema'
 import { eq } from 'drizzle-orm'
@@ -18,6 +20,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
+  if (id === YSF_LEAGUE_ID) return <YsfHistory league={league} />
 
   const sports = safeParse<string[]>(league.sportsEnabled, [])
   const champLogos = safeParse<Record<string, string>>(league.championshipLogos, {})

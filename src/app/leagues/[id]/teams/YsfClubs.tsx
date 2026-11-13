@@ -30,7 +30,7 @@ export default async function YsfClubs({ league }: { league: any }) {
               {cups.length > 0 && (
                 <div className="flex flex-wrap gap-2">{cups.map(t => (
                   <span key={t.id} title={trophyName(t.scope, t.season)} className="inline-flex items-center gap-1.5 bg-black/20 rounded px-2 py-1 text-[11px] font-bold">
-                    <img src={trophyArt(t.scope)} alt="" className="w-5 h-5 object-contain" />{trophyName(t.scope, t.season)}
+                    <img src={trophyArt(t.scope, t.season)} alt="" className="w-5 h-5 object-contain" />{trophyName(t.scope, t.season)}
                   </span>))}</div>
               )}
               <div className="grid grid-cols-[0.7fr_0.8fr_1.2fr_1fr] gap-2">

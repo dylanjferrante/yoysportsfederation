@@ -332,7 +332,7 @@ async function main() {
       if (got.length) parts.push(`${clubs[sd.ysf_id].abbr} gets ${got.join(', ')}`)
     }
     insAct.run(id(), LEAGUE_ID, 'TRADE', 'Trade: ' + parts.join('; '), teamId[sides[0].ysf_id], when,
-      JSON.stringify({ kind: 'TRADE', sides: sides.map((sd: any) => ({ teamId: teamId[sd.ysf_id], gets: gets[sd.ysf_id] ?? [] })) }))
+      JSON.stringify({ kind: 'TRADE', sides: sides.map((sd: any) => ({ teamId: teamId[sd.ysf_id], gets: gets[sd.ysf_id] ?? [] })), season: SEASON }))
   }
 
   // ── signings, claims, releases ──
@@ -347,10 +347,46 @@ async function main() {
         const pro = proOf(s.sport, p.name, '')
         insAct.run(id(), LEAGUE_ID, 'WAIVER', `${clubs[t.ysf_id].abbr} ${VERB[p.type] ?? p.type.toLowerCase()} ${p.name} (${s.code}, ${p.position})${bid}`, teamId[t.ysf_id], t.date.replace('T', ' '),
           JSON.stringify({ kind: ({ FA: 'SIGNED', WW: 'CLAIMED', DROP: 'RELEASED' } as Record<string, string>)[p.type] ?? String(p.type).toUpperCase(), sport: s.sport, player: firstLast(p.name),
-            team: pro.team, pos: p.position && /[,/]/.test(p.position) ? p.position.replace(/,/g, '/') : (pro.pos || p.position), bid: t.bid && p.type === 'WW' ? Math.round(t.bid) : null }))
+            team: pro.team, pos: p.position && /[,/]/.test(p.position) ? p.position.replace(/,/g, '/') : (pro.pos || p.position), bid: t.bid && p.type === 'WW' ? Math.round(t.bid) : null, season: SEASON }))
         nTx++
       }
     }
+  }
+
+  // ── 2025-26 moves and trades (ysffantasy.com's scrape of Fantrax; Fantrax's public API has no transaction log) ──
+  const PRO = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'scripts', 'data', 'pro-teams.json'), 'utf8')) as Record<string, Record<string, string>>
+  const proAbbr = (sport: string, t: string) => String(t || '').split('/').map(x => { const c = x.trim().replace(/(?<=[A-Z]{2,3})[a-z]+$/, ''); return PRO[sport]?.[c] ?? c }).filter(Boolean).join('/') || 'FA'
+  const PREV_KEY: Record<string, string> = { ysf_fl_prev: 'NFL', ysf_fl: 'NFL', ysf_hl: 'NHL', ysf_ba: 'NBA', ysf_lb: 'MLB' }
+  const KIND: Record<string, string> = { FA: 'SIGNED', WW: 'CLAIMED', DROP: 'RELEASED', DRAFT: 'DRAFTED' }
+  const txPrev = await getJson('/data/transactions_2025-26.json').catch(() => null)
+  let nPrevTx = 0
+  for (const [lk, lg] of Object.entries<any>(txPrev?.leagues ?? {})) {
+    const sport = PREV_KEY[lk]; if (!sport) continue
+    const codeOf = SPORTS.find(x => x.sport === sport)!.code
+    for (const t of lg.transactions ?? []) {
+      if (!teamId[t.ysf_id]) continue
+      for (const p of t.players ?? []) {
+        if (p.type === 'LINEUP_CHANGE') continue
+        const kind = KIND[p.type] ?? String(p.type).toUpperCase()
+        const pos = String(p.position || '').replace(/,/g, '/')
+        insAct.run(id(), LEAGUE_ID, p.type === 'DRAFT' ? 'DRAFT' : 'WAIVER', `${clubs[t.ysf_id].abbr} ${kind.toLowerCase()} ${p.name} (${codeOf}, ${pos})`, teamId[t.ysf_id], String(t.date).replace('T', ' '),
+          JSON.stringify({ kind, sport, player: firstLast(p.name), team: proAbbr(sport, p.real_team), pos, bid: t.bid && p.type === 'WW' ? Math.round(t.bid) : null, season: '2025-26' }))
+        nPrevTx++
+      }
+    }
+  }
+  const trPrev = await getJson('/data/trades_2025-26.json').catch(() => null)
+  const sportOfName = (name: string) => SPORTS.map(x => x.sport).find(sp => byName.has(sp + '|' + norm(name))) ?? ''
+  for (const t of trPrev?.trades ?? []) {
+    const sides = (t.sides ?? []).filter((x: any) => teamId[x.ysf_id]); if (sides.length < 2) continue
+    const gets: any[] = sides.map((sd: any) => ({ teamId: teamId[sd.ysf_id], gets: (sd.acquires ?? []).map((a: any) => {
+      const lgm = /\b(ySF\w\w)\b/.exec(a.name ?? '')
+      if (!a.position && !a.real_team) return { name: a.name, sport: lgm ? sportOf[lgm[1]] ?? '' : 'PICK', team: '', pos: '' }   // draft pick
+      const sp = sportOfName(a.name)
+      return { name: firstLast(a.name), sport: sp, team: sp ? proAbbr(sp, a.real_team) : a.real_team, pos: String(a.position || '').replace(/,/g, '/') }
+    }) }))
+    const text = 'Trade: ' + gets.map(g => `${Object.entries(teamId).find(([, v]) => v === g.teamId)?.[0] ? clubs[Object.entries(teamId).find(([, v]) => v === g.teamId)![0]].abbr : ''} gets ${g.gets.map((x: any) => x.name).join(', ')}`).join('; ')
+    insAct.run(id(), LEAGUE_ID, 'TRADE', text, gets[0].teamId, String(t.date).replace('T', ' '), JSON.stringify({ kind: 'TRADE', sides: gets, season: '2025-26' }))
   }
 
   // ── future draft picks (owned now, by original club) ──
@@ -378,8 +414,24 @@ async function main() {
   let draftsMade = 0
   for (const s of SPORTS) {
     const rd = await getJson(`/data/rookie_drafts/${SEASON}/${s.key}.json`).catch(() => null)
-    if (!rd || rd.state === 'completed' || !rd.picks?.length) continue
+    if (!rd || !rd.picks?.length) continue
     const draftId = `${LEAGUE_ID}-${SEASON}-${s.sport.toLowerCase()}-rookie`
+    if (rd.state === 'completed') {
+      // finished draft: keep its results (who picked whom, in order) for History and the draft room
+      db.prepare(`INSERT INTO drafts (id,league_id,kind,scope,season,type,rounds,status,starts_at,current_pick,pick_seconds) VALUES (?,?,?,?,?,?,?,?,?,?,300)`)
+        .run(draftId, LEAGUE_ID, 'ROOKIE', s.sport, SEASON, 'LINEAR', rd.rounds, 'COMPLETED', rd.draft_date ? new Date(rd.draft_date.replace(/\.\d+(?=[+-])/, '').replace(/([+-]\d\d)(\d\d)$/, '$1:$2')).toISOString() : null, rd.picks.length + 1)
+      const year = parseInt(SEASON.slice(0, 4))
+      for (const p of rd.picks) {
+        const owner = teamId[p.ysf_id], orig = teamId[p.via_ysf_id ?? p.ysf_id]
+        if (!owner || !orig) continue
+        const pid = p.name && !p.skipped ? playerFor(s.sport, p.name, p.position ?? '', p.real_team ?? '', p.player_id) : null
+        const row = db.prepare(`SELECT id FROM draft_picks WHERE league_id=? AND sport=? AND year=? AND round=? AND original_team_id=? AND draft_id IS NULL LIMIT 1`).get(LEAGUE_ID, s.sport, year, p.round, orig) as any
+        if (row) db.prepare(`UPDATE draft_picks SET draft_id=?, pick_number=?, current_team_id=?, is_used=1, picked_player_id=? WHERE id=?`).run(draftId, p.pick, owner, pid, row.id)
+        else db.prepare(`INSERT INTO draft_picks (id,league_id,draft_id,sport,round,year,original_team_id,current_team_id,is_used,pick_number,picked_player_id) VALUES (?,?,?,?,?,?,?,?,1,?,?)`)
+          .run(id(), LEAGUE_ID, draftId, s.sport, p.round, year, orig, owner, p.pick, pid)
+      }
+      continue
+    }
     const startsAt = rd.draft_date ? new Date(rd.draft_date.replace(/\.\d+(?=[+-])/, '').replace(/([+-]\d\d)(\d\d)$/, '$1:$2')).toISOString() : null
     const prev = draftSettings.get(draftId)
     // ySF default pick timer: 5 minutes (commissioners can change it in the draft room)
@@ -415,18 +467,42 @@ async function main() {
     }
   }
 
+  // ── 2025-26 season: final standings + results per league, and the Federation Cup ──
+  const PREV = '2025-26'
+  const fed26 = await getJson(`/data/archives/${PREV}/federation.json`).catch(() => null)
+  const fedRank: Record<string, Record<string, number>> = {}
+  for (const t of fed26?.federation_standings ?? []) for (const [lk, v] of Object.entries<any>(t.by_league ?? {})) (fedRank[lk] ??= {})[t.team_id] = v.rank
+  let nPrev = 0
+  SPORTS.forEach((s, i) => {
+    const a = archives[i]; if (!a?.standings) return
+    for (const r of a.standings) {
+      if (!teamId[r.ysf_id]) continue
+      insRec.run(id(), teamId[r.ysf_id], LEAGUE_ID, PREV, s.sport, r.w, r.l, r.t ?? 0, r.pf ?? 0, r.pa ?? 0, fedRank[s.key]?.[r.ysf_id] ?? r.final_rank ?? r.rank, r.faab_remaining ?? 0, 0)
+      if (r.ysf_id === a.champion_ysf_id) db.prepare(`UPDATE team_records SET is_champion=1 WHERE league_id=? AND season=? AND sport=? AND team_id=?`).run(LEAGUE_ID, PREV, s.sport, teamId[r.ysf_id])
+    }
+    for (const m of a.matchups ?? []) {
+      if (!teamId[m.home_ysf_id]) continue
+      insMatch.run(id(), LEAGUE_ID, s.sport, PREV, m.period, teamId[m.home_ysf_id], m.away_ysf_id ? teamId[m.away_ysf_id] ?? null : null, m.home_score ?? 0, m.away_score ?? 0, m.complete ? 1 : 0, m.is_playoff ? 1 : 0); nPrev++
+    }
+  })
+  const fedChamp = (fed26?.federation_standings ?? [])[0]
+
   // ── 2025-26 champions ──
   const insHist = db.prepare(`INSERT INTO league_history (id,league_id,season,scope,champion_team_id,runner_up_team_id,note) VALUES (?,?,?,?,?,?,?)`)
   SPORTS.forEach((s, i) => {
     const a = archives[i]; if (!a?.champion_ysf_id) return
     insHist.run(id(), LEAGUE_ID, '2025-26', s.sport, teamId[a.champion_ysf_id], teamId[a.runner_up_ysf_id] ?? null, s.code)
   })
+  if (fedChamp && teamId[fedChamp.team_id]) {
+    const second = (fed26.federation_standings ?? [])[1]
+    insHist.run(id(), LEAGUE_ID, '2025-26', 'OVERALL', teamId[fedChamp.team_id], second ? teamId[second.team_id] ?? null : null, `${fedChamp.total_fed_pts} Federation points`)
+  }
 
   // ── parity check: rebuild W-L-PF from the imported matchups, compare with the feed ──
   let mismatches = 0
   for (const s of SPORTS) {
     // Fantrax's PF includes the period in progress; W-L counts finished periods only.
-    const rows = db.prepare(`SELECT home_team_id h, away_team_id a, home_score hs, away_score as_, is_complete done FROM matchups WHERE league_id=? AND sport=? AND is_playoff=0`).all(LEAGUE_ID, s.sport) as any[]
+    const rows = db.prepare(`SELECT home_team_id h, away_team_id a, home_score hs, away_score as_, is_complete done FROM matchups WHERE league_id=? AND season=? AND sport=? AND is_playoff=0`).all(LEAGUE_ID, SEASON, s.sport) as any[]
     const calc: Record<string, { w: number; l: number; t: number; pf: number }> = {}
     const bump = (t: string) => (calc[t] ??= { w: 0, l: 0, t: 0, pf: 0 })
     for (const r of rows) {
@@ -446,12 +522,12 @@ async function main() {
   const fedTeams: any[] = fedFeed?.federation_standings ?? []
   for (const ft of fedTeams) {
     const k = ft.team_id ?? ft.ysf_id; if (!teamId[k]) continue
-    const mine = (db.prepare(`SELECT COALESCE(SUM(13 - finish_position),0) p FROM team_records WHERE league_id=? AND team_id=? AND finish_position IS NOT NULL`).get(LEAGUE_ID, teamId[k]) as any).p
+    const mine = (db.prepare(`SELECT COALESCE(SUM(13 - finish_position),0) p FROM team_records WHERE league_id=? AND season=? AND team_id=? AND finish_position IS NOT NULL`).get(LEAGUE_ID, SEASON, teamId[k]) as any).p
     if (mine !== ft.total_fed_pts) { cupOff++; console.log(`  ✗ Cup ${clubs[k].abbr}: ySF ${ft.total_fed_pts} · Nexus ${mine}`) }
   }
   console.log(`\nImported "yoy Sports Federation" (league id "${LEAGUE_ID}", ${SEASON})`)
   console.log(`  ${Object.keys(teamId).length} clubs · ${rostered} roster spots (${created} new player rows) · ${nMatch} matchups`)
-  console.log(`  ${trades.trades.length} trades · ${nTx} signings/claims/releases · ${nPicks} future picks`)
+  console.log(`  ${trades.trades.length} trades · ${nTx} signings/claims/releases · ${nPicks} future picks · 2025-26: ${trPrev?.trades?.length ?? 0} trades, ${nPrevTx} moves`)
   console.log(fedTeams.length ? (cupOff ? `  Cup: ${cupOff} clubs differ from ySF (listed above)` : '  Cup: every club\'s Federation Cup points match ySF') : '  Cup: federation.json not readable, skipped')
   console.log(mismatches ? `  Parity: ${mismatches} club-league records differ from Fantrax (listed above)` : '  Parity: every club record matches Fantrax (W-L and PF, all four leagues)')
   if (newAccounts) console.log(`\n  Created ${newAccounts} owner logins: <club>@ysf.local (e.g. ferrante@ysf.local)` + (process.env.YSF_IMPORT_PASSWORD ? ' with YSF_IMPORT_PASSWORD' : ` · password: ${pwPlain}`))

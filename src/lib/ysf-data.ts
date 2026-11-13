@@ -114,17 +114,18 @@ export async function siteCupProjection(): Promise<{ generated_at: string; teams
 }
 
 // Moves: signings, claims, releases and trades (structured activity rows).
-export type MoveRow = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string }
-export type TradeRow = { id: string; when: string; sides: { teamId: string; gets: { name: string; sport: string; team: string; pos: string }[] }[]; text: string }
-export async function loadMoves(leagueId: string) {
-  const rows = await db.select().from(activity).where(eq(activity.leagueId, leagueId)).orderBy(desc(activity.createdAt)).limit(2000)
+export type MoveRow = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string; season: string }
+export type TradeRow = { id: string; when: string; sides: { teamId: string; gets: { name: string; sport: string; team: string; pos: string }[] }[]; text: string; season: string }
+export async function loadMoves(leagueId: string, currentSeason = '2026-27') {
+  const rows = await db.select().from(activity).where(eq(activity.leagueId, leagueId)).orderBy(desc(activity.createdAt)).limit(8000)
   const moves: MoveRow[] = [], trades: TradeRow[] = []
   for (const r of rows) {
     const d = safeParse<any>(r.data, null)
     const when = (r.createdAt ?? '').replace(' ', 'T')
-    if (r.type === 'TRADE') { trades.push({ id: r.id, when, sides: d?.sides ?? [], text: r.message }); continue }
-    if (!['WAIVER', 'ROSTER'].includes(r.type) || d?.kind === 'LINEUP_CHANGE') continue
-    moves.push({ id: r.id, when, sport: d?.sport ?? '', teamId: r.teamId ?? '', kind: d?.kind ?? 'MOVE', player: d?.player ?? '', team: d?.team ?? '', pos: d?.pos ?? '', bid: d?.bid ?? null, text: r.message })
+    const season = d?.season ?? currentSeason
+    if (r.type === 'TRADE') { trades.push({ id: r.id, when, sides: d?.sides ?? [], text: r.message, season }); continue }
+    if (!['WAIVER', 'ROSTER', 'DRAFT'].includes(r.type) || d?.kind === 'LINEUP_CHANGE' || (r.type === 'DRAFT' && !d)) continue
+    moves.push({ id: r.id, when, sport: d?.sport ?? '', teamId: r.teamId ?? '', kind: d?.kind ?? 'MOVE', player: d?.player ?? '', team: d?.team ?? '', pos: d?.pos ?? '', bid: d?.bid ?? null, text: r.message, season })
   }
   return { moves, trades }
 }
