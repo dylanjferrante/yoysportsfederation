@@ -143,6 +143,8 @@ async function main() {
   const draftSettings = new Map((db.prepare(`SELECT id, pick_seconds, starts_at FROM drafts WHERE league_id=?`).all(LEAGUE_ID) as any[]).map(r => [r.id, r]))
 
   // Keep each club's id across re-imports: lineup history, trades, engine points and links all key on it
+  // clubs keep their id and, once an owner has claimed it (a real email, not <club>@ysf.local), their account
+  const keepByAbbr = new Map((db.prepare(`SELECT t.id, t.abbreviation a, t.user_id u, us.email e FROM teams t LEFT JOIN users us ON us.id = t.user_id WHERE t.league_id = ?`).all(LEAGUE_ID) as any[]).map(r => [String(r.a), r]))
   const keepTeamId = new Map((db.prepare(`SELECT t.id, u.email FROM teams t JOIN users u ON u.id = t.user_id WHERE t.league_id = ?`).all(LEAGUE_ID) as any[]).map(r => [String(r.email).replace('@ysf.local', ''), r.id]))
 
   // the Commission's rule settings (League Settings) survive a re-import
@@ -168,6 +170,8 @@ async function main() {
   let newAccounts = 0
   for (const [k, c] of Object.entries(clubs)) {
     const email = `${k}@ysf.local`
+    const claimed = keepByAbbr.get(String(c.abbr))
+    if (claimed?.u && claimed.e && !String(claimed.e).endsWith('@ysf.local')) { userId[k] = claimed.u; continue }
     const ex = db.prepare(`SELECT id FROM users WHERE email=?`).get(email) as { id: string } | undefined
     if (ex) { userId[k] = ex.id; db.prepare(`UPDATE users SET name=? WHERE id=?`).run(c.owner, ex.id) }
     else { userId[k] = id(); newAccounts++; db.prepare(`INSERT INTO users (id,name,email,password) VALUES (?,?,?,?)`).run(userId[k], c.owner, email, pw) }
@@ -238,7 +242,7 @@ async function main() {
   const insMember = db.prepare(`INSERT OR IGNORE INTO league_members (id,league_id,user_id,role) VALUES (?,?,?,?)`)
   const insTeam = db.prepare(`INSERT INTO teams (id,name,abbreviation,logo,alt_logo,wordmark,user_id,league_id,primary_color,secondary_color) VALUES (?,?,?,?,?,?,?,?,?,?)`)
   for (const [k, c] of Object.entries(clubs)) {
-    teamId[k] = keepTeamId.get(k) ?? id()
+    teamId[k] = keepByAbbr.get(String(c.abbr))?.id ?? keepTeamId.get(k) ?? id()
     insMember.run(id(), LEAGUE_ID, userId[k], k === COMMISSIONER ? 'COMMISSIONER' : 'MEMBER')
     const b = brand[k] ?? {}
     const art = (f?: string) => (f ? `${BASE}/logos/clubs/${f}` : null)

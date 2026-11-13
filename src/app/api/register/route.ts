@@ -13,6 +13,8 @@ const schema = z.object({
 })
 
 export async function POST(req: Request) {
+  // ySF: accounts come only from club invite links; open sign-up only where ALLOW_REGISTRATION=on
+  if (process.env.ALLOW_REGISTRATION !== 'on') return NextResponse.json({ error: 'New accounts come from your club’s invite link' }, { status: 403 })
   try {
     const body = schema.parse(await req.json())
     const existing = await db.select().from(users).where(eq(users.email, body.email)).limit(1)
