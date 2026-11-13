@@ -8,7 +8,7 @@ import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { loadClubs, loadStandings, leagueFeed, siteSeasons } from '@/lib/ysf-data'
 import { trophyName, trophyArt } from '@/lib/ysf-trophies'
 import { pct } from '@/lib/ysf-stories'
-import { PageTitle, th, td, ClubCell, RecTh, RecTd } from '@/components/ysf/ui'
+import { PageTitle, th, td, ClubCell, RecTh, RecTd, ClubTile } from '@/components/ysf/ui'
 
 const KEY: Record<string, string> = { NFL: 'ysf_fl', NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }
 type M = { away_ysf_id: string | null; home_ysf_id: string | null; away_seed: number | null; home_seed: number | null; away_score: number; home_score: number; winner_ysf_id: string | null; complete: boolean; is_bye: boolean }
@@ -43,11 +43,10 @@ export default async function YsfPlayoffs({ league, lg, season: sArg }: { league
   const Side = ({ y, seed, score, win, done }: { y: string | null; seed: number | null; score: number; win: boolean; done: boolean }) => {
     const c = club(y)
     return (
-      <div className={`flex items-center gap-2 px-3 h-11 ${win ? 'font-extrabold' : done ? 'text-ink-500' : ''}`} style={{ borderLeft: `4px solid ${c?.color ?? '#E5E5E5'}` }}>
-        <span className="w-5 text-[12px] tabular-nums text-ink-500 text-right flex-none">{seed ?? ''}</span>
-        <span className="w-6 h-6 inline-flex items-center justify-center flex-none">{c?.logo && <img src={c.logo} alt="" className="w-6 h-6 object-contain" />}</span>
-        <span className="flex-1 min-w-0 truncate text-[14px]">{c?.name ?? (seed ? 'TBD' : '—')}</span>
-        <span className="tabular-nums text-[14px]">{done ? fmt(score) : ''}</span>
+      // the club tile; a loser of a finished game fades so the winner reads first
+      <div className={`flex items-stretch ${done && !win ? 'opacity-55' : ''}`}>
+        <span className="w-7 flex-none inline-flex items-center justify-center text-[12px] font-bold tabular-nums bg-ink-50 text-ink-500">{seed ?? ''}</span>
+        <ClubTile club={c ?? null} full className="flex-1" right={<span className={`tabular-nums text-[14px] ${win ? 'font-extrabold' : ''}`}>{done ? fmt(score) : ''}</span>} />
       </div>
     )
   }

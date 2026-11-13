@@ -74,7 +74,7 @@ export default async function YsfTrades({ league, season: sArg }: { league: any;
   const seasons = [...new Set(trades.map(t => t.season))].sort().reverse()
   const season = seasons.includes(sArg ?? '') ? sArg! : (seasons[0] ?? league.season)
   const codes = Object.fromEntries(YSF_LEAGUES.map(l => [l.sport, l.code]))
-  const clubs = Object.fromEntries(Object.values(C).map(c => [c.id, { name: c.name, abbreviation: c.abbreviation, logo: c.logo, color: c.color }]))
+  const clubs = Object.fromEntries(Object.values(C).map(c => [c.id, { name: c.name, abbreviation: c.abbreviation, logo: c.logo, altLogo: c.altLogo, color: c.color, ink: c.ink }]))
   const btn = 'inline-flex items-center justify-center h-10 px-4 rounded-lg font-display text-[13px] font-bold tracking-[.08em] leading-none border'
   return (
     <>

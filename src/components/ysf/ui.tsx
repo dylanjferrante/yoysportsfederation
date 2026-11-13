@@ -42,6 +42,25 @@ export function ClubCell({ name, logo, color, href }: { name: string; logo?: str
   return { style: { borderLeft: `4px solid ${color ?? '#000'}` }, inner: href ? <Link href={href} className="hover:text-ink-500">{inner}</Link> : inner }
 }
 
+// The club tile: the club's primary color, its crest made for that color, and its name in the club's
+// text color (clubInk). Used wherever a club heads a card or fills a slot (trades, brackets).
+export type TileClub = { name: string; abbreviation: string; logo: string | null; altLogo?: string | null; color: string | null; ink?: string | null }
+export function ClubTile({ club, href, label, full = false, right, className = '' }: { club: TileClub | null | undefined; href?: string; label?: string; full?: boolean; right?: React.ReactNode; className?: string }) {
+  const bg = club?.color ?? '#E5E5E5', ink = club?.ink ?? (club?.color ? '#FFFFFF' : '#4A4A4A')
+  const crest = club ? (club.altLogo || club.logo) : null
+  const inner = (
+    <span className={`flex items-center gap-2.5 min-w-0 px-3 h-11 ${className}`} style={{ background: bg, color: ink }}>
+      <span className="w-7 h-7 inline-flex items-center justify-center flex-none">{crest && <img src={crest} alt="" className="w-7 h-7 object-contain" />}</span>
+      <span className="min-w-0 flex-1 flex items-baseline gap-2 leading-none">
+        <span className={`font-display font-extrabold truncate ${full ? 'text-[15px]' : 'text-[19px] tracking-[.02em]'}`}>{club ? (full ? club.name : club.abbreviation) : 'TBD'}</span>
+        {label && <span className="ui text-[11px] font-bold tracking-[.12em] opacity-80 flex-none">{label}</span>}
+      </span>
+      {right}
+    </span>
+  )
+  return href && club ? <Link href={href} className="block hover:brightness-110">{inner}</Link> : inner
+}
+
 export function YsfFooter() {
   return (
     <footer className="bg-black text-ink-200">
