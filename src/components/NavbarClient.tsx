@@ -12,7 +12,7 @@ type Item = { label: string; href?: string; menu?: { label: string; href: string
 
 // The ySF header — black bar, ySF wordmark, display-face caps nav with Leagues / Clubs / More
 // dropdowns (same structure as ysffantasy.com). Mobile: wordmark + hamburger.
-export default function NavbarClient({ clubs, leagueId, strip }: { clubs: Club[]; leagueId: string; strip?: React.ReactNode }) {
+export default function NavbarClient({ clubs, leagueId, strip, commish }: { clubs: Club[]; leagueId: string; strip?: React.ReactNode; commish?: boolean }) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [open, setOpen] = useState<string | null>(null)
@@ -38,6 +38,7 @@ export default function NavbarClient({ clubs, leagueId, strip }: { clubs: Club[]
         { label: 'Draft', href: `${base}/draft` }, { label: 'History', href: `${base}/history` },
         { label: 'Records', href: `${base}/records` }, { label: 'Injuries', href: `${base}/news` }, { label: 'League Office', href: `${base}/rules` },
         { label: 'Votes', href: `${base}/proposals` }, { label: 'Chat', href: `${base}/chat` },
+        ...(commish ? [{ label: 'Commissioner', href: `${base}/commish` }, { label: 'League Settings', href: `${base}/settings` }] : []),
       ],
     },
   ]

@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'ySF' },
   icons: { icon: '/ysf/fed/favicon.svg', apple: '/icons/apple-touch-icon.png' },
+  // link previews (texts, Slack, social): the ySF card
+  metadataBase: new URL(process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'),
+  openGraph: { title: 'yoy Sports Federation', description: 'Twelve clubs, four leagues, one Federation Cup.', images: [{ url: '/icons/og.png', width: 1200, height: 630 }], siteName: 'yoy Sports Federation' },
+  twitter: { card: 'summary_large_image', images: ['/icons/og.png'] },
 }
 
 export const viewport: Viewport = {
