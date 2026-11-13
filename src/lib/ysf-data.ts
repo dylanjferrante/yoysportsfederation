@@ -40,6 +40,10 @@ export async function loadStandings(league: any) {
     remaining: ms.filter(m => m.sport === L.sport && !m.isComplete && !m.isPlayoff && m.awayTeamId).map(m => ({ home: m.homeTeamId, away: m.awayTeamId! })),
   })), fs, fs.includedSports, 4000)
   for (const L of YSF_LEAGUES) for (const r of tables[L.sport]) { r.po = odds.perSport[L.sport]?.playoff[r.teamId] ?? 0; r.title = odds.perSport[L.sport]?.title[r.teamId] ?? 0 }
+  // Cup odds come from ysffantasy.com's own projection (10,000-trial model), so the app and the
+  // site always agree; Nexus's simulator is only a fallback if the feed can't be reached.
+  const site = await siteCupProjection()
+  const byAbbr = new Map((site?.teams ?? []).map((t: any) => [String(t.abbr), t]))
   const cup: CupRow[] = ids.map(id => {
     let pts = 0, w = 0, l = 0
     const ranks: Record<string, number | null> = {}
@@ -48,7 +52,8 @@ export async function loadStandings(league: any) {
       ranks[L.sport] = started[L.sport] && r ? r.rk : null
       if (started[L.sport] && r) { pts += r.fed; w += r.w; l += r.l }
     }
-    return { teamId: id, pts, rec: `${w}-${l}`, w, l, ranks, cupPct: odds.federation[id] ?? 0, exp: odds.fedPoints[id] ?? 0, rk: 0 }
+    const t: any = byAbbr.get(clubs[id].abbreviation)
+    return { teamId: id, pts, rec: `${w}-${l}`, w, l, ranks, cupPct: t ? Number(t.p_win_fed_cup) || 0 : (odds.federation[id] ?? 0), exp: t ? Number(t.expected_fed_pts) || 0 : (odds.fedPoints[id] ?? 0), rk: 0 }
   }).sort((a, b) => b.pts - a.pts || b.w - a.w).map((r, i) => ({ ...r, rk: i + 1 }))
   const live = YSF_LEAGUES.filter(L => started[L.sport]).map(L => L.sport)
   return { clubs, tables, cup, live, season }
@@ -98,4 +103,12 @@ export function seriesSummary(p: Pairing, ab: (id: string) => string) {
   if (wa === wb) return wa ? `Tied ${wa}–${wb}` : '—'
   const lead = wa > wb ? ab(p.a) : ab(p.b)
   return `${lead} ${done ? 'wins' : 'leads'} ${Math.max(wa, wb)}–${Math.min(wa, wb)}`
+}
+
+const YSF_BASE = (process.env.YSF_BASE || 'https://ysffantasy.com').replace(/\/$/, '')
+export async function siteCupProjection(): Promise<{ generated_at: string; teams: any[] } | null> {
+  try {
+    const r = await fetch(`${YSF_BASE}/data/fed_cup_projection.json`, { next: { revalidate: 600 } })
+    return r.ok ? await r.json() : null
+  } catch { return null }
 }
