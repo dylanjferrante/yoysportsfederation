@@ -4,6 +4,7 @@ import { db } from '@/db'
 import { matchups, rosters, players } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { loadStandings, loadMoves, periodLabel } from '@/lib/ysf-data'
+import { tradeRows } from '@/lib/ysf-trades'
 import { safeParse } from '@/lib/utils'
 import { YSF_LEAGUES } from '@/lib/ysf'
 import { trophyName } from '@/lib/ysf-trophies'
@@ -47,8 +48,8 @@ export default async function YsfLeague({ league, sport }: { league: any; sport:
     ].filter(g => g.rows.length)
   }
 
-  const { moves: allMoves } = await loadMoves(league.id, league.season)
-  const moves = allMoves.filter(m => m.season === league.season)
+  const { moves: allMoves, trades } = await loadMoves(league.id, league.season)
+  const moves = [...allMoves, ...tradeRows(trades)].filter(m => m.season === league.season).sort((a, b) => (b.when > a.when ? 1 : b.when < a.when ? -1 : 0))
   return (
     <LeagueView data={{
       leagueId: league.id, sport, code: codes[sport], name: L.name, live: (s.live as string[]).includes(sport), codes, clubs: C,
