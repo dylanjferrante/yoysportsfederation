@@ -5,7 +5,9 @@ import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { logActivity, notify } from '@/lib/activity'
 import { sendPush } from '@/lib/push'
-import { isYsf, claimLimitError, eligCapError } from '@/lib/ysf-rules'
+import { isYsf, claimLimitError, eligCapError, etMidnightUtc } from '@/lib/ysf-rules'
+
+import { sql } from 'drizzle-orm'
 
 const SPORTS = ['NFL', 'NHL', 'NBA', 'MLB']
 
@@ -18,9 +20,45 @@ export function mostRecentWaiverRun(day: number, hour: number, now: Date = new D
   return r
 }
 
+// ── ySF waivers, as the four Fantrax leagues run them ──────────────────────────
+//   ySFHL / ySFBA / ySFLB: a dropped player stays on waivers N days (League Settings, 2) and claims process
+//                          at 3:00 AM ET on the day he clears
+//   ySFFL:                 claims process Wednesdays at 3:00 AM ET; free agents also go on waivers 5 minutes
+//                          before their game kicks off and stay there until Wednesday's run
+//   all:                   at least 23 hours on waivers; a club can't claim back a player it just dropped;
+//                          a player is a free agent (first come, first served) only after his claims process
+const etYmd = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d)
+const at3amEt = (ymd: string) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(etMidnightUtc(y, m, d).getTime() + 3 * 3_600_000) }
+const plusDays = (ymd: string, n: number) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10) }
+// next Wednesday 3:00 AM ET at least `minHours` away
+export function nextNflRun(from = new Date(), minHours = 23): Date {
+  let ymd = etYmd(from)
+  for (let i = 0; i < 15; i++) { const t = at3amEt(ymd); if (new Date(ymd + 'T12:00:00Z').getUTCDay() === 3 && t.getTime() - from.getTime() >= minHours * 3_600_000) return t; ymd = plusDays(ymd, 1) }
+  return new Date(from.getTime() + 7 * 86_400_000)
+}
+// the latest Wednesday 3:00 AM ET run at or before `now`
+export function lastNflRun(now = new Date()): Date {
+  let ymd = etYmd(now)
+  for (let i = 0; i < 8; i++) { const t = at3amEt(ymd); if (new Date(ymd + 'T12:00:00Z').getUTCDay() === 3 && t <= now) return t; ymd = plusDays(ymd, -1) }
+  return new Date(now.getTime() - 7 * 86_400_000)
+}
+export function ysfClearTime(sport: string | null, days: number, from = new Date()): Date {
+  if (sport === 'NFL') return nextNflRun(from)
+  const t = at3amEt(plusDays(etYmd(from), Math.max(1, days)))
+  return t.getTime() - from.getTime() >= 23 * 3_600_000 ? t : at3amEt(plusDays(etYmd(from), Math.max(1, days) + 1))
+}
+// ySFFL: has this free agent's game this week started (5 minutes before kickoff)? He's on waivers until Wednesday.
+export async function nflGameLocked(playerId: string, now = new Date()): Promise<boolean> {
+  const [p] = await db.select({ team: players.realTeamAbbr, sport: players.sport }).from(players).where(eq(players.id, playerId)).limit(1)
+  if (!p?.team || p.sport !== 'NFL') return false
+  const since = Math.floor(lastNflRun(now).getTime() / 1000), until = Math.floor(now.getTime() / 1000) + 5 * 60
+  const g = db.all<{ n: number }>(sql`SELECT COUNT(*) n FROM game_schedule WHERE sport = 'NFL' AND (home_abbr = ${p.team} OR away_abbr = ${p.team}) AND game_time_epoch >= ${since} AND game_time_epoch <= ${until}`)[0]
+  return (g?.n ?? 0) > 0
+}
+
 export async function placeOnWaivers(leagueId: string, playerId: string, sport: string | null, droppedByTeamId: string, days: number) {
   if (days <= 0) return
-  const clearsAt = new Date(Date.now() + days * 86_400_000).toISOString()
+  const clearsAt = (isYsf(leagueId) ? ysfClearTime(sport, days) : new Date(Date.now() + days * 86_400_000)).toISOString()
   await db.delete(waiverWire).where(and(eq(waiverWire.leagueId, leagueId), eq(waiverWire.playerId, playerId)))
   await db.insert(waiverWire).values({ id: nanoid(), leagueId, playerId, sport, droppedByTeamId, clearsAt })
 }
@@ -28,7 +66,32 @@ export async function placeOnWaivers(leagueId: string, playerId: string, sport: 
 export async function onWaivers(leagueId: string, playerId: string, now: Date = new Date()): Promise<boolean> {
   const [w] = await db.select({ clearsAt: waiverWire.clearsAt }).from(waiverWire)
     .where(and(eq(waiverWire.leagueId, leagueId), eq(waiverWire.playerId, playerId))).limit(1)
+  // ySF: a player stays on waivers until his claims have processed (the wire row is removed then)
+  if (isYsf(leagueId)) return !!w || await nflGameLocked(playerId, now)
   return !!w && new Date(w.clearsAt) > now
+}
+// when a ySF player on waivers clears (his claims process then)
+export async function ysfWaiverClears(leagueId: string, playerId: string, now = new Date()): Promise<Date | null> {
+  const [w] = await db.select({ clearsAt: waiverWire.clearsAt }).from(waiverWire).where(and(eq(waiverWire.leagueId, leagueId), eq(waiverWire.playerId, playerId))).limit(1)
+  if (w) return new Date(w.clearsAt)
+  return (await nflGameLocked(playerId, now)) ? nextNflRun(now, 0) : null
+}
+// ySF: process every claim whose player has cleared, then release cleared players to free agency.
+// Runs whenever the Players page, waivers or rosters are touched, and from ysf:refresh.
+export async function settleYsfWaivers(league: any, now = new Date()) {
+  const pending = await db.select().from(waiverClaims).where(and(eq(waiverClaims.leagueId, league.id), eq(waiverClaims.status, 'PENDING')))
+  const wire = await db.select().from(waiverWire).where(eq(waiverWire.leagueId, league.id))
+  const clears = new Map(wire.map(w => [w.playerId, new Date(w.clearsAt)]))
+  const lastRun = lastNflRun(now)
+  const due = pending.filter(c => {
+    const t = clears.get(c.addPlayerId)
+    if (t) return t <= now
+    // ySFFL game-locked free agents: claims made before the latest Wednesday run
+    return (c.sport ?? '') === 'NFL' ? !!c.claimedAt && new Date(c.claimedAt.includes('T') ? c.claimedAt : c.claimedAt.replace(' ', 'T') + 'Z') < lastRun : true
+  })
+  const res = due.length ? await awardClaims(league, due) : { processed: 0, awarded: 0 }
+  for (const w of wire) if (new Date(w.clearsAt) <= now) await db.delete(waiverWire).where(eq(waiverWire.id, w.id))
+  return res
 }
 
 export async function clearExpiredWire(leagueId: string, now: Date = new Date()) {
@@ -154,12 +217,14 @@ async function awardClaims(league: any, pending: any[]) {
 }
 
 export async function processAllNow(league: any) {
+  if (isYsf(league.id)) return settleYsfWaivers(league)
   await clearExpiredWire(league.id)
   const pending = await db.select().from(waiverClaims).where(and(eq(waiverClaims.leagueId, league.id), eq(waiverClaims.status, 'PENDING')))
   return awardClaims(league, pending)
 }
 
 export async function runWaivers(league: any) {
+  if (isYsf(league.id)) return settleYsfWaivers(league)
   if (league.waiverType === 'FREE_AGENT') { await clearExpiredWire(league.id); return { processed: 0, awarded: 0 } }
   await clearExpiredWire(league.id)
   const schedule = safeParse<Record<string, { day: number; hour: number }>>(league.waiverSchedule, {})

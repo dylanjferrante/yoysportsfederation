@@ -47,6 +47,44 @@ export function ensureRulesSchema() {
 
 ensureRulesSchema()
 
+// ── League settings ──────────────────────────────────────────────────────────
+// The Commission edits these in League Settings; RULES above are the defaults when a setting is unset.
+type Cfg = { roster: Record<string, Record<string, number>>; pos: Record<string, Record<string, { maxRostered?: number }>>; tx: Record<string, { max: number; period: string }>
+  deadlines: Record<string, { mode: string; week?: number; date?: string }>; rookie: Record<string, string>; reviewHours: number; spCap: number }
+let cfgCache: { at: number; v: Cfg } | null = null
+const j = <T>(s: string | null | undefined, d: T): T => { try { return s ? JSON.parse(s) : d } catch { return d } }
+export function cfg(): Cfg {
+  if (cfgCache && Date.now() - cfgCache.at < 5000) return cfgCache.v
+  const l = db.all<any>(sql`SELECT roster_settings, position_limits, transaction_limits, trade_deadlines, rookie_draft_dates, trade_review_hours, mlb_sp_cap FROM leagues WHERE id = 'ysf'`)[0] ?? {}
+  const v: Cfg = { roster: j(l.roster_settings, {}), pos: j(l.position_limits, {}), tx: j(l.transaction_limits, {}), deadlines: j(l.trade_deadlines, {}),
+    rookie: j(l.rookie_draft_dates, {}), reviewHours: l.trade_review_hours ?? RULES.reviewHours, spCap: l.mlb_sp_cap ?? RULES.spGamesPerWeek }
+  cfgCache = { at: Date.now(), v }
+  return v
+}
+// "2026-07-25T12:00" entered in League Settings is Eastern time
+export function etLocal(s: string): Date {
+  const [d, t = '00:00'] = s.split('T'); const [y, m, dd] = d.split('-').map(Number); const [h, mi] = t.split(':').map(Number)
+  return new Date(etMidnightUtc(y, m, dd).getTime() + ((h || 0) * 60 + (mi || 0)) * 60_000)
+}
+export const taxiSlots = (sport: string) => cfg().roster[sport]?.TAXI ?? RULES.taxi[sport] ?? 0
+export const irSlots = (sport: string) => ['IR', 'IL', 'DL'].reduce((a, k) => a + (cfg().roster[sport]?.[k] ?? 0), 0) || (RULES.ir[sport] ?? 0)
+export function eligMax(sport: string): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [pos, d] of Object.entries(RULES.eligMax[sport] ?? {})) { const m = cfg().pos[sport]?.[pos]?.maxRostered; out[pos] = m ?? d }
+  for (const [pos, lim] of Object.entries(cfg().pos[sport] ?? {})) if (lim?.maxRostered != null && out[pos] == null) out[pos] = lim.maxRostered
+  return out
+}
+export function weeklyClaims(sport: string): number {
+  const tx = cfg().tx
+  if (!Object.keys(tx).length) return RULES.weeklyClaims[sport] ?? 0
+  const t = tx[sport]
+  return t && t.period === 'WEEKLY' ? t.max : 0
+}
+export function rookieDraftAt(sport: string): Date | null {
+  const s = cfg().rookie[sport] ?? cfg().rookie.OVERALL
+  return s ? etLocal(s) : RULES.rookieDraft[sport] ? new Date(RULES.rookieDraft[sport]) : null
+}
+
 // ── Positions ────────────────────────────────────────────────────────────────
 // "players with QB / G / P eligibility": any listed position counts, not just the primary one
 export function eligTokens(position: string | null, eligible: string | string[] | null): Set<string> {
@@ -56,7 +94,7 @@ export function eligTokens(position: string | null, eligible: string | string[] 
   return out
 }
 export function eligCapError(sport: string, roster: { position: string | null; eligible: any }[]): string | null {
-  for (const [pos, max] of Object.entries(RULES.eligMax[sport] ?? {})) {
+  for (const [pos, max] of Object.entries(eligMax(sport))) {
     const n = roster.filter(p => eligTokens(p.position, p.eligible).has(pos)).length
     if (n > max) return `${LEAGUE_OF[sport]} allows at most ${max} ${pos}-eligible players on a roster (Art. V) — this would make ${n}`
   }
@@ -104,8 +142,8 @@ export function taxiRemoved(teamId: string, playerName: string, playerId: string
   return false
 }
 export async function taxiPlaceError(teamId: string, player: { id: string; name: string }, sport: string, season: string, now = new Date()): Promise<string | null> {
-  const draft = RULES.rookieDraft[sport]
-  if (draft && now < new Date(draft)) return `Taxi Squads open after the ${LEAGUE_OF[sport]} Rookie Draft (Comm. Res. VII)`
+  const draft = rookieDraftAt(sport)
+  if (draft && now < draft) return `Taxi Squads open after the ${LEAGUE_OF[sport]} Rookie Draft (Comm. Res. VII)`
   const lock = await taxiLockAt(sport)
   if (lock && now >= lock) return `The ${LEAGUE_OF[sport]} Taxi Squad locked at the season’s first game (Comm. Res. VII)`
   if (taxiRemoved(teamId, player.name, player.id, sport, season)) return `${player.name} was taken off the Taxi Squad and can’t be placed back (Comm. Res. VII)`
@@ -129,7 +167,7 @@ export function claimWeek(now = new Date()): { start: Date; end: Date } {
 // claims (free-agent adds + waiver wins) a club has made this week in a league, from the app's log
 export function claimsUsed(leagueId: string, teamId: string, sport: string, now = new Date()): number {
   const { start } = claimWeek(now)
-  const from = new Date(Math.max(start.getTime(), Date.parse(RULES.rookieDraft[sport] ?? '1970-01-01')))
+  const from = new Date(Math.max(start.getTime(), rookieDraftAt(sport)?.getTime() ?? 0))
   const rows = db.all<{ message: string; created_at: string }>(sql`SELECT message, created_at FROM activity WHERE league_id = ${leagueId} AND team_id = ${teamId} AND type IN ('ROSTER', 'WAIVER')`)
   return rows.filter(r => {
     const t = Date.parse(r.created_at.includes('T') ? r.created_at : r.created_at.replace(' ', 'T') + 'Z')
@@ -137,7 +175,7 @@ export function claimsUsed(leagueId: string, teamId: string, sport: string, now 
   }).length
 }
 export function claimLimitError(leagueId: string, teamId: string, sport: string, now = new Date()): string | null {
-  const max = RULES.weeklyClaims[sport]
+  const max = weeklyClaims(sport)
   if (!max) return null
   const used = claimsUsed(leagueId, teamId, sport, now)
   return used >= max ? `${LEAGUE_OF[sport]} allows ${max} player claims per week (Fed. Res. III) — you've made ${used} since Monday` : null
@@ -150,14 +188,21 @@ const addDays = (ymd: string, n: number) => { const [y, m, d] = ymd.split('-').m
 export async function tradeWindow(sport: string, now = new Date()): Promise<Window> {
   const feed = await siteFeed<any>(`league_${FEED[sport]}.json`)
   const ps = Object.entries<any>(feed?.schedule_meta?.periods ?? {}).map(([k, v]) => ({ n: +k, ...v })).sort((a, b) => a.n - b.n)
-  const wk = ps.find(p => p.n === RULES.deadlineWeek[sport])
-  if (!wk?.end) return { sport, deadline: null, reopens: null, locked: false }
-  let dl = wk.end as string
-  if (sport === 'NFL') { while (new Date(dl + 'T12:00:00Z').getUTCDay() !== 3) dl = addDays(dl, 1) } // the Wednesday following
   const regular = ps.filter(p => !p.is_playoff && p.end)
   const playoffs = ps.filter(p => p.is_playoff)
   const lastPo = playoffs.map(p => p.end).filter(Boolean).sort().pop() ?? (regular.length ? addDays(regular[regular.length - 1].end, 7 * playoffs.length) : null)
-  const deadline = endOfEtDay(dl), reopens = lastPo ? endOfEtDay(lastPo) : null
+  const reopens = lastPo ? endOfEtDay(lastPo) : null
+  // League Settings: an exact date, the end of a week (ySFFL: the Wednesday after it, per Comm. Notice II),
+  // the start of the playoffs, or no deadline; unset = the Comm. Notice II week
+  const set = cfg().deadlines[sport]
+  let deadline: Date | null = null
+  if (set?.mode === 'DATE' && set.date) deadline = etLocal(set.date)
+  else if (set?.mode === 'SPORT_PLAYOFFS') deadline = regular.length ? endOfEtDay(regular[regular.length - 1].end) : null
+  else if (!set || set.mode === 'WEEK') {
+    const wk = ps.find(p => p.n === (set?.week ?? RULES.deadlineWeek[sport]))
+    if (wk?.end) { let dl = wk.end as string; if (sport === 'NFL') { while (new Date(dl + 'T12:00:00Z').getUTCDay() !== 3) dl = addDays(dl, 1) }; deadline = endOfEtDay(dl) }
+  }
+  if (!deadline) return { sport, deadline: null, reopens: null, locked: false }
   return { sport, deadline, reopens, locked: now > deadline && (!reopens || now <= reopens) }
 }
 export async function lockedSports(sports: Iterable<string>, now = new Date()): Promise<string[]> {
@@ -222,4 +267,5 @@ export async function irLockError(teamId: string, sport: string, exceptRosterId?
 }
 
 // ── Starting-pitcher games (Fed. Res. III) ───────────────────────────────────
-export const spCap = (startYmd: string, endYmd: string) => Math.round(RULES.spGamesPerWeek * ((Date.parse(endYmd) - Date.parse(startYmd)) / 86_400_000 + 1) / 7)
+// League Settings' MLB starting-pitcher cap (games per 7 days; 0 = no cap), prorated by the matchup's length
+export const spCap = (startYmd: string, endYmd: string) => { const c = cfg().spCap; return c > 0 ? Math.round(c * ((Date.parse(endYmd) - Date.parse(startYmd)) / 86_400_000 + 1) / 7) : Infinity }

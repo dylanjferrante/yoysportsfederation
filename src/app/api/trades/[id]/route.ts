@@ -7,7 +7,7 @@ import { eq, and, inArray } from 'drizzle-orm'
 import { logActivity, notify } from '@/lib/activity'
 import { safeParse } from '@/lib/utils'
 import { executeTrade, settleTrades } from '@/lib/trades'
-import { isYsf, eligCapError, reviewState, RULES, LEAGUE_OF } from '@/lib/ysf-rules'
+import { isYsf, eligCapError, reviewState, RULES, LEAGUE_OF, cfg } from '@/lib/ysf-rules'
 import { sql } from 'drizzle-orm'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -101,7 +101,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const [lg] = await db.select().from(leagues).where(eq(leagues.id, trade.leagueId!)).limit(1)
   const capOn = !!lg?.salaryCapEnabled && (lg?.capMode ?? 'SOFT') === 'HARD'
   const posLimits = safeParse<Record<string, Record<string, { maxRostered?: number }>>>(lg?.positionLimits, {})
-  const hasPosLimits = Object.keys(posLimits).length > 0
+  const hasPosLimits = Object.keys(posLimits).length > 0 && !isYsf(trade.leagueId) // ySF counts by eligibility below
   if (capOn || hasPosLimits) {
     const teamIds = [...teamSet]
     const current = await db.select({ teamId: rosters.teamId, playerId: rosters.playerId, salary: rosters.salary, sport: players.sport, position: players.position })
@@ -160,11 +160,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       const err = eligCapError(sp, (byTeam[tid] ?? []).filter(r => r.sport === sp))
       if (err) return NextResponse.json({ error: `Trade rejected: ${nameOf(tid)} — ${err}` }, { status: 400 })
     }
-    const ends = new Date(Date.now() + RULES.reviewHours * 3_600_000).toISOString()
+    const ends = new Date(Date.now() + cfg().reviewHours * 3_600_000).toISOString()
     const [upd] = await db.update(trades).set({ status: 'REVIEW', reviewDeadline: ends }).where(eq(trades.id, id)).returning()
     const all = await db.select({ u: teams.userId }).from(teams).where(eq(teams.leagueId, trade.leagueId!))
-    await notify(all.map(a => a.u).filter(Boolean) as string[], `Trade accepted: ${teamRows.map(t => t.name).join(' / ')} — 48-hour review under way`, `/leagues/${trade.leagueId}/trade`, 'TRADE')
-    await logActivity(trade.leagueId!, 'TRADE', `${teamRows.map(t => t.name).join(' and ')} agreed to a trade; it takes effect after the 48-hour review`, null)
+    await notify(all.map(a => a.u).filter(Boolean) as string[], `Trade accepted: ${teamRows.map(t => t.name).join(' / ')} — ${cfg().reviewHours}-hour review under way`, `/leagues/${trade.leagueId}/trade`, 'TRADE')
+    await logActivity(trade.leagueId!, 'TRADE', `${teamRows.map(t => t.name).join(' and ')} agreed to a trade; it takes effect after the ${cfg().reviewHours}-hour review`, null)
     return NextResponse.json(upd)
   }
 

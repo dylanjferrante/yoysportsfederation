@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { leagues, teams, rosters, players, teamRecords, matchups, waiverClaims, gameSchedule, playerSeasonStats, dailyLineups } from '@/db/schema'
-import { eq, and, inArray, gte, lte, notInArray, desc } from 'drizzle-orm'
+import { eq, and, inArray, gte, lte, notInArray, desc, sql } from 'drizzle-orm'
 import { safeParse, orderedSports } from '@/lib/utils'
 import { lineupCadenceFor, weekDateRange } from '@/lib/defaults'
 import { weekDates } from '@/lib/dailylineup'
@@ -83,13 +83,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const statBy = new Map(statRows.map(s => [s.playerId, s]))
   const posOf = (position: string, eligible: string | null) => { const e = safeParse<string[]>(eligible, []); return (e.length > 1 ? e : [position]).join('/') }
 
+  // this matchup's points and games for each player, from the scoring engine's per-day/per-week lines
+  const wk = new Map<string, { pts: number; gp: number }>()
+  if (week && id === 'ysf') {
+    const startWeek = safeParse<{ sport: string; startWeek: number }[]>((league as any).sportSchedule, []).find(x => x.sport === sport)?.startWeek ?? 1
+    const per = week - startWeek + 1
+    for (const r of db.all<{ name: string; pts: number | null; st: string | null }>(sql`SELECT name, engine_pts pts, engine_stats st FROM fantrax_player_periods
+      WHERE season = ${season} AND sport = ${sport} AND matchup_period = ${per} AND team_id = ${team.id} AND engine_pts IS NOT NULL`)) {
+      const cur = wk.get(r.name) ?? { pts: 0, gp: 0 }
+      cur.pts += r.pts ?? 0; cur.gp += Number(safeParse<any>(r.st, {}).GP ?? 0) || 0
+      wk.set(r.name, cur)
+    }
+  }
   const roster = rows.map(r => {
     const g = gameOf(r.team)
     const started = !!g && ((g.epoch != null && Date.now() >= g.epoch) || /final|completed|live|progress/i.test(g.status))
     const st = statBy.get(r.playerId)
     return { rosterId: r.rosterId, playerId: r.playerId, name: r.name, position: r.position, pos: posOf(r.position, r.eligible), team: r.team,
-      slot: overrides[r.playerId] ?? r.slot, injury: r.injury || (r.status && r.status !== 'ACTIVE' ? r.status : null),
-      game: g, locked: pastDay || started, gp: st?.gp ?? 0, points: st?.points ?? null }
+      slot: overrides[r.playerId] ?? r.slot, injury: r.status && !/^(active|healthy)$/i.test(r.status) ? r.status : null, injuryNote: r.injury || null,
+      game: g, locked: pastDay || started, gp: st?.gp ?? 0, points: st?.points ?? null,
+      wkGp: wk.get(r.name)?.gp ?? 0, wkPoints: wk.has(r.name) ? +wk.get(r.name)!.pts.toFixed(2) : null }
   })
 
   // FAAB + claims
@@ -109,7 +122,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .where(and(eq(playerSeasonStats.leagueId, id), eq(playerSeasonStats.season, season), eq(playerSeasonStats.sport, sport), rostered.length ? notInArray(players.id, rostered) : undefined))
     .orderBy(desc(playerSeasonStats.points)).limit(250)
   const freeAgents = faRows.map(f => ({ playerId: f.playerId, name: f.name, position: f.position, pos: posOf(f.position, f.eligible), team: f.team, gp: f.gp ?? 0, points: f.points ?? 0,
-    injury: f.injury || (f.status && f.status !== 'ACTIVE' ? f.status : null), pending: claims.some(c => c.add?.id === f.playerId) }))
+    injury: f.status && !/^(active|healthy)$/i.test(f.status) ? f.status : null, injuryNote: f.injury || null, pending: claims.some(c => c.add?.id === f.playerId) }))
 
   // trade partners + my picks for this sport
   const others = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, primaryColor: teams.primaryColor })

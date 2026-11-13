@@ -5,7 +5,8 @@ import { db } from '@/db'
 import { leagues, teams, rosters, players, teamRecords, waiverClaims } from '@/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
-import { processAllNow } from '@/lib/waivers'
+import { processAllNow, onWaivers, settleYsfWaivers } from '@/lib/waivers'
+import { waiverWire } from '@/db/schema'
 import { isYsf, claimLimitError, eligCapError, irLockError } from '@/lib/ysf-rules'
 
 // List a league's waiver claims (enriched with player + franchise names).
@@ -14,6 +15,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
 
+  if (isYsf(id)) { const [lg] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1); if (lg) await settleYsfWaivers(lg) }
   const all = await db.select().from(waiverClaims).where(eq(waiverClaims.leagueId, id))
   const teamRows = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, userId: teams.userId }).from(teams).where(eq(teams.leagueId, id))
   const tById = Object.fromEntries(teamRows.map(t => [t.id, t]))
@@ -48,6 +50,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) return NextResponse.json({ error: 'League not found' }, { status: 404 })
+  if (isYsf(id)) await settleYsfWaivers(league)
 
   // The user's franchise in this league.
   const [myTeam] = await db.select().from(teams).where(and(eq(teams.leagueId, id), eq(teams.userId, session.user.id))).limit(1)
@@ -70,6 +73,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (rostered.length) return NextResponse.json({ error: 'Player is already rostered' }, { status: 400 })
 
     if (isYsf(id)) {
+      if (!(await onWaivers(id, add.id))) return NextResponse.json({ error: `${add.name} is a free agent — add him directly` }, { status: 400 })
+      const [w] = await db.select({ by: waiverWire.droppedByTeamId }).from(waiverWire).where(and(eq(waiverWire.leagueId, id), eq(waiverWire.playerId, add.id))).limit(1)
+      if (w?.by === myTeam.id) return NextResponse.json({ error: `You dropped ${add.name} — you can't claim him back while he's on waivers` }, { status: 400 })
+      const dup = await db.select({ id: waiverClaims.id }).from(waiverClaims).where(and(eq(waiverClaims.teamId, myTeam.id), eq(waiverClaims.addPlayerId, add.id), eq(waiverClaims.status, 'PENDING'))).limit(1)
+      if (dup.length) return NextResponse.json({ error: `You already have a claim in for ${add.name}` }, { status: 400 })
       const lim = claimLimitError(id, myTeam.id, add.sport) ?? await irLockError(myTeam.id, add.sport)
       if (lim) return NextResponse.json({ error: lim }, { status: 400 })
       const cur = await db.select({ pid: rosters.playerId, position: players.position, eligible: players.eligiblePositions }).from(rosters)

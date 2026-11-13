@@ -145,6 +145,10 @@ async function main() {
   // Keep each club's id across re-imports: lineup history, trades, engine points and links all key on it
   const keepTeamId = new Map((db.prepare(`SELECT t.id, u.email FROM teams t JOIN users u ON u.id = t.user_id WHERE t.league_id = ?`).all(LEAGUE_ID) as any[]).map(r => [String(r.email).replace('@ysf.local', ''), r.id]))
 
+  // the Commission's rule settings (League Settings) survive a re-import
+  const RULE_COLS = ['transaction_limits', 'position_limits', 'trade_deadlines', 'trade_reopen', 'rookie_draft_dates', 'mlb_sp_cap', 'trade_review', 'trade_review_hours', 'waiver_schedule', 'waiver_period_days', 'ir_eligible_designations', 'tradeable_pick_years']
+  const keptRules = db.prepare(`SELECT ${RULE_COLS.join(', ')} FROM leagues WHERE id = ?`).get(LEAGUE_ID) as Record<string, any> | undefined
+
   // ── wipe the previous ySF import (other leagues untouched) ──
   const wipe = db.transaction(() => {
     const L = LEAGUE_ID
@@ -227,6 +231,7 @@ async function main() {
 
   // ySFHL, ySFBA and ySFLB set lineups daily within each scoring period; ySFFL weekly
   db.prepare(`UPDATE leagues SET lineup_cadence=? WHERE id=?`).run(JSON.stringify({ NFL: 'WEEKLY', NHL: 'DAILY', NBA: 'DAILY', MLB: 'DAILY' }), LEAGUE_ID)
+  if (keptRules) db.prepare(`UPDATE leagues SET ${RULE_COLS.map(c => `${c} = @${c}`).join(', ')} WHERE id = @id`).run({ ...keptRules, id: LEAGUE_ID })
 
   // ── clubs ──
   const teamId: Record<string, string> = {}

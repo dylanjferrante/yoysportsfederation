@@ -60,7 +60,7 @@ function SettingsInner() {
   const [rookieRoundsObj, setRookieRoundsObj] = useState<Record<string, number>>({})
   const [seasonWeeksObj, setSeasonWeeksObj] = useState<Record<string, number>>({})
   const [startWeeksObj, setStartWeeksObj] = useState<Record<string, number>>({})
-  const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number }>>({})
+  const [deadlinesObj, setDeadlinesObj] = useState<Record<string, { mode: string; week?: number; date?: string }>>({})
   const [reopenObj, setReopenObj] = useState<Record<string, string>>({})
   const [waiverSchedObj, setWaiverSchedObj] = useState<Record<string, { day: number; hour: number }>>({})
   const [txLimits, setTxLimits] = useState<Record<string, { max: number; period: string }>>({})
@@ -1167,6 +1167,9 @@ function SettingsInner() {
                       {d.mode === 'WEEK' && (
                         <input type="number" min={1} className="input w-20 text-sm py-1.5" placeholder="Week" value={d.week ?? ''} onChange={e => setD({ week: +e.target.value })} />
                       )}
+                      {d.mode === 'DATE' && (
+                        <input type="datetime-local" className="input w-56 text-sm py-1.5" value={d.date ?? ''} onChange={e => setD({ date: e.target.value })} />
+                      )}
                       {/* Every sport but the last in the season order can reopen trading after its deadline. */}
                       {d.mode !== 'NONE' && s !== orderedEnabled[orderedEnabled.length - 1] && (
                         <label className="flex items-center gap-1 text-[11px] text-ink-500">
@@ -1178,7 +1181,7 @@ function SettingsInner() {
                         </label>
                       )}
                       <span className="text-[11px] text-ink-400 w-full sm:w-auto sm:ml-auto">
-                        {d.mode === 'NONE' ? 'No deadline' : `Locks after week ${resolved}`} · {mode?.help}
+                        {d.mode === 'NONE' ? 'No deadline' : d.mode === 'DATE' ? (d.date ? `Locks ${new Date(d.date).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} ET` : 'Set a date') : `Locks after week ${resolved}`} · {mode?.help}
                       </span>
                     </div>
                   )
