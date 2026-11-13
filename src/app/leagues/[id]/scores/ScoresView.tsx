@@ -89,7 +89,7 @@ export default function ScoresView({ leagueId, matchups, teams, sportsEnabled, c
             <div key={sport} className="card">
               <div className="card-header flex items-center gap-2">
                 <span className={`w-7 h-7 rounded-lg ${meta.bg} text-white flex items-center justify-center`}><SportIcon sport={sport} logo={divisionLogos[sport]} size={18} /></span>
-                <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)}</h2>
+                <h2 className="font-semibold text-slate-900"><span className="ysf-case">{sportLabel(sport, sportNames)}</span></h2>
                 {(() => { const sw = sportWeekOf(schedule, sport, activeWeek); return sw ? <span className="text-xs font-medium text-slate-500">{sport} Wk {sw}</span> : null })()}
                 <span className="text-xs text-slate-400">{games.length} games</span>
               </div>
@@ -126,7 +126,7 @@ function TeamBar({ team, score, win, rec, bye }: { team: Team | null; score: num
   return (
     <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ background: primary }}>
       {team.logo
-        ? <img src={team.logo} alt="" className="w-8 h-8 object-contain flex-shrink-0 p-1" style={team.logoBg ? { background: primary } : undefined} />
+        ? <img src={team.logo} alt="" className="w-8 h-8 object-contain flex-shrink-0" />
         : <span className="w-8 h-8 flex items-center justify-center text-[10px] font-black flex-shrink-0" style={{ background: secondary, color: primary }}>{(team.abbreviation || '?').slice(0, 3)}</span>}
       <div className="flex-1 min-w-0">
         <div className="font-bold truncate leading-tight" style={ink}>{team.name}</div>

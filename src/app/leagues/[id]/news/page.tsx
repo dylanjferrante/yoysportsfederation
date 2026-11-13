@@ -67,8 +67,8 @@ export default async function NewsPage({ params }: { params: Promise<{ id: strin
                   {c && (
                     <Link href={`/leagues/${id}/teams/${c.id}`} className="inline-flex items-center gap-1.5 mt-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-800">
                       {(c.altLogo || c.logo)
-                        ? <span className="w-4 h-4 rounded flex items-center justify-center overflow-hidden" style={{ background: c.logoBg ? primary : '#f1f5f9' }}><img src={c.altLogo || c.logo || ''} alt="" className="w-[82%] h-[82%] object-contain" /></span>
-                        : <span className="w-4 h-4 rounded flex items-center justify-center text-[7px] font-bold" style={{ background: primary, color: secondary }}>{(c.abbreviation || '?').slice(0, 2)}</span>}
+                        ? <span className="w-4 h-4 inline-flex items-center justify-center flex-shrink-0"><img src={c.logo || c.altLogo || ''} alt="" className="w-full h-full object-contain" /></span>
+                        : <span className="w-4 h-4 rounded flex items-center justify-center text-[7px] font-bold" style={{ background: primary, color: '#fff' }}>{(c.abbreviation || '?').slice(0, 2)}</span>}
                       Rostered by {c.name}
                     </Link>
                   )}

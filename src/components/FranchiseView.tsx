@@ -363,23 +363,22 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="rounded-2xl p-5 mb-6 flex items-center gap-4 flex-wrap" style={{ background: team.primaryColor ?? '#0f172a', color: team.secondaryColor ?? '#ffffff' }}>
-        {team.logo
-          ? <img src={team.logo} alt="" className="w-16 h-16 object-contain bg-white/10 p-1.5" style={(team as any).logoBg ? { background: team.primaryColor } : undefined} />
-          : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black" style={{ backgroundColor: team.secondaryColor, color: team.primaryColor }}>{team.abbreviation}</div>}
+      {/* Club band — the club's primary, its on-primary crest placed bare, white display type. */}
+      <div className="p-5 sm:p-6 mb-6 flex items-center gap-4 sm:gap-6 flex-wrap" style={{ background: team.primaryColor ?? '#000', color: '#fff', borderRadius: 4 }}>
+        {(team.altLogo || team.logo)
+          ? <span className="w-20 h-20 sm:w-24 sm:h-24 inline-flex items-center justify-center flex-shrink-0"><img src={(team.altLogo || team.logo)!} alt="" className="w-full h-full object-contain" /></span>
+          : <div className="w-20 h-20 inline-flex items-center justify-center text-xl font-black disp">{team.abbreviation}</div>}
         <div className="flex-1 min-w-0">
-          {team.wordmark && team.wordmark.startsWith('http')
-            ? <img src={team.wordmark} alt={team.name} className="h-8 mb-1" />
-            : <h1 className="text-2xl font-black">{team.wordmark || team.name}</h1>}
-          <p className="text-sm opacity-80">{team.ownerName} · {players.length} players{data.isOwner ? ' · your club' : data.isCommish ? ' · commissioner control' : data.isCoManager ? ' · co-manager' : ''}</p>
+          <div className="eyebrow" style={{ color: 'rgba(255,255,255,.8)' }}>{team.abbreviation}</div>
+          <h1 className="disp text-[36px] sm:text-[52px] font-extrabold leading-[.9] mt-1">{team.name}</h1>
+          <p className="text-sm opacity-90 mt-1.5">{players.length} players{data.isOwner ? ' · your club' : data.isCommish ? ' · commissioner control' : data.isCoManager ? ' · co-manager' : ''}</p>
           {(data.managers ?? []).length > 0 && (
             <p className="text-xs mt-0.5 opacity-60">co-managers: {(data.managers ?? []).map((m: any) => m.name ?? m.email).join(', ')}</p>
           )}
         </div>
-        {team.altLogo && <img src={team.altLogo} alt="" className="w-12 h-12 object-contain bg-white/10 hidden sm:block" />}
         <div className="flex gap-2">
-          {canManage && <button onClick={() => { setBrand({ name: team.name, abbreviation: team.abbreviation, logo: team.logo ?? '', altLogo: team.altLogo ?? '', wordmark: team.wordmark ?? '', primaryColor: team.primaryColor, secondaryColor: team.secondaryColor, logoBg: (team as any).logoBg ?? false }); setEditing(!editing) }} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Edit</button>}
-          {(data.isOwner || data.isCommish) && <button onClick={() => setShowMgr(!showMgr)} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">Co-managers</button>}
+          {canManage && <button onClick={() => { setBrand({ name: team.name, abbreviation: team.abbreviation, logo: team.logo ?? '', altLogo: team.altLogo ?? '', wordmark: team.wordmark ?? '', primaryColor: team.primaryColor, secondaryColor: team.secondaryColor, logoBg: (team as any).logoBg ?? false }); setEditing(!editing) }} className="btn border border-white text-white px-3 py-2 hover:bg-white/10">Edit</button>}
+          {(data.isOwner || data.isCommish) && <button onClick={() => setShowMgr(!showMgr)} className="btn border border-white text-white px-3 py-2 hover:bg-white/10">Co-managers</button>}
           <Link href={`/leagues/${team.leagueId}`} className="bg-white/15 hover:bg-white/25 text-white text-sm px-3 py-1.5 rounded-lg">← League</Link>
         </div>
       </div>
@@ -522,7 +521,7 @@ export default function FranchiseView({ teamId }: { teamId: string }) {
               )}
               {/* Tap-to-assign guidance banner while a move is in progress. */}
               {canManage && sel && (
-                <div className="sticky top-14 z-20 flex items-center gap-2 rounded-lg bg-slate-900 text-white px-3 py-2 text-xs shadow-lg">
+                <div className="sticky top-[60px] z-20 flex items-center gap-2 rounded-lg bg-slate-900 text-white px-3 py-2 text-xs shadow-lg">
                   {selPlayer
                     ? <span className="min-w-0 truncate flex-shrink">Moving <b>{selPlayer.name}</b> — tap a slot</span>
                     : <span className="min-w-0 truncate flex-shrink">Filling <b>{selSlot?.slot}</b> — tap a player</span>}
@@ -635,7 +634,7 @@ function FranchiseHistory({ history }: { history: any }) {
             <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
               <th className="text-left px-4 py-2 font-medium">Season</th>
               {sportsPresent.map(s => <th key={s} className="text-center px-3 py-2 font-medium">{sportMeta(s).emoji} {s}</th>)}
-              <th className="text-center px-3 py-2 font-medium border-l border-slate-200">Fed Pts</th>
+              <th className="text-center px-3 py-2 font-medium border-l border-slate-200">Cup Pts</th>
               <th className="text-center px-3 py-2 font-medium">Overall</th>
             </tr>
           </thead>

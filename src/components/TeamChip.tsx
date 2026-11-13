@@ -29,11 +29,12 @@ export default function TeamChip({
   const label = useAbbr ? (team.abbreviation || team.name) : team.name
 
   const inner = (
-    <span className={`inline-flex items-center gap-2 px-2 py-1 rounded-md max-w-full ${className}`} style={{ background: primary }}>
+    <span className={`inline-flex items-center gap-2 px-2 py-1 max-w-full ${className}`} style={{ background: primary, borderRadius: 4 }}>
       {icon
-        ? <img src={icon} alt="" className={`${dim} object-contain flex-shrink-0`} style={team.logoBg ? { background: primary } : undefined} />
+        ? <span className={`${dim} inline-flex items-center justify-center flex-shrink-0`}><img src={icon} alt="" className={`${dim} object-contain`} /></span>
         : <span className={`${dim} flex items-center justify-center text-[9px] font-bold flex-shrink-0`} style={{ background: secondary, color: primary }}>{(team.abbreviation || team.name || '?').slice(0, 3).toUpperCase()}</span>}
-      <span className={`font-semibold truncate ${text}`} style={{ color: secondary }}>{label}</span>
+      {/* ySF: text on a club primary is always white */}
+      <span className={`font-semibold truncate ${text}`} style={{ color: '#fff' }}>{label}</span>
     </span>
   )
 

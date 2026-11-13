@@ -564,7 +564,7 @@ export async function buildScoreboard(leagueId: string): Promise<ScoreCard[]> {
   const ms = await db.select().from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, season)))
   const side = (id: string | null, score: number, other: number, complete: boolean): ScoreSide => {
     const tm = id ? t.get(id) : undefined
-    return { name: tm?.name ?? '—', abbr: (tm?.abbr || tm?.name || '?').slice(0, 4).toUpperCase(), logo: tm?.altLogo || tm?.logo || null, primary: tm?.p ?? '#0f172a', secondary: tm?.s ?? '#ffffff', score: +score.toFixed(1), win: complete && score >= other }
+    return { name: tm?.name ?? '—', abbr: (tm?.abbr || tm?.name || '?').slice(0, 4).toUpperCase(), logo: tm?.logo || tm?.altLogo || null, primary: tm?.p ?? '#0f172a', secondary: tm?.s ?? '#ffffff', score: +score.toFixed(1), win: complete && score >= other }
   }
   const cards: ScoreCard[] = []
   for (const sp of sports) {

@@ -144,7 +144,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
           const sw = sportWeekOf(safeParse<ScheduleEntry[]>(league.sportSchedule, []), m.sport, m.week)
           return (
             <p className="text-sm font-semibold text-slate-700">
-              {sportAbbrLabel(m.sport, sportAbbr)} · {sw ? `Week ${sw}` : `Week ${m.week}`}
+              <span className="ysf-case">{sportAbbrLabel(m.sport, sportAbbr)}</span> · {sw ? `Week ${sw}` : `Week ${m.week}`}
               <span className="font-normal text-slate-400"> · {league.name} · {m.isComplete ? 'Final' : 'Live'}</span>
             </p>
           )
@@ -222,8 +222,8 @@ function TeamLogo({ team, size }: { team: any; size: number }) {
   if (!team) return <span className="rounded-lg bg-slate-100 flex-shrink-0" style={{ width: size, height: size }} />
   const primary = team.primaryColor || '#0f172a'
   const secondary = team.secondaryColor || '#ffffff'
-  const src = team.altLogo || team.logo
+  const src = team.logo || team.altLogo
   return src
-    ? <span className="rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ width: size, height: size, background: team.logoBg ? primary : '#f1f5f9' }}><img src={src} alt="" style={{ width: '80%', height: '80%', objectFit: 'contain' }} /></span>
-    : <span className="rounded-lg flex items-center justify-center flex-shrink-0 font-bold" style={{ width: size, height: size, background: primary, color: secondary, fontSize: Math.round(size * 0.34) }}>{(team.abbreviation || team.name || '?').slice(0, 3).toUpperCase()}</span>
+    ? <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}><img src={src} alt="" className="w-full h-full object-contain" /></span>
+    : <span className="rounded-lg flex items-center justify-center flex-shrink-0 font-bold" style={{ width: size, height: size, background: primary, color: '#fff', fontSize: Math.round(size * 0.34) }}>{(team.abbreviation || team.name || '?').slice(0, 3).toUpperCase()}</span>
 }

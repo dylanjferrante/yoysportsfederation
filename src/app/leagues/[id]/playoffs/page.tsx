@@ -96,7 +96,7 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
             <div key={sport} className="card p-5">
               <div className="flex items-center gap-2 mb-4">
                 <span className={`w-8 h-8 rounded-lg ${meta.bg} text-white flex items-center justify-center`}><SportIcon sport={sport} logo={divisionLogos[sport]} size={20} /></span>
-                <h2 className="font-semibold text-slate-900">{sportLabel(sport, sportNames)} — {champNames[sport] || 'Playoffs'}</h2>
+                <h2 className="font-semibold text-slate-900"><span className="ysf-case">{sportLabel(sport, sportNames)}</span> — {champNames[sport] || 'Playoffs'}</h2>
                 {champ && <span className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-amber-600">
                   {champLogos[sport] && <img src={champLogos[sport]} alt="" className="w-6 h-6 object-contain" />}
                   {teamById[champ.championTeamId ?? '']?.abbreviation} champion
@@ -137,7 +137,7 @@ export default async function PlayoffsPage({ params, searchParams }: { params: P
                         </div>
                         <div className="border-2 rounded-2xl px-10 py-7 flex flex-col items-center gap-3 min-w-[13rem]" style={{ borderColor: champInk(sport, '#fcd34d') + '88', background: champInk(sport, '#f59e0b') + '14' }}>
                           {champTeam?.logo
-                            ? <img src={champTeam.logo} alt="" className="w-32 h-32 object-contain p-2" style={champTeam.logoBg ? { background: champTeam.primaryColor ?? undefined } : undefined} />
+                            ? <img src={champTeam.logo} alt="" className="w-32 h-32 object-contain" />
                             : <span className="w-32 h-32 flex items-center justify-center text-4xl font-black" style={{ background: champTeam?.secondaryColor ?? '#fde68a', color: champTeam?.primaryColor ?? '#92400e' }}>{champTeam?.abbreviation ?? 'TBD'}</span>}
                           <span className="text-xl font-bold text-center" style={{ color: champInk(sport, '#92400e') }}>{champTeam?.name ?? 'TBD'}</span>
                         </div>
@@ -172,10 +172,10 @@ function PlayoffSlot({ t, teamId, seed, score, winner, done }: { t: any; teamId:
   const secondary = t.secondaryColor || '#ffffff'
   const src = t.altLogo || t.logo
   return (
-    <div className={`flex items-center gap-2 px-2 py-2 text-sm ${done && !winner ? 'opacity-60' : ''}`} style={{ background: primary, color: secondary }}>
+    <div className={`flex items-center gap-2 px-2 py-2 text-sm ${done && !winner ? 'opacity-60' : ''}`} style={{ background: primary, color: '#fff' }}>
       <span className="text-[10px] font-bold w-4 text-center flex-shrink-0" style={{ color: secondary, opacity: 0.75 }}>{seed ?? ''}</span>
       {src
-        ? <span className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: t.logoBg ? primary : 'rgba(255,255,255,.16)' }}><img src={src} alt="" className="w-[80%] h-[80%] object-contain" /></span>
+        ? <span className="w-6 h-6 inline-flex items-center justify-center flex-shrink-0"><img src={src} alt="" className="w-full h-full object-contain" /></span>
         : <span className="w-6 h-6 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: secondary, color: primary }}>{(t.abbreviation || t.name || '?').slice(0, 3).toUpperCase()}</span>}
       <span className={`flex-1 min-w-0 truncate ${winner ? 'font-extrabold' : 'font-semibold'}`}>{t.abbreviation}</span>
       {score != null && done && <span className="tabular-nums text-xs font-bold flex-shrink-0" style={{ color: secondary }}>{(score as number).toFixed(0)}</span>}

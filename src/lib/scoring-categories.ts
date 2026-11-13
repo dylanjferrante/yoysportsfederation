@@ -126,6 +126,8 @@ export const SCORING_CATEGORIES: Record<string, Record<string, StatMeta>> = {
     caughtStealing:     { label: 'Caught Stealing', group: 'Batting' },
     strikeoutsAsBatter: { label: 'Strikeout (Batter)', group: 'Batting' },
     sacFly:             { label: 'Sacrifice Fly', group: 'Batting' },
+    gidp:               { label: 'Grounded Into DP', group: 'Batting' },
+    cycle:              { label: 'Hit For The Cycle', group: 'Batting' },
     inningsPitched:     { label: 'Inning Pitched', group: 'Pitching' },
     strikeoutsAsPitcher:{ label: 'Strikeout (Pitcher)', group: 'Pitching' },
     wins:               { label: 'Win', group: 'Pitching' },
@@ -133,6 +135,7 @@ export const SCORING_CATEGORIES: Record<string, Record<string, StatMeta>> = {
     earnedRunsAllowed:  { label: 'Earned Run Allowed', group: 'Pitching' },
     hitsAllowed:        { label: 'Hit Allowed', group: 'Pitching' },
     walksAllowed:       { label: 'Walk Allowed', group: 'Pitching' },
+    homeRunsAllowed:    { label: 'Home Run Allowed', group: 'Pitching' },
     saves:              { label: 'Save', group: 'Pitching' },
     holds:              { label: 'Hold', group: 'Pitching' },
     blownSaves:         { label: 'Blown Save', group: 'Pitching' },
@@ -141,6 +144,9 @@ export const SCORING_CATEGORIES: Record<string, Record<string, StatMeta>> = {
     shutoutPitching:    { label: 'Shutout', group: 'Pitching' },
     noHitter:           { label: 'No-Hitter', group: 'Pitching' },
     perfectGame:        { label: 'Perfect Game', group: 'Pitching' },
+    pickoffs:           { label: 'Pickoff', group: 'Fielding' },
+    outfieldAssists:    { label: 'Outfield Assist', group: 'Fielding' },
+    errors:             { label: 'Error', group: 'Fielding' },
   },
 }
 

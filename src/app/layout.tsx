@@ -1,25 +1,24 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, DotGothic16 } from 'next/font/google'
+import { DotGothic16 } from 'next/font/google'
 import './globals.css'
 import Providers from './providers'
 import Navbar from '@/components/Navbar'
 import ServiceWorker from '@/components/ServiceWorker'
 
-const inter = Inter({ subsets: ['latin'] })
 // Fallback score face; the ticker prefers Bitcount Single (loaded via the
 // Google Fonts <link> below — next/font's catalog doesn't include it yet).
 const scoreFont = DotGothic16({ subsets: ['latin'], weight: '400', variable: '--font-score' })
 
 export const metadata: Metadata = {
-  title: { default: 'Nexus Fantasy', template: '%s | Nexus Fantasy' },
-  description: 'The cross-sport fantasy platform. NFL, NBA, NHL, and MLB — trade players and picks across every league.',
+  title: { default: 'yoy Sports Federation', template: '%s | ySF' },
+  description: 'Twelve clubs, four leagues, one Federation Cup. The yoy Sports Federation app.',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Nexus' },
-  icons: { icon: '/icons/icon-192.png', apple: '/icons/apple-touch-icon.png' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'ySF' },
+  icons: { icon: '/ysf/fed/favicon.svg', apple: '/icons/apple-touch-icon.png' },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0f172a',
+  themeColor: '#000000',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -27,12 +26,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.className} ${scoreFont.variable}`}>
+    <html lang="en" className={scoreFont.variable}>
       <head>
         <link rel="stylesheet" href="https://use.typekit.net/gqo1xyn.css" />
+        {/* ySF faces: Shuttleblock (display) + Address Sans Pro (body), Adobe Fonts kit used by ysffantasy.com */}
+        <link rel="stylesheet" href="https://use.typekit.net/tbv1jum.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitcount+Single:wght@300;400&display=swap" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitcount+Single:wght@300;400&family=Big+Shoulders+Display:wght@500;700;800&display=swap" />
       </head>
       <body className="min-h-screen flex flex-col">
         <Providers>

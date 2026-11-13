@@ -17,7 +17,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
   const pastMode = !!viewSeason && !!currentSeason && viewSeason !== currentSeason
 
   const isActive = (item: NavItem) => item.exact ? pathname === item.href : (pathname === item.href || pathname.startsWith(item.href + '/'))
-  const tabClass = (active: boolean) => `whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium transition flex-shrink-0 ${active ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`
+  const tabClass = (active: boolean) => `whitespace-nowrap flex-shrink-0 ${active ? 'tab-active' : 'tab-inactive'}`
 
   // ── Past-season (read-only) mode ───────────────────────────────────────────
   if (pastMode) {
@@ -30,7 +30,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
       { label: 'All Seasons', href: `${base}/seasons`, emoji: '' },
     ]
     return (
-      <div className="sticky top-14 z-30 -mx-4 px-4 bg-amber-50/95 backdrop-blur border-b border-amber-200 mb-6">
+      <div className="sticky top-[60px] z-30 -mx-4 px-4 bg-amber-50/95 backdrop-blur border-b border-amber-200 mb-6">
         <div className="max-w-6xl mx-auto flex items-center gap-1 overflow-x-auto py-1.5">
           <span className="whitespace-nowrap text-sm font-semibold text-amber-800 mr-2 flex-shrink-0">{viewSeason} season <span className="font-normal text-amber-600">· final standings</span></span>
           {items.map(item => (
@@ -71,7 +71,7 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
   ]
 
   return (
-    <div className="sticky top-14 z-30 -mx-4 px-4 bg-white/90 backdrop-blur border-b border-slate-200 mb-6">
+    <div className="sticky top-[60px] z-30 -mx-4 px-4 bg-white border-b border-ink-100 mb-6">
       <div className="max-w-6xl mx-auto flex items-center gap-1 overflow-x-auto py-1.5">
         {items.map(item => (
           <Link key={item.href} href={item.href} className={tabClass(isActive(item))}>
@@ -79,12 +79,12 @@ export default function LeagueNav({ leagueId, isCommissioner, sideGamesEnabled =
           </Link>
         ))}
         {isCommissioner && (
-          <Link href={`${base}/commish`} className={`whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium transition flex-shrink-0 ml-auto ${pathname.startsWith(`${base}/commish`) ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>
+          <Link href={`${base}/commish`} className={`whitespace-nowrap flex-shrink-0 ml-auto ${pathname.startsWith(`${base}/commish`) ? 'tab-active' : 'tab-inactive'}`}>
             Commish
           </Link>
         )}
         {isCommissioner && (
-          <Link href={`${base}/settings`} className={`whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium transition flex-shrink-0 ${pathname.startsWith(`${base}/settings`) ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>
+          <Link href={`${base}/settings`} className={`whitespace-nowrap flex-shrink-0 ${pathname.startsWith(`${base}/settings`) ? 'tab-active' : 'tab-inactive'}`}>
             Settings
           </Link>
         )}
