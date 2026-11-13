@@ -1,7 +1,8 @@
 import { db } from '@/db'
 import { leagues, teams, teamRecords, drafts } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 import Link from 'next/link'
 import { sportMeta, safeParse, draftTypeLabel, sportAbbrLabel } from '@/lib/utils'
 import { computeFederationStandings } from '@/lib/federation'
@@ -16,6 +17,12 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
+  if (id === YSF_LEAGUE_ID) {
+    // ySF: go straight to the next draft room (the ySFLB Rookie Draft, Nov 22, 2026).
+    const ds = await db.select().from(drafts).where(eq(drafts.leagueId, id))
+    const next = ds.filter(d => d.status !== 'COMPLETED').sort((a, b) => (a.startsAt ?? '').localeCompare(b.startsAt ?? ''))[0]
+    if (next) redirect(`/leagues/${id}/draft/${next.id}`)
+  }
 
   const sports = safeParse<string[]>(league.sportsEnabled, [])
   const sportAbbr = safeParse<Record<string, string>>(league.sportAbbr, {})

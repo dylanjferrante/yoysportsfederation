@@ -6,8 +6,10 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { sportMeta } from '@/lib/utils'
 import { useSportAbbr } from '@/components/SportNaming'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
+import YsfDraftRoom from './YsfDraftRoom'
 
-export default function DraftRoom() {
+function NexusDraftRoom() {
   const abbr = useSportAbbr()
   const { id, draftId } = useParams<{ id: string; draftId: string }>()
   const { data: session } = useSession()
@@ -334,4 +336,10 @@ export default function DraftRoom() {
       )}
     </div>
   )
+}
+
+// The ySF league gets the ySF Site Redesign draft room; other leagues keep Nexus's.
+export default function DraftRoomPage() {
+  const { id, draftId } = useParams<{ id: string; draftId: string }>()
+  return id === YSF_LEAGUE_ID ? <YsfDraftRoom draftId={draftId} /> : <NexusDraftRoom />
 }

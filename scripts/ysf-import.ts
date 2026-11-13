@@ -366,6 +366,47 @@ async function main() {
     }
   }
 
+  // ── upcoming rookie drafts: the exact Fantrax pick order (traded picks under their owners) ──
+  // and the eligible pool (2026 MLB draftees, scripts/data/mlb-draft-2026.json). A draft whose
+  // picks are pre-numbered runs off that order in the Nexus draft engine (non-snake).
+  let draftsMade = 0
+  for (const s of SPORTS) {
+    const rd = await getJson(`/data/rookie_drafts/${SEASON}/${s.key}.json`).catch(() => null)
+    if (!rd || rd.state === 'completed' || !rd.picks?.length) continue
+    const draftId = `${LEAGUE_ID}-${SEASON}-${s.sport.toLowerCase()}-rookie`
+    const startsAt = rd.draft_date ? new Date(rd.draft_date.replace(/\.\d+(?=[+-])/, '').replace(/([+-]\d\d)(\d\d)$/, '$1:$2')).toISOString() : null
+    db.prepare(`INSERT INTO drafts (id,league_id,kind,scope,season,type,rounds,status,starts_at,current_pick) VALUES (?,?,?,?,?,?,?,?,?,0)`)
+      .run(draftId, LEAGUE_ID, 'ROOKIE', s.sport, SEASON, 'LINEAR', rd.rounds, 'PENDING', startsAt)
+    const year = parseInt(SEASON.slice(0, 4))
+    for (const p of rd.picks) {
+      const owner = teamId[p.ysf_id], orig = teamId[p.via_ysf_id ?? p.ysf_id]
+      if (!owner || !orig) continue
+      const row = db.prepare(`SELECT id FROM draft_picks WHERE league_id=? AND sport=? AND year=? AND round=? AND original_team_id=? AND draft_id IS NULL AND is_used=0 LIMIT 1`)
+        .get(LEAGUE_ID, s.sport, year, p.round, orig) as any
+      if (row) db.prepare(`UPDATE draft_picks SET draft_id=?, pick_number=?, current_team_id=? WHERE id=?`).run(draftId, p.pick, owner, row.id)
+      else db.prepare(`INSERT INTO draft_picks (id,league_id,draft_id,sport,round,year,original_team_id,current_team_id,is_used,pick_number) VALUES (?,?,?,?,?,?,?,?,0,?)`)
+        .run(id(), LEAGUE_ID, draftId, s.sport, p.round, year, orig, owner, p.pick)
+    }
+    draftsMade++
+  }
+  // rookie-eligible pool for the ySFLB draft
+  const poolFile = path.join(process.cwd(), 'scripts', 'data', 'mlb-draft-2026.json')
+  if (fs.existsSync(poolFile)) {
+    const pool = JSON.parse(fs.readFileSync(poolFile, 'utf8')).players as any[]
+    for (const d of pool) {
+      const pos = String(d.position || 'UTIL').split(/[,/]/)
+      const pid = byName.get('MLB|' + norm(d.name))
+      if (pid) db.prepare(`UPDATE players SET is_rookie=1, adp=?, real_team_abbr=COALESCE(real_team_abbr, ?) WHERE id=?`).run(d.pick, d.org, pid)
+      else {
+        const nid = 'fx_' + (d.fantraxId || nanoid())
+        db.prepare(`INSERT OR IGNORE INTO players (id,external_id,name,sport,position,eligible_positions,real_team,real_team_abbr,status,is_rookie,adp,projected_points) VALUES (?,?,?,?,?,?,?,?,?,1,?,0)`)
+          .run(nid, null, d.name, 'MLB', pos[0], JSON.stringify(pos), d.org, d.org, 'ACTIVE', d.pick)
+        db.prepare(`UPDATE players SET is_rookie=1, adp=? WHERE id=?`).run(d.pick, nid)
+        byName.set('MLB|' + norm(d.name), nid)
+      }
+    }
+  }
+
   // ── 2025-26 champions ──
   const insHist = db.prepare(`INSERT INTO league_history (id,league_id,season,scope,champion_team_id,runner_up_team_id,note) VALUES (?,?,?,?,?,?,?)`)
   SPORTS.forEach((s, i) => {
