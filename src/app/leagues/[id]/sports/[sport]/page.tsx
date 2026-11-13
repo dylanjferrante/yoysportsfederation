@@ -1,3 +1,5 @@
+import YsfLeague from './YsfLeague'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 import { db } from '@/db'
 import { leagues, teams, teamRecords, matchups, leagueHistory } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -26,6 +28,7 @@ export default async function SportLeaguePage({ params }: { params: Promise<{ id
   if (!league) notFound()
   const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
   if (!sportsEnabled.includes(sport)) notFound()
+  if (id === YSF_LEAGUE_ID) return <YsfLeague league={league} sport={sport} />
 
   const sportNames = safeParse<Record<string, string>>(league.sportNames, {})
   const divisionLogos = safeParse<Record<string, string>>(league.divisionLogos, {})

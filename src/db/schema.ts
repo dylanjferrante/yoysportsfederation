@@ -662,6 +662,8 @@ export const activity = sqliteTable('activity', {
   message: text('message').notNull(),
   teamId: text('team_id').references(() => teams.id),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
+  // Structured details for the Moves page (JSON): { kind, sport, player, team, pos, bid } or { kind: 'TRADE', sides }
+  data: text('data'),
 })
 
 export const notifications = sqliteTable('notifications', {

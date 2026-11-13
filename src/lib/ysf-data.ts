@@ -1,7 +1,7 @@
 // Server-side data for the ySF Site Redesign pages (Home, Standings, Scores), from the Nexus DB.
 import { db } from '@/db'
-import { teams, teamRecords, matchups } from '@/db/schema'
-import { and, eq } from 'drizzle-orm'
+import { teams, teamRecords, matchups, activity } from '@/db/schema'
+import { and, eq, desc } from 'drizzle-orm'
 import { safeParse } from '@/lib/utils'
 import { rankWithinSport } from '@/lib/federation'
 import { simulateSeason } from '@/lib/odds'
@@ -111,4 +111,20 @@ export async function siteCupProjection(): Promise<{ generated_at: string; teams
     const r = await fetch(`${YSF_BASE}/data/fed_cup_projection.json`, { next: { revalidate: 600 } })
     return r.ok ? await r.json() : null
   } catch { return null }
+}
+
+// Moves: signings, claims, releases and trades (structured activity rows).
+export type MoveRow = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string }
+export type TradeRow = { id: string; when: string; sides: { teamId: string; gets: { name: string; sport: string; team: string; pos: string }[] }[]; text: string }
+export async function loadMoves(leagueId: string) {
+  const rows = await db.select().from(activity).where(eq(activity.leagueId, leagueId)).orderBy(desc(activity.createdAt)).limit(2000)
+  const moves: MoveRow[] = [], trades: TradeRow[] = []
+  for (const r of rows) {
+    const d = safeParse<any>(r.data, null)
+    const when = (r.createdAt ?? '').replace(' ', 'T')
+    if (r.type === 'TRADE') { trades.push({ id: r.id, when, sides: d?.sides ?? [], text: r.message }); continue }
+    if (!['WAIVER', 'ROSTER'].includes(r.type) || d?.kind === 'LINEUP_CHANGE') continue
+    moves.push({ id: r.id, when, sport: d?.sport ?? '', teamId: r.teamId ?? '', kind: d?.kind ?? 'MOVE', player: d?.player ?? '', team: d?.team ?? '', pos: d?.pos ?? '', bid: d?.bid ?? null, text: r.message })
+  }
+  return { moves, trades }
 }
