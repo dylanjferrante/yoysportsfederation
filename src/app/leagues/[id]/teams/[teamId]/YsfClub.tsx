@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { db } from '@/db'
 import { teams, users, leagueHistory, matchups, rosters, players, draftPicks, teamRecords } from '@/db/schema'
 import { and, eq, or } from 'drizzle-orm'
-import { loadStandings, periodLabel, loadMoves, pastSeasonWeeks } from '@/lib/ysf-data'
+import { loadStandings, periodLabel, loadMoves, pastSeasonWeeks, siteFeed, siteClubMap } from '@/lib/ysf-data'
 import { weekDateRange } from '@/lib/defaults'
 import { safeParse } from '@/lib/utils'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
@@ -32,8 +32,20 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
   if (!club) return <div className="card p-8 text-center font-semibold text-ink-500">Club not found</div>
   const [ownerRow] = await db.select({ owner: users.name }).from(teams).leftJoin(users, eq(teams.userId, users.id)).where(eq(teams.id, teamId)).limit(1)
   const cupRow = s.cup.find(r => r.teamId === teamId)!
-  const history = await db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, league.id))
+  const dbHistory = await db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, league.id))
+  // ysffantasy.com's honors (history.json) and club bios (bios.json), keyed by owner id → our club
+  const [hist, bios, idMap] = await Promise.all([siteFeed<any>('history.json'), siteFeed<any>('bios.json'), siteClubMap(C)])
+  const SCOPE: Record<string, string> = { ysf_fl: 'NFL', ysf_hl: 'NHL', ysf_ba: 'NBA', ysf_lb: 'MLB' }
+  // titles the app's own record doesn't have yet come from history.json, so a new champion shows without an import
+  const siteTitles = Object.values<any>(hist?.seasons ?? {}).flatMap((sn: any) => [
+    ...Object.entries<any>(sn.leagues ?? {}).map(([k, v]) => ({ season: sn.season, scope: SCOPE[k], team: idMap[v.champion_ysf_id] })),
+    ...(sn.federation?.champion ? [{ season: sn.season, scope: 'OVERALL', team: idMap[sn.federation.champion.ysf_id] }] : []),
+  ]).filter(t => t.scope && t.team)
+  const history = [...dbHistory, ...siteTitles.filter(t => !dbHistory.some(h => h.season === t.season && h.scope === t.scope))
+    .map(t => ({ id: `site-${t.season}-${t.scope}`, leagueId: league.id, season: t.season, scope: t.scope, championTeamId: t.team } as any))]
   const trophies = history.filter(h => h.championTeamId === teamId)
+  const ysfId = Object.entries(idMap).find(([, v]) => v === teamId)?.[0]
+  const bio: string | null = ysfId ? bios?.bios?.[ysfId]?.text ?? null : null
   const code = (sp: string) => YSF_LEAGUES.find(l => l.sport === sp)?.code ?? sp
   const label = (sp: string, name: string, team: string | null, pos: string) => `${name} (${code(sp)}-${team || 'FA'}, ${pos.replace(/\bDEF\b/g, 'D/ST')})`
 
@@ -277,6 +289,14 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
           </div>
         )}
       </section>
+
+      {/* the club's bio, from ysffantasy.com */}
+      {bio && (
+        <section className="card p-4 sm:p-5" style={{ borderTop: `4px solid ${club.color ?? '#000'}` }}>
+          <div className="ui text-[12px] font-bold tracking-[.12em] mb-1.5">ABOUT THE CLUB</div>
+          <p className="text-[15px] sm:text-[16px] leading-relaxed text-ink-800 max-w-[880px]"><span className="ysf-case">{bio}</span></p>
+        </section>
+      )}
 
       {thisWeek.length > 0 && (
         <section className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
