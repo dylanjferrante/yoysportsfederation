@@ -1,21 +1,10 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
+import ProposeNexus from './ProposeNexus'
 
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import ProposeTradeForm from '@/components/ProposeTradeForm'
-
-export default function LeagueProposeTradePage() {
-  const { id } = useParams<{ id: string }>()
-  return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Link href={`/leagues/${id}/trade`} className="btn-ghost text-slate-500">← Trades</Link>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Propose Trade</h1>
-          <p className="text-slate-500 text-sm">Route players and picks between two or more clubs across any sport</p>
-        </div>
-      </div>
-      <ProposeTradeForm fixedLeagueId={id} doneHref={`/leagues/${id}/trade`} />
-    </div>
-  )
+// ySF proposes trades from My Club's TRADE tab; other leagues keep the Nexus form.
+export default async function LeagueProposeTradePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  if (id === YSF_LEAGUE_ID) redirect(`/leagues/${id}/myteam?tab=trade`)
+  return <ProposeNexus id={id} />
 }

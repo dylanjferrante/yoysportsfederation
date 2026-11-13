@@ -48,7 +48,7 @@
     focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent
     placeholder:text-ink-400;
   }
-  .label { @apply block text-sm font-medium text-ink-500 mb-1; }
+  .label { @apply block text-[11px] text-ink-500 mb-1.5; font-family: var(--font-display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
   .select { @apply input appearance-none cursor-pointer; }
 
   .tab { @apply inline-flex items-center justify-center px-4 py-2 text-[13px] transition-colors; font-family: var(--font-display); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; line-height: 1; border-radius: 8px; }

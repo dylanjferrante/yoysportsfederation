@@ -11,6 +11,9 @@ const nextConfig = {
       { source: '/leagues/ysf/odds', destination: '/leagues/ysf/cup', permanent: false },
       { source: '/leagues/ysf/schedule', destination: '/leagues/ysf/scores', permanent: false },
       { source: '/leagues/ysf/seasons', destination: '/leagues/ysf/history', permanent: false },
+      // the federation is the site: Nexus's multi-league dashboard and player index go to their ySF pages
+      { source: '/dashboard', destination: '/leagues/ysf', permanent: false },
+      { source: '/players', destination: '/leagues/ysf/waivers', permanent: false },
     ]
   },
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SCORING_CATEGORIES } from '@/lib/scoring-categories'
 import { useSportAbbr } from '@/components/SportNaming'
 import ClubInvites from './ClubInvites'
+import { U } from '@/lib/ysf'
 
 type Member = { userId: string; role: string; name: string | null; email: string | null }
 type Action = { id: string; action: string; details: string; createdAt: string; byName: string | null }
@@ -47,20 +48,21 @@ export default function CommishView({ leagueId, leagueName }: { leagueId: string
 
   return (
     <div className="max-w-5xl mx-auto pb-16 w-full min-w-0">
-      <div className="flex items-center gap-2 mb-1">
-        <h1 className="disp text-[28px] sm:text-[64px] font-extrabold leading-[.9] uppercase break-words">Commissioner Tools</h1>
-        {!data.isPrimaryCommissioner && <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Co-Commissioner</span>}
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b-2 border-black pb-3.5 mb-5">
+        <div className="min-w-0">
+          <div className="eyebrow">{U(`ySF · ${data.isPrimaryCommissioner ? 'Commissioner' : 'Co-Commissioner'}`)}</div>
+          <h1 className="disp text-[34px] sm:text-[64px] font-extrabold leading-[.85] mt-1.5 break-words">COMMISSIONER</h1>
+        </div>
       </div>
-      <p className="text-sm text-ink-500 mb-5">{leagueName} · every action is recorded in the audit log.</p>
 
       {toast && (
-        <div className={`mb-4 px-3 py-2 rounded-lg text-sm font-medium ${toast.ok ? 'bg-emerald-50 text-[#177245]' : 'bg-rose-50 text-[#ba0c2f]'}`}>{toast.msg}</div>
+        <div className={`mb-4 px-4 py-3 rounded text-sm font-semibold text-white ${toast.ok ? 'bg-[#177245]' : 'bg-[#ba0c2f]'}`}>{toast.msg}</div>
       )}
 
-      <div className="flex gap-1 mb-5 overflow-x-auto border-b border-ink-100">
+      <div role="tablist" className="flex gap-1 p-1 mb-5 bg-white border border-ink-100 rounded-xl overflow-x-auto">
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition ${tab === t ? 'border-black text-black' : 'border-transparent text-ink-500 hover:text-ink-800'}`}>
+          <button key={t} role="tab" onClick={() => setTab(t)}
+            className={`${tab === t ? 'tab-active' : 'tab-inactive'} whitespace-nowrap flex-none`}>
             {t}{t === 'Trades' && data.pendingTrades.length ? ` (${data.pendingTrades.length})` : ''}
           </button>
         ))}
@@ -78,7 +80,7 @@ export default function CommishView({ leagueId, leagueName }: { leagueId: string
 }
 
 const card = 'rounded-lg border border-ink-100 bg-white p-4'
-const btn = 'px-3 py-1.5 rounded-lg text-sm font-medium transition'
+const btn = 'ui inline-flex items-center justify-center h-9 px-3 rounded-[3px] text-[12px] font-bold leading-none whitespace-nowrap transition'
 
 // ── Announce + invite ────────────────────────────────────────────────────────
 function Announce({ post, invite }: { post: any; invite: string | null }) {
@@ -86,7 +88,7 @@ function Announce({ post, invite }: { post: any; invite: string | null }) {
   return (
     <div className="space-y-4">
       <div className={card}>
-        <h2 className="font-semibold text-black mb-2">League Announcement</h2>
+        <h2 className="disp text-[22px] sm:text-[26px] font-extrabold leading-none uppercase mb-2">League Announcement</h2>
         <p className="text-xs text-ink-500 mb-2">Posts to the activity feed and notifies every member.</p>
         <textarea className="input w-full text-sm" rows={3} maxLength={1000} value={msg} onChange={e => setMsg(e.target.value)} placeholder="Playoffs start next week — set your lineups!" />
         <div className="mt-2 flex justify-end">
@@ -94,10 +96,10 @@ function Announce({ post, invite }: { post: any; invite: string | null }) {
         </div>
       </div>
       <div className={card}>
-        <h2 className="font-semibold text-black mb-2">Invite Code</h2>
+        <h2 className="disp text-[22px] sm:text-[26px] font-extrabold leading-none uppercase mb-2">Invite Code</h2>
         <div className="flex items-center gap-3">
           <span className="font-mono font-semibold tracking-wider text-ink-800 text-lg">{invite ?? '—'}</span>
-          <button onClick={() => post({ action: 'ROTATE_INVITE' }, 'Invite code rotated')} className={`${btn} bg-ink-50 text-ink-800 hover:bg-ink-100`}>Rotate (revoke old)</button>
+          <button onClick={() => post({ action: 'ROTATE_INVITE' }, 'Invite code rotated')} className={`${btn} bg-white border border-black text-black hover:bg-ink-50`}>Rotate (revoke old)</button>
         </div>
       </div>
     </div>
@@ -108,7 +110,7 @@ function Announce({ post, invite }: { post: any; invite: string | null }) {
 function Members({ data, post }: { data: Data; post: any }) {
   return (
     <div className={card}>
-      <h2 className="font-semibold text-black mb-1">Members & Co-Commissioners</h2>
+      <h2 className="disp text-[22px] sm:text-[26px] font-extrabold leading-none uppercase mb-1">Members & Co-Commissioners</h2>
       <p className="text-xs text-ink-500 mb-3">{data.isPrimaryCommissioner ? 'Grant co-commissioners full access to these tools.' : 'Only the primary commissioner can change roles.'}</p>
       <div className="divide-y divide-ink-50">
         {data.members.map(m => (
@@ -118,13 +120,13 @@ function Members({ data, post }: { data: Data; post: any }) {
               <div className="text-xs text-ink-400">{m.email}</div>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.role === 'COMMISSIONER' ? 'bg-blue-100 text-blue-700' : m.role === 'CO_COMMISSIONER' ? 'bg-amber-100 text-amber-700' : 'bg-ink-50 text-ink-500'}`}>
+              <span className={`badge ${m.role === 'COMMISSIONER' ? 'bg-black text-white' : m.role === 'CO_COMMISSIONER' ? 'bg-[#ffb81c] text-black' : 'bg-ink-50 text-ink-500'}`}>
                 {m.role === 'CO_COMMISSIONER' ? 'Co-Commish' : m.role === 'COMMISSIONER' ? 'Commissioner' : 'Member'}
               </span>
               {data.isPrimaryCommissioner && m.role !== 'COMMISSIONER' && (
                 <button
                   onClick={() => post({ action: 'SET_CO_COMMISSIONER', userId: m.userId, grant: m.role !== 'CO_COMMISSIONER' }, m.role !== 'CO_COMMISSIONER' ? 'Co-commissioner granted' : 'Co-commissioner removed')}
-                  className={`${btn} ${m.role === 'CO_COMMISSIONER' ? 'bg-rose-50 text-[#ba0c2f] hover:bg-rose-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
+                  className={`${btn} ${m.role === 'CO_COMMISSIONER' ? 'bg-white border border-[#ba0c2f] text-[#ba0c2f] hover:bg-ink-50' : 'bg-white border border-black text-black hover:bg-ink-50'}`}>
                   {m.role === 'CO_COMMISSIONER' ? 'Revoke' : 'Make co-commish'}
                 </button>
               )}
@@ -145,8 +147,8 @@ function Trades({ data, post }: { data: Data; post: any }) {
         <div key={t.id} className={`${card} flex items-center justify-between`}>
           <div className="text-sm text-ink-800"><span className="font-medium">{t.initiator}</span> ↔ <span className="font-medium">{t.recipient}</span> <span className="text-ink-400">· {t.assets} asset{t.assets === 1 ? '' : 's'}</span></div>
           <div className="flex gap-2">
-            <button onClick={() => post({ action: 'FORCE_TRADE', tradeId: t.id }, 'Trade forced through')} className={`${btn} bg-emerald-50 text-[#177245] hover:bg-emerald-100`}>Force</button>
-            <button onClick={() => post({ action: 'VETO_TRADE', tradeId: t.id }, 'Trade vetoed')} className={`${btn} bg-rose-50 text-[#ba0c2f] hover:bg-rose-100`}>Veto</button>
+            <button onClick={() => post({ action: 'FORCE_TRADE', tradeId: t.id }, 'Trade forced through')} className={`${btn} bg-[#177245] text-white hover:opacity-90`}>Force</button>
+            <button onClick={() => post({ action: 'VETO_TRADE', tradeId: t.id }, 'Trade vetoed')} className={`${btn} bg-[#ba0c2f] text-white hover:opacity-90`}>Veto</button>
           </div>
         </div>
       ))}
@@ -279,11 +281,11 @@ function Season({ season, post }: { season: string; post: any }) {
   return (
     <div className={`${card} space-y-3`}>
       <div>
-        <h2 className="font-semibold text-black">Current Season — {season}</h2>
+        <h2 className="disp text-[22px] sm:text-[26px] font-extrabold leading-none uppercase mb-3">Current Season — {season}</h2>
         <p className="text-xs text-ink-500 mt-1">Archiving snapshots every club's current logo, name, and colors so past-season pages always show the branding used <b>that</b> season. Starting the next season carries over rosters (dynasty), resets records, and builds a fresh schedule.</p>
       </div>
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => post({ action: 'ARCHIVE_SEASON' }, `Archived ${season} branding`)} className={`${btn} bg-ink-50 text-ink-800 hover:bg-ink-100`}>Archive {season} branding</button>
+        <button onClick={() => post({ action: 'ARCHIVE_SEASON' }, `Archived ${season} branding`)} className={`${btn} bg-white border border-black text-black hover:bg-ink-50`}>Archive {season} branding</button>
         <button onClick={() => { if (confirm(`Finish ${season} and start the next season? Rosters carry over; records reset for the new season.`)) post({ action: 'RENEW_SEASON' }, 'New season started') }} className={`${btn} bg-black text-white`}>Finish {season} &amp; start next season →</button>
       </div>
     </div>
@@ -295,7 +297,7 @@ function Audit({ actions }: { actions: Action[] }) {
   if (!actions.length) return <div className={`${card} text-ink-500 text-sm`}>No commissioner actions yet.</div>
   return (
     <div className={card}>
-      <h2 className="font-semibold text-black mb-3">Audit Log</h2>
+      <h2 className="disp text-[22px] sm:text-[26px] font-extrabold leading-none uppercase mb-3">Audit Log</h2>
       <div className="divide-y divide-ink-50">
         {actions.map(a => (
           <div key={a.id} className="py-2 text-sm flex items-start gap-3">

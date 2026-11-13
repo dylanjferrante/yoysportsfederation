@@ -6,7 +6,12 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { DEFAULT_ROSTER, DEFAULT_SCORING, DEFAULT_DRAFT_ROUNDS, DEFAULT_ROOKIE_ROUNDS, DEFAULT_SEASON_WEEKS, SEASON_STARTS, TRADE_DEADLINE_MODES, resolveTradeDeadlineWeek, defaultTradeDeadlines, dynastyDraftRounds, defaultWaiverSchedule, WAIVER_DAYS, buildSchedule, formatWeekRange, IR_DESIGNATIONS, defaultIrDesignations, nflRosterFor, nflScoringFor, PLAYOFF_FORMATS, EVEN_TEAM_OPTIONS, LEAGUE_SIZE_OPTIONS, maxPlayoffRounds, playoffWeeks } from '@/lib/defaults'
 import { groupScoring } from '@/lib/scoring-categories'
-import { sportMeta, orderedSports } from '@/lib/utils'
+import { orderedSports } from '@/lib/utils'
+import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
+// ySF league code for a sport (NFL → ySFFL); other sports pass through
+const code = (sp: string) => YSF_LEAGUES.find(l => l.sport === sp)?.code ?? sp
+// a sport's name inside an uppercased heading or label, keeping ySF's lowercase y
+const Code = ({ sp }: { sp: string }) => <span className="ysf-case">{code(sp)}</span>
 import DuesPanel from '../DuesPanel'
 import ScheduleEditor from './ScheduleEditor'
 
@@ -269,44 +274,42 @@ function SettingsInner() {
   const subTabs = orderedEnabled
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 w-full min-w-0">
-      <div className="flex flex-wrap items-center gap-3 mb-8">
-        <Link href={`/leagues/${params.id}`} className="btn-ghost text-ink-500">← Back</Link>
-        <div>
-          <h1 className="disp text-[28px] sm:text-[64px] font-extrabold leading-[.9] uppercase break-words">Commissioner Settings</h1>
-          <p className="text-sm text-ink-500">{league.name}</p>
+    <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 w-full min-w-0">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b-2 border-black pb-3.5 mb-6">
+        <div className="min-w-0">
+          <div className="eyebrow">{U(`${league.abbreviation || league.name} · ${(league.season ?? '').replace('-', '–')}`)}</div>
+          <h1 className="disp text-[34px] sm:text-[64px] font-extrabold leading-[.85] mt-1.5 break-words">LEAGUE SETTINGS</h1>
         </div>
-        <div className="ml-auto flex items-center gap-3">
-          {saved && <span className="text-green-600 text-sm font-medium">✓ Saved</span>}
-          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
+        <div className="flex items-center gap-3">
+          {saved && <span className="ui text-[12px] font-bold text-[#177245]">✓ SAVED</span>}
+          <button onClick={save} disabled={saving} className="btn-primary h-11">{saving ? 'Saving…' : 'Save changes'}</button>
         </div>
       </div>
 
       {setupMode && (() => {
         const idx = Math.max(SETUP_STEPS.indexOf(tab), 0)
         return (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 mb-6">
+          <div className="rounded bg-black text-white p-4 mb-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-semibold text-blue-900">Setting up your federation — step {idx + 1} of {SETUP_STEPS.length}: {SETUP_STEPS[idx]}</p>
-              <Link href={`/leagues/${params.id}`} className="text-xs text-blue-700 underline">Skip for now</Link>
+              <p className="ui text-[13px] font-bold">{U(`Setting up · step ${idx + 1} of ${SETUP_STEPS.length} · ${SETUP_STEPS[idx]}`)}</p>
+              <Link href={`/leagues/${params.id}`} className="ui text-[12px] underline">SKIP FOR NOW</Link>
             </div>
-            <div className="h-1.5 rounded bg-blue-100 overflow-hidden">
-              <div className="h-full bg-blue-500 transition-all" style={{ width: `${((idx + 1) / SETUP_STEPS.length) * 100}%` }} />
+            <div className="h-1.5 rounded bg-white/20 overflow-hidden">
+              <div className="h-full bg-white transition-all" style={{ width: `${((idx + 1) / SETUP_STEPS.length) * 100}%` }} />
             </div>
-            <p className="text-xs text-blue-700 mt-2">Review each section and save as you go. Everything here can be changed later.</p>
           </div>
         )
       })()}
 
-      <div className="flex gap-0 border-b border-ink-100 mb-6 overflow-x-auto">
-        {TABS.map(t => <button key={t} onClick={() => setTab(t)} className={tab === t ? 'tab-active' : 'tab-inactive'}>{t}</button>)}
+      <div role="tablist" className="flex gap-1 p-1 bg-white border border-ink-100 rounded-xl mb-6 overflow-x-auto">
+        {TABS.map(t => <button key={t} role="tab" onClick={() => setTab(t)} className={`${tab === t ? 'tab-active' : 'tab-inactive'} whitespace-nowrap flex-none`}>{t}</button>)}
       </div>
 
       <div className="card p-6 space-y-6">
         {/* General */}
         {tab === 'General' && (
           <>
-            <h3 className="font-semibold text-black">General</h3>
+            <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">GENERAL</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="label">League Name</label><input className="input" value={form.name ?? ''} onChange={e => set('name', e.target.value)} /></div>
               <div><label className="label">League Abbreviation</label><input className="input" maxLength={5} placeholder="NXS" value={form.abbreviation ?? ''} onChange={e => set('abbreviation', e.target.value)} /></div>
@@ -363,7 +366,7 @@ function SettingsInner() {
               <div className="sm:col-span-2"><label className="label">Description</label><textarea className="input h-20 resize-none" value={form.description ?? ''} onChange={e => set('description', e.target.value)} /></div>
             </div>
             <div className="pt-2">
-              <h4 className="font-semibold text-black mb-2 text-sm">Dues Tracker</h4>
+              <h4 className="disp text-[16px] font-bold tracking-[.06em] uppercase mb-2">Dues Tracker</h4>
               <DuesPanel leagueId={params.id as string} isCommissioner />
             </div>
             <ImportHistoryPanel leagueId={params.id as string} onImported={reloadFranchises} />
@@ -377,7 +380,7 @@ function SettingsInner() {
         {/* Franchises */}
         {tab === 'Clubs' && (
           <>
-            <h3 className="font-semibold text-black">Clubs</h3>
+            <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">CLUBS</h3>
             <p className="text-sm text-ink-500">Edit any club&apos;s identity, branding, and owner. Changes save per club.</p>
             {teamError && <p className="text-sm text-red-600">{teamError}</p>}
 
@@ -526,7 +529,7 @@ function SettingsInner() {
 
             {/* Add franchise */}
             <div className="rounded-lg border border-dashed border-ink-200 p-4">
-              <p className="font-semibold text-black text-sm mb-1">Add a club</p>
+              <p className="disp text-[16px] font-bold tracking-[.06em] uppercase mb-1">Add a club</p>
               <p className="text-xs text-ink-500 mb-3">Creates the club and its owner. {franchises.length}/{form.maxTeams ?? 12} clubs used.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label className="label">Club Name</label><input className="input" value={newFr.name} onChange={e => setNewFr(v => ({ ...v, name: e.target.value }))} placeholder="New Dynasty" /></div>
@@ -545,15 +548,14 @@ function SettingsInner() {
         {/* Sports & Schedule */}
         {tab === 'Sports & Schedule' && (
           <>
-            <h3 className="font-semibold text-black">Sports & Schedule</h3>
+            <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">SPORTS & SCHEDULE</h3>
             <div>
               <label className="label">Active Sports</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {ALL_SPORTS.map(s => (
                   <button key={s} onClick={() => toggleSport(s)}
-                    className={`p-3 rounded-lg border-2 text-center ${sportsEnabled.includes(s) ? 'border-blue-500 bg-blue-50' : 'border-ink-100 opacity-60'}`}>
-                    <div className="text-2xl">{sportMeta(s).emoji}</div>
-                    <div className="text-xs font-semibold text-ink-800">{s}</div>
+                    className={`p-3 rounded-lg border-2 text-center ${sportsEnabled.includes(s) ? 'border-black bg-ink-50' : 'border-ink-100 opacity-60'}`}>
+                    <Lg sp={s} big />
                   </button>
                 ))}
               </div>
@@ -583,11 +585,10 @@ function SettingsInner() {
                   const startWk = startWeeksObj[s] || (buildSchedule(form.seasonStart ?? 'FOOTBALL', sportsEnabled, seasonWeeksObj).find(e => e.sport === s)?.startWeek ?? 1)
                   const len = seasonWeeksObj[s] ?? DEFAULT_SEASON_WEEKS[s] ?? 18
                   const endWk = startWk + len - 1
-                  const meta = sportMeta(s)
                   return (
                     <div key={s} className="rounded-lg border border-ink-100 p-3">
                       <div className="flex flex-wrap items-end gap-3">
-                        <span className={`inline-flex items-center gap-1.5 font-semibold w-20 ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
+                        <span className="w-24 flex-none"><Lg sp={s} /></span>
                         <label className="text-xs text-ink-500">Start week
                           <select className="select w-24 py-1.5 mt-0.5" value={startWk}
                             onChange={e => setStartWeeksObj(d => ({ ...d, [s]: +e.target.value }))}>
@@ -627,7 +628,7 @@ function SettingsInner() {
                   return (
                     <details key={s} className="rounded-lg border border-ink-100">
                       <summary className="flex items-center gap-3 px-3 py-2 cursor-pointer select-none">
-                        <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
+                        <span className="w-24 flex-none"><Lg sp={s} /></span>
                         <span className="text-sm text-ink-500">{wks.length ? `${wks.length} break week${wks.length > 1 ? 's' : ''}: ${wks.map(w => `Wk ${w}`).join(', ')}` : 'No breaks — choose weeks'}</span>
                       </summary>
                       <div className="max-h-56 overflow-y-auto border-t border-ink-50 divide-y divide-ink-50">
@@ -654,7 +655,7 @@ function SettingsInner() {
                   return (
                     <div key={s} className="space-y-1.5 border-b border-ink-50 pb-2 last:border-0">
                       <div className="flex items-center gap-2">
-                        <span className="w-12 text-sm font-medium">{sportMeta(s).emoji} {s}</span>
+                        <span className="w-24 flex-none"><Lg sp={s} /></span>
                         <input className="input flex-1 text-sm" placeholder="Primary logo URL" value={divisionLogos[s] ?? ''} onChange={e => setDivisionLogos(d => ({ ...d, [s]: e.target.value }))} />
                         <label className="flex items-center gap-1 text-xs text-ink-500 whitespace-nowrap cursor-pointer">
                           <input type="checkbox" checked={!!divisionLogoBg[s]} onChange={e => setDivisionLogoBg(d => ({ ...d, [s]: e.target.checked }))} />
@@ -676,7 +677,7 @@ function SettingsInner() {
             {/* Custom sport names + championship naming (premium) */}
             <div className="border-t border-ink-50 pt-4">
               <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-black text-sm">Sport &amp; Championship Naming</h4>
+                <h4 className="disp text-[17px] font-bold tracking-[.04em]">SPORT &AMP; CHAMPIONSHIP NAMING</h4>
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Premium</span>
               </div>
               <p className="text-xs text-ink-500 mb-2">Rename each sport and its championship, and add a trophy/championship image.</p>
@@ -684,7 +685,7 @@ function SettingsInner() {
                 {orderedEnabled.map(s => (
                   <div key={s} className="rounded-lg border border-ink-100 p-2.5">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-xs font-bold ${sportMeta(s).color}`}>{sportMeta(s).emoji} {s}</span>
+                      <Lg sp={s} />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                       <input className="input text-sm" placeholder={`Sport name (${s})`} value={sportNames[s] ?? ''} onChange={e => setSportNames(d => ({ ...d, [s]: e.target.value }))} />
@@ -721,7 +722,7 @@ function SettingsInner() {
         {tab === 'Roster' && (
           <>
             <div className="rounded-lg border border-ink-100 p-3 max-w-md">
-              <p className="text-sm font-semibold text-black">Taxi Squad Eligibility</p>
+              <p className="disp text-[16px] font-bold tracking-[.06em] uppercase">Taxi Squad Eligibility</p>
               <p className="text-xs text-ink-500 mb-2">Who may occupy a taxi-squad slot (applies to every sport).</p>
               <select className="select" value={form.taxiEligibility ?? 'ALL'} onChange={e => set('taxiEligibility', e.target.value)}>
                 <option value="ALL">Any player</option>
@@ -734,7 +735,7 @@ function SettingsInner() {
             {/* NFL defense mode: team defense (DST) vs individual defenders (IDP) */}
             {subSport === 'NFL' && (
               <div className="rounded-lg border border-ink-100 p-3">
-                <p className="text-sm font-semibold text-black">NFL Defense Format</p>
+                <p className="disp text-[16px] font-bold tracking-[.06em] uppercase"><Code sp="NFL" /> Defense Format</p>
                 <p className="text-xs text-ink-500 mb-2">Choose team defense (one DST per lineup) or IDP (individual defenders with their own slots & scoring). Switching updates the NFL roster slots and scoring.</p>
                 <div className="flex gap-2">
                   {([['TEAM', 'Team Defense (DST)'], ['IDP', 'Individual Defenders (IDP)']] as const).map(([mode, label]) => {
@@ -746,7 +747,7 @@ function SettingsInner() {
                           setRosterObj(r => ({ ...r, NFL: nflRosterFor(mode) }))
                           setScoringObj(s => ({ ...s, NFL: nflScoringFor(mode) }))
                         }}
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border ${active ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-ink-100 text-ink-500 hover:border-ink-200'}`}>
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border ${active ? 'bg-black border-black text-white' : 'bg-white border-ink-100 text-ink-500 hover:border-ink-200'}`}>
                         {active ? '✓ ' : ''}{label}
                       </button>
                     )
@@ -756,7 +757,7 @@ function SettingsInner() {
             )}
 
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-black">{subSport} Roster Positions</h3>
+              <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none"><Code sp={subSport} /> ROSTER POSITIONS</h3>
               <button onClick={() => setRosterObj(r => ({ ...r, [subSport]: { ...(subSport === 'NFL' ? nflRosterFor(form.defenseMode ?? 'TEAM') : DEFAULT_ROSTER[subSport]) } }))} className="btn-ghost text-xs">Reset to default</button>
             </div>
             <p className="text-xs text-ink-500">Set how many <strong>start</strong> at each position. <strong>Max starters</strong> and <strong>max rostered</strong> are optional caps (leave blank for no limit).</p>
@@ -802,7 +803,7 @@ function SettingsInner() {
             {/* MLB weekly starting-pitcher cap */}
             {subSport === 'MLB' && (
               <div className="border-t border-ink-50 pt-4">
-                <h4 className="font-semibold text-black text-sm">Weekly Starting-Pitcher Cap</h4>
+                <h4 className="disp text-[17px] font-bold tracking-[.04em]">WEEKLY STARTING-PITCHER CAP</h4>
                 <p className="text-xs text-ink-500 mb-2">Limit how many starting pitchers count per club each week. Once the cap is hit, additional SP stats don&apos;t score. Set 0 for no limit.</p>
                 <input type="number" min={0} max={20} className="input w-28" value={form.mlbSpCap ?? 0} onChange={e => set('mlbSpCap', +e.target.value)} />
               </div>
@@ -810,7 +811,7 @@ function SettingsInner() {
 
             {/* IR-eligible designations */}
             <div className="border-t border-ink-50 pt-4">
-              <h4 className="font-semibold text-black text-sm">{subSport} IR-Eligible Designations</h4>
+              <h4 className="disp text-[17px] font-bold tracking-[.04em]"><Code sp={subSport} /> IR-ELIGIBLE DESIGNATIONS</h4>
               <p className="text-xs text-ink-500 mb-2">Only players carrying one of these injury designations may be placed in an IR slot.</p>
               <div className="flex flex-wrap gap-2">
                 {(IR_DESIGNATIONS[subSport] ?? []).map(d => {
@@ -821,7 +822,7 @@ function SettingsInner() {
                         const cur = prev[subSport] ?? []
                         return { ...prev, [subSport]: on ? cur.filter(x => x !== d) : [...cur, d] }
                       })}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${on ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-ink-100 text-ink-500 hover:border-ink-200'}`}>
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${on ? 'bg-black border-black text-white' : 'bg-white border-ink-100 text-ink-500 hover:border-ink-200'}`}>
                       {on ? '✓ ' : ''}{d}
                     </button>
                   )
@@ -869,7 +870,7 @@ function SettingsInner() {
           <>
             <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-black">{subSport} Scoring</h3>
+              <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none"><Code sp={subSport} /> SCORING</h3>
               <button onClick={() => setScoringObj(s => ({ ...s, [subSport]: { ...DEFAULT_SCORING[subSport] } }))} className="btn-ghost text-xs">Reset to default</button>
             </div>
             <div className="space-y-5">
@@ -939,16 +940,16 @@ function SettingsInner() {
         {/* Draft */}
         {tab === 'Draft' && (
           <>
-            <h3 className="font-semibold text-black">Draft</h3>
+            <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">DRAFT</h3>
 
             {/* Initial (dynasty) draft — locked once completed */}
             {(() => {
               const locked = dynasty?.status === 'COMPLETED'
               return (
-                <div className={`rounded-lg border p-3 ${locked ? 'border-ink-100 bg-ink-50' : 'border-blue-200 bg-blue-50/40'}`}>
+                <div className={`rounded-lg border p-3 ${locked ? 'border-ink-100 bg-ink-50' : 'border-ink-200 bg-white'}`}>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-black">Initial Dynasty Draft</span>
-                    {dynasty && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${locked ? 'bg-ink-100 text-ink-600' : dynasty.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-[#177245]'}`}>{dynasty.status}</span>}
+                    <span className="disp text-[16px] font-bold tracking-[.06em] uppercase">Initial Dynasty Draft</span>
+                    {dynasty && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${locked ? 'bg-ink-100 text-ink-600' : dynasty.status === 'IN_PROGRESS' ? 'bg-[#ffb81c] text-black' : 'bg-[#177245] text-white'}`}>{dynasty.status}</span>}
                     {locked && <button onClick={async () => {
                       if (!confirm('Reset the dynasty draft?\n\nThis clears EVERY dynasty pick AND wipes every club\'s entire roster. This cannot be undone.')) return
                       if (!confirm('Are you absolutely sure? Type-of-no-return: all drafted rosters will be wiped and the draft reopened to PENDING.')) return
@@ -1014,12 +1015,12 @@ function SettingsInner() {
 
             {/* Rookie draft date(s) — per sport when drafts run per sport */}
             <div className="border-t border-ink-50 pt-4">
-              <p className="text-sm font-semibold text-ink-800 mb-1">Rookie Draft {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? 'Dates (per sport)' : 'Date'}</p>
+              <p className="disp text-[16px] font-bold tracking-[.06em] uppercase mb-1">Rookie Draft {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? 'Dates (per sport)' : 'Date'}</p>
               {(form.rookieDraftMode ?? 'PER_SPORT') === 'PER_SPORT' ? (
                 <div className="space-y-2">
                   {orderedEnabled.map(s => (
                     <div key={s} className="flex items-center gap-3">
-                      <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${sportMeta(s).color}`}><span>{sportMeta(s).emoji}</span>{s}</span>
+                      <span className="w-24 flex-none"><Lg sp={s} /></span>
                       <input type="datetime-local" className="input flex-1" value={rookieDates[s] ?? ''} onChange={e => setRookieDates(d => ({ ...d, [s]: e.target.value }))} />
                     </div>
                   ))}
@@ -1031,16 +1032,16 @@ function SettingsInner() {
 
             <div className="border-t border-ink-50 pt-4">
               <div className="rounded-lg bg-ink-50 border border-ink-50 p-4 mb-4">
-                <p className="text-sm font-semibold text-ink-800">Initial dynasty draft</p>
+                <p className="disp text-[16px] font-bold tracking-[.06em] uppercase">Initial dynasty draft</p>
                 <p className="text-xs text-ink-500 mt-1">
                   One combined cross-sport draft. Its length is automatically the total roster spots a club fills
                   (starters + bench + taxi, every sport): <span className="font-bold text-black">{dynastyDraftRounds(rosterObj)} rounds</span>.
                 </p>
               </div>
-              <p className="text-sm font-semibold text-ink-800 mb-2">Per-sport rookie-draft rounds</p>
+              <p className="disp text-[16px] font-bold tracking-[.06em] uppercase mb-2">Per-sport rookie-draft rounds</p>
               <SubSportSelector subTabs={subTabs} subSport={subSport} setSubSport={setSubSport} />
               <div className="mt-3">
-                <label className="label">{subSport} Rookie Rounds</label>
+                <label className="label"><Code sp={subSport} /> Rookie Rounds</label>
                 <input type="number" min={1} max={20} className="input w-32" value={rookieRoundsObj[subSport] ?? 4}
                   onChange={e => setRookieRoundsObj(d => ({ ...d, [subSport]: +e.target.value }))} />
               </div>
@@ -1051,7 +1052,7 @@ function SettingsInner() {
         {/* Waivers */}
         {tab === 'Waivers' && (
           <>
-            <h3 className="font-semibold text-black">Waivers</h3>
+            <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">WAIVERS</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Waiver Type</label>
@@ -1087,10 +1088,9 @@ function SettingsInner() {
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const wr = waiverSchedObj[s] ?? { day: 3, hour: 3 }
-                  const meta = sportMeta(s)
                   return (
                     <div key={s} className="flex items-center gap-3 rounded-lg border border-ink-100 p-2">
-                      <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
+                      <span className="w-24 flex-none"><Lg sp={s} /></span>
                       <select className="select flex-1" value={wr.day} onChange={e => setWaiverSchedObj(p => ({ ...p, [s]: { ...wr, day: +e.target.value } }))}>
                         {WAIVER_DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
                       </select>
@@ -1112,10 +1112,9 @@ function SettingsInner() {
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
                   const lim = txLimits[s] ?? { max: 0, period: 'WEEKLY' }
-                  const meta = sportMeta(s)
                   return (
                     <div key={s} className="flex items-center gap-3 rounded-lg border border-ink-100 p-2">
-                      <span className={`inline-flex items-center gap-1.5 w-20 font-semibold ${meta.color}`}><span>{meta.emoji}</span>{s}</span>
+                      <span className="w-24 flex-none"><Lg sp={s} /></span>
                       <input type="number" min={0} className="input w-24 text-sm" value={lim.max} onChange={e => setTxLimits(p => ({ ...p, [s]: { ...lim, max: Math.max(0, +e.target.value) } }))} />
                       <span className="text-xs text-ink-400">moves per</span>
                       <select className="select w-auto text-sm" value={lim.period} onChange={e => setTxLimits(p => ({ ...p, [s]: { ...lim, period: e.target.value } }))}>
@@ -1136,7 +1135,7 @@ function SettingsInner() {
         {/* Trades */}
         {tab === 'Trades' && (
           <>
-            <h3 className="font-semibold text-black">Trades</h3>
+            <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">TRADES</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Trade Review</label>
@@ -1160,7 +1159,7 @@ function SettingsInner() {
                   const mode = TRADE_DEADLINE_MODES.find(m => m.value === d.mode)
                   return (
                     <div key={s} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-50 p-2.5">
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${sportMeta(s).light} w-14 text-center`}>{sportMeta(s).emoji} {s}</span>
+                      <span className="w-24 flex-none"><Lg sp={s} /></span>
                       <select className="select flex-1 w-full sm:w-auto sm:min-w-44 text-sm py-1.5" value={d.mode} onChange={e => setD({ mode: e.target.value })}>
                         {TRADE_DEADLINE_MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                       </select>
@@ -1189,7 +1188,7 @@ function SettingsInner() {
               </div>
             </div>
 
-            <div className="p-4 bg-blue-50 rounded-lg text-sm text-blue-800 border border-blue-100">
+            <div className="p-4 bg-ink-50 rounded text-sm text-black border border-ink-100">
               <strong>Cross-sport trades</strong> are always enabled — clubs can package players and draft picks from any sport in one deal. A deal is blocked only if <em>any</em> sport in it is past its deadline.
             </div>
           </>
@@ -1198,7 +1197,7 @@ function SettingsInner() {
         {/* Playoffs */}
         {tab === 'Playoffs' && (
           <>
-            <h3 className="font-semibold text-black">Playoffs</h3>
+            <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">PLAYOFFS</h3>
             {(() => {
               const teams = form.playoffTeams ?? 6
               const maxR = maxPlayoffRounds(teams)
@@ -1238,7 +1237,7 @@ function SettingsInner() {
               )
             })()}
             <div className="border-t border-ink-50 pt-4">
-              <p className="text-sm font-semibold text-ink-800">Per-sport playoff start</p>
+              <p className="disp text-[16px] font-bold tracking-[.06em] uppercase">Per-sport playoff start</p>
               <p className="text-xs text-ink-500 mb-3">Each sport runs on its own calendar, so <strong>playoffs begin the week after that sport's regular season ends</strong> — they don't all start the same week. Adjust each sport's start week and length in the <strong>Sports &amp; Schedule</strong> tab.</p>
               <div className="space-y-2">
                 {orderedEnabled.map(s => {
@@ -1247,7 +1246,7 @@ function SettingsInner() {
                   const playoffStart = startWk + len
                   return (
                     <div key={s} className="flex flex-wrap items-center gap-3 rounded-lg border border-ink-50 p-2.5">
-                      <span className={`text-xs font-bold px-2 py-1 rounded w-14 text-center ${sportMeta(s).light}`}>{sportMeta(s).emoji} {s}</span>
+                      <span className="w-24 flex-none"><Lg sp={s} /></span>
                       <span className="text-[11px] text-ink-500">Weeks {startWk}–{startWk + len - 1}</span>
                       <span className="text-[11px] text-ink-400 sm:ml-auto"><strong className="text-ink-600">Playoffs begin week {playoffStart}</strong> ({formatWeekRange(form.season, playoffStart, { seasonStart: form.seasonStart })})</span>
                     </div>
@@ -1257,7 +1256,7 @@ function SettingsInner() {
             </div>
 
             <div className="border-t border-ink-50 pt-4 space-y-3">
-              <p className="text-sm font-semibold text-ink-800">Bracket options</p>
+              <p className="disp text-[16px] font-bold tracking-[.06em] uppercase">Bracket options</p>
               <div className="max-w-xs">
                 <label className="label">Seeding tiebreaker</label>
                 <select className="select" value={form.playoffTiebreaker ?? 'POINTS_FOR'} onChange={e => set('playoffTiebreaker', e.target.value)}>
@@ -1308,7 +1307,7 @@ function SettingsInner() {
         {/* Federation */}
         {tab === 'Federation' && (
           <>
-            <h3 className="font-semibold text-black">Federation Scoring</h3>
+            <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">FEDERATION SCORING</h3>
             <p className="text-sm text-ink-500">Each club earns federation points based on where it finishes in every sport. Edit the points awarded per finishing position.</p>
             <div>
               <label className="label">Placement Points (1st → last)</label>
@@ -1333,7 +1332,7 @@ function SettingsInner() {
                   <label key={s} className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <input type="checkbox" checked={(fed.includedSports ?? []).includes(s)}
                       onChange={() => setFed((f: any) => { const inc = new Set(f.includedSports ?? []); inc.has(s) ? inc.delete(s) : inc.add(s); return { ...f, includedSports: [...inc] } })} className="w-4 h-4" />
-                    {sportMeta(s).emoji} {s}
+                    <Lg sp={s} />
                   </label>
                 ))}
               </div>
@@ -1428,7 +1427,7 @@ function ImportHistoryPanel({ leagueId, onImported }: { leagueId: string; onImpo
 
   return (
     <div className="mt-8 border border-ink-100 rounded-lg p-4 bg-ink-50/60">
-      <h4 className="font-semibold text-black text-sm">Import legacy league history</h4>
+      <h4 className="disp text-[17px] font-bold tracking-[.04em]">IMPORT LEGACY LEAGUE HISTORY</h4>
       <p className="text-xs text-ink-500 mt-1">Bring a former league&apos;s past seasons in from a JSON file — champions and per-club, per-sport records feed the History page and all-time standings. Clubs are matched by name; any not already here are created as archived historical clubs.</p>
       {!open
         ? <button onClick={() => setOpen(true)} className="btn-secondary text-sm mt-3">Import history…</button>
@@ -1467,7 +1466,7 @@ function ForceWaiversPanel({ leagueId }: { leagueId: string }) {
   }
   return (
     <div className="border-t border-ink-50 pt-4">
-      <h4 className="font-semibold text-black text-sm">Force process waivers</h4>
+      <h4 className="disp text-[17px] font-bold tracking-[.04em]">FORCE PROCESS WAIVERS</h4>
       <p className="text-xs text-ink-500 mt-1">Immediately award every pending waiver claim now, outside the scheduled run. Kept here in settings on purpose — it settles all pending claims at once.</p>
       {msg && <p className="text-sm text-ink-800 mt-2">{msg}</p>}
       {!confirm
@@ -1554,7 +1553,7 @@ function LiveStatsPanel({ leagueId }: { leagueId: string }) {
   const pct = status && status.cap ? Math.min(100, Math.round((status.used / status.cap) * 100)) : 0
   return (
     <>
-      <h3 className="font-semibold text-black">Live Stats</h3>
+      <h3 className="disp text-[24px] sm:text-[28px] font-extrabold leading-none">LIVE STATS</h3>
       <p className="text-sm text-ink-500">Real game stats are pulled from the sports data provider (Tank01) and used to score matchups. The simulator only fills players with no real stat line yet.</p>
 
       {status && !status.configured && (
@@ -1609,11 +1608,31 @@ function SubSportSelector({ subTabs, subSport, setSubSport }: { subTabs: string[
   return (
     <div className="flex gap-2 flex-wrap">
       {subTabs.map(s => (
-        <button key={s} onClick={() => setSubSport(s)}
-          className={`px-3 py-1 rounded-full text-xs font-semibold ${subSport === s ? `${sportMeta(s).bg} text-white` : 'bg-ink-50 text-ink-600'}`}>
-          {sportMeta(s).emoji} {s}
-        </button>
+        <SportChip key={s} sp={s} on={subSport === s} onClick={() => setSubSport(s)} />
       ))}
     </div>
+  )
+}
+
+// a league button in the ySF style: its symbol and code, filled in the league colour when selected
+function SportChip({ sp, on, onClick }: { sp: string; on: boolean; onClick: () => void }) {
+  const l = YSF_LEAGUES.find(x => x.sport === sp)
+  if (!l) return <button onClick={onClick} className={on ? 'tab-active' : 'tab-inactive'}>{sp}</button>
+  return (
+    <button onClick={onClick} className="inline-flex items-center gap-2 h-10 pl-2 pr-3 rounded border-2 font-display text-[13px] font-bold tracking-[.06em] leading-none"
+      style={{ borderColor: l.color, background: on ? l.color : '#fff', color: on ? '#fff' : '#000' }}>
+      <img src={YSF_ART.leagueSymbol(l.key, on ? 'color' : 'white')} alt="" className="w-6 h-6 object-contain" /><span className="ysf-case">{l.code}</span>
+    </button>
+  )
+}
+
+// a league's symbol and code (ySFFL …) in place of the sport name
+function Lg({ sp, big = false }: { sp: string; big?: boolean }) {
+  const l = YSF_LEAGUES.find(x => x.sport === sp)
+  if (!l) return <span className="ui text-[13px] font-bold">{sp}</span>
+  return (
+    <span className={`inline-flex items-center gap-1.5 font-display font-bold tracking-[.06em] ${big ? 'flex-col text-[14px]' : 'text-[13px]'}`}>
+      <img src={YSF_ART.leagueSymbol(l.key, 'white')} alt="" className={big ? 'w-9 h-9 object-contain' : 'w-5 h-5 object-contain'} /><span className="ysf-case">{l.code}</span>
+    </span>
   )
 }

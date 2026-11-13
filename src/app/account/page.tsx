@@ -45,8 +45,8 @@ export default function AccountPage() {
   }
   const CHANNEL_LABEL: Record<string, string> = { inApp: 'In-app', email: 'Email', push: 'Push' }
 
-  if (status === 'loading') return <div className="text-center py-20 text-slate-400">Loading…</div>
-  if (!session) return <div className="max-w-md mx-auto px-4 py-16 text-center text-slate-500">Please <Link href="/auth/login" className="text-blue-600">sign in</Link>.</div>
+  if (status === 'loading') return <div className="text-center py-20 text-ink-400">Loading…</div>
+  if (!session) return <div className="max-w-md mx-auto px-4 py-16 text-center text-ink-500">Please <Link href="/auth/login" className="underline font-semibold">sign in</Link>.</div>
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setMsg(null)
@@ -71,19 +71,22 @@ export default function AccountPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Account Settings</h1>
+      <div className="border-b-2 border-black pb-3.5 mb-6">
+        <div className="eyebrow">MEMBER PORTAL</div>
+        <h1 className="disp text-[40px] sm:text-[56px] font-extrabold leading-[.85] mt-1.5">ACCOUNT</h1>
+      </div>
 
-      {msg && <div className={`mb-4 px-3 py-2 rounded-lg text-sm ${msg.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{msg.text}</div>}
+      {msg && <div className={`mb-4 px-3 py-2 rounded-lg text-sm ${msg.ok ? 'bg-[#177245] text-white' : 'bg-[#ba0c2f] text-white'}`}>{msg.text}</div>}
 
       <form onSubmit={saveProfile} className="card p-5 mb-5 space-y-4">
-        <h2 className="font-semibold text-slate-900">Profile</h2>
+        <h2 className="disp text-[22px] font-extrabold leading-none uppercase">Profile</h2>
         <div><label className="label">Display name</label><input className="input" value={name} onChange={e => setName(e.target.value)} /></div>
         <div><label className="label">Email</label><input type="email" className="input" value={email} onChange={e => setEmail(e.target.value)} /></div>
         <button disabled={saving} className="btn-primary disabled:opacity-50">{saving ? 'Saving…' : 'Save profile'}</button>
       </form>
 
       <form onSubmit={savePassword} className="card p-5 mb-5 space-y-4">
-        <h2 className="font-semibold text-slate-900">Change password</h2>
+        <h2 className="disp text-[22px] font-extrabold leading-none uppercase">Change password</h2>
         <div><label className="label">Current password</label><input type="password" className="input" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoComplete="current-password" /></div>
         <div><label className="label">New password</label><input type="password" className="input" value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" /></div>
         <div><label className="label">Confirm new password</label><input type="password" className="input" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" /></div>
@@ -92,8 +95,7 @@ export default function AccountPage() {
 
       {np && npMeta && (
         <div className="card p-5 mb-5">
-          <h2 className="font-semibold text-slate-900 mb-1">Notifications</h2>
-          <p className="text-xs text-slate-500 mb-4">Choose how you want to hear about each kind of event.</p>
+          <h2 className="disp text-[22px] font-extrabold leading-none uppercase mb-3">Notifications</h2>
 
           <div className="space-y-3">
             {npMeta.channels.map(ch => {
@@ -103,13 +105,13 @@ export default function AccountPage() {
                   <label className="flex items-center gap-2 mb-1.5">
                     <input type="checkbox" checked={!!np[ch]?.enabled} disabled={unavailable}
                       onChange={e => setNp({ ...np, [ch]: { ...np[ch], enabled: e.target.checked } })} />
-                    <span className="font-medium text-slate-800 text-sm">{CHANNEL_LABEL[ch] ?? ch}</span>
-                    {unavailable && <span className="text-[10px] text-slate-400">(not configured on this server)</span>}
+                    <span className="ui text-[13px] font-bold uppercase">{CHANNEL_LABEL[ch] ?? ch}</span>
+                    {unavailable && <span className="text-[10px] text-ink-400">(not configured on this server)</span>}
                   </label>
                   {np[ch]?.enabled && (
                     <div className="ml-6 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                       {Object.entries(npMeta.events).map(([key, label]) => (
-                        <label key={key} className="flex items-center gap-2 text-xs text-slate-600">
+                        <label key={key} className="flex items-center gap-2 text-xs text-ink-500">
                           <input type="checkbox" checked={np[ch].events[key] !== false}
                             onChange={e => setNp({ ...np, [ch]: { ...np[ch], events: { ...np[ch].events, [key]: e.target.checked } } })} />
                           {label}
@@ -123,8 +125,8 @@ export default function AccountPage() {
                         className="btn-secondary text-xs disabled:opacity-50">
                         {pushDevice === 'busy' ? 'Working…' : pushDevice === 'on' ? 'Disable push on this device' : 'Enable push on this device'}
                       </button>
-                      {!pushSupported() && <span className="ml-2 text-[10px] text-slate-400">This browser doesn’t support push.</span>}
-                      {pushMsg && <p className="text-[11px] text-slate-500 mt-1">{pushMsg}</p>}
+                      {!pushSupported() && <span className="ml-2 text-[10px] text-ink-400">This browser doesn’t support push.</span>}
+                      {pushMsg && <p className="text-[11px] text-ink-500 mt-1">{pushMsg}</p>}
                     </div>
                   )}
                 </div>

@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { safeParse, orderedSports, sportLabel, sportMeta } from '@/lib/utils'
+import { YSF_LEAGUE_ID, YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 
 export const metadata = { title: 'Leagues' }
 
@@ -27,6 +28,70 @@ export default async function SportsHubPage({ params }: { params: Promise<{ id: 
   const standingsOf = (sp: string) => recs.filter(r => r.sport === sp)
     .sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.pointsFor ?? 0) - (a.pointsFor ?? 0))
   const lastChamp = (sp: string) => history.filter(h => h.scope === sp).sort((a, b) => b.season.localeCompare(a.season))[0]
+
+  if (id === YSF_LEAGUE_ID) {
+    const fmtPF = (x: number) => x.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    return (
+      <div className="flex flex-col gap-5 pb-8 w-full min-w-0">
+        <div className="border-b-2 border-black pb-3.5">
+          <div className="eyebrow">{U(`ySF · ${(league.season ?? '').replace('-', '–')}`)}</div>
+          <h1 className="disp text-[40px] sm:text-[64px] font-extrabold leading-[.85] mt-1.5">LEAGUES</h1>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {YSF_LEAGUES.filter(L => sports.includes(L.sport)).map(L => {
+            const standings = standingsOf(L.sport)
+            const champ = lastChamp(L.sport), ch = champ ? teamById.get(champ.championTeamId ?? '') : null
+            return (
+              <section key={L.sport} className="card overflow-hidden">
+                <Link href={`/leagues/${id}/sports/${L.sport}`} className="flex items-center gap-3 px-4 py-3 text-white hover:opacity-95" style={{ background: L.color }}>
+                  <img src={YSF_ART.leagueSymbol(L.key, 'color')} alt="" className="w-11 h-11 object-contain flex-none" />
+                  <div className="min-w-0 flex-1">
+                    <div className="disp text-[24px] font-extrabold leading-none"><span className="ysf-case">{L.code}</span></div>
+                    <div className="ui text-[11px] opacity-90 mt-1 truncate">{U(L.name)}{ch ? <> · {U('Champion')} {ch.abbr}</> : null}</div>
+                  </div>
+                  <span className="ui text-[12px] font-bold flex-none">OPEN →</span>
+                </Link>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[14px]">
+                    <thead>
+                      <tr className="ui text-[11px] text-ink-500 border-b border-ink-100">
+                        <th className="text-left font-bold px-3 py-2 w-10">RK</th>
+                        <th className="text-left font-bold py-2">CLUB</th>
+                        <th className="text-right font-bold px-2 py-2">W</th>
+                        <th className="text-right font-bold px-2 py-2">L</th>
+                        {standings.some(r => r.ties) && <th className="text-right font-bold px-2 py-2">T</th>}
+                        <th className="text-right font-bold px-3 py-2">PF</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {standings.map((r, i) => {
+                        const t = teamById.get(r.teamId)
+                        return (
+                          <tr key={r.teamId} className="border-b border-ink-50 last:border-0">
+                            <td className="px-3 py-2 tabular-nums text-ink-500">{i + 1}</td>
+                            <td className="py-2">
+                              <Link href={`/leagues/${id}/teams/${r.teamId}`} className="flex items-center gap-2 min-w-0 hover:underline">
+                                {t?.logo && <img src={t.logo} alt="" className="w-6 h-6 object-contain flex-none" />}
+                                <span className="font-semibold truncate">{t?.name ?? '—'}</span>
+                              </Link>
+                            </td>
+                            <td className="px-2 py-2 text-right tabular-nums font-bold">{r.wins ?? 0}</td>
+                            <td className="px-2 py-2 text-right tabular-nums font-bold">{r.losses ?? 0}</td>
+                            {standings.some(x => x.ties) && <td className="px-2 py-2 text-right tabular-nums">{r.ties ?? 0}</td>}
+                            <td className="px-3 py-2 text-right tabular-nums">{fmtPF(r.pointsFor ?? 0)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
