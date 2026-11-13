@@ -83,17 +83,28 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
       if (live && cur[m.sport ?? ''] === m.week) days.forEach(d => curDays.add(d))
     }
   }
-  // each season's playoff rounds: in the last playoff week, the championship is the game between the
-  // two clubs that won the week before, the other game is for 3rd place
-  const round = new Map<string, 'final' | 'third'>()
+  // each season's playoff rounds. A game between two clubs that both lost their last playoff game is a
+  // consolation game: after a first-round loss it is for 5th place, after a semifinal loss for 3rd. In
+  // the last playoff week, the game between the two semifinal winners is the championship.
+  const round = new Map<string, 'final' | 'third' | 'fifth'>()
   for (const season of allSeasons) for (const L of YSF_LEAGUES) {
     const po = all.filter(m => m.season === season && m.sport === L.sport && m.isPlayoff && m.awayTeamId)
     const wks = [...new Set(po.map(m => m.week))].sort((a, b) => a - b)
     if (wks.length < 2) continue
-    const winners = new Set(po.filter(m => m.week === wks[wks.length - 2] && m.isComplete).map(m => (m.homeScore ?? 0) >= (m.awayScore ?? 0) ? m.homeTeamId : m.awayTeamId!))
-    const last = po.filter(m => m.week === wks[wks.length - 1])
-    const fin = last.find(m => winners.has(m.homeTeamId) && winners.has(m.awayTeamId!))
-    if (fin) { round.set(fin.id, 'final'); last.filter(m => m !== fin).forEach(m => round.set(m.id, 'third')) }
+    const lostIn = new Map<string, number>() // club → the playoff round (0 = first) it was knocked out in
+    wks.forEach((w, r) => {
+      for (const m of po.filter(x => x.week === w)) {
+        const both = [m.homeTeamId, m.awayTeamId!]
+        if (both.every(t => lostIn.has(t))) {
+          // consolation: decided by the round they went out in (the later of the two)
+          const out = Math.max(...both.map(t => lostIn.get(t)!))
+          round.set(m.id, out >= wks.length - 2 ? 'third' : 'fifth')
+          continue
+        }
+        if (r === wks.length - 1) round.set(m.id, 'final')
+        if (m.isComplete) { const loser = (m.homeScore ?? 0) >= (m.awayScore ?? 0) ? m.awayTeamId! : m.homeTeamId; if (!lostIn.has(loser)) lostIn.set(loser, r) }
+      }
+    })
   }
   const days = [...new Set(evs.flatMap(e => e.days))].sort((a, b) => a - b)
   const col = new Map(days.map((d, i) => [d, i]))
