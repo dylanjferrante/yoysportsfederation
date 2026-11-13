@@ -7,6 +7,10 @@ import { PageTitle, th, td } from '@/components/ysf/ui'
 import { loadConstitution, DOC_URL } from '@/lib/ysf-constitution'
 import { auditLeague } from '@/lib/ysf-audit'
 import { usage } from '@/lib/api-usage'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import WarnButton from './WarnButton'
+import { ensureWarnings } from '@/lib/ysf-rules'
 import { LEAGUE_OF } from '@/lib/ysf-rules'
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
@@ -147,7 +151,7 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
         </div>
       )}
 
-      {t === 'compliance' && <Compliance season={league.season} />}
+      {t === 'compliance' && <Compliance season={league.season} leagueId={league.id} commissionerId={league.commissionerId} />}
 
       {t === 'resolutions' && (
         <section className="flex flex-col gap-4">
@@ -198,8 +202,13 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
   )
 }
 
-async function Compliance({ season }: { season?: string }) {
+async function Compliance({ season, leagueId, commissionerId }: { season?: string; leagueId: string; commissionerId?: string | null }) {
   const { findings, windows } = await auditLeague(season)
+  const session = await getServerSession(authOptions)
+  const isCommish = !!session?.user?.id && session.user.id === commissionerId
+  ensureWarnings()
+  const warned = new Map(db.all<{ k: string; at: string }>(sql`SELECT team_id || '|' || rule k, MAX(warned_at) at FROM ysf_warnings GROUP BY team_id, rule`).map(w => [w.k, w.at]))
+  const wStamp = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso))
   const clubs = new Map(db.all<{ id: string; name: string; logo: string | null }>(sql`SELECT id, name, logo FROM teams WHERE league_id = 'ysf'`).map(c => [c.id, c]))
   const now = Date.now()
   return (
@@ -221,7 +230,11 @@ async function Compliance({ season }: { season?: string }) {
                   <tbody>{fs.map((f, i) => { const c = clubs.get(f.teamId); return (
                     <tr key={i}>
                       <td className={`${td} !whitespace-normal break-words`}><span className="inline-flex items-center gap-1.5">{c?.logo && <img src={c.logo} alt="" className="w-5 h-5 object-contain flex-none" />}<span>{c?.name ?? '—'}</span></span></td>
-                      <td className={`${td} !whitespace-normal break-words`}><div>{f.rule}</div><div className="text-[13px] font-normal text-ink-600 mt-0.5"><span className="ysf-case">{f.detail}</span></div></td>
+                      <td className={`${td} !whitespace-normal break-words`}><div>{f.rule}</div><div className="text-[13px] font-normal text-ink-600 mt-0.5"><span className="ysf-case">{f.detail}</span></div>
+                        {(warned.get(`${f.teamId}|${f.rule}`) || isCommish) && <div className="mt-1.5 flex items-center gap-2">
+                          {warned.get(`${f.teamId}|${f.rule}`) && <span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none text-white bg-[#ba0c2f]">WARNED {wStamp(warned.get(`${f.teamId}|${f.rule}`)!).toUpperCase()}</span>}
+                          {isCommish && <WarnButton leagueId={leagueId} teamId={f.teamId} sport={f.sport} rule={f.rule} detail={f.detail} />}
+                        </div>}</td>
                       <td className={`${td} hidden sm:table-cell !whitespace-normal font-normal text-[13px]`}>{f.source}</td>
                     </tr>) })}</tbody>
                 </table>
