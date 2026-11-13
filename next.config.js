@@ -6,6 +6,7 @@ const nextConfig = {
     return [
       { source: '/leagues/ysf/odds', destination: '/leagues/ysf/cup', permanent: false },
       { source: '/leagues/ysf/schedule', destination: '/leagues/ysf/scores', permanent: false },
+      { source: '/leagues/ysf/seasons', destination: '/leagues/ysf/history', permanent: false },
     ]
   },
 }
