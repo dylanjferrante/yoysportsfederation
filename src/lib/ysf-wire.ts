@@ -421,7 +421,12 @@ function burstStory(d: Desk, b: MoveRow[]): Story | null {
   if (b.length > 6) body.push(`${club.abbreviation} made ${say(b.length - 6)} more move${b.length - 6 === 1 ? '' : 's'} in the same stretch.`)
   for (const sp of sports) { const r = rowOf(d, sp, club.id); if (r) body.push(`${club.abbreviation} is ${r.rec} and ${ord(r.rk)} in ${code(sp)}.`) }
   const lastN = (xs: MoveRow[]) => listOf(xs.slice(0, 3).map(m => last(m.player))) + (xs.length > 3 ? ` and ${say(xs.length - 3)} more` : '')
-  const headline = adds.length && drops.length ? `${club.abbreviation} adds ${lastN(adds)}, cuts ${lastN(drops)}`
+  // a big overhaul reads as a count, led by the best player coming in
+  // (by where each ranks at his position, so a hockey and a basketball player compare fairly)
+  const pctile = (m: MoveRow) => { const ps = playerSeason(d, m.sport, m.player); return ps?.posRank ? ps.posRank / ps.posCount : 1 }
+  const best = [...adds].sort((x, y) => pctile(x) - pctile(y))[0]
+  const headline = b.length > 4 ? `${club.abbreviation} overhauls its roster: ${say(adds.length)} in, ${say(drops.length)} out${best ? `, led by ${last(best.player)}` : ''}`
+    : adds.length && drops.length ? `${club.abbreviation} adds ${lastN(adds)}, cuts ${lastN(drops)}`
     : drops.length ? `${club.abbreviation} clears out ${lastN(drops)}` : `${club.abbreviation} ${spent ? `spends $${spent} on` : 'brings in'} ${lastN(adds)}`
   const n = say(b.length)
   return { slot: `move:${b[0].id}`, kind: 'move', sport: sports.length === 1 ? sports[0] : 'MOVES', writer: 'hank', headline,
