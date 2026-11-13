@@ -47,7 +47,8 @@ export default async function YsfLeague({ league, sport }: { league: any; sport:
     ].filter(g => g.rows.length)
   }
 
-  const { moves } = await loadMoves(league.id)
+  const { moves: allMoves } = await loadMoves(league.id, league.season)
+  const moves = allMoves.filter(m => m.season === league.season)
   return (
     <LeagueView data={{
       leagueId: league.id, sport, code: codes[sport], name: L.name, live: (s.live as string[]).includes(sport), codes, clubs: C,

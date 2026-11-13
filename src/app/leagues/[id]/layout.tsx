@@ -11,6 +11,8 @@ import LeagueNav from './LeagueNav'
 import Ticker from './Ticker'
 import { U, YSF_LEAGUE_ID } from '@/lib/ysf'
 import { YsfFooter } from '@/components/ysf/ui'
+import YsfTicker from '@/components/ysf/YsfTicker'
+import { buildTicker } from '@/lib/ysf-ticker'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -52,7 +54,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
       <SportNamingProvider value={{ sportAbbr, sportNames }}>
         <main className="max-w-[1240px] mx-auto px-4 sm:px-5 pt-6 sm:pt-8 pb-12 flex flex-col gap-7 sm:gap-9">{children}</main>
         <YsfFooter />
-        <Ticker leagueId={id} primary={primary} secondary={secondary} sportAbbr={sportAbbr} />
+        <YsfTicker blocks={await buildTicker(league).catch(() => [])} />
       </SportNamingProvider>
     )
   }

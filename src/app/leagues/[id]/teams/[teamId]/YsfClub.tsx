@@ -110,7 +110,7 @@ export default async function YsfClub({ league, teamId }: { league: any; teamId:
         {trophies.length > 0 && (
           <div className="flex flex-col items-end gap-2">
             <div className="ui text-[12px] tracking-[.14em] opacity-90">TROPHY CASE</div>
-            {trophies.map(t => <span key={t.id} className="inline-flex items-center gap-2 bg-black/20 rounded px-3 py-2 font-bold text-[14px]"><img src={trophyArt(t.scope)} alt="" className="w-6 h-6 object-contain" />{trophyName(t.scope, t.season)} champion</span>)}
+            {trophies.map(t => <span key={t.id} className="inline-flex items-center gap-2 bg-black/20 rounded px-3 py-2 font-bold text-[14px]"><img src={trophyArt(t.scope, t.season)} alt="" className="w-6 h-6 object-contain" />{trophyName(t.scope, t.season)} champion</span>)}
           </div>
         )}
       </section>
