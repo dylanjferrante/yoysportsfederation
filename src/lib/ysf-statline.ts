@@ -43,3 +43,30 @@ export function statLine(sport: string, slot: string, stats: S | null | undefine
   if (!stats) return ''
   return sport === 'NFL' ? nfl(stats, slot) : sport === 'NHL' ? nhl(stats) : sport === 'NBA' ? nba(stats) : mlb(stats)
 }
+
+// Box-score columns by stat type: [label, key in the Fantrax stats]. Rows of different types
+// (QB/RB/WR vs K vs D/ST, skaters vs goalies, hitters vs pitchers) carry their own header row.
+export type StatType = { id: string; cols: [string, string][] }
+const T: Record<string, StatType> = {
+  nfl: { id: 'nfl', cols: [['PaYd', 'YDS'], ['PaTD', 'TD'], ['Int', 'Int'], ['RuYd', 'YDS#8'], ['RuTD', 'TD#9'], ['Rec', 'REC'], ['ReYd', 'YDS#11'], ['ReTD', 'TD#12'], ['Tgt', 'Tgt'], ['FL', 'FL'], ['2PT', '2Pa+2RR']] },
+  k: { id: 'k', cols: [['FGM', 'FGM'], ['FG Yds', 'FGYd'], ['XP', 'XP'], ['XP Miss', 'XPM']] },
+  dst: { id: 'dst', cols: [['PA', 'PA-Def'], ['YdA', 'YdA'], ['Sk', 'Sk'], ['TO', 'TA'], ['Sfty', 'Sft'], ['TD', 'TDDST']] },
+  skater: { id: 'skater', cols: [['G', 'G'], ['A', 'A'], ['SOG', 'SOG'], ['PPP', 'PPP'], ['SHP', 'SHP'], ['Hit', 'Hit'], ['Blk', 'Blk']] },
+  goalie: { id: 'goalie', cols: [['W', 'W'], ['OTL', 'OL+ShL'], ['SV', 'SV'], ['GA', 'GA'], ['SO', 'SHO']] },
+  nba: { id: 'nba', cols: [['PTS', 'PTS'], ['REB', 'REB'], ['AST', 'AST'], ['STL', 'ST'], ['BLK', 'BLK'], ['TO', 'TO'], ['FGM', 'FGM'], ['FGA', 'FGA'], ['3PM', '3PTM'], ['FTM', 'FTM'], ['FTA', 'FTA']] },
+  hitter: { id: 'hitter', cols: [['AB', 'AB'], ['R', 'R'], ['H', 'H'], ['HR', 'HR'], ['RBI', 'RBI'], ['BB', 'BB'], ['K', 'SO'], ['SB', 'SB'], ['TB', 'TB']] },
+  pitcher: { id: 'pitcher', cols: [['IP', 'IP'], ['K', 'K'], ['W', 'W'], ['L', 'L'], ['ER', 'ER'], ['H', 'H'], ['BB', 'BB'], ['SV', 'SV'], ['HLD', 'HLD']] },
+}
+export function statType(sport: string, slot: string, stats: S | null | undefined): StatType {
+  const s = stats ?? {}
+  if (sport === 'NFL') return slot === 'K' || 'FGM' in s || 'XP' in s ? T.k : slot === 'DST' || 'YdA' in s ? T.dst : T.nfl
+  if (sport === 'NHL') return slot === 'G' || 'SV' in s || 'GA' in s ? T.goalie : T.skater
+  if (sport === 'NBA') return T.nba
+  return slot === 'SP' || slot === 'RP' || slot === 'P' || 'IP' in s ? T.pitcher : T.hitter
+}
+export function statCell(stats: S | null | undefined, key: string): string {
+  if (!stats) return ''
+  if (key.includes('+')) { const v = key.split('+').reduce((a, k) => a + n(stats, k), 0); return v ? String(v) : '0' }
+  return stats[key] ?? ''
+}
+export const maxCols = (sport: string) => sport === 'NFL' ? T.nfl.cols.length : sport === 'NHL' ? T.skater.cols.length : sport === 'NBA' ? T.nba.cols.length : T.hitter.cols.length
