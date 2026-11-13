@@ -55,42 +55,59 @@ export default async function YsfClub({ league, teamId, manage }: { league: any;
       me: started ? sd.me : null, them: started ? sd.them : null, status: !started ? 'Not started' : sd.me > sd.them ? 'Leading' : sd.me < sd.them ? 'Trailing' : 'Tied' }
   })
 
-  // calendar: every matchup this club has ever played, season by season (oldest first, a divider
-  // between seasons); a matchup that runs several weeks spans every week it covers
+  // calendar: every matchup this club has ever played, oldest first, one column per calendar week.
+  // Where seasons overlap (late-summer baseball and early-season football) both seasons' matchups
+  // share that week's column; the header marks the week each season starts. A matchup that runs
+  // several weeks spans every week it covers.
   const allSeasons = [...new Set(ms.map(m => m.season ?? ''))].filter(Boolean).sort()
-  const calCols: ClubTabsData['calendar']['cols'] = []
-  const calRows: Record<string, ClubTabsData['calendar']['rows'][number]['cells']> = Object.fromEntries(YSF_LEAGUES.map(L => [L.sport, []]))
+  type Ev = { m: typeof ms[number]; season: string; days: number[]; label: string; live: boolean }
+  const evs: Ev[] = []
+  const dayKey = (d: Date) => Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000)
+  const seasonStartDay: Record<string, number> = {}
+  const curDays = new Set<number>()
   for (const season of allSeasons) {
     const live = season === league.season
     const sm = ms.filter(m => m.season === season)
     const pw = live ? null : await pastSeasonWeeks(season)
     // the federation weeks each matchup covers (this season stores weeks directly; past seasons store periods)
     const covers = (m: typeof sm[number]) => live ? [m.week] : (pw!.periodWeeks[m.sport ?? '']?.[m.week] ?? [])
-    const weeks = [...new Set(sm.flatMap(covers))].sort((a, b) => a - b)
-    if (!weeks.length) continue
-    calCols.push({ key: `div-${season}`, label: season.replace('-', '–'), current: false, divider: true })
-    for (const L of YSF_LEAGUES) calRows[L.sport].push({ divider: true })
-    for (const w of weeks) { const { start, end } = weekDateRange(season, w); calCols.push({ key: `${season}-${w}`, label: span(start, end), current: live && Object.values(cur).includes(w) }) }
     const firstWk: Record<string, number> = {}
     for (const L of YSF_LEAGUES) { const lw = sm.filter(m => m.sport === L.sport).map(m => m.week); if (lw.length) firstWk[L.sport] = Math.min(...lw) }
-    for (const L of YSF_LEAGUES) {
-      const row = calRows[L.sport]
-      let i = 0
-      while (i < weeks.length) {
-        const w = weeks[i]
-        const m = sm.find(x => x.sport === L.sport && covers(x)[0] === w)
-        if (!m) { row.push(null); i++; continue }
-        const cov = covers(m).filter(x => weeks.includes(x))
-        const sd = side(m)
-        const lab = live ? periodLabel(league, L.sport, m.week) : `${L.sport === 'NFL' ? 'Week' : 'Period'} ${m.week - (firstWk[L.sport] ?? 1) + 1}`
-        row.push({ matchupId: m.id, span: Math.max(1, cov.length), label: lab.replace('Week ', 'WK ').replace('Period ', 'P'), opp: `${sd.home ? '' : '@'}${C[sd.opp]?.abbreviation ?? 'TBD'}`,
-          result: m.isComplete ? `${sd.me > sd.them ? 'W' : sd.me < sd.them ? 'L' : 'T'} ${n1(sd.me)}–${n1(sd.them)}` : (sd.me || sd.them) ? `${n1(sd.me)}–${n1(sd.them)}` : '',
-          tone: (m.isComplete ? (sd.me > sd.them ? 'win' : sd.me < sd.them ? 'loss' : 'tie') : live && cur[L.sport] === w ? 'live' : 'future') as 'win' | 'loss' | 'tie' | 'live' | 'future', playoff: !!m.isPlayoff })
-        i += Math.max(1, cov.length)
-      }
+    for (const m of sm) {
+      const days = covers(m).map(w => dayKey(weekDateRange(season, w).start))
+      if (!days.length) continue
+      const lab = live ? periodLabel(league, m.sport ?? '', m.week) : `${m.sport === 'NFL' ? 'Week' : 'Period'} ${m.week - (firstWk[m.sport ?? ''] ?? 1) + 1}`
+      evs.push({ m, season, days, label: lab.replace('Week ', 'WK ').replace('Period ', 'P'), live })
+      seasonStartDay[season] = Math.min(seasonStartDay[season] ?? Infinity, ...days)
+      if (live && cur[m.sport ?? ''] === m.week) days.forEach(d => curDays.add(d))
     }
   }
-  const calendar = { cols: calCols, rows: YSF_LEAGUES.map(L => ({ sport: L.sport, cells: calRows[L.sport] })) }
+  const days = [...new Set(evs.flatMap(e => e.days))].sort((a, b) => a - b)
+  const col = new Map(days.map((d, i) => [d, i]))
+  const startsAt = new Map(Object.entries(seasonStartDay).map(([sn, d]) => [d, sn]))
+  const calCols: ClubTabsData['calendar']['cols'] = days.map(d => {
+    const st = new Date(d * 86_400_000), en = new Date((d + 6) * 86_400_000)
+    const a = new Date(st.getUTCFullYear(), st.getUTCMonth(), st.getUTCDate()), z = new Date(en.getUTCFullYear(), en.getUTCMonth(), en.getUTCDate())
+    return { key: String(d), label: span(a, z), current: curDays.has(d), season: startsAt.get(d)?.replace('-', '–') }
+  })
+  const calendar = { cols: calCols, rows: YSF_LEAGUES.map(L => {
+    const mine = evs.filter(e => e.m.sport === L.sport).sort((x, y) => x.days[0] - y.days[0])
+    const cells: ClubTabsData['calendar']['rows'][number]['cells'] = []
+    let i = 0
+    for (const e of mine) {
+      const at = col.get(e.days[0])!
+      if (at < i) continue // a second matchup in a week this row already shows (never expected)
+      while (i < at) { cells.push(null); i++ }
+      const width = Math.max(1, Math.min(e.days.length, days.length - at))
+      const sd = side(e.m), m = e.m
+      cells.push({ matchupId: m.id, span: width, label: e.label, opp: `${sd.home ? '' : '@'}${C[sd.opp]?.abbreviation ?? 'TBD'}`,
+        result: m.isComplete ? `${sd.me > sd.them ? 'W' : sd.me < sd.them ? 'L' : 'T'} ${n1(sd.me)}–${n1(sd.them)}` : (sd.me || sd.them) ? `${n1(sd.me)}–${n1(sd.them)}` : '',
+        tone: (m.isComplete ? (sd.me > sd.them ? 'win' : sd.me < sd.them ? 'loss' : 'tie') : e.live && cur[L.sport] === m.week ? 'live' : 'future') as 'win' | 'loss' | 'tie' | 'live' | 'future', playoff: !!m.isPlayoff })
+      i = at + width
+    }
+    while (i < days.length) { cells.push(null); i++ }
+    return { sport: L.sport, cells }
+  }) }
 
   // each league: one entry per season the league has played
   const recs = await db.select().from(teamRecords).where(and(eq(teamRecords.leagueId, league.id), eq(teamRecords.teamId, teamId)))

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Tabs, th, td } from '@/components/ysf/ui'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 
-type Cell = { matchupId: string; span: number; label: string; opp: string; result: string; tone: 'win' | 'loss' | 'tie' | 'live' | 'future'; playoff: boolean } | { divider: true } | null
+type Cell = { matchupId: string; span: number; label: string; opp: string; result: string; tone: 'win' | 'loss' | 'tie' | 'live' | 'future'; playoff: boolean } | null
 export type LeagueSeason = {
   result: string | null; rankLabel: string; rank: string; rec: string; pf: string; fed: string; po: string | null; title: string | null
   sched: { per: string; dates: string; ha: string; crest: string | null; opp: string; matchupId: string; res: string; score: string }[]
@@ -13,7 +13,7 @@ export type LeagueSeason = {
 type PickChip = { kind: 'own' } | { kind: 'acq'; ab: string; crest: string | null } | { kind: 'gone'; ab: string }
 export type ClubTabsData = {
   leagueId: string; clubName: string; clubAb: string; season: string
-  calendar: { cols: { key: string; label: string; current: boolean; divider?: boolean }[]; rows: { sport: string; cells: Cell[] }[] }
+  calendar: { cols: { key: string; label: string; current: boolean; season?: string }[]; rows: { sport: string; cells: Cell[] }[] }
   leagues: Record<string, { seasons: string[]; bySeason: Record<string, LeagueSeason>; roster: { label: string; rows: { slot: string; name: string }[] }[]; rounds: number[]; picks: { year: number; cells: PickChip[][] }[] }>
   drafts: { title: string; sport: string | null; when: string; rows: { pk: string; player: string; via: string }[] }[]
   moves: { when: string; sport: string; kind: string; player: string; detail: string }[]
@@ -62,17 +62,19 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
       {tab === 'cal' && (
         <section className="card p-3 min-w-0">
           <div ref={scroller} className="overflow-x-auto">
-            <div className="grid gap-1" style={{ gridTemplateColumns: `76px ${d.calendar.cols.map(c => c.divider ? '64px' : '112px').join(' ')}` }}>
+            <div className="grid gap-1" style={{ gridTemplateColumns: `76px repeat(${d.calendar.cols.length}, 112px)` }}>
               <span className="sticky left-0 z-10 bg-white" />
-              {d.calendar.cols.map(c => c.divider
-                ? <span key={c.key} className="ui text-[11px] font-bold text-white bg-black rounded inline-flex items-center justify-center text-center leading-tight px-1">{c.label}</span>
-                : <span key={c.key} data-current={c.current ? '1' : undefined} className="text-[11px] font-bold text-center leading-tight py-1" style={{ color: c.current ? '#000' : '#4A4A4A' }}>{c.label}</span>)}
+              {d.calendar.cols.map(c => (
+                <span key={c.key} data-current={c.current ? '1' : undefined} className="flex flex-col items-center justify-end gap-1 text-[11px] font-bold text-center leading-tight py-1" style={{ color: c.current ? '#000' : '#4A4A4A' }}>
+                  {c.season && <span className="ui text-[10px] font-bold text-white bg-black rounded px-1.5 py-0.5">{c.season} STARTS</span>}
+                  {c.label}
+                </span>
+              ))}
               {d.calendar.rows.map(r => {
                 const l = lgOf(r.sport)!
                 return [
                   <span key={r.sport} className="sticky left-0 z-10 bg-white flex items-center gap-1.5 ui text-[12px] font-bold border-r-4 border-black pr-2"><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt="" className="w-6 h-6 object-contain" /><span className="ysf-case">{l.code}</span></span>,
-                  ...r.cells.map((c, i) => c && 'divider' in c ? <span key={r.sport + i} className="h-[52px] rounded bg-ink-50" />
-                    : c ? (
+                  ...r.cells.map((c, i) => c ? (
                     <Link key={r.sport + i} href={`/leagues/${d.leagueId}/matchup/${c.matchupId}`} className="h-[52px] rounded flex flex-col items-center justify-center text-center leading-tight border hover:brightness-95"
                       style={{ gridColumn: `span ${c.span}`, background: TONE[c.tone].bg, borderColor: TONE[c.tone].bd, borderWidth: c.tone === 'live' ? 2 : 1 }}>
                       <span className="text-[10px] text-ink-500">{c.label}{c.playoff ? ' · PO' : ''}</span>
