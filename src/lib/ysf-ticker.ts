@@ -9,7 +9,8 @@ import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 
 export type TickerMark = { src: string; bg: string }
 export type TickerSide = { mark: TickerMark; ab: string; v: string | null; win: boolean }
-export type TickerItem = { marks: TickerMark[]; text: string; ago: string; live?: boolean; score?: TickerSide[] }
+// join: part of the same transaction as the item before it (no divider between them)
+export type TickerItem = { marks: TickerMark[]; text: string; ago: string; live?: boolean; score?: TickerSide[]; join?: boolean }
 export type TickerGroup = { label: string; bd: string; items: TickerItem[] }
 export type TickerBlock = { name: string; bg: string; fg: string; logo: string | null; groups: TickerGroup[] }
 
@@ -39,10 +40,15 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
     ] },
   ]
   const curTrades = trades.filter(t => t.season === league.season).slice(0, 3)
-  if (curTrades.length) fed.push({ label: 'TRADES', bd: '#E500C5', items: curTrades.map(t => ({
-    marks: t.sides.map(sd => mark(sd.teamId)),
-    text: t.sides.filter(sd => sd.gets.length).map(sd => `${C[sd.teamId]?.name} gets ${sd.gets.map(g => g.team ? `${g.name} (${YSF_LEAGUES.find(l => l.sport === g.sport)?.code ?? ''}-${g.team}, ${g.pos})` : g.name).join(' + ')}`).join(' | '),
-    ago: ago(t.when) })) })
+  // a trade: one segment per side, each with only the acquiring club's crest; the sides of one deal
+  // run together, and the time shows once, after the last side
+  if (curTrades.length) fed.push({ label: 'TRADES', bd: '#E500C5', items: curTrades.flatMap(t => {
+    const sides = t.sides.filter(sd => sd.gets.length)
+    return sides.map((sd, i) => ({
+      marks: [mark(sd.teamId)], join: i > 0,
+      text: `${C[sd.teamId]?.name} gets ${sd.gets.map(g => g.team ? `${g.name} (${YSF_LEAGUES.find(l => l.sport === g.sport)?.code ?? ''}-${g.team}, ${g.pos})` : g.name).join(' + ')}`,
+      ago: i === sides.length - 1 ? ago(t.when) : '' }))
+  }) })
   const up: TickerItem[] = []
   for (const d of (await db.select().from(drafts).where(eq(drafts.leagueId, league.id))).filter(d => d.status === 'PENDING' && d.startsAt)) {
     const L = YSF_LEAGUES.find(l => l.sport === d.scope)

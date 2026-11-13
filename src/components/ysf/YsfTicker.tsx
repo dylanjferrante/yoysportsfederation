@@ -71,7 +71,7 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
           <Tag label={g.label} bd={g.bd} gid={g.gid + copy * groupsById.length} />
           {g.items.map((it, k) => (
             <span key={k} className="inline-flex items-stretch">
-            {k > 0 && <span className="w-px self-stretch bg-ink-400 flex-none" />}
+            {k > 0 && !it.join && <span className="w-px self-stretch bg-ink-400 flex-none" />}
             <span className="inline-flex items-stretch gap-2 sm:gap-2.5 px-3 sm:px-[22px]">
               {it.live && <span className="self-center w-2 h-2 rounded-full bg-[#ba0c2f] flex-none" />}
               {it.score ? it.score.map((sd, j) => (
@@ -86,7 +86,7 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
                 ))}</span>
                 <span className="self-center text-[13px] sm:text-[15px] font-semibold whitespace-nowrap ysf-case">{it.text}</span>
               </>}
-              <span className="self-center text-[11px] sm:text-[12px] text-ink-400 whitespace-nowrap">{it.ago}</span>
+              {it.ago && <span className="self-center text-[11px] sm:text-[12px] text-ink-400 whitespace-nowrap">{it.ago}</span>}
             </span>
             </span>
           ))}
