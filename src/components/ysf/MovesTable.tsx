@@ -50,13 +50,13 @@ export default function MovesTable({ leagueId, rows, clubs, codes, fixedSport }:
         <Filter label="TYPE" value={kind} set={setKind} opts={[['', 'All types'], ...kinds.map(k => [k, k.charAt(0) + k.slice(1).toLowerCase()] as [string, string])]} />
       </div>
       <section className="card overflow-x-auto">
-        <table className="w-full border-collapse min-w-[760px]">
-          <thead><tr>{['TIME', 'LEAGUE', 'CLUB', 'TRANSACTION', 'PICK', 'PLAYER', 'BID'].map((h, i) => (
-            <th key={h} className={`font-display text-[12px] font-medium tracking-[.12em] text-ink-500 px-2 py-2.5 border-b-2 border-black ${i === 6 ? 'text-right' : 'text-left'}`}>{h}</th>
+        <table className="w-full border-collapse min-w-[900px]">
+          <thead><tr>{['TIME', 'LEAGUE', 'CLUB', 'TRANSACTION', 'PICK', 'PLAYER', 'TEAM', 'POS', 'FROM', 'BID'].map((h, i, all) => (
+            <th key={h} className={`font-display text-[12px] font-medium tracking-[.12em] text-ink-500 px-2 py-2.5 border-b-2 border-black ${i === all.length - 1 ? 'text-right' : 'text-left'}`}>{h}</th>
           ))}</tr></thead>
           <tbody>
             {days.map(d => [
-              <tr key={d.day}><td colSpan={7} className="bg-black text-white font-display text-[12px] font-bold tracking-[.12em] px-2 py-2">{d.day}</td></tr>,
+              <tr key={d.day}><td colSpan={10} className="bg-black text-white font-display text-[12px] font-bold tracking-[.12em] px-2 py-2">{d.day}</td></tr>,
               ...d.rows.map(r => {
                 const c = clubs[r.teamId], L = YSF_LEAGUES.find(l => l.sport === r.sport), p = PILL[r.kind] ?? PILL.MOVE
                 return (
@@ -70,15 +70,16 @@ export default function MovesTable({ leagueId, rows, clubs, codes, fixedSport }:
                     </td>
                     <td className="px-2 py-2.5"><span className="ui inline-flex items-center justify-center min-w-[84px] h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none" style={{ background: p.bg, color: p.fg, border: p.bd ? `1px solid ${p.bd}` : undefined }}>{r.kind}</span></td>
                     <td className="px-2 py-2.5 text-[13px] font-bold tabular-nums whitespace-nowrap">{r.pick ?? ''}</td>
-                    <td className="px-2 py-2.5 font-semibold">{r.player
-                      ? <>{r.player} <span className="text-ink-500 font-normal ysf-case">({codes[r.sport]}-{r.team}, {r.pos.replace(/\bDEF\b/g, 'D/ST')})</span></>
-                      : r.text}{r.via && <span className="text-ink-500 font-normal"> (via {clubs[r.via]?.name ?? r.via})</span>}{r.from && <span className="text-ink-500 font-normal"> · from {clubs[r.from]?.name ?? r.from}</span>}</td>
+                    <td className="px-2 py-2.5 font-semibold">{r.player ?? r.text}</td>
+                    <td className="px-2 py-2.5 text-[13px] whitespace-nowrap">{r.player ? r.team || 'FA' : ''}</td>
+                    <td className="px-2 py-2.5 text-[13px] whitespace-nowrap">{r.player ? r.pos.replace(/\bDEF\b/g, 'D/ST') : ''}</td>
+                    <td className="px-2 py-2.5 text-[13px] text-ink-500">{r.via ? `via ${clubs[r.via]?.name ?? r.via}` : r.from ? clubs[r.from]?.name ?? r.from : ''}</td>
                     <td className="px-2 py-2.5 text-right font-bold tabular-nums">{r.bid != null ? `$${r.bid}` : ''}</td>
                   </tr>
                 )
               }),
             ])}
-            {!days.length && <tr><td colSpan={7} className="px-4 py-6 text-center text-ink-400 font-semibold">No moves match</td></tr>}
+            {!days.length && <tr><td colSpan={10} className="px-4 py-6 text-center text-ink-400 font-semibold">No moves match</td></tr>}
           </tbody>
         </table>
       </section>

@@ -80,10 +80,10 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
           <input name="q" defaultValue={q} placeholder="Search players" className="h-9 w-48 px-3 rounded-lg border border-ink-200 text-[14px]" />
         </form>
       </div>
-      <section className="card">
+      <section className="card overflow-x-auto">
         <table className="w-full border-collapse">
           <thead><tr>
-            <SortTh k="name" label="PLAYER" /><th className={th}>STATUS</th>
+            <SortTh k="name" label="PLAYER" /><th className={th}>TEAM</th><th className={th}>POS</th><th className={th}>STATUS</th>
             <SortTh k="gp" label="GP" right cls="hidden sm:table-cell" /><SortTh k="pts" label="FPTS" right /><SortTh k="ppg" label="FP/G" right cls="hidden sm:table-cell" /><th className={th} />
           </tr></thead>
           <tbody>
@@ -92,9 +92,11 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
               return (
                 <tr key={r.id}>
                   <td className={`${td} whitespace-nowrap`}>
-                    <span className="block text-[14px] leading-tight max-w-[24vw] sm:max-w-none overflow-hidden text-ellipsis"><b>{r.name}</b>{injTag(r.status) && <> <span title={r.status ?? ''} className="ui inline-flex items-center justify-center leading-none h-[16px] px-[4px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[1px]">{injTag(r.status)}</span></>} <span className="text-ink-500 font-normal">| {r.team ? `${r.team}, ` : ''}{posOf(r).join('/').replace(/\bDEF\b/, 'D/ST')}</span></span>
-                    {r.injury && injTag(r.status) && <span className="block text-[11px] text-[#ba0c2f] font-semibold leading-tight mt-0.5 max-w-[24vw] sm:max-w-[420px] overflow-hidden text-ellipsis">{r.status} · {r.injury}</span>}
+                    <span className="block text-[14px] leading-tight max-w-[24vw] sm:max-w-none overflow-hidden text-ellipsis"><b>{r.name}</b>{injTag(r.status) && <> <span title={r.status ?? ''} className="ui inline-flex items-center justify-center leading-none h-[16px] px-[4px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[1px]">{injTag(r.status)}</span></>}</span>
+                    {r.injury && injTag(r.status) && <span className="block text-[11px] text-[#ba0c2f] font-semibold leading-tight mt-0.5 max-w-[24vw] sm:max-w-[420px] overflow-hidden text-ellipsis">{r.injury}</span>}
                   </td>
+                  <td className={`${td} font-normal whitespace-nowrap`}>{r.team || 'FA'}</td>
+                  <td className={`${td} font-normal whitespace-nowrap`}>{posOf(r).join('/').replace(/\bDEF\b/, 'D/ST')}</td>
                   <td className={`${td} font-normal`}>
                     {c ? <Link href={`/leagues/${league.id}/teams/${r.owner}`} className="inline-flex items-center gap-1.5"><img src={c.logo ?? ''} alt="" className="w-5 h-5 object-contain" /><span className="font-semibold hidden sm:inline">{c.abbreviation}</span></Link>
                       : r.clears ? <span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none bg-[#2F5D8A] text-white"><span className="hidden sm:inline">WAIVERS · </span><span className="sm:hidden">W · </span>{new Date(r.clears).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
@@ -107,7 +109,7 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
                 </tr>
               )
             })}
-            {!shown.length && <tr><td colSpan={6} className="px-4 py-6 text-center text-ink-400 font-semibold">No players match</td></tr>}
+            {!shown.length && <tr><td colSpan={8} className="px-4 py-6 text-center text-ink-400 font-semibold">No players match</td></tr>}
           </tbody>
         </table>
       </section>

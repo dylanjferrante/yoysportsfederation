@@ -59,7 +59,7 @@ export default async function NewsPage({ params, searchParams }: { params: Promi
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="ui inline-flex items-center justify-center h-[20px] px-2 rounded-[2px] text-[10px] font-bold leading-none" style={{ background: cat.bg, color: '#fff' }}>{cat.label.toUpperCase()}</span>
-                    <span className="text-[14px] truncate"><b>{n.playerName}</b> <span className="text-ink-500">| {n.realTeam}, {n.position}</span></span>
+                    <span className="text-[14px] truncate"><b>{n.playerName}</b> <span className="text-ink-500 ml-2">{n.realTeam}</span> <span className="text-ink-500 ml-2">{n.position}</span></span>
                     <span className="text-[11px] text-ink-400 ml-auto flex-shrink-0">{ago(n.createdAt)}</span>
                   </div>
                   {n.headline && <p className="text-[14px] text-black mt-1">{n.headline}</p>}

@@ -21,6 +21,7 @@ const SLOT_ORDER: Record<string, string[]> = {
 const SLOT_LABEL: Record<string, string> = { 'RB/WR/TE': 'FLEX', DEF: 'D/ST' }
 const fmtD = (d: Date, y = false) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(y ? { year: 'numeric' } : {}) })
 const span = (a: Date, b: Date) => `${fmtD(a)}–${a.getMonth() === b.getMonth() ? b.getDate() : fmtD(b)}, ${b.getFullYear()}`
+const dst = (x: string) => x.replace(/\bDEF\b/g, 'D/ST')
 const n1 = (x: number) => x.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
 // `manage` (the signed-in member's own club): the lineup / add-drop / trade / pending tools, shown under
@@ -163,7 +164,7 @@ export default async function YsfClub({ league, teamId, manage }: { league: any;
     // roster (current season only)
     const mine = ro.filter(r => r.sport === L.sport)
     const posOf = (r: typeof mine[number]) => { const e = safeParse<string[]>(r.eligible, []); return (e.length > 1 ? e : [r.position]).join('/') }
-    const row = (r: typeof mine[number], slot: string) => ({ slot, name: label(L.sport, r.name, r.team, posOf(r)) })
+    const row = (r: typeof mine[number], slot: string) => ({ slot, name: r.name, team: r.team || 'FA', pos: dst(posOf(r)) })
     const so = SLOT_ORDER[L.sport] ?? []
     const starters = mine.filter(r => !['BN', 'IR', 'TAXI'].includes(r.slot)).sort((a, b) => (so.indexOf(a.slot) + 99) % 99 - (so.indexOf(b.slot) + 99) % 99)
     const roster = [
@@ -192,14 +193,14 @@ export default async function YsfClub({ league, teamId, manage }: { league: any;
     const year = (m.when || '').slice(0, 4)
     const key = fed ? 'fed' : `${m.sport}|${year}`
     const d = draftsMap.get(key) ?? { title: fed ? '2025 Federation Draft' : `${year} ${code(m.sport)} Rookie Draft`, sport: fed ? null : m.sport, when: m.when, rows: [] }
-    d.rows.push({ pk: m.pick ?? '', player: label(m.sport, m.player, m.team, m.pos), via: m.via ? C[m.via]?.abbreviation ?? m.via : '' })
+    d.rows.push({ pk: m.pick ?? '', player: m.player ?? '', team: m.team || 'FA', pos: dst(m.pos ?? ''), via: m.via ? C[m.via]?.abbreviation ?? m.via : '' })
     draftsMap.set(key, d)
   }
   const pkNum = (p: string) => { const m = /R(\d+)\D+P(\d+)/.exec(p); return m ? +m[1] * 1000 + +m[2] : 0 }
   const drafts = [...draftsMap.values()].map(d => ({ ...d, rows: d.rows.sort((a, b) => pkNum(a.pk) - pkNum(b.pk)) })).sort((a, b) => (b.when > a.when ? 1 : -1))
   const moves = mv.filter(x => x.kind !== 'DRAFTED').slice(0, 300).map(m => ({
     when: m.when, sport: m.sport, kind: m.kind,
-    player: m.player ? label(m.sport, m.player, m.team, m.pos) : m.text,
+    player: m.player ?? m.text ?? '', team: m.player ? m.team || 'FA' : '', pos: m.player ? dst(m.pos ?? '') : '',
     detail: m.bid != null && m.kind !== 'TRADED' ? `$${m.bid}` : m.kind === 'TRADED' && m.from ? `from ${C[m.from]?.abbreviation ?? ''}` : '',
   }))
 

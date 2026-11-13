@@ -61,11 +61,14 @@ export default async function YsfInjuries({ league, lg }: { league: any; lg?: st
               <span className="ui ml-auto text-[12px] font-bold">{list.length} INJURED</span>
             </div>
             <table className="w-full border-collapse table-fixed">
-              <thead><tr><th className={`${th} w-[30%]`}>CLUB</th><th className={th}>PLAYER</th><th className={`${th} w-[64px] text-center`}>STATUS</th></tr></thead>
+              <thead><tr><th className={`${th} w-[22%]`}>CLUB</th><th className={th}>PLAYER</th><th className={`${th} w-[56px]`}>TEAM</th><th className={`${th} w-[64px] hidden sm:table-cell`}>POS</th><th className={`${th} w-[52px] hidden sm:table-cell`}>SLOT</th><th className={`${th} w-[64px] text-center`}>STATUS</th></tr></thead>
               <tbody>{list.map(r => { const o = club(r.owner); return (
                 <tr key={r.pid}>
                   <td className={`${td} !whitespace-normal`}><span className="inline-flex items-center gap-1.5">{o?.logo && <img src={o.logo} alt="" className="w-5 h-5 object-contain flex-none" />}<span className="hidden sm:inline">{o?.name}</span><span className="sm:hidden">{o?.abbreviation}</span></span></td>
-                  <td className={`${td} !whitespace-normal`}><div><span className="ysf-case">{label(r)}</span>{r.slot === 'IR' && <span className="text-ink-500 font-normal"> · on IR</span>}</div>{r.note && <div className="text-[13px] font-normal text-ink-600 mt-0.5">{r.note}</div>}</td>
+                  <td className={`${td} !whitespace-normal`}><div>{r.name}</div>{r.note && <div className="text-[13px] font-normal text-ink-600 mt-0.5">{r.note}</div>}</td>
+                  <td className={`${td} font-normal`}>{r.team || 'FA'}</td>
+                  <td className={`${td} font-normal hidden sm:table-cell`}>{(r.elig || r.position || '').replace(/\bDEF\b/g, 'D/ST')}</td>
+                  <td className={`${td} font-normal hidden sm:table-cell`}>{r.slot === 'IR' ? 'IR' : ''}</td>
                   <td className={`${td} text-center`}><Tag s={r.status} /></td>
                 </tr>) })}</tbody>
             </table>

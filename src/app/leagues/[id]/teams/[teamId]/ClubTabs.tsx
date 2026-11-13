@@ -14,9 +14,9 @@ type PickChip = { kind: 'own' } | { kind: 'acq'; ab: string; crest: string | nul
 export type ClubTabsData = {
   leagueId: string; clubName: string; clubAb: string; season: string
   calendar: { cols: { key: string; label: string; current: boolean; season?: string }[]; rows: { sport: string; cells: Cell[] }[] }
-  leagues: Record<string, { seasons: string[]; bySeason: Record<string, LeagueSeason>; roster: { label: string; rows: { slot: string; name: string }[] }[]; rounds: number[]; picks: { year: number; cells: PickChip[][] }[] }>
-  drafts: { title: string; sport: string | null; when: string; rows: { pk: string; player: string; via: string }[] }[]
-  moves: { when: string; sport: string; kind: string; player: string; detail: string }[]
+  leagues: Record<string, { seasons: string[]; bySeason: Record<string, LeagueSeason>; roster: { label: string; rows: { slot: string; name: string; team: string; pos: string }[] }[]; rounds: number[]; picks: { year: number; cells: PickChip[][] }[] }>
+  drafts: { title: string; sport: string | null; when: string; rows: { pk: string; player: string; team: string; pos: string; via: string }[] }[]
+  moves: { when: string; sport: string; kind: string; player: string; team: string; pos: string; detail: string }[]
   h2h: { id: string; name: string; crest: string | null; rec: string; pct: string; pf: string; pa: string }[]
 }
 const TONE: Record<string, { bg: string; bd: string }> = {
@@ -62,8 +62,8 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
       {tab === 'cal' && (
         <section className="card p-3 min-w-0">
           <div ref={scroller} className="overflow-x-auto">
-            <div className="grid gap-1" style={{ gridTemplateColumns: `76px repeat(${d.calendar.cols.length}, 112px)` }}>
-              <span className="sticky left-0 z-10 bg-white" />
+            <div className="grid gap-1 w-max" style={{ gridTemplateColumns: `40px repeat(${d.calendar.cols.length}, 112px)` }}>
+              <span className="sticky left-0 z-20 bg-white shadow-[4px_0_0_#fff]" />
               {d.calendar.cols.map(c => (
                 <span key={c.key} data-current={c.current ? '1' : undefined} className="flex flex-col items-center justify-end gap-1 text-[11px] font-bold text-center leading-tight py-1" style={{ color: c.current ? '#000' : '#4A4A4A' }}>
                   {c.season && <span className="ui text-[10px] font-bold text-white bg-black rounded px-1.5 py-0.5">{c.season} STARTS</span>}
@@ -73,10 +73,10 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
               {d.calendar.rows.map(r => {
                 const l = lgOf(r.sport)!
                 return [
-                  <span key={r.sport} className="sticky left-0 z-10 bg-white flex items-center gap-1.5 ui text-[12px] font-bold border-r-4 border-black pr-2"><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt="" className="w-6 h-6 object-contain" /><span className="ysf-case">{l.code}</span></span>,
+                  <span key={r.sport} className="sticky left-0 z-20 bg-white shadow-[4px_0_0_#fff] flex items-center justify-center border-r-4 border-black pr-1" title={l.code}><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt={l.code} className="w-7 h-7 object-contain" /></span>,
                   ...r.cells.map((c, i) => c ? (
                     <Link key={r.sport + i} href={`/leagues/${d.leagueId}/matchup/${c.matchupId}`} className="h-[52px] rounded flex flex-col items-center justify-center text-center leading-tight border hover:brightness-95"
-                      style={{ gridColumn: `span ${c.span}`, background: TONE[c.tone].bg, borderColor: TONE[c.tone].bd, borderWidth: c.tone === 'live' ? 2 : 1 }}>
+                      style={{ gridColumn: `span ${c.span}`, background: TONE[c.tone].bg, borderColor: l.color, borderWidth: c.tone === 'live' ? 3 : 2 }}>
                       <span className="text-[10px] text-ink-500">{c.label}{c.playoff ? ' · PO' : ''}</span>
                       <span className="text-[12px] font-bold">{c.opp}</span>
                       {c.result && <span className="text-[10px]">{c.result}</span>}
@@ -108,9 +108,9 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
                   <div key={g.label}>
                     <div className="ui flex justify-between px-4 py-2 bg-ink-50 text-[12px] font-bold tracking-[.12em]"><span>{g.label}</span><span className="text-ink-500">{g.rows.length}</span></div>
                     {g.rows.map((p, i) => (
-                      <div key={i} className="grid grid-cols-[52px_minmax(0,1fr)] gap-3 items-center px-4 py-2 border-t border-ink-50">
+                      <div key={i} className="grid grid-cols-[52px_minmax(0,1fr)_44px_72px] gap-3 items-center px-4 py-2 border-t border-ink-50">
                         <span className="ui inline-flex items-center justify-center leading-none h-7 rounded-[3px] text-[12px] font-bold" style={{ background: g.label === 'STARTERS' ? L.color : '#E5E5E5', color: g.label === 'STARTERS' ? '#fff' : '#1F1F1F' }}>{p.slot}</span>
-                        <span className="min-w-0 font-semibold text-[14px] break-words"><span className="ysf-case">{p.name}</span></span>
+                        <span className="min-w-0 font-semibold text-[14px] break-words">{p.name}</span><span className="text-[13px]">{p.team}</span><span className="text-[13px] break-words">{p.pos}</span>
                       </div>
                     ))}
                   </div>
@@ -167,8 +167,8 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
               </div>
               <div className="px-4 pb-2 text-[13px] text-ink-500">{fmt(dr.when)} · {dr.rows.length} {d.clubAb} pick{dr.rows.length === 1 ? '' : 's'}</div>
               <table className="w-full border-collapse table-fixed">
-                <thead><tr><th className={`${th} w-[92px]`}>PICK</th><th className={th}>PLAYER</th><th className={`${th} w-[64px]`}>VIA</th></tr></thead>
-                <tbody>{dr.rows.map((r, j) => <tr key={j}><td className={`${td} text-[13px]`}>{r.pk}</td><td className={`${td} !whitespace-normal`}><span className="ysf-case">{r.player}</span></td><td className={`${td} font-normal`}>{r.via}</td></tr>)}</tbody>
+                <thead><tr><th className={`${th} w-[92px]`}>PICK</th><th className={th}>PLAYER</th><th className={`${th} w-[52px]`}>TEAM</th><th className={`${th} w-[72px]`}>POS</th><th className={`${th} w-[64px]`}>VIA</th></tr></thead>
+                <tbody>{dr.rows.map((r, j) => <tr key={j}><td className={`${td} text-[13px]`}>{r.pk}</td><td className={`${td} !whitespace-normal`}>{r.player}</td><td className={`${td} font-normal`}>{r.team}</td><td className={`${td} font-normal !whitespace-normal`}>{r.pos}</td><td className={`${td} font-normal`}>{r.via}</td></tr>)}</tbody>
               </table>
             </div>) })}
           {!d.drafts.length && <div className="card p-6 text-ink-500 font-semibold">No drafts yet</div>}
@@ -179,13 +179,13 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
         <section className="card overflow-hidden">
           {d.moves.length ? (
             <table className="w-full border-collapse table-fixed">
-              <thead><tr><th className={`${th} w-[96px] sm:w-[120px]`}>DATE</th><th className={`${th} w-[44px]`}><span className="sr-only">League</span></th><th className={`${th} w-[64px]`}>MOVE</th><th className={th}>PLAYER</th><th className={`${th} hidden sm:table-cell w-[110px] text-right`}>DETAIL</th></tr></thead>
+              <thead><tr><th className={`${th} w-[96px] sm:w-[120px]`}>DATE</th><th className={`${th} w-[44px]`}><span className="sr-only">League</span></th><th className={`${th} w-[64px]`}>MOVE</th><th className={th}>PLAYER</th><th className={`${th} w-[52px]`}>TEAM</th><th className={`${th} hidden sm:table-cell w-[72px]`}>POS</th><th className={`${th} hidden sm:table-cell w-[110px] text-right`}>DETAIL</th></tr></thead>
               <tbody>{d.moves.map((m, i) => { const l = lgOf(m.sport); return (
                 <tr key={i}>
                   <td className={`${td} font-normal text-[13px]`}>{fmt(m.when)}</td>
                   <td className={td}>{l && <img src={YSF_ART.leagueSymbol(l.key, 'white')} alt={l.code} className="w-6 h-6 object-contain" />}</td>
                   <td className={td}><span className={`${badge} text-white`} style={{ background: m.kind === 'DROPPED' ? '#8A8A8A' : m.kind === 'TRADED' ? '#2F5D8A' : '#000' }}>{KIND[m.kind] ?? m.kind}</span></td>
-                  <td className={`${td} !whitespace-normal text-[14px]`}><span className="ysf-case">{m.player}</span>{m.detail && <span className="sm:hidden text-ink-500 font-normal"> · {m.detail}</span>}</td>
+                  <td className={`${td} !whitespace-normal text-[14px]`}>{m.player}</td><td className={`${td} font-normal`}>{m.team}</td><td className={`${td} font-normal hidden sm:table-cell !whitespace-normal`}>{m.pos}</td>
                   <td className={`${td} hidden sm:table-cell text-right font-normal`}>{m.detail}</td>
                 </tr>) })}</tbody>
             </table>
@@ -196,11 +196,11 @@ export default function ClubTabs({ data: d }: { data: ClubTabsData }) {
       {tab === 'h2h' && (
         <section className="card overflow-hidden">
           <table className="w-full border-collapse table-fixed">
-            <thead><tr><th className={th}>OPPONENT</th><th className={`${th} w-[72px] text-right`}>W–L</th><th className={`${th} w-[64px] text-right`}>PCT</th><th className={`${th} hidden sm:table-cell w-[110px] text-right`}>PF</th><th className={`${th} hidden sm:table-cell w-[110px] text-right`}>PA</th></tr></thead>
+            <thead><tr><th className={th}>OPPONENT</th><th className={`${th} w-[44px] text-right`}>W</th><th className={`${th} w-[44px] text-right`}>L</th><th className={`${th} w-[64px] text-right`}>PCT</th><th className={`${th} hidden sm:table-cell w-[110px] text-right`}>PF</th><th className={`${th} hidden sm:table-cell w-[110px] text-right`}>PA</th></tr></thead>
             <tbody>{d.h2h.map(t => (
               <tr key={t.id}>
                 <td className={`${td} !whitespace-normal`}><Link href={`/leagues/${d.leagueId}/teams/${t.id}`} className="inline-flex items-center gap-2 min-w-0">{t.crest && <img src={t.crest} alt="" className="w-6 h-6 object-contain flex-none" />}<span>{t.name}</span></Link></td>
-                <td className={`${td} text-right`}>{t.rec}</td><td className={`${td} text-right`}>{t.pct}</td>
+                {t.rec.split(/[–-]/).slice(0, 2).map((v, k) => <td key={k} className={`${td} text-right`}>{v}</td>)}<td className={`${td} text-right`}>{t.pct}</td>
                 <td className={`${td} hidden sm:table-cell text-right font-normal`}>{t.pf}</td><td className={`${td} hidden sm:table-cell text-right font-normal`}>{t.pa}</td>
               </tr>
             ))}</tbody>

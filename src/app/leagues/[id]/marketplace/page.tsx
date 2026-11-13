@@ -46,7 +46,7 @@ export default function Marketplace() {
               <li key={r.rosterId} className="flex items-center gap-3 px-4 py-2.5">
                 <img src={YSF_ART.leagueSymbol(lgOf(r.sport).key, 'white')} alt={lgOf(r.sport).code} className="w-6 h-6 object-contain" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] truncate"><b>{r.name}</b> <span className="text-ink-500">| {r.realTeam}, {r.position}</span></p>
+                  <p className="text-[14px] truncate"><b>{r.name}</b> <span className="text-ink-500 ml-2">{r.realTeam}</span> <span className="text-ink-500 ml-2">{r.position}</span></p>
                   <p className="text-[12px] text-ink-500"><Link href={`/leagues/${id}/teams/${r.teamId}`} className="font-semibold text-black">{r.teamName}</Link></p>
                 </div>
                 <Link href={`/leagues/${id}/myteam?tab=trade`} className="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-black text-white font-display text-[12px] font-bold tracking-[.06em] leading-none">OFFER</Link>

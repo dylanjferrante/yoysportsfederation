@@ -246,14 +246,20 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
         const groups = [{ s: '1', a: sa.act, b: sb.act }, ...['2', '3', '9'].map(g => ({ s: g, a: sa.groups.find(x => x.s === g)!.ls, b: sb.groups.find(x => x.s === g)!.ls }))].filter(g => g.a.length || g.b.length)
         const th = 'px-1 py-1.5 ui text-[10px] font-medium text-ink-500 whitespace-nowrap'
         const cell = (st: Record<string, string> | null, key: string, played: boolean) => { const v = played ? statCell(st, key) : ''; return <span className={v && v !== '0' ? '' : 'text-ink-200'}>{v === '' ? '–' : v}</span> }
-        const PlayerCell = ({ l, right }: { l?: Line; right?: boolean }) => (
-          <td className={`px-2 py-2 whitespace-nowrap ${right ? 'text-right' : ''}`}>{l ? <div className={`max-w-[30vw] sm:max-w-[20vw] md:max-w-[18vw] lg:max-w-[16vw] xl:max-w-[250px] ${right ? 'ml-auto' : ''}`}>
-            <span className="block text-[13px] leading-tight whitespace-nowrap overflow-hidden text-ellipsis"><b>{l.name}</b> <span className="text-ink-500">| {l.pro_team ? `${l.pro_team}, ` : ''}{(l.positions ?? l.slot).replace(/,/g, '/')}</span></span>
-            <span className="block text-[11px] text-ink-500 leading-tight mt-0.5 overflow-hidden text-ellipsis">{game(l) ?? '–'}</span>
-          </div> : <span className="text-ink-200 text-[12px]">Empty</span>}</td>
-        )
-        // stat columns are numbered slots shown by width (2 on small tablets, 4 mid-size, all on desktop, none on phones) so nothing scrolls
-        const vis = (p: number) => p < 2 ? 'hidden sm:table-cell' : p < 4 ? 'hidden md:table-cell' : 'hidden lg:table-cell'
+        // player, team, position and game each in their own column (mirrored for the right-hand club)
+        const pos = (l: Line) => (l.positions ?? l.slot).replace(/,/g, '/').replace(/\bDEF\b/g, 'D/ST')
+        const PlayerCell = ({ l, right }: { l?: Line; right?: boolean }) => {
+          const cells = l ? [
+            <td key="n" className={`px-2 py-2 whitespace-nowrap ${right ? 'text-right' : ''}`}><div className={`max-w-[22vw] lg:max-w-[150px] 2xl:max-w-[220px] text-[13px] font-bold leading-tight overflow-hidden text-ellipsis ${right ? 'ml-auto' : ''}`}>{l.name}</div></td>,
+            <td key="t" className="px-1 py-2 whitespace-nowrap text-[12px] text-center">{l.pro_team || 'FA'}</td>,
+            <td key="p" className="px-1 py-2 whitespace-nowrap text-[12px] text-center">{pos(l)}</td>,
+            <td key="g" className="hidden xl:table-cell px-1 py-2 whitespace-nowrap text-[11px] text-ink-500 text-center">{game(l) ?? '–'}</td>,
+          ] : [<td key="n" className={`px-2 py-2 ${right ? 'text-right' : ''}`}><span className="text-ink-200 text-[12px]">Empty</span></td>, <td key="t" />, <td key="p" />, <td key="g" className="hidden xl:table-cell" />]
+          return <>{right ? cells.reverse() : cells}</>
+        }
+        const pHead = (right?: boolean) => { const h = [<th key="n" className={`${th} ${right ? 'text-right' : 'text-left'}`}>PLAYER</th>, <th key="t" className={th}>TEAM</th>, <th key="p" className={th}>POS</th>, <th key="g" className={`${th} hidden xl:table-cell`}>GAME</th>]; return right ? h.reverse() : h }
+        // stat columns are numbered slots shown by width (none on phones and small tablets, 2 on tablets, 4 on laptops, 6 on desktop, all on wide screens) so nothing scrolls
+        const vis = (p: number) => p < 2 ? 'hidden md:table-cell' : p < 4 ? 'hidden lg:table-cell' : p < 6 ? 'hidden xl:table-cell' : 'hidden 2xl:table-cell'
         const slots = (f: (p: number) => React.ReactNode) => Array.from({ length: n }, (_, p) => f(p))
         const StatCells = ({ l, cols }: { l?: Line; cols: [string, string][]; right?: boolean }) => {
           const st = l ? statsOf(l) : null, played = !!l && !!(l.opp || l.fpts) && final(l)
@@ -282,18 +288,18 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
                           <tr key={g} className="bg-ink-50"><td className="sticky left-0 z-10 bg-ink-50 px-3 py-1.5 ui text-[11px] font-bold tracking-[.12em]" colSpan={2}>{g === '1' ? 'STARTERS' : STATUS[g]}</td><td colSpan={12} /></tr>,
                           ...ls.flatMap(l => {
                             const st = statsOf(l), t = statType(m.sport, l.slot, st), played = !!(l.opp || l.fpts) && final(l), out = []
-                            if (t.id !== prev) { out.push(<tr key={l.fx_player_id + 'h'} className="border-b border-ink-100"><th className="sticky left-0 z-10 bg-white px-3 py-1 ui text-[10px] font-medium text-ink-500 text-left shadow-[2px_0_0_#F2F2F2]">PLAYER</th><th className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-right">PTS</th>{t.cols.map(([lab]) => <th key={lab} className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-right whitespace-nowrap">{lab}</th>)}</tr>); prev = t.id }
+                            if (t.id !== prev) { out.push(<tr key={l.fx_player_id + 'h'} className="border-b border-ink-100"><th className="sticky left-0 z-10 bg-white px-3 py-1 ui text-[10px] font-medium text-ink-500 text-left shadow-[2px_0_0_#F2F2F2]">PLAYER</th><th className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-right">PTS</th><th className="px-2 py-1 ui text-[10px] font-medium text-ink-500">TEAM</th><th className="px-2 py-1 ui text-[10px] font-medium text-ink-500">POS</th><th className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-left">GAME</th>{t.cols.map(([lab]) => <th key={lab} className="px-2 py-1 ui text-[10px] font-medium text-ink-500 text-right whitespace-nowrap">{lab}</th>)}</tr>); prev = t.id }
                             out.push(<tr key={l.fx_player_id} className="border-b border-ink-50">
                               <td className="sticky left-0 z-10 bg-white px-3 py-2 whitespace-nowrap shadow-[2px_0_0_#F2F2F2]">
-                                <div className="flex items-center gap-2 max-w-[48vw]">
+                                <div className="flex items-center gap-2 max-w-[40vw]">
                                   {g === '1' && <span className="inline-flex items-center justify-center h-5 min-w-[34px] px-1 rounded bg-ink-50 ui text-[9px] font-bold leading-none flex-none">{SLOT[l.slot] ?? l.slot}</span>}
-                                  <span className="min-w-0">
-                                    <span className="block text-[13px] leading-tight overflow-hidden text-ellipsis"><b>{l.name}</b> <span className="text-ink-500">| {l.pro_team ? `${l.pro_team}, ` : ''}{(l.positions ?? l.slot).replace(/,/g, '/')}</span></span>
-                                    <span className="block text-[11px] text-ink-500 leading-tight overflow-hidden text-ellipsis">{game(l) ?? '–'}</span>
-                                  </span>
+                                  <span className="min-w-0 block text-[13px] font-bold leading-tight overflow-hidden text-ellipsis">{l.name}</span>
                                 </div>
                               </td>
                               <td className={`px-2 py-2 text-right tabular-nums disp ${g === '1' ? 'text-[16px] font-extrabold' : 'text-[14px] text-ink-500'}`}>{played && l.fpts != null ? <Pts l={l} /> : '–'}</td>
+                              <td className="px-2 py-2 text-center text-[12px] whitespace-nowrap">{l.pro_team || 'FA'}</td>
+                              <td className="px-2 py-2 text-center text-[12px] whitespace-nowrap">{(l.positions ?? l.slot).replace(/,/g, '/').replace(/\bDEF\b/g, 'D/ST')}</td>
+                              <td className="px-2 py-2 text-[11px] text-ink-500 whitespace-nowrap">{game(l) ?? '–'}</td>
                               {t.cols.map(([lab, key]) => { const v = played ? statCell(st, key) : ''; return <td key={lab} className={`px-2 py-2 text-right tabular-nums text-[12px] ${v && v !== '0' ? '' : 'text-ink-200'}`}>{v === '' ? '–' : v}</td> })}
                             </tr>)
                             return out
@@ -307,15 +313,15 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
             ))}
           </div>
           <section className="card overflow-hidden hidden sm:block">
-            <div>
+            <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b-2 border-black">
-                    <th className={`${th} text-left`}><span className="text-[12px] font-bold text-black"><ClubName name={C[A]?.name} /></span></th>{slots(p => <th key={'a' + p} className={vis(p)} />)}
+                    <th className={`${th} text-left`} colSpan={3}><span className="text-[12px] font-bold text-black"><ClubName name={C[A]?.name} /></span></th><th className="hidden xl:table-cell" />{slots(p => <th key={'a' + p} className={vis(p)} />)}
                     <th className={th}>PTS</th>
                     <th className={th}>{isTotal ? 'MATCHUP' : daily && sel ? dayLabel(sel).toUpperCase() : ''}</th>
                     <th className={th}>PTS</th>
-                    {slots(p => <th key={'b' + p} className={vis(p)} />)}<th className={`${th} text-right`}><span className="text-[12px] font-bold text-black"><ClubName name={C[B]?.name} /></span></th>
+                    {slots(p => <th key={'b' + p} className={vis(p)} />)}<th className="hidden xl:table-cell" /><th className={`${th} text-right`} colSpan={3}><span className="text-[12px] font-bold text-black"><ClubName name={C[B]?.name} /></span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -323,14 +329,14 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
                     let prev = ''
                     const len = Math.max(g.a.length, g.b.length)
                     return [
-                      g.s !== '1' && <tr key={g.s} className="bg-ink-50"><td colSpan={5 + 2 * n} className="px-3 py-1.5 ui text-[11px] font-bold tracking-[.12em] text-center">{STATUS[g.s]}</td></tr>,
+                      g.s !== '1' && <tr key={g.s} className="bg-ink-50"><td colSpan={11 + 2 * n} className="px-3 py-1.5 ui text-[11px] font-bold tracking-[.12em] text-center">{STATUS[g.s]}</td></tr>,
                       ...Array.from({ length: len }, (_, i) => {
                         const a = g.a[i], b = g.b[i], ref = (a ?? b)!
                         const t = statType(m.sport, ref.slot, statsOf(ref)), cols = compactCols(t)
                         const out = []
                         if (t.id !== prev) {
                           const hs = (x: string) => slots(p => <th key={x + p} className={`${th} ${vis(p)} text-right`}>{cols[p]?.[0] ?? ''}</th>)
-                          out.push(<tr key={g.s + i + 'h'} className="border-b border-ink-100"><th className={`${th} text-left`}>PLAYER</th>{hs('a')}<th /><th /><th />{hs('b')}<th className={`${th} text-right`}>PLAYER</th></tr>)
+                          out.push(<tr key={g.s + i + 'h'} className="border-b border-ink-100">{pHead()}{hs('a')}<th /><th /><th />{hs('b')}{pHead(true)}</tr>)
                           prev = t.id
                         }
                         out.push(
@@ -343,10 +349,10 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
                       }),
                       g.s === '1' && (
                         <tr key="tot" className="bg-ink-50 border-b-2 border-black">
-                          <td className="px-3 py-2.5 ui text-[12px] font-bold">{isTotal ? 'MATCHUP TOTAL' : daily ? 'DAY TOTAL' : 'TOTAL'}</td>{slots(p => <td key={'ta' + p} className={vis(p)} />)}
+                          <td className="px-3 py-2.5 ui text-[12px] font-bold" colSpan={3}>{isTotal ? 'MATCHUP TOTAL' : daily ? 'DAY TOTAL' : 'TOTAL'}</td><td className="hidden xl:table-cell" />{slots(p => <td key={'ta' + p} className={vis(p)} />)}
                           <td className="px-2 text-center disp text-[22px] font-extrabold tabular-nums">{fmt(total(A, shown))}</td><td />
                           <td className="px-2 text-center disp text-[22px] font-extrabold tabular-nums">{fmt(total(B, shown))}</td>
-                          {slots(p => <td key={'tb' + p} className={vis(p)} />)}<td className="px-3 py-2.5 ui text-[12px] font-bold text-right">{isTotal ? 'MATCHUP TOTAL' : daily ? 'DAY TOTAL' : 'TOTAL'}</td>
+                          {slots(p => <td key={'tb' + p} className={vis(p)} />)}<td className="hidden xl:table-cell" /><td className="px-3 py-2.5 ui text-[12px] font-bold text-right" colSpan={3}>{isTotal ? 'MATCHUP TOTAL' : daily ? 'DAY TOTAL' : 'TOTAL'}</td>
                         </tr>),
                     ]
                   })}
