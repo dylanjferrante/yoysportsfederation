@@ -349,13 +349,18 @@ async function runAuction(
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const session = await getServerSession(authOptions)
+  // the app's own scheduler may start a draft at its set time and expire the pick clock (no one has to be watching)
+  const system = !!process.env.NEXTAUTH_SECRET && req.headers.get('x-ysf-scheduler') === process.env.NEXTAUTH_SECRET
+  const session = system ? { user: { id: '__scheduler__' } } as any : await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const [draft] = await db.select().from(drafts).where(eq(drafts.id, id)).limit(1)
   if (!draft) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const [league] = await db.select().from(leagues).where(eq(leagues.id, draft.leagueId)).limit(1)
-  const isCommish = league?.commissionerId === session.user.id
+  const isCommish = league?.commissionerId === session.user.id || system
+  const peek = await req.clone().json().catch(() => ({})) as { action?: string }
+  if (system && !['START', 'TICK'].includes(peek.action ?? '')) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+  if (system && peek.action === 'START' && (draft.status !== 'PENDING' || !draft.startsAt || Date.now() < Date.parse(draft.startsAt))) return NextResponse.json({ ok: true, skipped: true })
   const order = await draftOrder(draft.leagueId, draft.season, draft.manualOrder)
   const slots = await slotMap(id)
   const total = totalPicks(draft, order, slots)
@@ -499,6 +504,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const clock = clockAt(draft.currentPick ?? 1)
     if (!clock) return NextResponse.json({ error: 'Draft complete' }, { status: 400 })
     if (!isCommish && myTeam?.id !== clock.id) return NextResponse.json({ error: 'Not your pick' }, { status: 403 })
+    // only an available player from this draft's pool (eligible, not on any roster in the league)
+    if ((await rosteredSet(draft.leagueId)).has(body.playerId)) return NextResponse.json({ error: 'That player is already on a roster' }, { status: 400 })
+    if (!(await draftPool(draft, sportsFilter)).some(p => p.id === body.playerId)) return NextResponse.json({ error: 'That player isn’t eligible for this draft' }, { status: 400 })
     await commitPick(draft, order, clock.id, body.playerId, draft.currentPick ?? 1)
     await db.update(drafts).set({ currentPick: (draft.currentPick ?? 1) + 1 }).where(eq(drafts.id, id))
   }

@@ -1,5 +1,6 @@
 // Keeps the ySF data current while the app server runs (no cron needed):
 //   every  5 min  settle due waiver claims and trades whose review has ended
+//   every 30 s    start drafts at their set time; auto-pick when a pick clock runs out
 //   every  2 min  NHL games in progress (official feed)
 //   every 15 min  NHL official stats, Fantrax lineups, engine scores
 //   every hour    Tank01 box scores and season stats (cached; only new finals are fetched)
@@ -34,6 +35,19 @@ const JOBS: Job[] = [
     const { settleYsfWaivers } = await import('@/lib/waivers'); const { settleTrades } = await import('@/lib/trades')
     const w = await settleYsfWaivers(lg); await settleTrades('ysf')
     if (w.processed) log(`settle → ${w.processed} claims processed, ${w.awarded} awarded`)
+  } },
+  { name: 'drafts', every: 30_000, run: async () => {
+    // start a scheduled draft on time, and auto-pick when a pick clock runs out — only once the app runs the
+    // drafts itself (YSF_RUN_DRAFTS=on); until the switch-over the real drafts happen on Fantrax
+    if (process.env.YSF_RUN_DRAFTS !== 'on') return
+    const { db } = await import('@/db'); const { sql } = await import('drizzle-orm')
+    const now = new Date().toISOString()
+    const due = db.all<{ id: string; status: string }>(sql`SELECT id, status FROM drafts WHERE (status = 'PENDING' AND starts_at IS NOT NULL AND starts_at <= ${now}) OR (status = 'IN_PROGRESS' AND pick_deadline IS NOT NULL AND pick_deadline <= ${now})`)
+    for (const d of due) {
+      const action = d.status === 'PENDING' ? 'START' : 'TICK'
+      const r = await fetch(`http://127.0.0.1:${process.env.PORT ?? 3000}/api/drafts/${d.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-ysf-scheduler': process.env.NEXTAUTH_SECRET ?? '' }, body: JSON.stringify({ action }) }).catch(() => null)
+      log(`draft ${d.id} ${action} → ${r?.status ?? 'unreachable'}`)
+    }
   } },
   { name: 'nhl-live', every: 2 * MIN, run: () => script('nhl-sync.ts', '--live') },
   { name: 'scores', every: 15 * MIN, run: async () => { await script('nhl-sync.ts'); await script('fantrax-capture.ts'); await script('ysf-score.ts', '--write') } },
