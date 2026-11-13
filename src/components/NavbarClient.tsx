@@ -18,7 +18,7 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
   const [open, setOpen] = useState<string | null>(null)
   const [mobile, setMobile] = useState(false)
   useEffect(() => { setOpen(null); setMobile(false) }, [pathname])
-  // the scoreboard and menu bar stay pinned together; other sticky bars sit below them (--ysf-top)
+  // the menu bar stays pinned; other sticky bars sit below it (--ysf-top)
   const top = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = top.current; if (!el) return
@@ -56,9 +56,9 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
 
   return (
     <>
-    {/* every page: the scoreboard runs full width above the menu, and both stay pinned at the top */}
-    <div ref={top} className="sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    {/* every page: the scoreboard runs full width above the menu and scrolls away; the menu stays pinned */}
     {strip}
+    <div ref={top} className="sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
     <header className="bg-black text-white relative border-b border-ink-800">
       <div className="max-w-[1240px] mx-auto px-4 sm:px-5 min-h-[52px] lg:min-h-[60px] flex items-center gap-6">
         <Link href={base} className="flex items-center min-w-0" aria-label="yoy Sports Federation">
