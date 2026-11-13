@@ -62,7 +62,9 @@ export async function loadConstitution(): Promise<{ articles: Article[]; resolut
     const status: Resolution['status'] = kind !== 'resolution' ? 'Issued'
       : /failing|not in favor|fail(s|ed) to/i.test(t) ? 'Failed'
       : /votes\s*\d+\s*[-–]\s*\d+\s*in favor|Enacted (on )?[A-Z][a-z]+ \d/.test(t) ? 'Passed' : 'Vote not recorded'
-    resolutions.push({ title: title.replace(/\s*[—-]\s+/, ' — ').replace(/\s*\(/, ' ('), kind, status, html })
+    // confirmed in force by the Commission though the document has no vote recorded (2026-11-12)
+    const inForce = /^(Comm\. Res\. VII|Fed\. Res\. III)\b/.test(title) && status === 'Vote not recorded'
+    resolutions.push({ title: title.replace(/\s*[—-]\s+/, ' — ').replace(/\s*\(/, ' ('), kind, status: inForce ? 'Passed' : status, html })
   }
   return { articles, resolutions }
 }
