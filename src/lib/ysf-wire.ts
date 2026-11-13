@@ -22,6 +22,11 @@ export type Desk = {
   best: Map<string, number>
   // the coming ySFFL week's pairings, when the desk is writing ahead of it
   next: { sport: string; a: string; b: string }[]
+  start: Record<string, number>                     // each league's first federation week
+  curWeek: Record<string, number | null>            // the week that morning falls in
+  lastWeek: Record<string, number | null>           // the last week finished before that morning
+  weekMoves: MoveRow[]                              // the last seven days of moves
+  faab: Record<string, Record<string, number>>      // FAAB left, per league and club
 }
 
 const code = (sp: string) => YSF_LEAGUES.find(l => l.sport === sp)?.code ?? sp
@@ -257,11 +262,220 @@ function tradeStory(d: Desk, t: TradeRow): Story {
   const names = sides.map(s => C[s.teamId].name)
   const star = sides.flatMap(s => s.gets.filter(g => g.name).map(g => ({ g, to: s.teamId })))[0]
   const body = [`${names.join(' and ')} have completed a trade.`, ...sides.map(s => `${C[s.teamId].name} gets ${s.gets.map(g => g.name ? `${g.name} (${code(g.sport)}-${g.team || 'FA'}, ${g.pos})` : '').filter(Boolean).join(', ') || 'future considerations'}.`)]
+  // each side's haul, by this season's numbers, and how it fits
+  const ppgOf = (g: { name: string; sport: string }) => g.name ? playerSeason(d, g.sport, g.name) : null
+  for (const s of sides) {
+    const got = s.gets.filter(g => g.name).map(g => ({ g, ps: ppgOf(g) }))
+    const gave = sides.filter(o => o !== s).flatMap(o => o.gets).filter(g => g.name).map(g => ({ g, ps: ppgOf(g) }))
+    const sum = (xs: { ps: PlayerSeason | null }[]) => xs.reduce((a, x) => a + (x.ps?.ppg ?? 0), 0)
+    const lines = got.filter(x => x.ps).map(x => `${x.g.name} (${n1(x.ps!.ppg)} a game, ${x.ps!.posRank ? `${ord(x.ps!.posRank)} of ${x.ps!.posCount} ${x.ps!.position}s` : 'limited sample'})`)
+    if (lines.length) body.push(`For ${C[s.teamId].abbreviation}: ${lines.join('; ')}. In all, ${C[s.teamId].abbreviation} takes on ${n1(sum(got))} points per game and sends out ${n1(sum(gave))}.`)
+    for (const x of got.filter(x => x.ps)) {
+      const dep = depth(d, s.teamId, x.g.sport, x.ps!.position).filter(y => y.name !== x.g.name)
+      const better = dep.filter(y => y.ppg > x.ps!.ppg).length
+      body.push(better === 0 ? `${last(x.g.name)} becomes ${C[s.teamId].abbreviation}'s top ${x.ps!.position} by points per game.` : `${last(x.g.name)} slots in as ${C[s.teamId].abbreviation}'s ${ord(better + 1)}-best ${x.ps!.position}.`)
+    }
+  }
   for (const s of sides) {
     const ranks = d.cup.find(r => r.teamId === s.teamId)
     if (ranks) body.push(`${C[s.teamId].abbreviation} is ${ord(ranks.rk)} in the Cup race with ${ranks.pts} points.`)
   }
   return { slot: `trade:${t.id}`, kind: 'trade', sport: 'MOVES', writer: 'hank', headline: star ? `${C[star.to].abbreviation} lands ${star.g.name} in trade with ${C[sides.find(s => s.teamId !== star.to)?.teamId ?? '']?.abbreviation ?? 'a rival'}` : `${sides.map(s => C[s.teamId].abbreviation).join(', ')} make a deal`, dek: `Who got what in the deal between ${names.join(' and ')}.`, body, clubs: sides.map(s => C[s.teamId].abbreviation) }
+}
+
+// ── move analysis ───────────────────────────────────────────────────────────
+type PlayerSeason = { gp: number; ppg: number; points: number; posRank: number | null; posCount: number; position: string }
+function playerSeason(d: Desk, sport: string, name: string): PlayerSeason | null {
+  const r = db.all<{ gp: number; points: number; position: string }>(sql`SELECT s.gp, s.points, p.position FROM player_season_stats s JOIN players p ON p.id = s.player_id
+    WHERE s.league_id = ${YSF_LEAGUE_ID} AND s.season = ${d.season} AND p.sport = ${sport} AND p.name = ${name} LIMIT 1`)[0]
+  if (!r || !r.gp) return null
+  const ppg = r.points / r.gp
+  const peers = db.all<{ ppg: number }>(sql`SELECT s.points * 1.0 / s.gp ppg FROM player_season_stats s JOIN players p ON p.id = s.player_id
+    WHERE s.league_id = ${YSF_LEAGUE_ID} AND s.season = ${d.season} AND p.sport = ${sport} AND p.position = ${r.position} AND s.gp >= 3`)
+  const posRank = peers.length ? peers.filter(x => x.ppg > ppg).length + 1 : null
+  return { gp: r.gp, ppg, points: r.points, posRank, posCount: peers.length, position: r.position }
+}
+// a club's players at a position, best first, by points per game
+function depth(d: Desk, clubId: string, sport: string, position: string) {
+  return db.all<{ name: string; ppg: number; slot: string }>(sql`SELECT p.name, s.points * 1.0 / s.gp ppg, r.slot FROM rosters r JOIN players p ON p.id = r.player_id
+    JOIN player_season_stats s ON s.player_id = p.id AND s.league_id = ${YSF_LEAGUE_ID} AND s.season = ${d.season} AND s.gp > 0
+    WHERE r.team_id = ${clubId} AND p.sport = ${sport} AND (p.position = ${position} OR p.eligible_positions LIKE ${'%"' + position + '"%'})
+    ORDER BY ppg DESC`)
+}
+// a player's time with a club: first and last appearance, starts, points as a starter, and how many
+// times the club has signed him
+function tenure(d: Desk, clubId: string, sport: string, name: string) {
+  const r = db.all<{ first: string | null; last: string | null; rows: number; starts: number; pts: number | null; seasons: number }>(sql`
+    SELECT MIN(NULLIF(date, '')) first, MAX(NULLIF(date, '')) last, COUNT(*) rows, SUM(status = '1') starts,
+      SUM(CASE WHEN status = '1' THEN COALESCE(engine_pts, fpts, 0) END) pts, COUNT(DISTINCT season) seasons
+    FROM fantrax_player_periods WHERE team_id = ${clubId} AND sport = ${sport} AND name = ${name}`)[0]
+  const signings = db.all<{ n: number }>(sql`SELECT COUNT(*) n FROM activity WHERE league_id = ${YSF_LEAGUE_ID} AND team_id = ${clubId}
+    AND json_extract(data, '$.player') = ${name} AND json_extract(data, '$.kind') IN ('SIGNED', 'CLAIMED', 'DRAFTED', 'TRADED')`)[0]?.n ?? 0
+  return r && r.rows ? { ...r, signings } : null
+}
+const fmtDay = (iso: string) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+
+// the analysis paragraphs for one move: the player's season, where he ranks, how he fits; for a release,
+// his history with the club
+function moveAnalysis(d: Desk, m: MoveRow): string[] {
+  const C = d.clubs, L = code(m.sport), club = C[m.teamId], out: string[] = []
+  const ps = playerSeason(d, m.sport, m.player)
+  const name = `${m.player} (${L}-${m.team || 'FA'}, ${m.pos})`
+  if (m.kind === 'CLAIMED' || m.kind === 'SIGNED') {
+    if (ps) {
+      out.push(`${last(m.player)} has averaged ${n1(ps.ppg)} fantasy points a game over ${say(ps.gp)} games this season` + (ps.posRank ? `, ${ord(ps.posRank)} among ${ps.posCount} ${ps.position}s with at least three games.` : '.'))
+      const dep = depth(d, m.teamId, m.sport, ps.position).filter(x => x.name !== m.player)
+      if (dep.length) {
+        const better = dep.filter(x => x.ppg > ps.ppg).length
+        out.push(better === 0 ? `He immediately becomes ${club?.abbreviation}'s most productive ${ps.position} by points per game, ahead of ${dep[0].name} (${n1(dep[0].ppg)}).`
+          : `On ${club?.abbreviation}'s roster he slots in behind ${dep.slice(0, better).slice(0, 2).map(x => `${x.name} (${n1(x.ppg)})`).join(' and ')} at ${ps.position}${better > 2 ? `, and ${say(better - 2)} more` : ''} — depth more than a lineup change, for now.`)
+      } else out.push(`${club?.name} had no other ${ps.position} with games this season; ${last(m.player)} fills a hole.`)
+    } else out.push(`${name} has not played a game in ${L} this season, so this is a bet on what comes next rather than what has happened.`)
+    if (m.bid) {
+      const bids = d.weekMoves.concat(d.moves).filter(x => x.sport === m.sport && x.bid).map(x => x.bid!)
+      const big = bids.filter(b => b > m.bid!).length
+      const left = d.faab[m.sport]?.[m.teamId]
+      out.push(`The $${m.bid} bid ${big === 0 ? 'is the biggest on the wire in recent days' : `ranks behind ${say(big)} bigger recent bids`}${left != null ? `, and leaves ${club?.abbreviation} with $${left} of FAAB` : ''}.`)
+    }
+  } else {
+    const t = tenure(d, m.teamId, m.sport, m.player)
+    if (t) {
+      const since = t.first ? fmtDay(t.first) : null
+      out.push(`${last(m.player)} ${t.signings > 1 ? `ends his ${ord(t.signings)} stint with ${club?.name}` : `leaves ${club?.name}`}${since ? `, where he first appeared on ${since}` : ''}${t.seasons > 1 ? ` and spent parts of ${say(t.seasons)} seasons` : ''}.` +
+        (t.starts ? ` He started ${say(t.starts)} time${t.starts === 1 ? '' : 's'} for ${club?.abbreviation} and scored ${n1(t.pts ?? 0)} points in those starts.` : ` He never cracked ${club?.abbreviation}'s starting lineup.`))
+    }
+    if (ps) out.push(`This season he has averaged ${n1(ps.ppg)} points a game over ${say(ps.gp)} games${ps.posRank ? ` (${ord(ps.posRank)} of ${ps.posCount} ${ps.position}s)` : ''} — ${ps.posRank && ps.posRank <= Math.max(5, ps.posCount * 0.25) ? `numbers another club may well want` : 'numbers that made him expendable'}.`)
+  }
+  return out
+}
+
+// a story for a notable move: a real FAAB bid, or the release of a player who started for the club
+function moveStory(d: Desk, m: MoveRow): Story | null {
+  const C = d.clubs, L = code(m.sport), club = C[m.teamId]
+  if (!club || !m.player) return null
+  const add = m.kind === 'CLAIMED' || m.kind === 'SIGNED'
+  const t = add ? null : tenure(d, m.teamId, m.sport, m.player)
+  const notable = add ? (m.bid ?? 0) >= 15 : (t?.starts ?? 0) >= 5
+  if (!notable) return null
+  // the other half of the move: the release that made room for an add, or the add a release made room for
+  const isAdd = (x: MoveRow) => x.kind === 'CLAIMED' || x.kind === 'SIGNED'
+  const paired = d.moves.find(x => x.teamId === m.teamId && x.sport === m.sport && x !== m && isAdd(x) !== add && Math.abs(Date.parse(x.when) - Date.parse(m.when)) < 60_000 && x.player)
+  const body = [
+    add ? `${club.name} ${m.bid ? `won ${m.player} (${L}-${m.team || 'FA'}, ${m.pos}) on waivers with a $${m.bid} bid` : `signed ${m.player} (${L}-${m.team || 'FA'}, ${m.pos})`}${paired && !(paired.kind === 'CLAIMED' || paired.kind === 'SIGNED') ? `, releasing ${paired.player} to make room` : ''}.`
+        : `${club.name} has released ${m.player} (${L}-${m.team || 'FA'}, ${m.pos})${paired && (paired.kind === 'CLAIMED' || paired.kind === 'SIGNED') ? ` to make room for ${paired.player}` : ''}.`,
+    ...moveAnalysis(d, m),
+    ...(paired ? moveAnalysis(d, paired) : []),
+  ]
+  const r = rowOf(d, m.sport, m.teamId)
+  if (r) body.push(`${club.abbreviation} is ${r.rec} and ${ord(r.rk)} in ${L}.`)
+  return { slot: `move:${m.id}`, kind: 'move', sport: m.sport, writer: 'hank', headline: add ? `${club.abbreviation} ${m.bid ? `pays $${m.bid} for` : 'signs'} ${last(m.player)}${paired && !(paired.kind === 'CLAIMED' || paired.kind === 'SIGNED') ? `, cuts ${last(paired.player)}` : ''}` : `${club.abbreviation} parts ways with ${last(m.player)}`,
+    dek: add ? `What ${m.player} brings to ${club.name}, and where he fits.` : `${m.player}'s time with ${club.name}, by the numbers.`, body, clubs: [club.abbreviation] }
+}
+
+// ── league story types ──────────────────────────────────────────────────────
+const unit = (sp: string) => sp === 'NFL' ? 'Week' : 'Period'
+const weekNo = (d: Desk, sp: string, w: number) => w - (d.start[sp] ?? 1) + 1
+function periodStars(d: Desk, sp: string, w: number, n = 4) {
+  return db.all<{ name: string; team: string | null; pos: string; clubId: string; pts: number }>(sql`
+    SELECT name, MAX(pro_team) team, MAX(COALESCE(positions, '')) pos, team_id clubId, SUM(COALESCE(engine_pts, fpts, 0)) pts FROM fantrax_player_periods
+    WHERE season = ${d.season} AND sport = ${sp} AND matchup_period = ${weekNo(d, sp, w)} AND status = '1'
+    GROUP BY name, team_id ORDER BY pts DESC LIMIT ${n}`).map(p => ({ ...p, sport: sp }))
+}
+
+// RECAP — the week just finished: every result, the best performers, the table after it
+function recap(d: Desk, sp: string): Story | null {
+  const C = d.clubs, w = d.lastWeek[sp], L = code(sp), tbl = d.tables[sp]
+  if (w == null || !tbl?.length) return null
+  const res = d.history.filter(m => m.sport === sp && m.week === w)
+  if (!res.length) return null
+  const rk = (id: string) => tbl.find(r => r.teamId === id)?.rk ?? 12
+  const games = res.map(m => { const [win, lose, ws, ls] = m.hs >= m.as ? [m.h, m.a, m.hs, m.as] : [m.a, m.h, m.as, m.hs]; return { win, lose, ws, ls, gap: ws - ls } })
+  const upset = [...games].filter(g => rk(g.win) - rk(g.lose) >= 4).sort((x, y) => (rk(y.win) - rk(y.lose)) - (rk(x.win) - rk(x.lose)))[0]
+  const top = [...games].sort((x, y) => y.ws - x.ws)[0], close = [...games].sort((x, y) => x.gap - y.gap)[0]
+  const stars = periodStars(d, sp, w)
+  const n = weekNo(d, sp, w), lead = tbl[0]
+  const angle = pick(d.day + sp + 'recap', [upset ? 'upset' : 'top', 'top', ...(close.gap < (close.ws + close.ls) * 0.02 ? ['close'] : [])])
+  const headline = angle === 'upset' && upset ? `${C[upset.win]?.abbreviation} stuns ${C[upset.lose]?.abbreviation} in ${L} ${unit(sp)} ${n}`
+    : angle === 'close' ? `${C[close.win]?.abbreviation} survives ${C[close.lose]?.abbreviation} by ${n1(close.gap)}`
+    : `${C[top.win]?.abbreviation}'s ${n1(top.ws)} leads ${L} ${unit(sp)} ${n}`
+  const body: string[] = []
+  const lede = angle === 'upset' && upset ? upset : angle === 'close' ? close : top
+  body.push(`${C[lede.win]?.name} beat ${C[lede.lose]?.name} ${n1(lede.ws)}–${n1(lede.ls)} in ${L} ${unit(sp)} ${n}` +
+    (angle === 'upset' ? `, a win for the ${ord(rk(lede.win))}-place club over the ${ord(rk(lede.lose))}.` : angle === 'close' ? `, the closest result of the week.` : `, the best score of the week.`))
+  for (const g of games.filter(g => g !== lede)) body.push(`${C[g.win]?.name} (${rowOf(d, sp, g.win)?.rec ?? ''}) beat ${C[g.lose]?.name} (${rowOf(d, sp, g.lose)?.rec ?? ''}), ${n1(g.ws)}–${n1(g.ls)}.`)
+  if (stars.length) body.push(`The week's best: ${stars.map(p => `${player(p)}, ${n1(p.pts)} for ${C[p.clubId]?.abbreviation}`).join('; ')}.`)
+  const all = games.flatMap(g => [g.ws, g.ls]), avg = all.reduce((a, b) => a + b, 0) / all.length, ex = extremes(d, sp)
+  body.push(`Clubs averaged ${n1(avg)} this week${ex ? `, against ${n1(ex.avg)} for the season` : ''}; ${C[top.win]?.name}'s ${n1(top.ws)} was the high${ex && top.ws >= ex.hi.s ? ', and a new season best' : ''}.`)
+  body.push(`${C[lead.teamId]?.name} leads at ${lead.rec}` + (tbl[1] ? `, ${tbl[1].gb ? `${tbl[1].gb} game${tbl[1].gb === 1 ? '' : 's'}` : 'no games'} ahead of ${C[tbl[1].teamId]?.name}` : '') + `. The last playoff spot belongs to ${C[tbl[5]?.teamId]?.name ?? '—'} (${tbl[5]?.rec ?? ''}).`)
+  return { slot: `recap:${sp}:${d.day}`, kind: 'recap', sport: sp, writer: 'walt', headline, dek: `${L} ${unit(sp)} ${n} in review: every result, the best performances, and the table after it.`, body, clubs: [C[lede.win]?.abbreviation, C[lede.lose]?.abbreviation].filter(Boolean) as string[] }
+}
+
+// THIS WEEK — the matchups ahead, with records, the model's odds and the players to watch
+function thisWeek(d: Desk, sp: string): Story | null {
+  const C = d.clubs, w = d.curWeek[sp], L = code(sp), tbl = d.tables[sp] ?? []
+  if (w == null) return null
+  const games = db.all<{ id: string; h: string; a: string }>(sql`SELECT id, home_team_id h, away_team_id a FROM matchups WHERE league_id = ${YSF_LEAGUE_ID} AND season = ${d.season} AND sport = ${sp} AND week = ${w} AND away_team_id IS NOT NULL`)
+  if (!games.length) return null
+  const rk = (id: string) => tbl.find(r => r.teamId === id)?.rk ?? 12
+  const feature = [...games].sort((x, y) => (rk(x.h) + rk(x.a)) - (rk(y.h) + rk(y.a)))[0]
+  const n = weekNo(d, sp, w)
+  const body: string[] = []
+  const odds = (g: { id: string; h: string }) => winChance(d, { sport: sp, matchupId: g.id, home: g.h } as any, g.h)
+  const fo = odds(feature)
+  body.push(`The game of the week in ${L} ${unit(sp)} ${n} is ${C[feature.h]?.name} (${rowOf(d, sp, feature.h)?.rec ?? '0-0'}, ${ord(rk(feature.h))}) against ${C[feature.a]?.name} (${rowOf(d, sp, feature.a)?.rec ?? '0-0'}, ${ord(rk(feature.a))}).` +
+    (fo != null ? ` The ySF model makes it ${Math.round(fo * 100)}–${100 - Math.round(fo * 100)} ${fo >= 0.5 ? C[feature.h]?.abbreviation : C[feature.a]?.abbreviation}.` : ''))
+  for (const g of games.filter(g => g !== feature)) {
+    const o = odds(g), fav = o == null ? null : o >= 0.5 ? g.h : g.a, p = o == null ? null : Math.max(o, 1 - o)
+    body.push(`${C[g.h]?.name} (${rowOf(d, sp, g.h)?.rec ?? '0-0'}) meets ${C[g.a]?.name} (${rowOf(d, sp, g.a)?.rec ?? '0-0'})` + (fav && p != null ? `; ${C[fav]?.abbreviation} is favored at ${Math.round(p * 100)}%.` : '.'))
+  }
+  // players to watch: the week's biggest projections from the player model
+  const watch = d.model ? db.all<{ name: string; team: string | null; pos: string; clubId: string; pts: number; games: number }>(sql`
+    SELECT p.name, p.real_team_abbr team, p.position pos, r.team_id clubId, j.pts, j.games FROM ysf_player_proj j JOIN players p ON p.id = j.player_id
+    JOIN rosters r ON r.player_id = p.id AND r.team_id IN (SELECT id FROM teams WHERE league_id = ${YSF_LEAGUE_ID})
+    WHERE j.season = ${d.season} AND j.week = ${w} AND p.sport = ${sp} ORDER BY j.pts DESC LIMIT 3`) : []
+  if (watch.length) body.push(`Players to watch: ${watch.map(p => `${player({ ...p, sport: sp })}, projected for ${n1(p.pts)}${sp !== 'NFL' ? ` over ${say(p.games)} games` : ''} for ${C[p.clubId]?.abbreviation}`).join('; ')}.`)
+  const lead = tbl[0]
+  if (lead) body.push(`${C[lead.teamId]?.name} takes a ${lead.rec} record into the week${tbl[1] ? `, ${tbl[1].gb ? `${tbl[1].gb} game${tbl[1].gb === 1 ? '' : 's'}` : 'level on record but'} ahead of ${C[tbl[1].teamId]?.name}` : ''}.`)
+  return { slot: `week:${sp}:${d.day}`, kind: 'preview', sport: sp, writer: 'june', headline: `${L} ${unit(sp)} ${n}: ${C[feature.h]?.abbreviation} vs. ${C[feature.a]?.abbreviation} headlines the week`, dek: `The matchups, the odds and the players to watch in ${L} ${unit(sp)} ${n}.`, body, clubs: [C[feature.h]?.abbreviation, C[feature.a]?.abbreviation].filter(Boolean) as string[] }
+}
+
+// ON THE WIRE — a league's week of claims, signings and releases, and who has FAAB left
+function onTheWire(d: Desk, sp: string): Story | null {
+  const C = d.clubs, L = code(sp)
+  const mv = d.weekMoves.filter(m => m.sport === sp && m.player && ['CLAIMED', 'SIGNED', 'DROPPED', 'RELEASED'].includes(m.kind))
+  if (mv.length < 2) return null
+  const adds = mv.filter(m => m.kind === 'CLAIMED' || m.kind === 'SIGNED'), cuts = mv.filter(m => m.kind === 'DROPPED' || m.kind === 'RELEASED')
+  const bids = adds.filter(m => m.bid).sort((a, b) => (b.bid ?? 0) - (a.bid ?? 0))
+  const busy = Object.entries(mv.reduce((a, m) => ({ ...a, [m.teamId]: (a[m.teamId] ?? 0) + 1 }), {} as Record<string, number>)).sort((a, b) => b[1] - a[1])
+  const p = (m: MoveRow) => `${m.player} (${L}-${m.team || 'FA'}, ${m.pos})`
+  const body: string[] = []
+  body.push(`${say(adds.length)[0].toUpperCase() + say(adds.length).slice(1)} players joined ${L} rosters this week and ${say(cuts.length)} were let go.` + (bids[0] ? ` The biggest bid: ${C[bids[0].teamId]?.name} spent $${bids[0].bid} on ${p(bids[0])}.` : ''))
+  if (bids.length > 1) body.push(`Other winning bids: ${bids.slice(1, 6).map(m => `${C[m.teamId]?.abbreviation} $${m.bid} for ${p(m)}`).join('; ')}.`)
+  const free = adds.filter(m => !m.bid)
+  if (free.length) body.push(`Signed straight off the wire: ${free.slice(0, 6).map(m => `${p(m)} to ${C[m.teamId]?.abbreviation}`).join('; ')}.`)
+  if (cuts.length) body.push(`Released: ${cuts.slice(0, 8).map(m => `${p(m)} by ${C[m.teamId]?.abbreviation}`).join('; ')}.`)
+  if (busy[0] && busy[0][1] > 2) body.push(`${C[busy[0][0]]?.name} was the busiest club with ${say(busy[0][1])} moves${busy[1] && busy[1][1] > 2 ? `, ahead of ${C[busy[1][0]]?.name} (${busy[1][1]})` : ''}.`)
+  const f = d.faab[sp] ? Object.entries(d.faab[sp]).sort((a, b) => b[1] - a[1]) : []
+  if (f.length) body.push(`FAAB left: ${f.slice(0, 3).map(([t, v]) => `${C[t]?.abbreviation} $${v}`).join(', ')} have the most to spend; ${f.slice(-2).map(([t, v]) => `${C[t]?.abbreviation} $${v}`).join(' and ')} the least.`)
+  return { slot: `wire:${sp}:${d.day}`, kind: 'wire', sport: sp, writer: 'hank', headline: bids[0] ? `${C[bids[0].teamId]?.abbreviation} spends $${bids[0].bid} on ${last(bids[0].player)} as ${L} wire heats up` : `${C[busy[0][0]]?.abbreviation} leads a busy week on the ${L} wire`, dek: `${L}'s week of claims, signings and releases, and who still has money to spend.`, body, clubs: [bids[0] ? C[bids[0].teamId]?.abbreviation : '', C[busy[0][0]]?.abbreviation].filter(Boolean) as string[] }
+}
+
+// POWER RANKINGS — all twelve, one by one
+function powerRankings(d: Desk, sp: string): Story | null {
+  const C = d.clubs, L = code(sp), tbl = d.tables[sp]
+  if (!tbl?.length || !d.history.some(m => m.sport === sp)) return null
+  const odds = d.model?.leagues[sp]?.clubs
+  const pfRank = new Map([...tbl].sort((a, b) => b.pf - a.pf).map((r, i) => [r.teamId, i + 1]))
+  const score = (r: LeagueRow) => (r.w / Math.max(1, r.w + r.l)) * 0.5 + (1 - (pfRank.get(r.teamId)! - 1) / 11) * 0.35 + (odds?.[r.teamId]?.title ?? 0) * 0.15 * 4
+  const ranked = [...tbl].sort((a, b) => score(b) - score(a))
+  const lastRes = (t: string) => { const m = [...d.history].reverse().find(x => x.sport === sp && (x.h === t || x.a === t)); if (!m) return ''; const mine = m.h === t ? m.hs : m.as, theirs = m.h === t ? m.as : m.hs, o = m.h === t ? m.a : m.h; return `${mine > theirs ? 'beat' : 'lost to'} ${C[o]?.abbreviation} ${n1(mine)}–${n1(theirs)} last time out` }
+  const body = ranked.map((r, i) => {
+    const st = streakText(streak(d, r.teamId, sp))
+    const bits = [`${r.rec}`, `${ord(pfRank.get(r.teamId)!)} in points`, odds?.[r.teamId] ? `${pct(odds[r.teamId].title)} title odds` : ''].filter(Boolean).join(', ')
+    return `${i + 1}. ${C[r.teamId]?.name} (${bits}). ${C[r.teamId]?.abbreviation} ${lastRes(r.teamId)}${st ? ` and ${st}` : ''}.`
+  })
+  const top = ranked[0]
+  return { slot: `rank:${sp}:${d.day}`, kind: 'rankings', sport: sp, writer: 'rico', headline: `${L} Power Rankings: ${C[top.teamId]?.abbreviation} on top${ranked[0].teamId !== tbl[0].teamId ? `, ahead of the standings leader` : ''}`, dek: `All twelve ${L} clubs, ranked on record, scoring and the model's view of the rest of the season.`, body, clubs: ranked.slice(0, 2).map(r => C[r.teamId]?.abbreviation).filter(Boolean) as string[] }
 }
 
 // tidy: no doubled periods after names that end in one ("Mitchel B.J.C..")
@@ -284,8 +498,34 @@ export function deskStories(d: Desk): Story[] {
   // (Tuesday) and before the weekend (Friday); the daily leagues' notebooks every day; the Cup race
   // Monday and Thursday; a story for every trade
   const dow = new Date(d.day + 'T12:00:00Z').getUTCDay()
-  const out: (Story | null)[] = [dailyWrap(d), dow === 1 || dow === 4 ? cupUpdate(d) : null,
-    ...d.live.filter(sp => sp !== 'NFL' || dow === 2 || dow === 5).map(sp => notebook(d, sp)), movesWire(d)]
+  // each league's beat (0 = Sunday): Recap after its week, This Week as the next one opens, On the
+  // Wire after waivers, a midweek Notebook, Power Rankings at the weekend
+  const BEAT: Record<string, Record<string, number[]>> = {
+    NFL: { recap: [2], week: [4], wire: [3], notebook: [1, 5], rank: [6] },
+    NHL: { recap: [1], week: [1], wire: [4], notebook: [2, 3, 5, 6], rank: [0] },
+    NBA: { recap: [1], week: [1], wire: [5], notebook: [2, 3, 4, 6], rank: [0] },
+    MLB: { recap: [1], week: [1], wire: [2], notebook: [3, 4, 5, 6], rank: [0] },
+  }
+  const on = (sp: string, k: string) => BEAT[sp]?.[k]?.includes(dow)
+  const leagues = YSF_LEAGUES.map(l => l.sport).filter(sp => d.live.includes(sp) || d.curWeek[sp] != null)
+  const out: (Story | null)[] = [dailyWrap(d), dow === 1 || dow === 4 ? cupUpdate(d) : null]
+  for (const sp of leagues) {
+    if (on(sp, 'recap')) out.push(recap(d, sp))
+    if (on(sp, 'week')) out.push(thisWeek(d, sp))
+    if (on(sp, 'wire')) out.push(onTheWire(d, sp))
+    if (on(sp, 'notebook') && d.live.includes(sp)) out.push(notebook(d, sp))
+    if (on(sp, 'rank')) out.push(powerRankings(d, sp))
+  }
+  // the day's two most notable moves get their own stories: the biggest bids, or the releases of the
+  // players who had given their clubs the most (points as a starter, against the league's weekly average)
+  const avgWk = (sp: string) => extremes(d, sp)?.avg || 100
+  const scored = d.moves.filter(m => m.player).map(m => {
+    const add = m.kind === 'CLAIMED' || m.kind === 'SIGNED'
+    const t = add ? null : tenure(d, m.teamId, m.sport, m.player)
+    return { m, score: add ? (m.bid ?? 0) / 10 : ((t?.pts ?? 0) / avgWk(m.sport)) * 3 }
+  }).filter(x => x.score >= 1.5).sort((a, b) => b.score - a.score)
+  const seen = new Set<string>()
+  for (const { m } of scored) { if (seen.size >= 2 || seen.has(m.teamId + m.sport)) continue; const st = moveStory(d, m); if (st) { out.push(st); seen.add(m.teamId + m.sport) } }
   for (const t of d.trades) out.push(tradeStory(d, t))
   return out.filter((s): s is Story => !!s).map(s => ({ ...s, headline: tidy(s.headline), dek: tidy(s.dek), body: paragraphs(s.body.map(tidy)) }))
 }
@@ -370,6 +610,11 @@ export async function buildDesk(league: any, day: string, live = false): Promise
     moves: moves.filter(m => m.season === season && Date.parse(m.when) >= t0 && Date.parse(m.when) < t1),
     trades: trades.filter(t => t.season === season && Date.parse(t.when) >= tt && Date.parse(t.when) < t1),
     model: live ? loadModel() : null,
+    start: Object.fromEntries(YSF_LEAGUES.map(L => [L.sport, sched.find(s => s.sport === L.sport)?.startWeek ?? 1])),
+    curWeek: Object.fromEntries(YSF_LEAGUES.map(L => [L.sport, ms.find(m => m.sport === L.sport && !m.po && span(season, L.sport, m.week).start <= day && day <= span(season, L.sport, m.week).end)?.week ?? null])),
+    lastWeek: Object.fromEntries(YSF_LEAGUES.map(L => { const ws = ms.filter(m => m.sport === L.sport && !m.po && span(season, L.sport, m.week).end < day).map(m => m.week); return [L.sport, ws.length ? Math.max(...ws) : null] })),
+    weekMoves: moves.filter(m => m.season === season && Date.parse(m.when) >= Date.parse(addDay(day, -7) + 'T05:00:00Z') && Date.parse(m.when) < t1),
+    faab: (() => { const o: Record<string, Record<string, number>> = {}; for (const r of db.all<{ sport: string; t: string; f: number | null }>(sql`SELECT sport, team_id t, faab_remaining f FROM team_records WHERE league_id = ${YSF_LEAGUE_ID} AND season = ${season}`)) (o[r.sport] ??= {})[r.t] = r.f ?? 0; return o })(),
     history: ms.filter(m => !m.po && span(season, m.sport, m.week).end < day).sort((x, y) => x.week - y.week).map(m => ({ sport: m.sport, week: m.week, h: m.h, a: m.a!, hs: m.hs ?? 0, as: m.as_ ?? 0 })),
     bench: db.all<{ sport: string; name: string; team: string | null; pos: string; pts: number; clubId: string }>(sql`
       SELECT * FROM (SELECT sport, name, pro_team team, COALESCE(positions, '') pos, COALESCE(engine_pts, fpts) pts, team_id clubId,

@@ -10,7 +10,13 @@ export const SECTIONS = [
   { id: 'CUP', label: 'CUP RACE', color: '#000', key: null },
   { id: 'MOVES', label: 'MOVES', color: '#2F5D8A', key: null },
 ]
-export const kicker = (a: Article) => a.kind === 'daily' ? 'THE DAILY' : a.kind === 'notebook' ? `${SECTIONS.find(s => s.id === a.sport)?.label ?? ''} NOTEBOOK` : a.kind === 'analysis' ? 'CUP RACE' : a.kind === 'trade' ? 'TRADE' : a.kind === 'report' ? 'MOVES' : (a.kind ?? 'NEWS').toUpperCase()
+const TYPE: Record<string, string> = { recap: 'RECAP', preview: 'THIS WEEK', wire: 'ON THE WIRE', notebook: 'NOTEBOOK', rankings: 'POWER RANKINGS', move: 'TRANSACTION', trade: 'TRADE', feature: 'FEATURE', column: 'COLUMN', analysis: 'CUP RACE', report: 'MOVES' }
+export const kicker = (a: Article) => {
+  if (a.kind === 'daily') return 'THE DAILY'
+  const lg = YSF_LEAGUES.find(l => l.sport === a.sport)
+  if (a.sport === 'CUP') return a.kind === 'analysis' ? 'CUP RACE' : `CUP RACE · ${TYPE[a.kind] ?? 'COLUMN'}`
+  return lg ? `${lg.code} · ${TYPE[a.kind] ?? a.kind.toUpperCase()}` : TYPE[a.kind] ?? (a.kind ?? 'NEWS').toUpperCase()
+}
 const ago = (iso: string) => {
   const m = Math.max(0, (Date.now() - Date.parse(iso)) / 60000)
   if (m < 60) return `${Math.max(1, Math.round(m))}m ago`

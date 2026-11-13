@@ -105,12 +105,8 @@ export async function factSheet(now = new Date()) {
 // ── what gets written when ─────────────────────────────────────────────────
 type Assignment = { slot: string; kind: string; writer: string; brief: string; words: string }
 const COLUMN_BY_DAY: Record<number, Omit<Assignment, 'slot'>> = {
-  1: { kind: 'feature', writer: 'walt', words: '700–1,000', brief: 'The weekend in the Federation: the one story that matters most right now, told as a feature.' },
-  2: { kind: 'column', writer: 'rico', words: '500–800', brief: 'Your Tuesday column: the week so far, the races, the clubs that deserve a ribbing or a medal.' },
-  3: { kind: 'report', writer: 'hank', words: '300–450', brief: 'Waiver wire and transactions roundup: who claimed whom, who paid the most FAAB, who was cut, and what it means for the standings.' },
-  4: { kind: 'analysis', writer: 'june', words: '500–750', brief: 'The numbers: what the Cup projection says now, who moved, who the model likes more (or less) than the table does.' },
-  5: { kind: 'preview', writer: 'june', words: '400–650', brief: 'Weekend preview: the head-to-head matchups with the most riding on them this week and what decides them.' },
-  0: { kind: 'column', writer: 'rico', words: '500–800', brief: 'Sunday column: the state of the Federation, power-ranked your way.' },
+  1: { kind: 'feature', writer: 'walt', words: '800–1,100', brief: 'The weekend in the Federation: the one story that matters most right now, told as a feature.' },
+  2: { kind: 'column', writer: 'rico', words: '600–850', brief: 'Your Tuesday column: the week so far across the Federation, the races, the clubs that deserve a ribbing or a medal.' },
 }
 
 export function dueAssignments(facts: Awaited<ReturnType<typeof factSheet>>, now = new Date()): Assignment[] {
@@ -163,7 +159,20 @@ function storeStory(st: Story, season: string, published: string) {
 }
 const etAt = (day: string, hour: number, min = 0) => { const guess = new Date(`${day}T${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}:00Z`); const off = new Date(guess.toLocaleString('en-US', { timeZone: 'America/New_York' })).getTime() - new Date(guess.toLocaleString('en-US', { timeZone: 'UTC' })).getTime(); return new Date(guess.getTime() - off).toISOString() }
 // who writes each desk story when the staff writers are on (an API key is set)
-const WRITER_FOR = (st: Story) => st.kind === 'analysis' ? 'june' : st.kind === 'notebook' ? (st.sport === 'NFL' || st.sport === 'NBA' ? 'rico' : 'walt') : 'hank'
+const WRITER_FOR = (st: Story) => ({ analysis: 'june', preview: 'june', recap: 'walt', rankings: 'rico', wire: 'hank', move: 'hank', trade: 'hank', daily: 'hank' } as Record<string, string>)[st.kind]
+  ?? (st.kind === 'notebook' ? (st.sport === 'NFL' || st.sport === 'NBA' ? 'rico' : 'walt') : 'hank')
+// what each kind of story is, for the writer
+const BRIEF: Record<string, { words: string; what: string }> = {
+  daily: { words: '400–600', what: "The Daily: yesterday across the Federation — the standout performances, the races that moved, where every league stands this morning." },
+  recap: { words: '500–750', what: 'Recap: the week just finished in this league — the result that mattered most told in full, every other result, the best performances, and what the table looks like now.' },
+  preview: { words: '450–650', what: "This Week: the league's matchups ahead — the game of the week in depth, every other matchup, the model's odds, the players to watch, and what's at stake in the table." },
+  wire: { words: '400–600', what: "On the Wire: the league's week of claims, signings and releases — the biggest bids and why they matter to those clubs, who got cut and their history, and who still has FAAB to spend." },
+  notebook: { words: '400–600', what: 'Notebook: a midweek check-in on the league — the races in progress, standout performances, streaks, the playoff line.' },
+  rankings: { words: '600–850', what: 'Power Rankings: all twelve clubs ranked, a short paragraph each — record, scoring, the model, how they got here, with personality.' },
+  move: { words: '300–450', what: 'A transaction story: what the move means for the club — the player, how he ranks, where he fits in the lineup, what it cost; for a release, his history with the club and what they lose.' },
+  trade: { words: '350–550', what: 'A trade story: who got what, how each piece ranks and fits, the points per game moving each way, and who comes out ahead on the numbers so far.' },
+  analysis: { words: '500–700', what: 'The Cup race: the standings, both projections, each contender and its paths.' },
+}
 
 // Today's stories, once each is due (from 7 AM ET): the desk's daily wrap, league notebooks, Cup update,
 // moves and trades — rewritten by the staff writers when an API key is set — plus the day's column.
@@ -176,13 +185,14 @@ export async function writeDueNews(now = new Date()): Promise<string[]> {
   const stories = deskStories(await buildDesk(league, day, true)).filter(st => !have.has(st.slot))
   const done: string[] = []
   const facts = newsConfigured() ? await factSheet(now) : null
-  let budget = 4
+  let budget = 6
   for (const st of stories) {
     if (facts && budget > 0) {
       budget--
       try {
-        const art = await writeArticle({ slot: st.slot, kind: st.kind, sport: st.sport, writer: WRITER_FOR(st), words: st.kind === 'notebook' || st.kind === 'daily' ? '350–550' : st.kind === 'trade' ? '200–300' : '450–700',
-          brief: `${st.dek} Build the story on these verified notes (every number in them is correct; use them, add nothing that isn't in the notes or the fact sheet):\n${st.headline}\n${st.body.join('\n')}` }, facts)
+        const b = BRIEF[st.kind] ?? { words: '400–600', what: st.dek }
+        const art = await writeArticle({ slot: st.slot, kind: st.kind, sport: st.sport, writer: WRITER_FOR(st), words: b.words,
+          brief: `${b.what} Build the story on these verified notes (every number in them is correct; use them, add nothing that isn't in the notes or the fact sheet). Write full paragraphs of several sentences; never a list of one-line facts.\n${st.headline}\n${st.body.join('\n')}` }, facts)
         done.push(`${st.slot}: ${art.headline}`); continue
       } catch (e: any) { done.push(`${st.slot}: writer failed (${e?.message ?? e}); desk copy filed`) }
     }
@@ -206,7 +216,7 @@ export async function writeBackIssues(days = 14, now = new Date()): Promise<numb
   for (let i = days; i >= 1; i--) {
     const day = addDay(today, -i)
     const stories = deskStories(await buildDesk(league, day, false))
-    stories.forEach((st, k) => { if (!have.has(st.slot)) { storeStory(st, league.season, etAt(day, 7, k * 7)); n++ } })
+    stories.forEach((st, k) => { if (!have.has(st.slot)) { const mins = k * 7; storeStory(st, league.season, etAt(day, 7 + Math.floor(mins / 60), mins % 60)); n++ } })
   }
   return n
 }
