@@ -10,7 +10,7 @@ import { slotEligible } from '@/lib/defaults'
 import { YSF_LEAGUES, YSF_ART, U, injTag } from '@/lib/ysf'
 
 type Game = { opp: string; home: boolean; epoch: number | null; status: string; gameId: string } | null
-type RP = { news?: Note | null; rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null; seasonStats?: Record<string, number>; wkStats?: Record<string, number> | null; proj?: { pts: number; games: number; stats: Record<string, number>; source: string } | null; oppText?: string | null }
+type RP = { taxi?: { status: string; evidence: string | null; url: string | null } | null; news?: Note | null; rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null; seasonStats?: Record<string, number>; wkStats?: Record<string, number> | null; proj?: { pts: number; games: number; stats: Record<string, number>; source: string } | null; oppText?: string | null }
 type Note = { playerId: string; name: string; text: string; link: string; seen: string }
 type FA = { playerId: string; name: string; position: string; pos: string; team: string | null; gp: number; points: number; injury: string | null; pending: boolean; clears: string | null }
 type Club = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null; ink?: string }
@@ -236,6 +236,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
                   <span className="min-w-0 flex-1 font-bold leading-tight" style={{ color: p ? '#000' : '#8A8A8A' }}>
                     <span className="block line-clamp-2 break-words">{p ? p.name : 'Empty'}</span>
                     {p?.news && <span className="hidden sm:block"><span title={p.news.text} className="text-[11px] font-normal text-ink-500 leading-snug line-clamp-1 break-all sm:break-normal">{p.news.text}</span></span>}
+                    {p?.taxi && <span title={`Commission taxi check: ${p.taxi.status}${p.taxi.evidence ? ` (${p.taxi.evidence})` : ''}`} className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] mt-0.5 mr-1 rounded-[2px] text-[10px] font-bold border" style={p.taxi.status === 'eligible' ? { borderColor: '#177245', color: '#177245' } : { borderColor: '#8A8A8A', color: '#4A4A4A' }}>{p.taxi.status === 'eligible' ? 'TAXI OK' : 'TAXI REVIEW'}</span>}
                     {inj && <span title={(p as any)?.injuryNote ?? p?.injury ?? ''} className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] mt-0.5 rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold">{inj}</span>}
                   </span>
                 </span>

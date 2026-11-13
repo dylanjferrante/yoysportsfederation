@@ -15,7 +15,7 @@ import { bearerUserId } from '@/lib/mobileAuth'
 import { lastNflRun, nextNflRun } from '@/lib/waivers'
 import { clubInk } from '@/lib/ysf'
 import { playerProjection } from '@/lib/ysf-model'
-import { taxiLockAt } from '@/lib/ysf-rules'
+import { taxiLockAt, taxiVerdicts, taxiVerdictFor } from '@/lib/ysf-rules'
 import { playerNews } from '@/lib/ysf-player-news'
 
 // Everything the My Club page needs for one league (sport) and one week: the matchup, the lineup
@@ -240,7 +240,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   // player news: each player's latest note, and the roster's newest notes
   const pn = playerNews(roster.map(r => r.playerId).filter(Boolean), 8)
-  roster = roster.map(r => ({ ...r, news: pn.latest.get(r.playerId) ?? null }))
+  // the Commission's taxi verdicts (ysffantasy.com), shown while this league's taxi squad hasn't locked
+  const tv = id === 'ysf' ? await taxiVerdicts(sport, season) : null
+  const taxiOpen = !!tv?.lock && tv.lock.getTime() > Date.now()
+  roster = roster.map(r => {
+    const v = taxiOpen && r.slot !== 'TAXI' ? taxiVerdictFor(tv!.byPlayer, r.name, r.team) : undefined
+    return { ...r, news: pn.latest.get(r.playerId) ?? null, taxi: v && ['eligible', 'review', 'unconfirmed'].includes(v.status) ? v : null }
+  })
 
   return NextResponse.json({
     readOnly, news: pn.recent,

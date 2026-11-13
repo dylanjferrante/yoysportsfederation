@@ -12,7 +12,7 @@
 //                 ySFLB SP 10 games per matchup
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
-import { leagueFeed, ysfSeason } from '@/lib/ysf-data'
+import { leagueFeed, ysfSeason, siteFeed } from '@/lib/ysf-data'
 
 export const isYsf = (leagueId?: string | null) => leagueId === 'ysf'
 export const LEAGUE_OF: Record<string, string> = { NFL: 'ySFFL', NHL: 'ySFHL', NBA: 'ySFBA', MLB: 'ySFLB' }
@@ -282,3 +282,26 @@ export async function irLockError(teamId: string, sport: string, exceptRosterId?
 // ── Starting-pitcher games (Fed. Res. III) ───────────────────────────────────
 // League Settings' MLB starting-pitcher cap (games per 7 days; 0 = no cap), prorated by the matchup's length
 export const spCap = (startYmd: string, endYmd: string) => { const c = cfg().spCap; return c > 0 ? Math.round(c * ((Date.parse(endYmd) - Date.parse(startYmd)) / 86_400_000 + 1) / 7) : Infinity }
+
+// ── The Commission's taxi verdicts (ysffantasy.com taxi_eligible.json) ──────────────────────────
+// The ySF scraper checks every rostered player against Comm. Res. VII (ESPN / NHL records) and
+// publishes a verdict per player: eligible, review (needs the Commission), unconfirmed (no matching
+// record), ineligible, on_taxi, removed (can't return). Keyed here by name + pro team.
+export type TaxiVerdict = { status: string; evidence: string | null; url: string | null }
+const vKey = (name: string, team: string | null | undefined) => `${name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, '').replace(/[^a-z]/g, '')}|${(team ?? '').toUpperCase()}`
+export async function taxiVerdicts(sport: string, season: string): Promise<{ lock: Date | null; max: number | null; byPlayer: Map<string, TaxiVerdict> }> {
+  const byPlayer = new Map<string, TaxiVerdict>()
+  const feed = await siteFeed<any>('taxi_eligible.json')
+  const L = feed?.seasons?.[season]?.[FEED[sport]]
+  if (!L) return { lock: null, max: null, byPlayer }
+  const players: any[] = Array.isArray(L.players) ? L.players : Object.values(L.players ?? {})
+  for (const p of players) {
+    // "Last, First" → "First Last"
+    const name = String(p.player ?? '').includes(',') ? String(p.player).split(',').map((x: string) => x.trim()).reverse().join(' ') : String(p.player ?? '')
+    const v = { status: String(p.status ?? ''), evidence: p.evidence ?? null, url: p.url ?? null }
+    byPlayer.set(vKey(name, p.real_team), v)
+    if (!byPlayer.has(vKey(name, ''))) byPlayer.set(vKey(name, ''), v)
+  }
+  return { lock: L.lock ? new Date(L.lock) : null, max: L.max ?? null, byPlayer }
+}
+export const taxiVerdictFor = (m: Map<string, TaxiVerdict>, name: string, team: string | null) => m.get(vKey(name, team)) ?? m.get(vKey(name, ''))
