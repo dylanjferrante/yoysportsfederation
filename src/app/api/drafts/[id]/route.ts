@@ -63,14 +63,30 @@ async function draftOrder(leagueId: string, season: string, manualOrderJson?: st
   return drawn
 }
 
-function onClock(order: any[], pick: number) {
+function onClock(order: any[], pick: number, type?: string | null) {
   const n = order.length
   if (!n) return null
   const round = Math.ceil(pick / n)
   const within = (pick - 1) % n
-  const roundOrder = round % 2 === 1 ? order : [...order].reverse()
+  const roundOrder = round % 2 === 1 || type === 'LINEAR' ? order : [...order].reverse()
   return roundOrder[within]
 }
+
+// A draft can carry its exact pick order as draft_picks rows with pickNumber pre-assigned
+// (e.g. an imported league whose picks have been traded): each pick then belongs to that
+// row's current owner. Without them, the order comes from the team order (snake or linear).
+type Slot = { id: string; round: number; originalTeamId: string; currentTeamId: string; isUsed: boolean | null }
+async function slotMap(draftId: string): Promise<Map<number, Slot>> {
+  const rows = await db.select({ id: draftPicks.id, round: draftPicks.round, originalTeamId: draftPicks.originalTeamId, currentTeamId: draftPicks.currentTeamId, pickNumber: draftPicks.pickNumber, isUsed: draftPicks.isUsed })
+    .from(draftPicks).where(eq(draftPicks.draftId, draftId))
+  return new Map(rows.filter(r => r.pickNumber != null).map(r => [r.pickNumber!, r]))
+}
+function pickClock(order: any[], pick: number, slots: Map<number, Slot>, type?: string | null) {
+  const sl = slots.get(pick)
+  if (sl) return order.find(o => o.id === sl.currentTeamId) ?? null
+  return onClock(order, pick, type)
+}
+const totalPicks = (draft: any, order: any[], slots: Map<number, Slot>) => slots.size ? Math.max(...slots.keys()) : (draft.rounds ?? 4) * order.length
 
 // Projected-points share within each sport, so values are comparable across sports.
 async function sportTotals() {
@@ -82,6 +98,14 @@ async function sportTotals() {
   return totals
 }
 const shareValue = (p: { sport: string; projectedPoints: number | null }, totals: Record<string, number>) => (p.projectedPoints ?? 0) / (totals[p.sport] ?? 1)
+
+// Rookie drafts draw only from rookie-eligible players (when the sport has any marked).
+async function draftPool(draft: any, sportsFilter: string[]) {
+  const pool = await db.select().from(players).where(inArray(players.sport, sportsFilter)).limit(5000)
+  if (draft.kind !== 'ROOKIE') return pool
+  const rookies = pool.filter(p => p.isRookie)
+  return rookies.length ? rookies : pool
+}
 
 async function rosteredSet(leagueId: string) {
   const rows = await db.select({ pid: rosters.playerId }).from(rosters).innerJoin(teams, eq(rosters.teamId, teams.id)).where(eq(teams.leagueId, leagueId))
@@ -95,7 +119,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!draft) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const order = await draftOrder(draft.leagueId, draft.season, draft.manualOrder)
-  const total = (draft.rounds ?? 4) * order.length
+  const slots = await slotMap(id)
+  const total = totalPicks(draft, order, slots)
   const myTeam = session ? order.find(o => o.userId === session.user.id) : null
   const [gleague] = await db.select({ commissionerId: leagues.commissionerId }).from(leagues).where(eq(leagues.id, draft.leagueId)).limit(1)
   const isCommish = !!session && gleague?.commissionerId === session.user.id
@@ -129,30 +154,31 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   // Full board: every pick, previous + upcoming.
   const board = Array.from({ length: total }, (_, i) => {
     const pk = i + 1
-    const t = onClock(order, pk)
-    const round = Math.ceil(pk / order.length)
+    const sl = slots.get(pk)
+    const t = sl ? order.find(o => o.id === sl.originalTeamId) : onClock(order, pk, draft.type)
+    const round = sl ? sl.round : Math.ceil(pk / order.length)
     const pickInRound = ((pk - 1) % order.length) + 1
     const m = madeByPick[pk]
     // VIA chain for traded slots (column stays the original team; tile shows new owner).
-    const traded = t ? tradedByRoundTeam.get(`${round}:${t.id}`) : undefined
+    const traded = sl ? (sl.currentTeamId !== sl.originalTeamId ? { ownerId: sl.currentTeamId, pickId: sl.id } : undefined) : t ? tradedByRoundTeam.get(`${round}:${t.id}`) : undefined
     const via = traded ? (viaByPickId[traded.pickId]?.length ? viaByPickId[traded.pickId] : [t!.abbreviation]) : null
     const ownerAbbr = traded ? (abbrById[traded.ownerId] ?? null) : null
     return {
-      pickNumber: pk, round, pickInRound, teamId: t?.id, teamAbbr: t?.abbreviation, via, ownerAbbr,
+      pickNumber: pk, round, pickInRound, teamId: t?.id, teamAbbr: t?.abbreviation, via, ownerAbbr, ownerId: traded ? traded.ownerId : t?.id,
       player: m ? { name: m.playerName, sport: m.sport, position: m.position, realTeamAbbr: m.realTeamAbbr } : null,
     }
   })
 
   const current = draft.currentPick ?? 0
-  const clock = draft.status === 'IN_PROGRESS' && current > 0 && current <= total ? onClock(order, current) : null
+  const clock = draft.status === 'IN_PROGRESS' && current > 0 && current <= total ? pickClock(order, current, slots, draft.type) : null
 
   const rostered = await rosteredSet(draft.leagueId)
   const sportsFilter = draft.scope === 'OVERALL' ? SPORTS : [draft.scope]
   const totals = await sportTotals()
-  const pool = await db.select().from(players).where(inArray(players.sport, sportsFilter)).limit(5000)
+  const pool = await draftPool(draft, sportsFilter)
   const available = pool.filter(p => !rostered.has(p.id))
-    .map(p => ({ id: p.id, name: p.name, sport: p.sport, position: p.position, realTeam: p.realTeam, projectedPoints: p.projectedPoints, adp: p.adp, value: +(shareValue(p, totals) * 100).toFixed(2) }))
-    .sort((a, b) => b.value - a.value).slice(0, 300)
+    .map(p => ({ id: p.id, name: p.name, sport: p.sport, position: p.position, realTeam: p.realTeam, realTeamAbbr: p.realTeamAbbr, eligible: p.eligiblePositions, projectedPoints: p.projectedPoints, adp: p.adp, value: +(shareValue(p, totals) * 100).toFixed(2) }))
+    .sort((a, b) => (b.value - a.value) || ((a.adp ?? 1e9) - (b.adp ?? 1e9))).slice(0, 300)
 
   // Requesting user's queue + auto-pick state.
   let myQueue: any[] = [], myAutopick = false
@@ -187,7 +213,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }
 
   return NextResponse.json({
-    draft, order: order.map(o => ({ id: o.id, name: o.name, abbreviation: o.abbreviation, userId: o.userId, logo: o.logo, primaryColor: o.primaryColor, secondaryColor: o.secondaryColor })),
+    draft, order: order.map(o => ({ id: o.id, name: o.name, abbreviation: o.abbreviation, userId: o.userId, logo: o.logo, altLogo: o.altLogo, primaryColor: o.primaryColor, secondaryColor: o.secondaryColor })),
     board, made, current, total, onClockTeam: clock ? { id: clock.id, name: clock.name } : null,
     available, myTeamId: myTeam?.id ?? null, myQueue, myAutopick, auction, isCommish,
   })
@@ -197,8 +223,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 async function commitPick(draft: any, order: any[], teamId: string, playerId: string, pickNumber: number) {
   const [pl] = await db.select().from(players).where(eq(players.id, playerId)).limit(1)
   if (!pl) return
-  await db.insert(rosters).values({ id: nanoid(), teamId, playerId: pl.id, sport: pl.sport, slot: 'BN', acquisitionType: 'DRAFT' }).onConflictDoNothing()
-  const [slot] = await db.select().from(draftPicks).where(and(eq(draftPicks.draftId, draft.id), eq(draftPicks.currentTeamId, teamId), eq(draftPicks.isUsed, false))).limit(1)
+  // Rookie-draft picks start on the taxi squad; dynasty-draft picks on the bench.
+  await db.insert(rosters).values({ id: nanoid(), teamId, playerId: pl.id, sport: pl.sport, slot: draft.kind === 'ROOKIE' ? 'TAXI' : 'BN', acquisitionType: 'DRAFT' }).onConflictDoNothing()
+  const [pre] = await db.select().from(draftPicks).where(and(eq(draftPicks.draftId, draft.id), eq(draftPicks.pickNumber, pickNumber), eq(draftPicks.isUsed, false))).limit(1)
+  const [slot] = pre ? [pre] : await db.select().from(draftPicks).where(and(eq(draftPicks.draftId, draft.id), eq(draftPicks.currentTeamId, teamId), eq(draftPicks.isUsed, false))).limit(1)
   if (slot) await db.update(draftPicks).set({ isUsed: true, pickedPlayerId: pl.id, pickNumber, sport: pl.sport }).where(eq(draftPicks.id, slot.id))
   else await db.insert(draftPicks).values({ id: nanoid(), leagueId: draft.leagueId, draftId: draft.id, sport: pl.sport, round: Math.ceil(pickNumber / order.length), year: Number(draft.season.slice(0, 4)) || 2027, originalTeamId: teamId, currentTeamId: teamId, isUsed: true, pickedPlayerId: pl.id, pickNumber })
   await db.delete(draftQueues).where(and(eq(draftQueues.draftId, draft.id), eq(draftQueues.playerId, pl.id)))
@@ -212,8 +240,8 @@ async function autoSelect(draft: any, teamId: string, sportsFilter: string[], ro
     .where(and(eq(draftQueues.draftId, draft.id), eq(draftQueues.teamId, teamId)))
   const queued = q.filter(x => !rostered.has(x.playerId) && sportsFilter.includes(x.sport)).sort((a, b) => a.position - b.position)
   if (queued.length) return queued[0].playerId
-  const pool = await db.select().from(players).where(inArray(players.sport, sportsFilter)).limit(5000)
-  const best = pool.filter(p => !rostered.has(p.id)).sort((a, b) => shareValue(b, totals) - shareValue(a, totals))[0]
+  const pool = await draftPool(draft, sportsFilter)
+  const best = pool.filter(p => !rostered.has(p.id)).sort((a, b) => (shareValue(b, totals) - shareValue(a, totals)) || ((a.adp ?? 1e9) - (b.adp ?? 1e9)))[0]
   return best?.id ?? null
 }
 
@@ -322,8 +350,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const [league] = await db.select().from(leagues).where(eq(leagues.id, draft.leagueId)).limit(1)
   const isCommish = league?.commissionerId === session.user.id
   const order = await draftOrder(draft.leagueId, draft.season, draft.manualOrder)
-  const total = (draft.rounds ?? 4) * order.length
+  const slots = await slotMap(id)
+  const total = totalPicks(draft, order, slots)
   const myTeam = order.find(o => o.userId === session.user.id)
+  const clockAt = (pk: number) => pickClock(order, pk, slots, draft.type)
   const sportsFilter = draft.scope === 'OVERALL' ? SPORTS : [draft.scope]
 
   const body = await req.json() as { action: string; playerId?: string; direction?: string; bid?: number; order?: string[] }
@@ -396,7 +426,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.action === 'FORCE_AUTOPICK') {
     if (!isCommish) return NextResponse.json({ error: 'Commissioner only' }, { status: 403 })
     if (draft.status === 'IN_PROGRESS') {
-      const clock = onClock(order, draft.currentPick ?? 1)
+      const clock = clockAt(draft.currentPick ?? 1)
       if (clock) {
         const totals = await sportTotals()
         const rostered = await rosteredSet(draft.leagueId)
@@ -412,7 +442,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // Clock expiry: anyone may tick; the server only force-picks once the deadline passes.
   if (body.action === 'TICK') {
     if (draft.status === 'IN_PROGRESS' && draft.pickDeadline && Date.now() >= Date.parse(draft.pickDeadline)) {
-      const clock = onClock(order, draft.currentPick ?? 1)
+      const clock = clockAt(draft.currentPick ?? 1)
       if (clock) {
         const totals = await sportTotals()
         const rostered = await rosteredSet(draft.leagueId)
@@ -428,7 +458,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // Explicit human pick
   if (body.action === 'PICK' && body.playerId) {
     if (draft.status !== 'IN_PROGRESS') return NextResponse.json({ error: 'Draft not active' }, { status: 400 })
-    const clock = onClock(order, draft.currentPick ?? 1)
+    const clock = clockAt(draft.currentPick ?? 1)
     if (!clock) return NextResponse.json({ error: 'Draft complete' }, { status: 400 })
     if (!isCommish && myTeam?.id !== clock.id) return NextResponse.json({ error: 'Not your pick' }, { status: 403 })
     await commitPick(draft, order, clock.id, body.playerId, draft.currentPick ?? 1)
@@ -441,7 +471,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const totals = await sportTotals()
     let guard = 0
     while ((live.currentPick ?? 1) <= total && guard++ < total + 1) {
-      const clock = onClock(order, live.currentPick ?? 1)
+      const clock = clockAt(live.currentPick ?? 1)
       if (!clock) break
       const [ap] = await db.select().from(draftAutopick).where(and(eq(draftAutopick.draftId, id), eq(draftAutopick.teamId, clock.id))).limit(1)
       const autoNow = body.action === 'AUTO_PICK' && clock.id === myTeam?.id
