@@ -12,7 +12,7 @@ type Item = { label: string; href?: string; menu?: { label: string; href: string
 
 // The ySF header — black bar, ySF wordmark, display-face caps nav with Leagues / Clubs / More
 // dropdowns (same structure as ysffantasy.com). Mobile: wordmark + hamburger.
-export default function NavbarClient({ clubs, leagueId }: { clubs: Club[]; leagueId: string }) {
+export default function NavbarClient({ clubs, leagueId, strip }: { clubs: Club[]; leagueId: string; strip?: React.ReactNode }) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [open, setOpen] = useState<string | null>(null)
@@ -48,6 +48,9 @@ export default function NavbarClient({ clubs, leagueId }: { clubs: Club[]; leagu
     : !!it.menu?.some(m => pathname === m.href || (m.href !== base && pathname.startsWith(m.href + '/')))
 
   return (
+    <>
+    {/* home page: the score strip runs full width above the menu */}
+    {(pathname === `/leagues/${leagueId}` || pathname === '/') && strip}
     <header className="bg-black text-white sticky top-0 z-50 border-b border-ink-800" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-[1240px] mx-auto px-4 sm:px-5 min-h-[60px] flex items-center gap-6">
         <Link href={base} className="flex items-center min-w-0" aria-label="yoy Sports Federation">
@@ -123,5 +126,6 @@ export default function NavbarClient({ clubs, leagueId }: { clubs: Club[]; leagu
         </div>
       )}
     </header>
+    </>
   )
 }

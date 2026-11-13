@@ -1,6 +1,6 @@
 // ySF Site Redesign — Home (front page), from the Nexus database.
 import Link from 'next/link'
-import { loadStandings, loadWeek, seriesSummary, type ClubInfo } from '@/lib/ysf-data'
+import { loadStandings, type ClubInfo } from '@/lib/ysf-data'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import HomeStandings from './HomeStandings'
 import { writeStories, ord, pct } from '@/lib/ysf-stories'
@@ -8,7 +8,6 @@ import { writeStories, ord, pct } from '@/lib/ysf-stories'
 
 export default async function YsfHome({ league }: { league: any }) {
   const s = await loadStandings(league)
-  const wk = await loadWeek(league)
   const C = s.clubs, ab = (id: string) => C[id]?.abbreviation ?? ''
   const live = s.live
   const lead = s.cup[0], second = s.cup[1]
@@ -17,29 +16,9 @@ export default async function YsfHome({ league }: { league: any }) {
   const { headline, dek, heads } = writeStories(s)
 
   const leader = C[lead.teamId] as ClubInfo
-  const stripLabels = YSF_LEAGUES.map(l => wk.pairings[0]?.lines.find(x => x.sport === l.sport)).filter(Boolean) as any[]
 
   return (
     <>
-      {/* score strip — one cell per club pairing, every active league stacked */}
-      <section className="-mx-4 sm:mx-0 bg-black text-white flex overflow-x-auto sm:rounded">
-        <div className="flex-none flex items-center gap-2 px-4 bg-[#ba0c2f] font-display font-bold tracking-[.1em] text-[13px]"><span className="w-2 h-2 rounded-full bg-white" />LIVE</div>
-        <div className="flex-none flex flex-col justify-center gap-1 px-4 font-display text-[11px] tracking-[.1em] text-ink-200 border-r border-ink-800">
-          {stripLabels.map(l => <span key={l.sport}>{U(`${l.label} · ${l.status === 'FINAL' ? 'final' : l.status === 'LIVE' ? 'live' : 'upcoming'}`)}</span>)}
-        </div>
-        {wk.pairings.map(p => (
-          <Link key={p.a + p.b} href={`/leagues/${league.id}/scores`} className="flex-none min-w-[200px] px-4 py-2.5 border-r border-ink-800 hover:bg-ink-800">
-            {[p.a, p.b].map((id, side) => (
-              <div key={id} className="flex items-center gap-3 font-display text-[13px] font-bold leading-[1.5]">
-                <span className="w-12">{ab(id)}</span>
-                {p.lines.map(l => { const v = side ? l.b : l.a, o = side ? l.a : l.b; return <span key={l.sport} className="w-12 text-right tabular-nums" style={{ color: v != null && o != null && v > o ? '#fff' : '#C7C7C7', fontWeight: v != null && o != null && v > o ? 800 : 500 }}>{v == null ? '–' : v.toLocaleString('en-US', { maximumFractionDigits: 1 })}</span> })}
-              </div>
-            ))}
-            <div className="text-[11px] text-ink-200 mt-0.5">{seriesSummary(p, ab)}</div>
-          </Link>
-        ))}
-      </section>
-
       <section className="grid gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-5">
           <div className="rounded overflow-hidden flex" style={{ background: leader.color ?? '#000' }}>

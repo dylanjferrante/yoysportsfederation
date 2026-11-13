@@ -8,7 +8,8 @@ import { writeStories, pct } from '@/lib/ysf-stories'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 
 export type TickerMark = { src: string; bg: string }
-export type TickerItem = { marks: TickerMark[]; text: string; ago: string; live?: boolean }
+export type TickerSide = { mark: TickerMark; ab: string; v: string | null; win: boolean }
+export type TickerItem = { marks: TickerMark[]; text: string; ago: string; live?: boolean; score?: TickerSide[] }
 export type TickerGroup = { label: string; bd: string; items: TickerItem[] }
 export type TickerBlock = { name: string; bg: string; fg: string; logo: string | null; groups: TickerGroup[] }
 
@@ -57,8 +58,9 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
     const groups: TickerGroup[] = []
     const lines = wk.pairings.flatMap(p => p.lines.filter(l => l.sport === L.sport).map(l => ({ p, l })))
     if (lines.length) groups.push({ label: periodLabel(league, L.sport, wk.week).toUpperCase(), bd: L.color, items: lines.map(({ p, l }) => ({
-      marks: [mark(p.a), mark(p.b)], live: l.status === 'LIVE',
+      marks: [], live: l.status === 'LIVE',
       text: l.a == null ? `${ab(p.a)} vs ${ab(p.b)}` : `${ab(p.a)} ${num(l.a)} · ${ab(p.b)} ${num(l.b ?? 0)}`,
+      score: [[p.a, l.a, l.b], [p.b, l.b, l.a]].map(([id, v, o]) => ({ mark: mark(id as string), ab: ab(id as string), v: v == null ? null : num(v as number), win: v != null && o != null && (v as number) > (o as number) })),
       ago: l.status === 'FINAL' ? 'Final' : l.status === 'LIVE' ? 'Live' : 'Up next' })) })
     const t = s.tables[L.sport]
     const table: TickerItem[] = [{ marks: [mark(t[0].teamId)], text: `${C[t[0].teamId]?.name} ${t[0].rec} atop ${L.code}`, ago: 'Today' }]
