@@ -1,18 +1,21 @@
-// Write any ySF News stories that are due (run hourly by the scheduler). --dry prints the fact sheet
-// summary and the due assignments without writing.
-import { factSheet, dueAssignments, writeDueNews, newsConfigured } from '../src/lib/ysf-news'
+// ySF News: write the stories that are due (the scheduler runs this hourly).
+//   --back 14          also write back issues for the last 14 days (once; existing stories are kept)
+//   --preview 2026-11-10   print that morning's desk stories without storing them
+import { db } from '../src/db'
+import { leagues } from '../src/db/schema'
+import { eq } from 'drizzle-orm'
+import { writeDueNews, writeBackIssues } from '../src/lib/ysf-news'
+import { buildDesk, deskStories } from '../src/lib/ysf-wire'
 
 async function main() {
-  if (process.argv.includes('--dry')) {
-    const f = await factSheet()
-    const json = JSON.stringify(f)
-    console.log(`fact sheet: ${json.length} chars (~${Math.round(json.length / 4)} tokens)`)
-    console.log('top performances:', f.topPerformances.slice(0, 3))
-    console.log('this week:', JSON.stringify(f.thisWeek[0]))
-    console.log('due:', dueAssignments(f).map(a => `${a.slot} → ${a.writer} (${a.kind})`))
-    console.log('api key set:', newsConfigured())
+  const i = process.argv.indexOf('--preview')
+  if (i > 0) {
+    const [league] = await db.select().from(leagues).where(eq(leagues.id, 'ysf')).limit(1)
+    for (const st of deskStories(await buildDesk(league, process.argv[i + 1], false))) console.log(`\n[${st.slot}] ${st.headline}\n  ${st.dek}\n  ${st.body.join('\n  ')}`)
     return
   }
+  const b = process.argv.indexOf('--back')
+  if (b > 0) console.log(`back issues: ${await writeBackIssues(Number(process.argv[b + 1] ?? 14))} stories`)
   for (const line of await writeDueNews()) console.log(line)
 }
 main().then(() => process.exit(0), e => { console.error(e); process.exit(1) })

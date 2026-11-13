@@ -12,6 +12,7 @@ import { db } from '@/db'
 import { leagues } from '@/db/schema'
 import { YSF_LEAGUE_ID, YSF_LEAGUES } from '@/lib/ysf'
 import { loadStandings, loadWeek, loadMoves, siteCupProjection } from '@/lib/ysf-data'
+import { buildDesk, deskStories, addDay, type Story } from '@/lib/ysf-wire'
 
 // ── the writers ─────────────────────────────────────────────────────────────
 export type Writer = { id: string; name: string; title: string; style: string }
@@ -134,7 +135,7 @@ export function dueAssignments(facts: Awaited<ReturnType<typeof factSheet>>, now
 // ── writing ─────────────────────────────────────────────────────────────────
 export const newsConfigured = () => !!process.env.ANTHROPIC_API_KEY
 
-export async function writeArticle(a: Assignment, facts: Awaited<ReturnType<typeof factSheet>>): Promise<Article> {
+export async function writeArticle(a: Assignment & { sport?: string | null }, facts: Awaited<ReturnType<typeof factSheet>>): Promise<Article> {
   const w = WRITERS[a.writer]
   const client = new Anthropic()
   const response = await client.beta.messages.parse({
@@ -149,19 +150,63 @@ export async function writeArticle(a: Assignment, facts: Awaited<ReturnType<type
   })
   if (response.stop_reason === 'refusal' || !response.parsed_output) throw new Error(`no article (${response.stop_reason})`)
   const p = response.parsed_output
-  const art: Article = { ...p, id: nanoid(10), kind: a.kind, writer: a.writer, published: new Date().toISOString(), slot: a.slot, sport: null }
+  const art: Article = { ...p, id: nanoid(10), kind: a.kind, writer: a.writer, published: new Date().toISOString(), slot: a.slot, sport: a.sport ?? null }
   db.run(sql`INSERT OR IGNORE INTO ysf_news (id, slot, season, kind, writer, sport, headline, dek, body, clubs, published)
     VALUES (${art.id}, ${art.slot}, ${facts.season}, ${art.kind}, ${art.writer}, ${art.sport}, ${art.headline}, ${art.dek}, ${JSON.stringify(art.body)}, ${JSON.stringify(art.clubs)}, ${art.published})`)
   return art
 }
 
-// at most three stories a run, so a busy day can't run away with the bill
+// store a desk story as written
+function storeStory(st: Story, season: string, published: string) {
+  db.run(sql`INSERT OR IGNORE INTO ysf_news (id, slot, season, kind, writer, sport, headline, dek, body, clubs, published)
+    VALUES (${nanoid(10)}, ${st.slot}, ${season}, ${st.kind}, ${st.writer}, ${st.sport}, ${st.headline}, ${st.dek}, ${JSON.stringify(st.body)}, ${JSON.stringify(st.clubs)}, ${published})`)
+}
+const etAt = (day: string, hour: number, min = 0) => { const guess = new Date(`${day}T${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}:00Z`); const off = new Date(guess.toLocaleString('en-US', { timeZone: 'America/New_York' })).getTime() - new Date(guess.toLocaleString('en-US', { timeZone: 'UTC' })).getTime(); return new Date(guess.getTime() - off).toISOString() }
+// who writes each desk story when the staff writers are on (an API key is set)
+const WRITER_FOR = (st: Story) => st.kind === 'analysis' ? 'june' : st.kind === 'notebook' ? (st.sport === 'NFL' || st.sport === 'NBA' ? 'rico' : 'walt') : 'hank'
+
+// Today's stories, once each is due (from 7 AM ET): the desk's daily wrap, league notebooks, Cup update,
+// moves and trades — rewritten by the staff writers when an API key is set — plus the day's column.
 export async function writeDueNews(now = new Date()): Promise<string[]> {
-  if (!newsConfigured()) return []
-  const facts = await factSheet(now)
+  ensureNewsSchema()
+  const [league] = await db.select().from(leagues).where(eq(leagues.id, YSF_LEAGUE_ID)).limit(1)
+  const day = etDate(now), hourEt = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }).format(now))
+  if (hourEt < 7) return []
+  const have = new Set(db.all<{ slot: string }>(sql`SELECT slot FROM ysf_news`).map(r => r.slot))
+  const stories = deskStories(await buildDesk(league, day, true)).filter(st => !have.has(st.slot))
   const done: string[] = []
-  for (const a of dueAssignments(facts, now).slice(0, 3)) {
+  const facts = newsConfigured() ? await factSheet(now) : null
+  let budget = 4
+  for (const st of stories) {
+    if (facts && budget > 0) {
+      budget--
+      try {
+        const art = await writeArticle({ slot: st.slot, kind: st.kind, sport: st.sport, writer: WRITER_FOR(st), words: st.kind === 'notebook' || st.kind === 'daily' ? '350–550' : st.kind === 'trade' ? '200–300' : '450–700',
+          brief: `${st.dek} Build the story on these verified notes (every number in them is correct; use them, add nothing that isn't in the notes or the fact sheet):\n${st.headline}\n${st.body.join('\n')}` }, facts)
+        done.push(`${st.slot}: ${art.headline}`); continue
+      } catch (e: any) { done.push(`${st.slot}: writer failed (${e?.message ?? e}); desk copy filed`) }
+    }
+    storeStory(st, league.season, now.toISOString()); done.push(`${st.slot}: ${st.headline}`)
+  }
+  // the day's column, when the staff writers are on
+  if (facts) for (const a of dueAssignments(facts, now).filter(a => a.slot.startsWith('col:')).slice(0, 1)) {
     try { const art = await writeArticle(a, facts); done.push(`${a.slot}: ${art.headline}`) } catch (e: any) { done.push(`${a.slot}: failed (${e?.message ?? e})`) }
   }
   return done
+}
+
+// Back issues: each morning's desk stories for the last `days` days, written from the league as it
+// stood that morning and dated that morning.
+export async function writeBackIssues(days = 14, now = new Date()): Promise<number> {
+  ensureNewsSchema()
+  const [league] = await db.select().from(leagues).where(eq(leagues.id, YSF_LEAGUE_ID)).limit(1)
+  const have = new Set(db.all<{ slot: string }>(sql`SELECT slot FROM ysf_news`).map(r => r.slot))
+  const today = etDate(now)
+  let n = 0
+  for (let i = days; i >= 1; i--) {
+    const day = addDay(today, -i)
+    const stories = deskStories(await buildDesk(league, day, false))
+    stories.forEach((st, k) => { if (!have.has(st.slot)) { storeStory(st, league.season, etAt(day, 7, k * 7)); n++ } })
+  }
+  return n
 }

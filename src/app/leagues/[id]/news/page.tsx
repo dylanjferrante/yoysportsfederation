@@ -31,11 +31,11 @@ function ago(iso: string | null): string {
   return 'just now'
 }
 
-export default async function NewsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lg?: string }> }) {
+export default async function NewsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lg?: string; s?: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
-  if (id === YSF_LEAGUE_ID) return <div className="flex flex-col gap-5"><YsfNews league={league} /></div>
+  if (id === YSF_LEAGUE_ID) return <div className="flex flex-col gap-6"><YsfNews league={league} section={(await searchParams).s} /></div>
   const items = await buildLeagueNews(id)
 
   return (

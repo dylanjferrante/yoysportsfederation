@@ -58,8 +58,8 @@ const JOBS: Job[] = [
   { name: 'eligibility', every: 24 * 60 * MIN, run: () => script('ysf-eligibility.ts') },
   // the ySF projection model (player projections, matchup odds, 10,000 seasons)
   { name: 'model', every: 60 * MIN, run: () => script('ysf-model.ts') },
-  // ySF News: the daily wrap, the day's column and trade stories, as each comes due (needs ANTHROPIC_API_KEY)
-  { name: 'news', every: 60 * MIN, run: () => process.env.ANTHROPIC_API_KEY ? script('ysf-news.ts') : Promise.resolve() },
+  // ySF News: each morning's stories (the staff writers when ANTHROPIC_API_KEY is set), and back issues once
+  { name: 'news', every: 60 * MIN, run: () => script('ysf-news.ts', '--back', '14') },
 ]
 
 export function startYsfScheduler() {
