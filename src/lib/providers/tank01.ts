@@ -96,6 +96,13 @@ const EP = (sport: Sport) => ({
 // One provider call each (budget-tracked by the caller). Used by the ingestion job.
 // Returns every game on the date with a real status, so the caller can keep only
 // finished (or, in LIVE mode, in-progress) games before spending a box-score call.
+// One week's projections, raw, keyed by Tank01 player id (NFL: { Passing, Rushing, Receiving, Kicking … }).
+// Cached six hours so a busy My Club page costs one call per week, not one per visit.
+export async function tank01WeekProjections(sport: Sport, week: number, season: string): Promise<Record<string, any>> {
+  const body = await call<any>(sport, EP(sport).projections, { week, archiveSeason: season.slice(0, 4) }, 6 * 3_600_000)
+  return body?.playerProjections ?? {}
+}
+
 export async function tank01GamesForDate(sport: Sport, yyyymmdd: string): Promise<{ gameId: string; status: string }[]> {
   const body = await call<any>(sport, EP(sport).scoresForDate, { gameDate: yyyymmdd }, 0)
   const rows: any[] = Array.isArray(body) ? body : Object.values(body ?? {})

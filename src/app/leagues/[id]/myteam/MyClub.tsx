@@ -10,16 +10,25 @@ import { slotEligible } from '@/lib/defaults'
 import { YSF_LEAGUES, YSF_ART, U, injTag } from '@/lib/ysf'
 
 type Game = { opp: string; home: boolean; epoch: number | null; status: string; gameId: string } | null
-type RP = { rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null }
+type RP = { rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null; seasonStats?: Record<string, number>; wkStats?: Record<string, number> | null; proj?: { pts: number; games: number; stats: Record<string, number>; source: string } | null; oppText?: string | null }
 type FA = { playerId: string; name: string; position: string; pos: string; team: string | null; gp: number; points: number; injury: string | null; pending: boolean; clears: string | null }
 type Club = { id: string; name: string; abbreviation: string; logo: string | null; altLogo: string | null; primaryColor: string | null }
 type Data = {
-  team: Club; sports: { sport: string; code: string }[]; sport: string; code: string; cadence: 'DAILY' | 'WEEKLY'; week: number | null; dates: string[]; date: string | null; today: string
-  matchup: { week: number; start: string; end: string; me: number; them: number; opp: Club | null } | null
+  team: Club; sports: { sport: string; code: string }[]; sport: string; code: string; cadence: 'DAILY' | 'WEEKLY'; week: number | null; curWeek: number | null
+  weeks: { week: number; label: string; start: string; end: string }[]; past: boolean; future: boolean; dates: string[]; date: string | null; today: string
+  matchup: { week: number; final?: boolean; start: string; end: string; me: number; them: number; opp: Club | null } | null
   slots: Record<string, number>; roster: RP[]; faab: number; claims: { id: string; bid: number; add: any; drop: any }[]; freeAgents: FA[]; clubs: Club[]
 }
 
 const RESERVE = ['BN', 'IR', 'TAXI']
+const COLS: Record<string, [string, string][]> = {
+  NFL: [['PASS YDS', 'passingYards'], ['PASS TD', 'passingTD'], ['INT', 'passingInt'], ['RUSH YDS', 'rushingYards'], ['RUSH TD', 'rushingTD'], ['REC', 'receptions'], ['REC YDS', 'receivingYards'], ['REC TD', 'receivingTD']],
+  NBA: [['PTS', 'points'], ['REB', 'rebounds'], ['AST', 'assists'], ['STL', 'steals'], ['BLK', 'blocks'], ['3PM', 'threesMade'], ['TO', 'turnovers'], ['MIN', 'minutes']],
+  NHL: [['G', 'goals'], ['A', 'assists'], ['+/-', 'plusMinus'], ['SOG', 'shotsOnGoal'], ['PPG', 'ppGoals'], ['PPA', 'ppAssists'], ['HIT', 'hits'], ['BLK', 'blockedShots'], ['W', 'wins'], ['SV', 'saves'], ['GA', 'goalsAllowed'], ['SO', 'shutout']],
+  MLB: [['H', 'hits'], ['R', 'runs'], ['HR', 'homeRuns'], ['RBI', 'rbi'], ['SB', 'stolenBases'], ['BB', 'walks'], ['IP', 'inningsPitched'], ['K', 'strikeoutsAsPitcher'], ['W', 'wins'], ['SV', 'saves'], ['ER', 'earnedRunsAllowed']],
+}
+type Span = 'week' | 'season' | 'pergame' | 'proj'
+const num = (v: number | null | undefined, dp = 1) => v == null || !isFinite(v) ? '—' : Number.isInteger(v) ? String(v) : v.toFixed(dp)
 const ORDER: Record<string, string[]> = {
   NFL: ['QB', 'RB', 'WR', 'TE', 'RB/WR/TE', 'K', 'DEF'], NHL: ['C', 'LW', 'RW', 'D', 'UTIL', 'G'],
   NBA: ['PG', 'SG', 'SF', 'PF', 'C', 'UTIL'], MLB: ['C', '1B', '2B', '3B', 'SS', 'OF', 'UTIL', 'SP', 'RP'],
@@ -54,10 +63,10 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
   const [sel, setSel] = useState<string | null>(null)
   const [dropAsk, setDropAsk] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [statSpan, setStatSpan] = useState<'season' | 'week'>('season')
+  const [statSpan, setStatSpan] = useState<Span>('week')
 
-  const load = useCallback(async (s?: string | null, d?: string | null) => {
-    const q = new URLSearchParams(); if (s) q.set('sport', s); if (d) q.set('date', d)
+  const load = useCallback(async (s?: string | null, d?: string | null, w?: number | null) => {
+    const q = new URLSearchParams(); if (s) q.set('sport', s); if (d) q.set('date', d); if (w) q.set('week', String(w))
     const r = await fetch(`/api/leagues/${leagueId}/myclub?${q}`)
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Could not load your club'); return }
@@ -68,7 +77,8 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
 
   const L = data ? lg(data.sport) : YSF_LEAGUES[0]
   const pickSport = (s: string) => { setSel(null); setDropAsk(null); load(s, null) }
-  const pickDate = (d: string) => { setSel(null); setDropAsk(null); load(sport, d) }
+  const pickDate = (d: string) => { setSel(null); setDropAsk(null); load(sport, d, data?.week) }
+  const pickWeek = (w: number) => { setSel(null); setDropAsk(null); if (w <= (data?.curWeek ?? 0) && statSpan === 'proj') setStatSpan('week'); load(sport, null, w) }
 
   const roster = async (body: any) => {
     const r = await fetch(`/api/teams/${data!.team.id}/roster`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -78,7 +88,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
   const run = async (fn: () => Promise<void>, ok?: string) => {
     setBusy(true)
     try { await fn(); if (ok) setToast(ok) } catch (e: any) { setToast(e.message) }
-    setSel(null); setDropAsk(null); await load(sport, date); setBusy(false)
+    setSel(null); setDropAsk(null); await load(sport, date, data?.week); setBusy(false)
   }
   const setSlot = (p: RP, slot: string) => roster({ action: 'SET_SLOT', rosterId: p.rosterId, slot, ...(data!.cadence === 'DAILY' && date ? { date } : {}) })
 
@@ -130,6 +140,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
 
   const gameCell = (p: RP | null) => {
     if (!p) return { opp: '', when: '', ink: '#000', sub: '#4A4A4A', w: 500 }
+    if (p.oppText) return { opp: p.oppText, when: 'FINAL', ink: '#000', sub: '#4A4A4A', w: 700 }
     const g = p.game
     if (!g) return { opp: '—', when: data.week ? 'No game' : '', ink: '#8A8A8A', sub: '#8A8A8A', w: 500 }
     const opp = (g.home ? 'vs ' : '@') + g.opp
@@ -138,12 +149,42 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
     return { opp, when: g.epoch ? fmtTime(g.epoch, data.cadence !== 'DAILY') : '', ink: '#000', sub: '#4A4A4A', w: 500 }
   }
 
+  // the stat a cell shows for the chosen view: the week's, the season's, per game, or projected
+  const cols = COLS[data.sport] ?? []
+  const val = (p: RP, key: string | 'fpts' | 'gp'): string => {
+    if (statSpan === 'proj') { const pr = p.proj; if (!pr) return '—'; return key === 'fpts' ? num(pr.pts) : key === 'gp' ? String(pr.games) : num(pr.stats[key] ?? 0) }
+    if (statSpan === 'week') return key === 'fpts' ? num(p.wkPoints, 2) : key === 'gp' ? String(p.wkGp ?? 0) : num(p.wkStats?.[key] ?? (p.wkStats ? 0 : null))
+    const gp = p.gp ?? 0
+    if (statSpan === 'pergame') return !gp ? '—' : key === 'fpts' ? num((p.points ?? 0) / gp) : key === 'gp' ? String(gp) : num((p.seasonStats?.[key] ?? 0) / gp)
+    return key === 'fpts' ? num(p.points) : key === 'gp' ? String(gp) : num(p.seasonStats?.[key] ?? 0)
+  }
+  const wkIdx = data.weeks.findIndex(w => w.week === data.week)
+  const wkNow = data.weeks[wkIdx]
+  const wkSpan = wkNow ? (() => { const a = new Date(wkNow.start), b = new Date(wkNow.end); const m = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); return `${m(a)}–${a.getMonth() === b.getMonth() ? b.getDate() : m(b)}, ${b.getFullYear()}`.toUpperCase() })() : ''
+  const spans: [Span, string][] = [['week', data.past ? 'WEEK' : data.future ? 'WEEK' : 'THIS WEEK'], ['season', 'SEASON'], ['pergame', 'PER GAME'], ...(data.past ? [] : [['proj', 'PROJECTED'] as [Span, string]])]
+  const cellW = 'w-[60px] flex-none text-right tabular-nums'
+
   const Lineup = (
     <section className="flex flex-col gap-4">
-      <div className="flex gap-1 p-1 bg-white border border-ink-100 rounded-xl self-start">
-        {([['season', 'SEASON'], ['week', 'THIS WEEK']] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setStatSpan(k)} className={`${btn} h-9 px-3 text-[12px]`} style={{ background: statSpan === k ? '#000' : '#fff', color: statSpan === k ? '#fff' : '#4A4A4A' }}>{l}</button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1">
+          <button disabled={wkIdx <= 0} onClick={() => pickWeek(data.weeks[wkIdx - 1].week)} aria-label="Previous week" className={`${btn} h-10 w-10 border border-black bg-white text-[16px]`}>‹</button>
+          <label className="relative">
+            <span className="sr-only">Week</span>
+            <select value={data.week ?? ''} onChange={e => pickWeek(+e.target.value)} className="ui h-10 pl-3 pr-8 rounded border border-black bg-white text-[13px] font-bold appearance-none">
+              {data.weeks.map(w => <option key={w.week} value={w.week}>{w.label}{w.week === data.curWeek ? ' · NOW' : ''}</option>)}
+            </select>
+            <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px]">▼</span>
+          </label>
+          <button disabled={wkIdx < 0 || wkIdx >= data.weeks.length - 1} onClick={() => pickWeek(data.weeks[wkIdx + 1].week)} aria-label="Next week" className={`${btn} h-10 w-10 border border-black bg-white text-[16px]`}>›</button>
+          <span className="ui text-[12px] font-bold text-ink-500 ml-2">{wkSpan}</span>
+          {data.week !== data.curWeek && data.curWeek && <button onClick={() => pickWeek(data.curWeek!)} className={`${btn} h-8 px-2.5 ml-1 border border-ink-200 bg-white text-ink-500 text-[11px]`}>THIS WEEK</button>}
+        </div>
+        <div className="flex gap-1 p-1 bg-white border border-ink-100 rounded-xl">
+          {spans.map(([k, l]) => (
+            <button key={k} onClick={() => setStatSpan(k)} className={`${btn} h-9 px-3 text-[12px]`} style={{ background: statSpan === k ? '#000' : '#fff', color: statSpan === k ? '#fff' : '#4A4A4A' }}>{l}</button>
+          ))}
+        </div>
       </div>
       {data.dates.length > 0 && (
         <div className="grid grid-cols-7 gap-1">
@@ -164,30 +205,32 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
         { label: 'INJURED RESERVE', count: `${reserveRows('IR').length}${data.slots.IR ? ' / ' + data.slots.IR : ''}`, rows: reserveRows('IR'), drop: groupDrop('IR') },
         { label: 'TAXI SQUAD', count: `${reserveRows('TAXI').length}${data.slots.TAXI ? ' / ' + data.slots.TAXI : ''}`, rows: reserveRows('TAXI'), drop: groupDrop('TAXI') }]
         .filter(g => g.rows.length || g.drop || g.label === 'BENCH').map(g => (
-        <div key={g.label} className="card overflow-hidden" style={{ borderTop: `4px solid ${L.color}` }}>
-          <div className="ui flex flex-wrap items-center gap-x-[10px] px-4 py-2 bg-ink-50 text-[12px] font-bold tracking-[.12em] min-h-[40px]">
-            <span className="flex-1 whitespace-nowrap">{g.label} <span className="text-ink-500 font-medium">{g.count}</span></span>
-            <span className="hidden sm:inline w-[108px] text-ink-500 font-medium">OPP</span>
-            <span className="hidden sm:inline w-[56px] text-right text-ink-500 font-medium">{statSpan === 'week' ? 'WK PTS' : 'FPTS'}</span>
-            <span className="hidden sm:inline w-[46px] text-right text-ink-500 font-medium">AVG</span>
-            <span className="w-[152px] ml-auto flex justify-end">{g.drop && <button disabled={busy} onClick={g.drop} className={`${btn} h-[30px] px-3 bg-black text-white`}>MOVE HERE</button>}</span>
+        // one scroll for the whole group so the columns stay lined up; the player (and, on wider
+        // screens, the moves) stay in view while the stats scroll
+        <div key={g.label} className="card overflow-x-auto" style={{ borderTop: `4px solid ${L.color}` }}>
+          <div className="ui flex items-center gap-x-[10px] px-4 py-2 bg-ink-50 text-[12px] font-bold tracking-[.12em] min-h-[40px] min-w-max">
+            <span className="flex items-center gap-[10px] sm:sticky sm:left-0 sm:z-10 bg-ink-50 w-[150px] sm:w-[286px] flex-none whitespace-nowrap">{g.label} <span className="text-ink-500 font-medium">{g.count}</span></span>
+            <span className="order-1 sm:order-3 w-[140px] sm:w-[152px] flex-none flex justify-end sm:sticky sm:right-0 sm:z-10 bg-ink-50">{g.drop && <button disabled={busy} onClick={g.drop} className={`${btn} h-[30px] px-3 bg-black text-white`}>MOVE HERE</button>}</span>
+            <span className="order-2 flex items-center gap-x-[10px] text-ink-500 font-medium">
+              <span className="w-[120px] flex-none">OPP</span><span className="w-[44px] flex-none">TEAM</span><span className="w-[72px] flex-none">POS</span>
+              <span className={`${cellW} text-black`}>{statSpan === 'proj' ? 'PROJ' : 'FPTS'}</span><span className="w-[40px] flex-none text-right">{statSpan === 'proj' ? 'G' : 'GP'}</span>
+              {cols.map(([l]) => <span key={l} className={cellW}>{l}</span>)}
+            </span>
           </div>
           {g.rows.map(row => {
             const p = row.p, a: any = actionsFor(row), gc = gameCell(p), isSel = !!p && p.rosterId === sel
             const inj = p?.injury ? injTagOf(p.injury) : null
+            const bg = isSel ? '#F2F2F2' : '#fff'
             return (
-              <div key={row.key} className="flex flex-wrap items-center gap-x-[10px] gap-y-[6px] px-4 py-2 border-t border-ink-50" style={{ background: isSel ? '#F2F2F2' : '#fff', boxShadow: isSel ? 'inset 4px 0 0 #000' : 'none' }}>
-                <span className="ui w-[56px] flex-none inline-flex items-center justify-center leading-none h-[28px] rounded-[3px] text-[12px] font-bold" style={{ background: row.starter ? L.color : '#E5E5E5', color: row.starter ? '#fff' : '#1F1F1F' }}>{row.label === 'BN' ? 'BN' : row.label}</span>
-                <span className="flex-[1_1_230px] min-w-0 font-bold" style={{ color: p ? '#000' : '#8A8A8A' }}>
-                  {p ? p.name : 'Empty'}
-                  {inj && <> <span title={(p as any)?.injuryNote ?? p?.injury ?? ''} className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{inj}</span></>}
-                  {p && <span className="block font-normal text-[13px] text-ink-500">{meta(data.code, p.team, p.pos)}</span>}
+              <div key={row.key} className="flex items-center gap-x-[10px] px-4 py-2 border-t border-ink-50 min-w-max" style={{ background: bg }}>
+                <span className="flex items-center gap-[10px] sm:sticky sm:left-0 sm:z-10 w-[150px] sm:w-[286px] flex-none" style={{ background: bg, boxShadow: isSel ? 'inset 4px 0 0 #000' : 'none' }}>
+                  <span className="ui w-[56px] flex-none inline-flex items-center justify-center leading-none h-[28px] rounded-[3px] text-[12px] font-bold" style={{ background: row.starter ? L.color : '#E5E5E5', color: row.starter ? '#fff' : '#1F1F1F' }}>{row.label === 'BN' ? 'BN' : row.label}</span>
+                  <span className="min-w-0 flex-1 font-bold leading-tight" style={{ color: p ? '#000' : '#8A8A8A' }}>
+                    <span className="block line-clamp-2 break-words">{p ? p.name : 'Empty'}</span>
+                    {inj && <span title={(p as any)?.injuryNote ?? p?.injury ?? ''} className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] mt-0.5 rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold">{inj}</span>}
+                  </span>
                 </span>
-                <span className="w-[108px] flex-none leading-tight"><span className="block font-bold text-[14px]" style={{ color: gc.ink }}>{gc.opp}</span><span className="block text-[12px]" style={{ color: gc.sub, fontWeight: gc.w }}>{gc.when}</span></span>
-                {(() => { const pts = statSpan === 'week' ? p?.wkPoints ?? null : p?.points ?? null, gp = statSpan === 'week' ? p?.wkGp ?? 0 : p?.gp ?? 0; return <>
-                <span className="hidden sm:inline w-[56px] flex-none text-right font-bold tabular-nums">{p ? (pts == null ? '—' : pts.toFixed(1)) : ''}</span>
-                <span className="w-[46px] flex-none text-right font-semibold tabular-nums text-ink-800">{p ? (gp && pts != null ? (pts / gp).toFixed(1) : '—') : ''}</span></> })()}
-                <span className="w-[152px] flex-none ml-auto flex gap-[6px] justify-end">
+                <span className="order-1 sm:order-3 w-[140px] sm:w-[152px] flex-none flex gap-[6px] justify-end sm:sticky sm:right-0 sm:z-10" style={{ background: bg }}>
                   {a.lock && <span className="ui inline-flex items-center justify-center leading-none h-[32px] px-[10px] rounded bg-ink-50 text-ink-500 text-[11px] font-bold">{a.lock}</span>}
                   {a.here && <button disabled={busy} onClick={a.here} className={`${btn} h-[32px] px-3 bg-black text-white`}>{a.hereLabel}</button>}
                   {a.cancel && <button onClick={() => setSel(null)} className={`${btn} h-[32px] px-3 border border-black bg-white text-black`}>CANCEL</button>}
@@ -195,6 +238,14 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
                   {a.drop && p && (dropAsk === p.rosterId
                     ? <button disabled={busy} onClick={() => run(() => roster({ action: 'DROP', rosterId: p.rosterId }), `Dropped ${p.name}`)} className={`${btn} h-[32px] px-3 bg-[#ba0c2f] text-white`}>CONFIRM DROP</button>
                     : <button disabled={busy} onClick={() => setDropAsk(p.rosterId)} className={`${btn} h-[32px] px-3 border border-ink-200 bg-white text-ink-500`}>DROP</button>)}
+                </span>
+                <span className="order-2 flex items-center gap-x-[10px]">
+                  <span className="w-[120px] flex-none leading-tight"><span className="block font-bold text-[14px] truncate" style={{ color: gc.ink }}>{gc.opp}</span><span className="block text-[12px]" style={{ color: gc.sub, fontWeight: gc.w }}>{gc.when}</span></span>
+                  <span className="w-[44px] flex-none text-[13px]">{p ? p.team || 'FA' : ''}</span>
+                  <span className="w-[72px] flex-none text-[13px] truncate">{p ? posFix(p.pos) : ''}</span>
+                  <span className={`${cellW} font-bold`}>{p ? val(p, 'fpts') : ''}</span>
+                  <span className="w-[40px] flex-none text-right tabular-nums text-ink-500">{p ? val(p, 'gp') : ''}</span>
+                  {cols.map(([l, k]) => <span key={l} className={`${cellW} text-[13px]`}>{p ? val(p, k) : ''}</span>)}
                 </span>
               </div>
             )

@@ -3,17 +3,22 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { leagues, teams, rosters, players, teamRecords, matchups, waiverClaims, gameSchedule, playerSeasonStats, dailyLineups } from '@/db/schema'
-import { eq, and, inArray, gte, lte, notInArray, desc, sql } from 'drizzle-orm'
+import { eq, and, or, inArray, gte, lte, notInArray, desc, sql } from 'drizzle-orm'
+import { loadGameLines } from '@/lib/ysf-gamelines'
+import { mapBoxScoreBase, deriveWeekly } from '@/lib/providers/boxscore-map'
+import { scorePlayer } from '@/lib/scoring'
+import { tank01Configured, tank01WeekProjections } from '@/lib/providers/tank01'
 import { safeParse, orderedSports } from '@/lib/utils'
 import { lineupCadenceFor, weekDateRange } from '@/lib/defaults'
 import { weekDates } from '@/lib/dailylineup'
 import { bearerUserId } from '@/lib/mobileAuth'
 import { lastNflRun, nextNflRun } from '@/lib/waivers'
 
-// Everything the My Club page needs for one league (sport): this week's matchup, the lineup
-// (per day for daily leagues) with each player's game, lock state and season stats, FAAB,
-// pending claims, and the free-agent pool with stats.
-//   GET /api/leagues/:id/myclub?sport=NBA&date=2026-11-12
+// Everything the My Club page needs for one league (sport) and one week: the matchup, the lineup
+// (per day for daily leagues) with each player's game, lock state and stats — that week's, the
+// season's and projected — FAAB, pending claims, and the free-agent pool with stats. Past weeks show
+// the lineup as it was played (read-only); future weeks the current roster.
+//   GET /api/leagues/:id/myclub?sport=NBA&week=10&date=2026-11-12
 const ymd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -39,7 +44,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const [cur] = await db.select({ week: matchups.week }).from(matchups)
     .where(and(eq(matchups.leagueId, id), eq(matchups.season, season), eq(matchups.sport, sport), eq(matchups.isComplete, false)))
     .orderBy(matchups.week).limit(1)
-  const week = cur?.week ?? null
+  const curWeek = cur?.week ?? null
+  const sched = safeParse<{ sport: string; startWeek: number; endWeek: number }[]>((league as any).sportSchedule, []).find(x => x.sport === sport)
+  const teamWeeks = [...new Set((await db.select({ week: matchups.week }).from(matchups)
+    .where(and(eq(matchups.leagueId, id), eq(matchups.season, season), eq(matchups.sport, sport), or(eq(matchups.homeTeamId, team.id), eq(matchups.awayTeamId, team.id))))).map(r => r.week))].sort((a, b) => a - b)
+  const reqWeek = Number(url.searchParams.get('week'))
+  const week = teamWeeks.includes(reqWeek) ? reqWeek : curWeek ?? teamWeeks[teamWeeks.length - 1] ?? null
+  const pastWeek = week != null && (curWeek == null || week < curWeek)
+  const futureWeek = week != null && curWeek != null && week > curWeek
+  const per = week != null ? week - (sched?.startWeek ?? 1) + 1 : null
   const now = new Date(), today = ymd(now)
   const dates = week && cadence === 'DAILY' ? weekDates(season, week) : []
   const date = dates.length ? (url.searchParams.get('date') && dates.includes(url.searchParams.get('date')!) ? url.searchParams.get('date')! : (dates.find(d => d.replace(/-/g, '') >= today) ?? dates[dates.length - 1])) : null
@@ -53,7 +66,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const oppId = m.homeTeamId === team.id ? m.awayTeamId : m.homeTeamId
       const [opp] = oppId ? await db.select().from(teams).where(eq(teams.id, oppId)).limit(1) : []
       const { start, end } = weekDateRange(season, week)
-      matchup = { week, start: start.toISOString(), end: end.toISOString(), me: m.homeTeamId === team.id ? m.homeScore : m.awayScore, them: m.homeTeamId === team.id ? m.awayScore : m.homeScore,
+      matchup = { week, final: !!m.isComplete, start: start.toISOString(), end: end.toISOString(), me: m.homeTeamId === team.id ? m.homeScore : m.awayScore, them: m.homeTeamId === team.id ? m.awayScore : m.homeScore,
         opp: opp ? { id: opp.id, name: opp.name, abbreviation: opp.abbreviation, logo: opp.logo, altLogo: opp.altLogo, primaryColor: opp.primaryColor } : null }
     }
   }
@@ -87,8 +100,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // this matchup's points and games for each player, from the scoring engine's per-day/per-week lines
   const wk = new Map<string, { pts: number; gp: number }>()
   if (week && id === 'ysf') {
-    const startWeek = safeParse<{ sport: string; startWeek: number }[]>((league as any).sportSchedule, []).find(x => x.sport === sport)?.startWeek ?? 1
-    const per = week - startWeek + 1
     for (const r of db.all<{ name: string; pts: number | null; st: string | null }>(sql`SELECT name, engine_pts pts, engine_stats st FROM fantrax_player_periods
       WHERE season = ${season} AND sport = ${sport} AND matchup_period = ${per} AND team_id = ${team.id} AND engine_pts IS NOT NULL`)) {
       const cur = wk.get(r.name) ?? { pts: 0, gp: 0 }
@@ -96,15 +107,89 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       wk.set(r.name, cur)
     }
   }
-  const roster = rows.map(r => {
-    const g = gameOf(r.team)
-    const started = !!g && ((g.epoch != null && Date.now() >= g.epoch) || /final|completed|live|progress/i.test(g.status))
-    const st = statBy.get(r.playerId)
-    return { rosterId: r.rosterId, playerId: r.playerId, name: r.name, position: r.position, pos: posOf(r.position, r.eligible), team: r.team,
-      slot: overrides[r.playerId] ?? r.slot, injury: r.status && !/^(active|healthy)$/i.test(r.status) ? r.status : null, injuryNote: r.injury || null,
-      game: g, locked: pastDay || started, gp: st?.gp ?? 0, points: st?.points ?? null,
-      wkGp: wk.get(r.name)?.gp ?? 0, wkPoints: wk.has(r.name) ? +wk.get(r.name)!.pts.toFixed(2) : null }
-  })
+  // ── stats: the week's (from the game logs), the season's, and projected ──
+  const scoring = safeParse<Record<string, Record<string, number>>>(league.scoringSettings, {})[sport] ?? {}
+  const wkRange = week ? weekDateRange(season, week) : null
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const wkStats = new Map<string, Record<string, number>>()
+  if (wkRange && !futureWeek) {
+    for (const l of loadGameLines(sport as any, iso(wkRange.start), iso(wkRange.end), scoring, true)) {
+      for (const k of [l.tankId, `n:${l.name.toLowerCase()}`]) {
+        const t = wkStats.get(k) ?? {}
+        for (const [s, v] of Object.entries(l.stats)) t[s] = (t[s] ?? 0) + v
+        wkStats.set(k, t)
+      }
+    }
+  }
+  // games each pro team plays in the week (for projections)
+  const wkGames = new Map<string, number>()
+  if (wkRange) for (const g of await db.select({ h: gameSchedule.homeAbbr, a: gameSchedule.awayAbbr }).from(gameSchedule)
+    .where(and(eq(gameSchedule.sport, sport), gte(gameSchedule.gameDate, ymd(wkRange.start)), lte(gameSchedule.gameDate, ymd(wkRange.end)))))
+    for (const t of [g.h, g.a]) if (t) wkGames.set(t, (wkGames.get(t) ?? 0) + 1)
+  // ySFFL: Tank01's weekly projections, scored with the league's scoring; elsewhere (and as a
+  // fallback) each player's per-game average times his team's games that week
+  let tankProj: Record<string, any> = {}
+  if (sport === 'NFL' && !pastWeek && per && tank01Configured()) {
+    try { tankProj = await tank01WeekProjections('NFL', per, season) } catch { /* fall back to averages */ }
+  }
+  const extOf = new Map((rows.length ? await db.select({ id: players.id, ext: players.externalId }).from(players).where(inArray(players.id, rows.map(r => r.playerId))) : []).map(p => [p.id, p.ext]))
+  const statsFor = (playerId: string | null, name: string, team: string | null) => {
+    const st = playerId ? statBy.get(playerId) : undefined
+    const seasonStats = safeParse<Record<string, number>>(st?.stats ?? null, {})
+    const gp = st?.gp ?? 0, points = st?.points ?? null
+    const ext = playerId ? extOf.get(playerId) ?? null : null
+    const wk = (ext && wkStats.get(ext)) || wkStats.get(`n:${name.toLowerCase()}`) || null
+    let proj: { pts: number; games: number; stats: Record<string, number>; source: 'tank01' | 'average' } | null = null
+    if (!pastWeek) {
+      const raw = ext ? tankProj[ext] : undefined
+      if (raw) {
+        const stats = deriveWeekly(sport, mapBoxScoreBase(sport, raw))
+        proj = { pts: +scorePlayer(stats, scoring).toFixed(1), games: team ? wkGames.get(team) ?? 1 : 1, stats, source: 'tank01' }
+      } else if (gp > 0) {
+        const games = team ? wkGames.get(team) ?? 0 : 0
+        const stats = Object.fromEntries(Object.entries(seasonStats).map(([k, v]) => [k, +(v / gp * games).toFixed(1)]))
+        proj = { pts: +(((points ?? 0) / gp) * games).toFixed(1), games, stats, source: 'average' }
+      }
+    }
+    return { gp, points, seasonStats, wkStats: wk, proj }
+  }
+
+  // past weeks: the lineup as Fantrax recorded it (read-only)
+  const SLOT_FX: Record<string, string> = { RWT: 'RB/WR/TE', DST: 'DEF', Flx: 'UTIL', Skt: 'UTIL', UT: 'UTIL' }
+  let roster: any[]
+  if (pastWeek && per && id === 'ysf') {
+    const hist = db.all<{ name: string; pro_team: string | null; positions: string | null; slot: string; status: string; opp: string | null; date: string | null; pts: number | null; st: string | null }>(sql`
+      SELECT name, pro_team, positions, slot, status, opp, date, engine_pts pts, engine_stats st FROM fantrax_player_periods
+      WHERE season = ${season} AND sport = ${sport} AND team_id = ${team.id} AND matchup_period = ${per}`)
+    const day = date ?? null
+    const shown = cadence === 'DAILY' && day ? hist.filter(h => h.date === day) : hist
+    const byName = new Map(shown.map(h => [h.name, h]))
+    const ids = new Map((byName.size ? await db.select({ id: players.id, name: players.name, ext: players.externalId, eligible: players.eligiblePositions, position: players.position })
+      .from(players).where(and(eq(players.sport, sport), inArray(players.name, [...byName.keys()]))) : []).map(p => [p.name, p]))
+    for (const p of ids.values()) extOf.set(p.id, p.ext)
+    roster = [...byName.values()].map(h => {
+      const p = ids.get(h.name)
+      const tot = hist.filter(x => x.name === h.name)
+      const s = statsFor(p?.id ?? null, h.name, h.pro_team)
+      return { rosterId: `h-${h.name}`, playerId: p?.id ?? '', name: h.name, position: p?.position ?? (h.positions ?? '').split(',')[0], pos: (h.positions ?? '').replace(/,/g, '/'), team: h.pro_team,
+        slot: h.status === '1' ? SLOT_FX[h.slot] ?? h.slot : h.status === '3' ? 'IR' : h.status === '9' ? 'TAXI' : 'BN', injury: null, injuryNote: null,
+        game: null, oppText: h.opp ? h.opp.replace(/ F$/, '') : null, locked: true, gp: s.gp, points: s.points,
+        wkGp: tot.reduce((a, x) => a + (Number(safeParse<any>(x.st, {}).GP ?? 0) || 0), 0), wkPoints: tot.some(x => x.pts != null) ? +tot.reduce((a, x) => a + (x.pts ?? 0), 0).toFixed(2) : null,
+        seasonStats: s.seasonStats, wkStats: s.wkStats, proj: null }
+    })
+  } else {
+    roster = rows.map(r => {
+      const g = gameOf(r.team)
+      const started = !!g && ((g.epoch != null && Date.now() >= g.epoch) || /final|completed|live|progress/i.test(g.status))
+      const s = statsFor(r.playerId, r.name, r.team)
+      return { rosterId: r.rosterId, playerId: r.playerId, name: r.name, position: r.position, pos: posOf(r.position, r.eligible), team: r.team,
+        slot: overrides[r.playerId] ?? r.slot, injury: r.status && !/^(active|healthy)$/i.test(r.status) ? r.status : null, injuryNote: r.injury || null,
+        // a future week of a weekly league shows the lineup as it stands; it is set week by week
+        game: g, locked: pastDay || started || (futureWeek && cadence !== 'DAILY'), gp: s.gp, points: s.points,
+        wkGp: wk.get(r.name)?.gp ?? 0, wkPoints: wk.has(r.name) ? +wk.get(r.name)!.pts.toFixed(2) : null,
+        seasonStats: s.seasonStats, wkStats: s.wkStats, proj: s.proj }
+    })
+  }
 
   // FAAB + claims
   const [rec] = await db.select().from(teamRecords).where(and(eq(teamRecords.teamId, team.id), eq(teamRecords.season, season), eq(teamRecords.sport, sport))).limit(1)
@@ -142,7 +227,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json({
     team: { id: team.id, name: team.name, abbreviation: team.abbreviation, logo: team.logo, altLogo: team.altLogo, primaryColor: team.primaryColor },
     sports: sportsEnabled.map(s => ({ sport: s, code: sportAbbr[s] || s })), sport, code: sportAbbr[sport] || sport,
-    cadence, week, dates, date, today: `${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6)}`, matchup,
+    cadence, week, curWeek, weeks: teamWeeks.map(w => { const r = weekDateRange(season, w); return { week: w, label: sched ? `${sport === 'NFL' ? 'WEEK' : 'PERIOD'} ${w - sched.startWeek + 1}` : `WEEK ${w}`, start: r.start.toISOString(), end: r.end.toISOString() } }), past: pastWeek, future: futureWeek, dates, date, today: `${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6)}`, matchup,
     slots: rosterCfg, roster, faab: rec?.faabRemaining ?? 0, waiverPriority: rec?.waiverPriority ?? null, claims, freeAgents,
     clubs: others.filter(o => o.id !== team.id),
   })
