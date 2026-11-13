@@ -4,17 +4,20 @@ import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { computePowerRankings } from '@/lib/power'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
+import YsfRankings from './YsfRankings'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
-  return { title: `${league?.name ?? 'League'} · Power Rankings` }
+  return { title: id === YSF_LEAGUE_ID ? 'ySF · Rankings' : `${league?.name ?? 'League'} · Power Rankings` }
 }
 
-export default async function PowerPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PowerPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; lg?: string }> }) {
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
+  if (id === YSF_LEAGUE_ID) { const sp = await searchParams; return <YsfRankings league={league} tab={sp.tab} lg={sp.lg} /> }
 
   const clubs = await db.select({ id: teams.id, name: teams.name, abbreviation: teams.abbreviation, logo: teams.logo, altLogo: teams.altLogo, primaryColor: teams.primaryColor, secondaryColor: teams.secondaryColor, logoBg: teams.logoBg })
     .from(teams).where(and(eq(teams.leagueId, id), eq(teams.archived, false)))

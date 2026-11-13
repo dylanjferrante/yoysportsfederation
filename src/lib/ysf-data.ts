@@ -106,11 +106,18 @@ export function seriesSummary(p: Pairing, ab: (id: string) => string) {
 }
 
 const YSF_BASE = (process.env.YSF_BASE || 'https://ysffantasy.com').replace(/\/$/, '')
-export async function siteCupProjection(): Promise<{ generated_at: string; teams: any[] } | null> {
+export async function siteFeed<T = any>(path: string): Promise<T | null> {
   try {
-    const r = await fetch(`${YSF_BASE}/data/fed_cup_projection.json`, { next: { revalidate: 600 } })
+    const r = await fetch(`${YSF_BASE}/data/${path}`, { next: { revalidate: 600 } })
     return r.ok ? await r.json() : null
   } catch { return null }
+}
+export const siteCupProjection = () => siteFeed<{ generated_at: string; n_trials?: number; teams: any[]; leagues?: Record<string, any> }>('fed_cup_projection.json')
+// ysffantasy.com keys clubs by owner id ('schoenfeld'); map them to Nexus team ids through the abbreviation.
+export async function siteClubMap(clubs: Record<string, ClubInfo>): Promise<Record<string, string>> {
+  const cup = await siteCupProjection()
+  const byAbbr = new Map(Object.values(clubs).map(c => [c.abbreviation, c.id]))
+  return Object.fromEntries((cup?.teams ?? []).map((t: any) => [t.team, byAbbr.get(t.abbr)]).filter(([, v]) => v)) as Record<string, string>
 }
 
 // Moves: signings, claims, releases and trades (structured activity rows).
