@@ -6,14 +6,17 @@ import { eq, and } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import { safeParse } from '@/lib/utils'
 import WaiversView from './WaiversView'
+import YsfPlayers from './YsfPlayers'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 
-export const metadata = { title: 'Waivers' }
+export const metadata = { title: 'Players' }
 
-export default async function WaiversPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WaiversPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const session = await getServerSession(authOptions)
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
+  if (id === YSF_LEAGUE_ID) return <YsfPlayers league={league} sp={await searchParams} />
 
   const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
   const isCommissioner = league.commissionerId === session?.user?.id
