@@ -7,7 +7,7 @@
 //   data    → GET  /api/leagues/:id/myclub, /api/teams/:id/roster, /api/trades
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { slotEligible } from '@/lib/defaults'
-import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
+import { YSF_LEAGUES, YSF_ART, U, injTag } from '@/lib/ysf'
 
 type Game = { opp: string; home: boolean; epoch: number | null; status: string; gameId: string } | null
 type RP = { rosterId: string; playerId: string; name: string; position: string; pos: string; team: string | null; slot: string; injury: string | null; game: Game; locked: boolean; gp: number; points: number | null; wkGp?: number; wkPoints?: number | null }
@@ -25,10 +25,7 @@ const ORDER: Record<string, string[]> = {
   NBA: ['PG', 'SG', 'SF', 'PF', 'C', 'UTIL'], MLB: ['C', '1B', '2B', '3B', 'SS', 'OF', 'UTIL', 'SP', 'RP'],
 }
 const SLOT_LABEL: Record<string, string> = { 'RB/WR/TE': 'FLEX', DEF: 'D/ST' }
-// official designation → tag (the news note shows on hover)
-const injTag = (s: string) => { const x = s.toLowerCase().replace(/[-_]/g, ' ')
-  if (/^(\d+) day il$/.test(x)) return `IL${x.split(' ')[0]}`
-  return ({ out: 'O', questionable: 'Q', doubtful: 'D', probable: 'P', 'day to day': 'DTD', dtd: 'DTD', 'injured reserve': 'IR', ir: 'IR', ltir: 'LTIR', suspension: 'SUSP', suspended: 'SUSP', pup: 'PUP', nfi: 'NFI' } as Record<string, string>)[x] ?? 'INJ' }
+const injTagOf = (st: string) => injTag(st) ?? 'INJ'
 const lg = (sport: string) => YSF_LEAGUES.find(l => l.sport === sport) ?? YSF_LEAGUES[0]
 const posFix = (p: string) => p.replace(/\bDEF\b/g, 'D/ST')
 const meta = (code: string, team: string | null, pos: string) => `(${code}-${team || 'FA'}, ${posFix(pos)})`
@@ -172,7 +169,7 @@ export default function MyClub({ leagueId }: { leagueId: string }) {
           </div>
           {g.rows.map(row => {
             const p = row.p, a: any = actionsFor(row), gc = gameCell(p), isSel = !!p && p.rosterId === sel
-            const inj = p?.injury ? injTag(p.injury) : null
+            const inj = p?.injury ? injTagOf(p.injury) : null
             return (
               <div key={row.key} className="flex flex-wrap items-center gap-x-[10px] gap-y-[6px] px-4 py-2 border-t border-ink-50" style={{ background: isSel ? '#F2F2F2' : '#fff', boxShadow: isSel ? 'inset 4px 0 0 #000' : 'none' }}>
                 <span className="ui w-[56px] flex-none inline-flex items-center justify-center leading-none h-[28px] rounded-[3px] text-[12px] font-bold" style={{ background: row.starter ? L.color : '#E5E5E5', color: row.starter ? '#fff' : '#1F1F1F' }}>{row.label === 'BN' ? 'BN' : row.label}</span>
@@ -312,7 +309,7 @@ function AddDrop({ data, L, busy, setBusy, leagueId, reload, toast }: { data: Da
         {rows.map(p => (
           <div key={p.playerId} className="border-t border-ink-50">
             <div className="flex items-center gap-2.5 px-4 py-2">
-              <span className="flex-1 min-w-0 font-bold">{p.name}{p.injury && <> <span className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{injTag(p.injury)}</span></>}<span className="block font-normal text-[13px] text-ink-500">{meta(data.code, p.team, p.pos)}</span></span>
+              <span className="flex-1 min-w-0 font-bold">{p.name}{p.injury && <> <span className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] rounded-[2px] bg-[#ba0c2f] text-white text-[10px] font-bold align-[2px]">{injTagOf(p.injury)}</span></>}<span className="block font-normal text-[13px] text-ink-500">{meta(data.code, p.team, p.pos)}</span></span>
               <span className="hidden sm:inline w-10 text-right tabular-nums text-ink-500 font-semibold">{p.gp || '—'}</span>
               <span className="w-[58px] text-right tabular-nums font-bold">{p.points.toFixed(1)}</span>
               <span className="w-[50px] text-right tabular-nums font-semibold">{p.gp ? (p.points / p.gp).toFixed(1) : '—'}</span>

@@ -1,6 +1,7 @@
 // Per-game player stat lines from Tank01 box scores (cached on disk by ysf:sync), scored with the
 // league's ySF scoring. One line per player per real game — the unit the ySF scorer works in:
 // a stat counts only if the player was in a starting slot on that game's date.
+import { countCall } from '@/lib/api-usage'
 import fs from 'fs'
 import path from 'path'
 import { mapBoxScoreBase, deriveWeekly } from '@/lib/providers/boxscore-map'
@@ -65,9 +66,14 @@ function nhlOfficial(from: string, to: string, scoring: Record<string, number>):
   const lines: GameLine[] = [], games = new Set<string>()
   if (!fs.existsSync(dir)) return { lines, games }
   const ymd = (d: string) => d.replace(/-/g, '')
-  for (const f of fs.readdirSync(dir)) {
+  // finals, then games in progress (data/nhl-cache/live, refreshed every couple of minutes) not yet final
+  const liveDir = path.join(dir, 'live')
+  const files = [...fs.readdirSync(dir).filter(f => f.endsWith('.json')).map(f => path.join(dir, f)),
+    ...(fs.existsSync(liveDir) ? fs.readdirSync(liveDir).filter(f => !fs.existsSync(path.join(dir, f))).map(f => path.join(liveDir, f)) : [])]
+  for (const fp of files) {
+    const f = path.basename(fp)
     const d = f.slice(0, 8); if (d < ymd(from) || d > ymd(to)) continue
-    let g: any; try { g = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) } catch { continue }
+    let g: any; try { g = JSON.parse(fs.readFileSync(fp, 'utf8')) } catch { continue }
     games.add(`${d}_${g.away}@${g.home}`)
     for (const l of g.lines) {
       const st: Record<string, number> = l.goalie
@@ -186,6 +192,7 @@ export async function refreshLive(sport: string, gameIds: string[]): Promise<voi
     try {
       const host = process.env[`TANK01_HOST_${sport}`] || HOSTS[sport]
       const r = await fetch(`https://${host}/get${sport}BoxScore?gameID=${encodeURIComponent(id)}`, { headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host }, cache: 'no-store' })
+      countCall('tank01')
       if (!r.ok) return
       const j: any = await r.json(); const body = j?.body ?? j
       if (/final|completed/i.test(String(body?.gameStatus ?? ''))) fs.writeFileSync(path.join(CACHE(), sport, id.replace(/[^A-Za-z0-9_@]/g, '_') + '.json'), JSON.stringify(body))

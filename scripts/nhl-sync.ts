@@ -66,9 +66,30 @@ async function game(id: number, date: string, away: string, home: string) {
   return { id, date, away, home, outcome: box.gameOutcome?.lastPeriodType ?? 'REG', lines: [...lines.values()] }
 }
 
+// games in progress: re-fetched every run into data/nhl-cache/live (removed once the game is final)
+const LIVE = path.join(DIR, 'live')
+async function live() {
+  fs.mkdirSync(LIVE, { recursive: true })
+  const date = etToday()
+  const sc = await get(`/score/${date}`)
+  const keep = new Set<string>()
+  let n = 0
+  for (const g of sc?.games ?? []) {
+    if (![2, 3].includes(g.gameType) || !['LIVE', 'CRIT'].includes(g.gameState)) continue
+    const name = `${date.replace(/-/g, '')}_${g.awayTeam.abbrev}@${g.homeTeam.abbrev}_${g.id}.json`
+    const out = await game(g.id, date, g.awayTeam.abbrev, g.homeTeam.abbrev)
+    if (out) { fs.writeFileSync(path.join(LIVE, name), JSON.stringify({ ...out, live: true, period: g.periodDescriptor?.number ?? null, clock: g.clock?.timeRemaining ?? null, intermission: !!g.clock?.inIntermission })); keep.add(name); n++ }
+  }
+  for (const f of fs.readdirSync(LIVE)) if (!keep.has(f)) fs.unlinkSync(path.join(LIVE, f))
+  console.log(`NHL official live: ${n} games in progress`)
+}
+
 async function main() {
   fs.mkdirSync(DIR, { recursive: true })
-  const from = arg('from') ?? '2026-09-29', to = arg('to') ?? etToday()
+  if (process.argv.includes('--live')) return live()
+  // finals are cached for good, so a routine run only looks back 3 days; --from 2026-09-29 backfills
+  const back = new Date(etToday() + 'T12:00:00'); back.setDate(back.getDate() - 3)
+  const from = arg('from') ?? `${back.getFullYear()}-${String(back.getMonth() + 1).padStart(2, '0')}-${String(back.getDate()).padStart(2, '0')}`, to = arg('to') ?? etToday()
   let fetched = 0, cached = 0
   for (let d = new Date(from + 'T12:00:00'); d <= new Date(to + 'T12:00:00'); d.setDate(d.getDate() + 1)) {
     const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -86,7 +107,7 @@ async function main() {
   try { db.exec(`ALTER TABLE player_id_map ADD COLUMN nhl_id TEXT`) } catch { /* exists */ }
   type R = { id: number; teams: Set<string>; pos: Set<string>; first: string; last: string }
   const reg = new Map<string, R[]>(), byLast = new Map<string, R[]>()
-  for (const f of fs.readdirSync(DIR)) for (const l of (JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')).lines as NhlLine[])) {
+  for (const f of fs.readdirSync(DIR).filter(f => f.endsWith('.json'))) for (const l of (JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')).lines as NhlLine[])) {
     const k = norm(l.name); const list = reg.get(k) ?? []; let e = list.find(x => x.id === l.id)
     if (!e) { const [first, ...rest] = l.name.split(' '); e = { id: l.id, teams: new Set(), pos: new Set(), first: norm(first), last: norm(rest.join(' ')) }; list.push(e); byLast.set(e.last, [...(byLast.get(e.last) ?? []), e]) }
     e.teams.add(l.team); e.pos.add(l.pos === 'G' ? 'G' : l.pos === 'D' ? 'D' : 'F'); reg.set(k, list)

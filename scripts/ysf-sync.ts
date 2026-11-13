@@ -17,6 +17,7 @@ import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
 import { nanoid } from 'nanoid'
+import { countCall } from '../src/lib/api-usage'
 
 const ROOT = process.cwd()
 for (const line of (fs.existsSync(path.join(ROOT, '.env')) ? fs.readFileSync(path.join(ROOT, '.env'), 'utf8') : '').split('\n')) {
@@ -44,7 +45,7 @@ async function api(sport: Sport, p: string): Promise<any> {
   for (let attempt = 0; attempt < 5; attempt++) {
     await sleep(150)
     const r = await fetch(`https://${HOST[sport]}/${p}`, { headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': HOST[sport] } })
-    calls++
+    calls++; countCall('tank01')
     if (r.status === 429) { await sleep(2000 * (attempt + 1)); continue }
     if (!r.ok) throw new Error(`Tank01 ${sport} ${p} → ${r.status}`)
     const j: any = await r.json()

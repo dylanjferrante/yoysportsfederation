@@ -6,6 +6,7 @@ import { siteFeed } from '@/lib/ysf-data'
 import { PageTitle, th, td } from '@/components/ysf/ui'
 import { loadConstitution, DOC_URL } from '@/lib/ysf-constitution'
 import { auditLeague } from '@/lib/ysf-audit'
+import { usage } from '@/lib/api-usage'
 import { LEAGUE_OF } from '@/lib/ysf-rules'
 import { db } from '@/db'
 import { sql } from 'drizzle-orm'
@@ -243,6 +244,13 @@ async function Compliance({ season }: { season?: string }) {
             </tr>) })}</tbody>
         </table>
       </section>
+
+      {(() => { const u = usage(); return (
+        <section className="card p-4 flex flex-wrap gap-x-8 gap-y-2 items-baseline">
+          <div className="ui text-[12px] font-bold tracking-[.12em] w-full sm:w-auto">TANK01 API CALLS</div>
+          <div><span className="disp text-[28px] font-extrabold tabular-nums">{(u.today.tank01 ?? 0).toLocaleString()}</span> <span className="text-ink-500 font-semibold">today</span></div>
+          <div><span className="disp text-[28px] font-extrabold tabular-nums">{(u.month.tank01 ?? 0).toLocaleString()}</span> <span className="text-ink-500 font-semibold">this month</span></div>
+        </section>) })()}
 
       <section className="card">
         <div className="ui px-4 py-2.5 border-b-2 border-black text-[12px] font-bold tracking-[.12em]">RULE BOOK</div>
