@@ -5,7 +5,7 @@ import { db } from '@/db'
 import { leagues } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { YSF_LEAGUES, YSF_ART, YSF_LEAGUE_ID } from '@/lib/ysf'
-import { loadClubs, loadWeek, seriesSummary } from '@/lib/ysf-data'
+import { loadClubs, loadWeek } from '@/lib/ysf-data'
 
 const fmt = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 1 })
 
@@ -41,7 +41,6 @@ export default async function ScoreStrip() {
                     <span key={id + l.sport} className="font-display text-[12px] sm:text-[13px] leading-none text-right tabular-nums" style={{ color: win ? '#fff' : '#C7C7C7', fontWeight: win ? 800 : 500 }}>{v == null ? '–' : fmt(v)}</span>) }),
                 ])}
               </div>
-              <div className="hidden sm:block text-[11px] text-ink-200 mt-1.5 whitespace-nowrap">{seriesSummary(p, ab)}</div>
             </Link>
           )
         })}
