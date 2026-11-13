@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
-import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, matchups, activity, dailyLineups } from '@/db/schema'
-import { eq, and, inArray } from 'drizzle-orm'
+import { teams, rosters, players, draftPicks, users, leagues, playerGameStats, matchups, activity, dailyLineups, gameSchedule } from '@/db/schema'
+import { eq, and, inArray, or } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { safeParse } from '@/lib/utils'
 import { slotEligible, irEligible, defaultIrDesignations, lineupCadenceFor } from '@/lib/defaults'
@@ -142,16 +142,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (team.userId !== uid && league?.commissionerId !== uid && !(await isTeamManager(id, uid)))
     return NextResponse.json({ error: 'Not your franchise' }, { status: 403 })
 
-  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean; isKeeper?: boolean; salary?: number; contractYears?: number; date?: string }
+  const body = await req.json() as { action: string; rosterId?: string; slot?: string; playerId?: string; dropRosterId?: string; onBlock?: boolean; isKeeper?: boolean; salary?: number; contractYears?: number; date?: string; forward?: boolean }
 
   if (body.action === 'SET_SLOT' && body.rosterId && body.slot) {
     const [row] = await db
-      .select({ playerId: rosters.playerId, sport: rosters.sport, slot: rosters.slot, position: players.position, status: players.status, realTeamAbbr: players.realTeamAbbr, isRookie: players.isRookie })
+      .select({ playerId: rosters.playerId, sport: rosters.sport, slot: rosters.slot, position: players.position, eligible: players.eligiblePositions, status: players.status, realTeamAbbr: players.realTeamAbbr, isRookie: players.isRookie })
       .from(rosters).innerJoin(players, eq(rosters.playerId, players.id))
       .where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id))).limit(1)
     if (!row) return NextResponse.json({ error: 'Not on roster' }, { status: 400 })
     const isCommish = league?.commissionerId === uid
-    if (!isCommish && row.slot !== body.slot) {
+    const cadenceEarly = lineupCadenceFor(safeParse<Record<string, string>>(league?.lineupCadence, {}), row.sport)
+    if (!isCommish && body.date && cadenceEarly === 'DAILY') {
+      // Daily lineups lock per day: past days are final, and a day locks for a player once his game that day starts.
+      const ymd = body.date.replace(/-/g, '')
+      const now = new Date(); const todayYmd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+      if (ymd < todayYmd) return NextResponse.json({ error: 'That day is final' }, { status: 400 })
+      const abbr = row.realTeamAbbr ?? ''
+      const [g] = abbr ? await db.select({ epoch: gameSchedule.gameTimeEpoch, status: gameSchedule.status }).from(gameSchedule)
+        .where(and(eq(gameSchedule.sport, row.sport), eq(gameSchedule.gameDate, ymd), or(eq(gameSchedule.homeAbbr, abbr), eq(gameSchedule.awayAbbr, abbr)))).limit(1) : []
+      const ko = g?.epoch ? Number(g.epoch) * 1000 : null
+      if ((ko != null && Date.now() >= ko) || /final|completed|live|progress/i.test(g?.status ?? ''))
+        return NextResponse.json({ error: `${row.position} is locked — their game has already started` }, { status: 400 })
+    } else if (!isCommish && row.slot !== body.slot) {
       const [cur] = await db.select({ week: matchups.week })
         .from(matchups)
         .where(and(eq(matchups.leagueId, team.leagueId), eq(matchups.sport, row.sport), eq(matchups.isComplete, false)))
@@ -162,7 +174,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (ko != null && Date.now() >= ko)
         return NextResponse.json({ error: `${row.position} is locked — their game has already started` }, { status: 400 })
     }
-    if (!slotEligible(row.position, body.slot)) return NextResponse.json({ error: `Not eligible for ${body.slot}` }, { status: 400 })
+    const positions = [row.position, ...safeParse<string[]>(row.eligible, [])]
+    if (!positions.some(p => slotEligible(p, body.slot!))) return NextResponse.json({ error: `Not eligible for ${body.slot}` }, { status: 400 })
     if (['IR', 'IL', 'DL'].includes(body.slot)) {
       const config = safeParse<Record<string, string[]>>(league?.irEligibleDesignations, defaultIrDesignations([row.sport]))
       if (!irEligible(row.sport, row.status, config))
@@ -198,9 +211,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     const cadence = lineupCadenceFor(safeParse<Record<string, string>>(league?.lineupCadence, {}), row.sport)
     if (body.date && cadence === 'DAILY') {
-      await db.insert(dailyLineups)
-        .values({ id: nanoid(), leagueId: team.leagueId, teamId: id, season: league?.season ?? '', sport: row.sport, date: body.date, playerId: row.playerId, slot: body.slot })
-        .onConflictDoUpdate({ target: [dailyLineups.teamId, dailyLineups.season, dailyLineups.sport, dailyLineups.date, dailyLineups.playerId], set: { slot: body.slot } })
+      // A change carries forward through the rest of the scoring period (like Fantrax), and to
+      // later periods via the base roster slot. body.forward === false limits it to that one day.
+      const season = league?.season ?? ''
+      let days = [body.date]
+      if (body.forward !== false) {
+        for (let w = 1; w <= 45; w++) {
+          const ds = weekDates(season, w)
+          if (!ds.includes(body.date)) continue
+          days = ds.filter(d => d >= body.date!)
+          // Pin the earlier days of the period to what they were, so moving the base slot only affects today onward.
+          const earlier = ds.filter(d => d < body.date!)
+          if (earlier.length) {
+            const have = new Set((await db.select({ date: dailyLineups.date }).from(dailyLineups).where(and(eq(dailyLineups.teamId, id), eq(dailyLineups.season, season),
+              eq(dailyLineups.sport, row.sport), eq(dailyLineups.playerId, row.playerId), inArray(dailyLineups.date, earlier)))).map(r => r.date))
+            for (const d of earlier) if (!have.has(d)) await db.insert(dailyLineups).values({ id: nanoid(), leagueId: team.leagueId, teamId: id, season, sport: row.sport, date: d, playerId: row.playerId, slot: row.slot }).onConflictDoNothing()
+          }
+          break
+        }
+        await db.update(rosters).set({ slot: body.slot }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))
+      }
+      for (const d of days) {
+        await db.insert(dailyLineups)
+          .values({ id: nanoid(), leagueId: team.leagueId, teamId: id, season, sport: row.sport, date: d, playerId: row.playerId, slot: body.slot })
+          .onConflictDoUpdate({ target: [dailyLineups.teamId, dailyLineups.season, dailyLineups.sport, dailyLineups.date, dailyLineups.playerId], set: { slot: body.slot } })
+      }
       return NextResponse.json({ ok: true })
     }
     await db.update(rosters).set({ slot: body.slot }).where(and(eq(rosters.id, body.rosterId), eq(rosters.teamId, id)))

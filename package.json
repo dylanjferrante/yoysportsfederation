@@ -23,7 +23,8 @@
     "tank01:sync": "tsx scripts/tank01-sync.ts",
     "tank01:realstats": "tsx scripts/tank01-realstats.ts",
     "ysf:import": "tsx scripts/ysf-import.ts",
-    "tank01:refresh": "tsx scripts/tank01-realstats.ts --days=3 && npm run db:reset"
+    "tank01:refresh": "tsx scripts/tank01-realstats.ts --days=3 && npm run db:reset",
+    "ysf:sync": "tsx scripts/ysf-sync.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

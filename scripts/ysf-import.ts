@@ -215,6 +215,9 @@ async function main() {
     perSport(k => `/ysf/leagues/${k}_primary_white.svg`), perSport(k => `/ysf/champ/${k}.svg`),
     JSON.stringify(Object.fromEntries(Object.entries(LEAGUE_COLORS).map(([sp, hex]) => [sp, { p: hex, s: '#ffffff' }]))), LEAGUE_ID)
 
+  // ySFHL, ySFBA and ySFLB set lineups daily within each scoring period; ySFFL weekly
+  db.prepare(`UPDATE leagues SET lineup_cadence=? WHERE id=?`).run(JSON.stringify({ NFL: 'WEEKLY', NHL: 'DAILY', NBA: 'DAILY', MLB: 'DAILY' }), LEAGUE_ID)
+
   // ── clubs ──
   const teamId: Record<string, string> = {}
   const insMember = db.prepare(`INSERT OR IGNORE INTO league_members (id,league_id,user_id,role) VALUES (?,?,?,?)`)
@@ -254,7 +257,15 @@ async function main() {
       const tid = teamId[r.ysf_id]; if (!tid) continue
       for (const p of r.players) {
         const slot = p.status === 'ACTIVE' ? (SLOT_MAP[s.sport][p.position] ?? p.position) : (STATUS_SLOT[p.status] ?? 'BN')
-        insRoster.run(id(), tid, playerFor(s.sport, p.name, p.position, p.real_team, p.fantrax_player_id), s.sport, slot, 'IMPORT')
+        const pid = playerFor(s.sport, p.name, p.position, p.real_team, p.fantrax_player_id)
+        insRoster.run(id(), tid, pid, s.sport, slot, 'IMPORT')
+        // Positional eligibility: Nexus keeps one position per player, but ySF clubs slot players at every
+        // position Fantrax allows (e.g. a C/LW playing LW). Record each real position a player is listed or slotted at.
+        if (p.position && !['Flx', 'UT', 'Skt', 'RWT', 'P'].includes(p.position)) {
+          const cur = db.prepare(`SELECT position, eligible_positions e FROM players WHERE id=?`).get(pid) as any
+          const set = new Set<string>([cur.position, ...JSON.parse(cur.e || '[]'), p.position === 'DST' ? 'DEF' : p.position])
+          db.prepare(`UPDATE players SET eligible_positions=? WHERE id=?`).run(JSON.stringify([...set].filter(Boolean)), pid)
+        }
         rostered++
       }
     }
