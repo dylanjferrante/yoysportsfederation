@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const [user] = await db.insert(users).values({ id: nanoid(), name: body.name, email: body.email, password: hash }).returning({ id: users.id, name: users.name, email: users.email })
     return NextResponse.json(user, { status: 201 })
   } catch (e) {
-    if (e instanceof z.ZodError) return NextResponse.json({ error: e.errors }, { status: 400 })
+    if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues }, { status: 400 })
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

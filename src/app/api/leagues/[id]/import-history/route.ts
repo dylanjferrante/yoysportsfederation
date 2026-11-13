@@ -57,7 +57,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   let body: z.infer<typeof schema>
   try { body = schema.parse(await req.json()) }
-  catch (e) { if (e instanceof z.ZodError) return NextResponse.json({ error: e.errors }, { status: 400 }); return NextResponse.json({ error: 'Could not read the import file' }, { status: 400 }) }
+  catch (e) { if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues }, { status: 400 }); return NextResponse.json({ error: 'Could not read the import file' }, { status: 400 }) }
 
   const sportsEnabled = safeParse<string[]>(league.sportsEnabled, [])
 

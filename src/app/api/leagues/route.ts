@@ -149,7 +149,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(league, { status: 201 })
   } catch (e) {
-    if (e instanceof z.ZodError) return NextResponse.json({ error: e.errors }, { status: 400 })
+    if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues }, { status: 400 })
     console.error(e)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
