@@ -12,6 +12,6 @@ read -r TOKEN
 stty echo 2>/dev/null || true
 echo
 echo "Uploading to $URL …"
-curl --fail-with-body -sS -X POST "$URL/api/admin/restore" -H "Authorization: Bearer $TOKEN" --data-binary @ysf-data.tar.gz
+curl --http1.1 --fail-with-body -sS --max-time 600 -X POST "$URL/api/admin/restore" -H "Authorization: Bearer $TOKEN" --data-binary @ysf-data.tar.gz
 echo
 echo "Done. In Railway, restart the service (Deployments → ⋮ → Restart) so it opens the uploaded data."
