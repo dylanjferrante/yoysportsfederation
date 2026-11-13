@@ -5,11 +5,10 @@ import Link from 'next/link'
 import { PageTitle, Tabs } from '@/components/ysf/ui'
 import MovesTable, { type MoveRowT } from '@/components/ysf/MovesTable'
 import { YSF_LEAGUES } from '@/lib/ysf'
+import { tradeRows, assetName } from '@/lib/ysf-trades'
 
 type Club = { name: string; abbreviation: string; logo: string | null; color: string | null }
 type Trade = { id: string; when: string; sides: { teamId: string; gets: { name: string; sport: string; team: string; pos: string }[] }[]; text: string; season?: string }
-// "Pick 215 (18.11)" in 2025-26 trades = a pick in the 2025 Federation Draft
-const assetName = (g: { name: string; sport: string }) => { const m = /^Pick (\d+) \((\d+\.\d+)\)$/.exec(g.name); return m ? `2025 Federation Draft pick ${m[2]} (#${m[1]})` : g.name }
 const day = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + '-05:00'))
 
 export function TradeCards({ leagueId, trades, clubs, codes }: { leagueId: string; trades: Trade[]; clubs: Record<string, Club>; codes: Record<string, string> }) {
@@ -47,6 +46,7 @@ export function TradeCards({ leagueId, trades, clubs, codes }: { leagueId: strin
 export default function MovesView({ leagueId, moves, trades, clubs, codes, seasons }: { leagueId: string; moves: MoveRowT[]; trades: Trade[]; clubs: Record<string, Club>; codes: Record<string, string>; seasons: string[] }) {
   const [tab, setTab] = useState<'all' | 'tr'>('all')
   const [season, setSeason] = useState(seasons[0])
+  const all = [...moves, ...tradeRows(trades)].sort((a, b) => (b.when > a.when ? 1 : b.when < a.when ? -1 : 0))
   return (
     <>
       <PageTitle eyebrow="Trades · waivers & FA · drafts" title="MOVES" right={
@@ -58,7 +58,7 @@ export default function MovesView({ leagueId, moves, trades, clubs, codes, seaso
           <Tabs items={[{ id: 'all', label: 'ALL MOVES' }, { id: 'tr', label: 'TRADES' }]} value={tab} onChange={setTab} />
         </div>} />
       {tab === 'all'
-        ? <MovesTable key={season} leagueId={leagueId} rows={moves.filter(m => (m.season ?? seasons[0]) === season)} clubs={clubs} codes={codes} />
+        ? <MovesTable key={season} leagueId={leagueId} rows={all.filter(m => (m.season ?? seasons[0]) === season)} clubs={clubs} codes={codes} />
         : <TradeCards leagueId={leagueId} trades={trades.filter(t => (t.season ?? seasons[0]) === season)} clubs={clubs} codes={codes} />}
     </>
   )

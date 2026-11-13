@@ -7,9 +7,9 @@ import Link from 'next/link'
 import { YSF_LEAGUES, YSF_ART } from '@/lib/ysf'
 
 type Club = { name: string; abbreviation: string; logo: string | null; color: string | null }
-export type MoveRowT = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string; season?: string }
+export type MoveRowT = { id: string; when: string; sport: string; teamId: string; kind: string; player: string; team: string; pos: string; bid: number | null; text: string; season?: string; from?: string }
 const PILL: Record<string, { bg: string; fg: string; bd?: string }> = {
-  DRAFTED: { bg: '#660066', fg: '#fff' }, SIGNED: { bg: '#000', fg: '#fff' }, CLAIMED: { bg: '#2F5D8A', fg: '#fff' }, RELEASED: { bg: '#F2F2F2', fg: '#4A4A4A' }, MOVE: { bg: '#fff', fg: '#000', bd: '#C7C7C7' },
+  DRAFTED: { bg: '#660066', fg: '#fff' }, TRADED: { bg: '#E500C5', fg: '#fff' }, SIGNED: { bg: '#000', fg: '#fff' }, CLAIMED: { bg: '#2F5D8A', fg: '#fff' }, RELEASED: { bg: '#F2F2F2', fg: '#4A4A4A' }, MOVE: { bg: '#fff', fg: '#000', bd: '#C7C7C7' },
 }
 // Feed times are US Eastern wall-clock times.
 const toDate = (iso: string) => new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + '-05:00')
@@ -71,7 +71,7 @@ export default function MovesTable({ leagueId, rows, clubs, codes, fixedSport }:
                     <td className="px-2 py-2.5"><span className="ui inline-flex items-center justify-center min-w-[84px] h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none" style={{ background: p.bg, color: p.fg, border: p.bd ? `1px solid ${p.bd}` : undefined }}>{r.kind}</span></td>
                     <td className="px-2 py-2.5 font-semibold">{r.player
                       ? <>{r.player} <span className="text-ink-500 font-normal ysf-case">({codes[r.sport]}-{r.team}, {r.pos.replace(/\bDEF\b/g, 'D/ST')})</span></>
-                      : r.text}</td>
+                      : r.text}{r.from && <span className="text-ink-500 font-normal"> · from {clubs[r.from]?.name ?? r.from}</span>}</td>
                     <td className="px-2 py-2.5 text-right font-bold tabular-nums">{r.bid != null ? `$${r.bid}` : ''}</td>
                   </tr>
                 )
