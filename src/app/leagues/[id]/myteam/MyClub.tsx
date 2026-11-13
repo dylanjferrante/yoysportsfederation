@@ -353,7 +353,7 @@ function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string
     const r = await fetch(`/api/teams/${tid}/roster`); const j = await r.json()
     const items: Item[] = [
       ...(j.players ?? []).map((p: any) => ({ id: p.id, kind: 'player', sport: p.sport, label: `${p.name} ${meta(codeOf(p.sport), p.realTeamAbbr, p.position)}` })),
-      ...(j.picks ?? []).map((k: any) => ({ id: k.id, kind: 'pick', sport: k.sport ?? 'PICKS', label: `${k.year} ${k.sport ? codeOf(k.sport) : 'Federation'} Round ${k.round} pick${k.originalTeamId !== tid ? ` (via ${abOf(k.originalTeamId)})` : ''}` })),
+      ...(j.picks ?? []).filter((k: any) => k.tradeable !== false).map((k: any) => ({ id: k.id, kind: 'pick', sport: k.sport ?? 'PICKS', label: `${k.year} ${k.sport ? codeOf(k.sport) : 'Federation'} Round ${k.round} pick${k.originalTeamId !== tid ? ` (via ${abOf(k.originalTeamId)})` : ''}` })),
     ]
     setAssets(a => ({ ...a, [tid]: items }))
   }, [assets]) // eslint-disable-line

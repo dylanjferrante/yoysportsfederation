@@ -60,6 +60,21 @@ async function main() {
     const d = await j(`https://statsapi.mlb.com/api/v1/sports/1/players?season=${y}`)
     for (const p of d.people ?? []) if (!debut.has(p.id) || (p.mlbDebutDate && !debut.get(p.id))) debut.set(p.id, p.mlbDebutDate ?? null)
   }
+  // minor leaguers (Triple-A down to Single-A) join the player pool so they can be taken in the ySFLB Rookie Draft
+  const have = new Set((db.prepare(`SELECT external_id FROM players WHERE sport = 'MLB'`).all() as any[]).map(r => String(r.external_id)))
+  const addP = db.prepare(`INSERT INTO players (id, external_id, name, sport, position, eligible_positions, real_team, real_team_abbr, status, is_rookie) VALUES (?, ?, ?, 'MLB', ?, ?, '', '', 'ACTIVE', 1)`)
+  let added = 0
+  const season = new Date().getMonth() >= 10 ? new Date().getFullYear() : new Date().getFullYear() - 1
+  for (const sid of [11, 12, 13, 14]) {
+    const d = await j(`https://statsapi.mlb.com/api/v1/sports/${sid}/players?season=${season}`)
+    db.transaction(() => { for (const p of d.people ?? []) {
+      if (have.has(String(p.id)) || p.mlbDebutDate) continue
+      const pos = p.primaryPosition?.abbreviation === 'P' ? 'P' : p.primaryPosition?.abbreviation === 'TWP' ? 'P' : (p.primaryPosition?.abbreviation ?? 'UT')
+      addP.run(`mlb-${p.id}`, String(p.id), p.fullName, pos, JSON.stringify(pos === 'P' ? ['SP', 'RP'] : [pos]))
+      have.add(String(p.id)); added++
+    } })()
+  }
+  console.log(`MiLB: ${added} prospects added`)
   n = 0
   const mlb = db.prepare(`SELECT external_id FROM players WHERE sport = 'MLB'`).all() as any[]
   db.transaction(() => {

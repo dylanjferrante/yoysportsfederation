@@ -89,6 +89,15 @@ export function rookieDraftAt(sport: string): Date | null {
   return s ? etLocal(s) : RULES.rookieDraft[sport] ? new Date(RULES.rookieDraft[sport]) : null
 }
 
+// draft picks tradeable now: the next N Rookie Drafts per league (League Settings 'Tradeable Future Pick Years'; Fantrax: 1)
+export function nextDraftYear(sport: string, now = new Date()): number {
+  const d = rookieDraftAt(sport)
+  return d ? (d > now ? d.getUTCFullYear() : d.getUTCFullYear() + 1) : now.getUTCFullYear()
+}
+export function pickTradeable(sport: string | null, year: number, years: number, now = new Date()): boolean {
+  return !sport || year <= nextDraftYear(sport, now) + Math.max(1, years) - 1
+}
+
 // ── Positions ────────────────────────────────────────────────────────────────
 // "players with QB / G / P eligibility": any listed position counts, not just the primary one
 export function eligTokens(position: string | null, eligible: string | string[] | null): Set<string> {

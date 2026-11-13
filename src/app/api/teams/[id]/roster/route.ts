@@ -16,7 +16,7 @@ import { playerKickoff } from '@/lib/locks'
 import { placeOnWaivers, onWaivers, settleYsfWaivers } from '@/lib/waivers'
 import { isTeamManager } from '@/lib/permissions'
 import { teamManagers } from '@/db/schema'
-import { isYsf, taxiCheck, claimLimitError, eligCapError, ensureRulesSchema, hasDesignation, irLockError, taxiPlaceError } from '@/lib/ysf-rules'
+import { isYsf, taxiCheck, claimLimitError, eligCapError, ensureRulesSchema, hasDesignation, irLockError, taxiPlaceError, pickTradeable } from '@/lib/ysf-rules'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -121,7 +121,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const canManage = isOwner || isCommish || isCoManager
 
   return NextResponse.json({
-    team, players: enriched, picks, managers,
+    team, players: enriched, picks: picks.map(k => ({ ...k, tradeable: !isYsf(team.leagueId) || pickTradeable(k.sport, k.year, league?.tradeablePickYears ?? 1) })), managers,
     cadence, weekDates: sportWeekDates, dailyLineups: dailyOverrides,
     liveScoring: !!league?.liveScoring,
     rosterSettings: safeParse(league?.rosterSettings, {}),

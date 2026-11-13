@@ -1,3 +1,4 @@
+import { isYsf, taxiCheck } from '@/lib/ysf-rules'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -101,6 +102,12 @@ const shareValue = (p: { sport: string; projectedPoints: number | null }, totals
 
 // Rookie drafts draw only from rookie-eligible players (when the sport has any marked).
 async function draftPool(draft: any, sportsFilter: string[]) {
+  if (draft.kind === 'ROOKIE' && isYsf(draft.leagueId)) {
+    // Comm. Res. VII: rookies (NFL, NBA), rookies and minor leaguers with 84 or fewer NHL games (NHL),
+    // MLB and MiLB players with under one year of MLB service time (MLB)
+    const all = await db.select().from(players).where(inArray(players.sport, sportsFilter))
+    return all.filter(p => taxiCheck(p.sport, (p as any).proExp ?? null).ok)
+  }
   const pool = await db.select().from(players).where(inArray(players.sport, sportsFilter)).limit(5000)
   if (draft.kind !== 'ROOKIE') return pool
   const rookies = pool.filter(p => p.isRookie)
