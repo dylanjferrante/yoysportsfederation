@@ -23,7 +23,9 @@ const fmtD = (d: Date, y = false) => d.toLocaleDateString('en-US', { month: 'sho
 const span = (a: Date, b: Date) => `${fmtD(a)}–${a.getMonth() === b.getMonth() ? b.getDate() : fmtD(b)}, ${b.getFullYear()}`
 const n1 = (x: number) => x.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
-export default async function YsfClub({ league, teamId }: { league: any; teamId: string }) {
+// `manage` (the signed-in member's own club): the lineup / add-drop / trade / pending tools, shown under
+// the club band in place of the this-week cards — so My Club and the club page are the same page.
+export default async function YsfClub({ league, teamId, manage }: { league: any; teamId: string; manage?: React.ReactNode }) {
   const s = await loadStandings(league)
   const C = s.clubs, club = C[teamId]
   if (!club) return <div className="card p-8 text-center font-semibold text-ink-500">Club not found</div>
@@ -228,7 +230,9 @@ export default async function YsfClub({ league, teamId }: { league: any; teamId:
         )}
       </section>
 
-      {thisWeek.length > 0 && (
+      {manage}
+
+      {!manage && thisWeek.length > 0 && (
         <section className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
           {thisWeek.map(w => {
             const L = YSF_LEAGUES.find(l => l.sport === w.sport)!

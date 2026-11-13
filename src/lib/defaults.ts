@@ -380,8 +380,11 @@ export function seasonAnchor(season: string, seasonStart: string = 'FOOTBALL'): 
   const yr = parseInt(season?.slice(0, 4)) || new Date().getFullYear()
   const first = (PHASE_ORDER_FROM[seasonStart] ?? PHASE_ORDER_FROM.FOOTBALL)[0]
   const [mo, day] = PHASE_ANCHOR_DATE[first] ?? PHASE_ANCHOR_DATE.FOOTBALL
-  // Weeks run Monday–Sunday (ySF matchup periods do): start on the Monday on or before the anchor date.
+  // Weeks run Monday–Sunday (ySF matchup periods do). A football-first season's Week 1 is the week of
+  // Labor Day (the first Monday of September), when the NFL kicks off; others start on the Monday on or
+  // before the anchor date.
   const d = new Date(yr, mo, day)
+  if (first === 'FOOTBALL') return new Date(yr, mo, day + ((8 - d.getDay()) % 7)).getTime()
   return new Date(yr, mo, day - ((d.getDay() + 6) % 7)).getTime()
 }
 

@@ -37,7 +37,8 @@ const fits = (p: { pos: string; position: string }, slot: string) => RESERVE.inc
 
 const btn = 'inline-flex items-center justify-center leading-none rounded font-display font-bold tracking-[.08em] text-[12px] disabled:opacity-40'
 
-export default function MyClub({ leagueId }: { leagueId: string }) {
+// `embedded`: shown inside the club page (which has its own club band), so no MY CLUB heading.
+export default function MyClub({ leagueId, embedded = false }: { leagueId: string; embedded?: boolean }) {
   const [sport, setSport] = useState<string | null>(null)
   const [date, setDate] = useState<string | null>(null)
   const [data, setData] = useState<Data | null>(null)
@@ -208,11 +209,13 @@ export default function MyClub({ leagueId }: { leagueId: string }) {
   })() : ''
 
   return (
-    <div className="flex flex-col gap-5 pb-8">
-      <div className="flex items-end justify-between gap-4 border-b-2 border-black pb-3.5">
-        <div><div className="eyebrow">{U(`${data.team.name} · 2026–27`)}</div><h1 className="disp text-[40px] sm:text-[64px] font-extrabold leading-[.85] mt-1.5">MY CLUB</h1></div>
-        {data.team.logo && <span className="w-14 h-14 inline-flex items-center justify-center"><img src={data.team.logo} alt="" className="w-14 h-14 object-contain" /></span>}
-      </div>
+    <div className={`flex flex-col gap-5 ${embedded ? '' : 'pb-8'}`}>
+      {!embedded && (
+        <div className="flex items-end justify-between gap-4 border-b-2 border-black pb-3.5">
+          <div><div className="eyebrow">{U(`${data.team.name} · 2026–27`)}</div><h1 className="disp text-[40px] sm:text-[64px] font-extrabold leading-[.85] mt-1.5">MY CLUB</h1></div>
+          {data.team.logo && <span className="w-14 h-14 inline-flex items-center justify-center"><img src={data.team.logo} alt="" className="w-14 h-14 object-contain" /></span>}
+        </div>
+      )}
 
       <div className="flex flex-wrap justify-between items-center gap-3">
         <div className="flex flex-wrap gap-2">
