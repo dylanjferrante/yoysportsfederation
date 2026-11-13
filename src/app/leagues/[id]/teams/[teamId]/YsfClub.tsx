@@ -111,7 +111,8 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
       const at = col.get(e.days[0])!
       if (at < i) continue // a second matchup in a week this row already shows (never expected)
       while (i < at) { cells.push(null); i++ }
-      const width = Math.max(1, Math.min(e.days.length, days.length - at))
+      // championship and 3rd-place games are one week, whatever the period's length
+      const width = round.has(e.m.id) ? 1 : Math.max(1, Math.min(e.days.length, days.length - at))
       const sd = side(e.m), m = e.m
       // a playoff bye (a top seed's first round) has no opponent
       const bye = !m.awayTeamId

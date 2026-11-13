@@ -121,15 +121,16 @@ export async function pastSeasonWeeks(season: string) {
     const map: Record<number, number[]> = {}
     for (const [p, d] of Object.entries(pm)) {
       if (!d?.start) continue
-      // a period belongs to each Monday–Sunday week it covers for at least four days, so a Thursday–
-      // Wednesday ySFFL week (2025–26) sits in the week it started, not across two
+      // a period of 11 days or fewer is one week: the Monday–Sunday week holding most of its days (so a
+      // Thursday–Wednesday ySFFL week of 2025–26 sits in the week it started). A longer one spans each
+      // week it covers for at least four days.
       const day = (iso: string) => Math.floor((new Date(iso + 'T12:00:00').getTime() - anchor) / 86_400_000)
       const d0 = day(d.start), d1 = day(d.end ?? d.start)
-      const ws: number[] = []
-      for (let w = fw(d.start); w <= fw(d.end ?? d.start); w++) {
-        const covered = Math.min(d1, (w - 1) * 7 + 6) - Math.max(d0, (w - 1) * 7) + 1
-        if (covered >= 4) ws.push(w)
-      }
+      const cover = (w: number) => Math.min(d1, (w - 1) * 7 + 6) - Math.max(d0, (w - 1) * 7) + 1
+      const span = [] as number[]
+      for (let w = fw(d.start); w <= fw(d.end ?? d.start); w++) span.push(w)
+      const ws = d1 - d0 + 1 > 11 ? span.filter(w => cover(w) >= 4)
+        : [span.reduce((best, w) => cover(w) > cover(best) ? w : best, span[0])]
       if (!ws.length) ws.push(fw(d.start))
       ws.forEach(w => all.add(w))
       map[Number(p)] = ws
