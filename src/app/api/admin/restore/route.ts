@@ -2,10 +2,9 @@
 // unpacked into /app/data. Off unless RESTORE_TOKEN is set; send it as "Authorization: Bearer <token>".
 // Remove RESTORE_TOKEN once the data is in, then restart so the server opens the restored database.
 import { NextResponse } from 'next/server'
-import { spawn } from 'child_process'
+import { spawnSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { Readable } from 'stream'
 
 export const dynamic = 'force-dynamic'
 export async function POST(req: Request) {
@@ -15,11 +14,15 @@ export async function POST(req: Request) {
   const dir = path.join(process.cwd(), 'data')
   const stage = path.join(dir, '.restore')
   fs.rmSync(stage, { recursive: true, force: true }); fs.mkdirSync(stage, { recursive: true })
-  const code = await new Promise<number>(resolve => {
-    const tar = spawn('tar', ['-xzf', '-', '-C', stage])
-    Readable.fromWeb(req.body as any).pipe(tar.stdin)
-    tar.on('close', c => resolve(c ?? 1)); tar.on('error', () => resolve(1))
-  })
+  // receive the whole archive, save it, then unpack it (simpler and sturdier than streaming into tar)
+  const file = path.join(dir, '.restore-upload.tgz')
+  const buf = Buffer.from(await req.arrayBuffer())
+  fs.writeFileSync(file, buf)
+  console.log(`restore: received ${(buf.length / 1048576).toFixed(1)} MB`)
+  const r = spawnSync('tar', ['-xzf', file, '-C', stage])
+  fs.rmSync(file, { force: true })
+  const code = r.status ?? 1
+  console.log(`restore: unpacked (tar exit ${code}${r.error ? `, ${r.error.message}` : ''})`)
   if (code !== 0 || !fs.existsSync(path.join(stage, 'nexus.db'))) { fs.rmSync(stage, { recursive: true, force: true }); return NextResponse.json({ error: 'Not a data archive' }, { status: 400 }) }
   // move everything into place (the open database file is replaced; restart afterwards)
   for (const f of fs.readdirSync(stage)) {
