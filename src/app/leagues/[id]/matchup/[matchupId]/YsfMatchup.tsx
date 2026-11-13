@@ -58,7 +58,31 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
   // a day not played yet shows the latest lineup on record, without points
   const lineupDay = daily ? (dataDays.filter(d => d <= sel!).pop() ?? dataDays[dataDays.length - 1]) : null
   const upcoming = daily && !!sel && sel >= today && !m.isComplete
-  const pickShown = () => daily ? lines.filter(l => l.date === lineupDay).map(l => upcoming && l.date !== sel ? { ...l, fpts: null, opp: null, stats: null, date: sel } : l) : lines
+  // daily leagues: "Matchup" view = each player's totals for the period; points and stats count only
+  // on days he started (so they add up to the matchup score); players who never started are listed below
+  const isTotal = daily && day === 'total'
+  const aggregate = (): Line[] => {
+    const order = new Map(lines.filter(l => l.date === lineupDay).map((l, i) => [l.team_id + l.fx_player_id, i]))
+    const by = new Map<string, Line[]>()
+    for (const l of lines) { const k = l.team_id + l.fx_player_id; by.set(k, [...(by.get(k) ?? []), l]) }
+    const out: (Line & { _o: number })[] = []
+    for (const [k, ls] of by) {
+      const act = ls.filter(l => l.status === '1'), use = (act.length ? act : ls).filter(l => final(l) && (l.opp || l.fpts))
+      const sum: Record<string, number> = {}; let outs = 0
+      for (const l of use) for (const [sk, v] of Object.entries(JSON.parse(l.stats || '{}') as Record<string, string>)) {
+        if (sk === 'IP') { const [w, f] = String(v).split('.'); outs += Number(w) * 3 + Number(f || 0); continue }
+        const x = Number(v); if (Number.isFinite(x)) sum[sk] = (sum[sk] ?? 0) + x
+      }
+      if (outs) sum.IP = Number(`${Math.floor(outs / 3)}.${outs % 3}`)
+      const freq = (xs: string[]) => [...xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1])[0]?.[0]
+      const last = ls[ls.length - 1], gp = ls.filter(l => l.opp || l.fpts).length
+      out.push({ ...last, date: 'total', status: act.length ? '1' : freq(ls.map(l => l.status)) ?? last.status, slot: act.length ? freq(act.map(l => l.slot))! : last.slot,
+        fpts: use.length ? +use.reduce((a, l) => a + (l.fpts ?? 0), 0).toFixed(2) : null, stats: JSON.stringify(Object.fromEntries(Object.entries(sum).map(([a, v]) => [a, String(+v.toFixed(2))]))),
+        opp: `${gp} GP${act.length ? ` · ${act.filter(l => l.opp || l.fpts).length} started` : ''}`, live: true, _o: order.get(k) ?? 999 } as any)
+    }
+    return out.sort((a, b) => a._o - b._o)
+  }
+  const pickShown = () => isTotal ? aggregate() : daily ? lines.filter(l => l.date === lineupDay).map(l => upcoming && l.date !== sel ? { ...l, fpts: null, opp: null, stats: null, date: sel } : l) : lines
   let shown = pickShown()
   let span = season.replace('-', '–')
   if (daily && days.length) span = `${md(new Date(days[0] + 'T12:00:00'))}–${md(new Date(days[days.length - 1] + 'T12:00:00'), true)}`
@@ -93,6 +117,7 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
     shown = pickShown()
   }
   const game = (l: Line) => {
+    if (l.date === 'total') return l.opp
     const from = daily ? l.date ?? sel ?? '' : pd?.start ?? '', to = daily ? l.date ?? sel ?? '' : pd?.end ?? ''
     return (from && gameInfo(m.sport, l.pro_team, from, to, sched)) || (l.opp ? l.opp.replace(/<br\/>/g, ' ').replace(/ F$/, ' · Final') : null)
   }
@@ -193,7 +218,11 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
 
       {daily && days.length > 0 && (
         <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
-          {days.map(d => { const on = d === sel; return (
+          <Link href={`${base}?day=total`} scroll={false} className={`flex-none flex flex-col items-center justify-center gap-1 min-w-[96px] h-[54px] px-3 rounded-lg border leading-none ${isTotal ? 'bg-black text-white border-black' : 'bg-white border-ink-100 hover:border-ink-400'}`}>
+            <span className="font-display text-[13px] font-bold">MATCHUP</span>
+            <span className={`text-[11px] tabular-nums ${isTotal ? 'text-ink-200' : 'text-ink-500'}`}>{fmt(m.homeScore ?? 0)} – {fmt(m.awayScore ?? 0)}</span>
+          </Link>
+          {days.map(d => { const on = !isTotal && d === sel; return (
             <Link key={d} href={`${base}?day=${d}`} scroll={false} className={`flex-none flex flex-col items-center justify-center gap-1 min-w-[96px] h-[54px] px-3 rounded-lg border leading-none ${on ? 'bg-black text-white border-black' : 'bg-white border-ink-100 hover:border-ink-400'}`}>
               <span className="font-display text-[13px] font-bold">{dayLabel(d).toUpperCase()}</span>
               <span className={`text-[11px] tabular-nums ${on ? 'text-ink-200' : 'text-ink-500'}`}>{(d < today || m.isComplete) && dataDays.includes(d) ? `${fmt(total(A, lines.filter(l => l.date === d)))} – ${fmt(total(B, lines.filter(l => l.date === d)))}` : d === today ? 'Today' : d < today ? '–' : 'Upcoming'}</span>
@@ -277,7 +306,7 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
                   <tr className="border-b-2 border-black">
                     <th className={`${th} text-left`}><span className="text-[12px] font-bold text-black"><ClubName name={C[A]?.name} /></span></th>{slots(p => <th key={'a' + p} className={vis(p)} />)}
                     <th className={th}>PTS</th>
-                    <th className={th}>{daily && sel ? dayLabel(sel).toUpperCase() : ''}</th>
+                    <th className={th}>{isTotal ? 'MATCHUP' : daily && sel ? dayLabel(sel).toUpperCase() : ''}</th>
                     <th className={th}>PTS</th>
                     {slots(p => <th key={'b' + p} className={vis(p)} />)}<th className={`${th} text-right`}><span className="text-[12px] font-bold text-black"><ClubName name={C[B]?.name} /></span></th>
                   </tr>
@@ -307,10 +336,10 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
                       }),
                       g.s === '1' && (
                         <tr key="tot" className="bg-ink-50 border-b-2 border-black">
-                          <td className="px-3 py-2.5 ui text-[12px] font-bold">{daily ? 'DAY TOTAL' : 'TOTAL'}</td>{slots(p => <td key={'ta' + p} className={vis(p)} />)}
+                          <td className="px-3 py-2.5 ui text-[12px] font-bold">{isTotal ? 'MATCHUP TOTAL' : daily ? 'DAY TOTAL' : 'TOTAL'}</td>{slots(p => <td key={'ta' + p} className={vis(p)} />)}
                           <td className="px-2 text-center disp text-[22px] font-extrabold tabular-nums">{fmt(total(A, shown))}</td><td />
                           <td className="px-2 text-center disp text-[22px] font-extrabold tabular-nums">{fmt(total(B, shown))}</td>
-                          {slots(p => <td key={'tb' + p} className={vis(p)} />)}<td className="px-3 py-2.5 ui text-[12px] font-bold text-right">{daily ? 'DAY TOTAL' : 'TOTAL'}</td>
+                          {slots(p => <td key={'tb' + p} className={vis(p)} />)}<td className="px-3 py-2.5 ui text-[12px] font-bold text-right">{isTotal ? 'MATCHUP TOTAL' : daily ? 'DAY TOTAL' : 'TOTAL'}</td>
                         </tr>),
                     ]
                   })}
