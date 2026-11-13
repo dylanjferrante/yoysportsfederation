@@ -94,7 +94,7 @@ export default function NavbarClient({ clubs, leagueId, strip }: { clubs: Club[]
               )}
             </div>
           ) : (
-            <Link href="/auth/login" className="ui text-[13px] text-white border border-white px-3 py-1.5 inline-flex items-center justify-center" style={{ borderRadius: 8 }}>SIGN IN</Link>
+            <Link href="/auth/login" className="ui text-[12px] sm:text-[13px] text-white border border-white px-2.5 sm:px-3 h-8 inline-flex items-center justify-center whitespace-nowrap leading-none flex-none" style={{ borderRadius: 8 }}>SIGN IN</Link>
           )}
           <button className="lg:hidden w-10 h-10 inline-flex items-center justify-center" aria-label="Menu" onClick={() => setMobile(!mobile)}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">{mobile ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M3 6h18M3 12h18M3 18h18" />}</svg>

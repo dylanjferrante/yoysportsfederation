@@ -16,10 +16,10 @@ export default function HomeStandings({ leagueId, cup, live, clubs }: { leagueId
   return (
     <section className="card overflow-x-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
-        <div className="flex items-center gap-4">
-          <img src="/ysf/fed/cup_horiz_white.svg" alt="yoy Sports Federation Cup" className="h-12 w-auto" />
-          <span className="w-px h-8 bg-black" />
-          <Link href={`/leagues/${leagueId}/standings`} className="disp text-[32px] font-extrabold leading-none">STANDINGS</Link>
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <img src="/ysf/fed/cup_horiz_white.svg" alt="yoy Sports Federation Cup" className="h-9 sm:h-12 w-auto flex-none" />
+          <span className="w-px h-8 bg-black flex-none" />
+          <Link href={`/leagues/${leagueId}/standings`} className="disp text-[24px] sm:text-[32px] font-extrabold leading-none">STANDINGS</Link>
         </div>
         <Tabs items={[{ id: 'current', label: 'CURRENT' }, { id: 'odds', label: 'CUP ODDS' }]} value={view} onChange={setView} />
       </div>
