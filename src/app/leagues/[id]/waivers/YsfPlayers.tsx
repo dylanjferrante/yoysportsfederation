@@ -83,13 +83,13 @@ export default async function YsfPlayers({ league, sp }: { league: any; sp: Reco
               return (
                 <tr key={r.id}>
                   <td className={`${td} whitespace-nowrap`}>
-                    <span className="block text-[14px] leading-tight max-w-[46vw] sm:max-w-none overflow-hidden text-ellipsis"><b>{r.name}</b> <span className="text-ink-500 font-normal">| {r.team ? `${r.team}, ` : ''}{posOf(r).join('/').replace(/\bDEF\b/, 'D/ST')}</span></span>
-                    {r.injury && r.status && r.status !== 'ACTIVE' && <span className="block text-[11px] text-[#ba0c2f] font-semibold leading-tight mt-0.5">{r.status} · {r.injury}</span>}
+                    <span className="block text-[14px] leading-tight max-w-[31vw] sm:max-w-none overflow-hidden text-ellipsis"><b>{r.name}</b> <span className="text-ink-500 font-normal">| {r.team ? `${r.team}, ` : ''}{posOf(r).join('/').replace(/\bDEF\b/, 'D/ST')}</span></span>
+                    {r.injury && r.status && r.status !== 'ACTIVE' && <span className="block text-[11px] text-[#ba0c2f] font-semibold leading-tight mt-0.5 max-w-[31vw] sm:max-w-[420px] overflow-hidden text-ellipsis">{r.status} · {r.injury}</span>}
                   </td>
                   <td className={`${td} font-normal`}>
-                    {c ? <Link href={`/leagues/${league.id}/teams/${r.owner}`} className="inline-flex items-center gap-1.5"><img src={c.logo ?? ''} alt="" className="w-5 h-5 object-contain" /><span className="font-semibold">{c.abbreviation}</span></Link>
-                      : r.clears ? <span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none bg-[#2F5D8A] text-white">WAIVERS · {new Date(r.clears).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                      : <span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none bg-black text-white">FREE AGENT</span>}
+                    {c ? <Link href={`/leagues/${league.id}/teams/${r.owner}`} className="inline-flex items-center gap-1.5"><img src={c.logo ?? ''} alt="" className="w-5 h-5 object-contain" /><span className="font-semibold hidden sm:inline">{c.abbreviation}</span></Link>
+                      : r.clears ? <span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none bg-[#2F5D8A] text-white"><span className="hidden sm:inline">WAIVERS · </span><span className="sm:hidden">W · </span>{new Date(r.clears).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      : <span className="ui inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none bg-black text-white"><span className="hidden sm:inline">FREE AGENT</span><span className="sm:hidden">FA</span></span>}
                   </td>
                   <td className={`${td} text-right hidden sm:table-cell font-normal`}>{r.gp ?? 0}</td>
                   <td className={`${td} text-right`}>{(r.pts ?? 0).toFixed(1)}</td>
