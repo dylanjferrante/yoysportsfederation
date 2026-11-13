@@ -58,17 +58,21 @@ const DEF_KEYS = new Set(['interception', 'sack', 'fumbleRecovery', 'defensiveTD
 const CACHE = () => path.join(process.cwd(), 'data', 'tank01-cache')
 
 // Every cached final game for a sport between two dates (inclusive, YYYY-MM-DD).
-export function loadGameLines(sport: Sport, from: string, to: string, scoring: Record<string, number>): GameLine[] {
+export function loadGameLines(sport: Sport, from: string, to: string, scoring: Record<string, number>, withLive = false): GameLine[] {
   const dir = path.join(CACHE(), sport)
   if (!fs.existsSync(dir)) return []
   const out: GameLine[] = []
-  for (const f of fs.readdirSync(dir)) {
+  const finals = new Set(fs.readdirSync(dir))
+  const liveDir = path.join(CACHE(), 'live', sport)
+  const live = withLive && fs.existsSync(liveDir) ? fs.readdirSync(liveDir).filter(f => !finals.has(f)) : []
+  for (const f0 of [...finals, ...live.map(f => '\u0000' + f)]) {
+    const isLive = f0.startsWith('\u0000'), f = isLive ? f0.slice(1) : f0
     const m = /^(\d{4})(\d{2})(\d{2})_/.exec(f); if (!m) continue
     const date = `${m[1]}-${m[2]}-${m[3]}`
     if (date < from || date > to) continue
     let body: any
-    try { body = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) } catch { continue }
-    if (!/final|completed/i.test(String(body?.gameStatus ?? ''))) continue
+    try { body = JSON.parse(fs.readFileSync(path.join(isLive ? liveDir : dir, f), 'utf8')) } catch { continue }
+    if (!isLive && !/final|completed/i.test(String(body?.gameStatus ?? ''))) continue
     for (const e of boxEntries(sport, body)) {
       const base: Record<string, number> = { ...mapBoxScoreBase(sport, e.raw) }
       if (!Object.keys(base).length) continue
@@ -92,6 +96,7 @@ const ALIAS: Record<string, Record<string, string>> = {
   MLB: { CHW: 'CWS', WAS: 'WSH', KCR: 'KC', SDP: 'SD', SFG: 'SF', TBR: 'TB' },
 }
 const ab = (sport: string, t: string) => ALIAS[sport]?.[t] ?? t
+export const tankTeam = ab
 
 // One team's game in a date range: "NSH 4 @ TOR 5 · Final/OT", "BOS 2 @ MTL 1 · 2nd 08:14", "@ CHI · 8:00 PM".
 export function gameInfo(sport: string, team: string | null, from: string, to: string, schedule?: { id: string; status: string | null; epoch: string | null }[]): string | null {
@@ -99,11 +104,12 @@ export function gameInfo(sport: string, team: string | null, from: string, to: s
   const t = ab(sport, team)
   const dir = path.join(CACHE(), sport)
   const ymd = (d: string) => d.replace(/-/g, '')
-  const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => { const d = f.slice(0, 8); return d >= ymd(from) && d <= ymd(to) && f.slice(9, -5).split('@').includes(t) }) : []
+  const pick = (dd: string) => fs.existsSync(dd) ? fs.readdirSync(dd).filter(f => { const d = f.slice(0, 8); return d >= ymd(from) && d <= ymd(to) && f.slice(9, -5).split('@').includes(t) }).map(f => path.join(dd, f)) : []
+  const files = [...pick(dir), ...pick(path.join(CACHE(), 'live', sport))]
   const sideTag = (away: string, home: string, as: string | number, hs: string | number) => `${away} ${as} @ ${home} ${hs}`
   if (files.length) {
     try {
-      const b = JSON.parse(fs.readFileSync(path.join(dir, files.sort().pop()!), 'utf8'))
+      const b = JSON.parse(fs.readFileSync(files[0], 'utf8'))
       const ls = b.lineScore ?? {}
       const as = b.awayPts ?? b.awayTotal ?? ls.away?.total ?? ls[b.away]?.totalPts ?? '', hs = b.homePts ?? b.homeTotal ?? ls.home?.total ?? ls[b.home]?.totalPts ?? ''
       let status = String(ls.period ?? b.currentPeriod ?? (/final|completed/i.test(String(b.gameStatus)) ? 'Final' : b.gameStatus) ?? '')
@@ -111,7 +117,10 @@ export function gameInfo(sport: string, team: string | null, from: string, to: s
         const keys = JSON.stringify(ls)
         status = /"SO"|shootout/i.test(keys) && sport === 'NHL' && b.shootout === 'True' ? 'Final/SO' : /OT/.test(keys) ? 'Final/OT' : 'Final'
       }
-      if (b.gameClock && !/final/i.test(status) && b.gameClock !== 'Final') status += ` ${b.gameClock}`
+      if (!/final/i.test(status)) {
+        const per = String(ls.period ?? b.currentPeriod ?? '').trim(), clock = String(ls.gameClock ?? b.gameClock ?? '').trim()
+        status = /int/i.test(per) || /int/i.test(clock) ? `${per.replace(/intermission/i, '').trim()} Intermission`.trim() : `${per}${clock && clock !== per ? ` ${clock}` : ''}`.trim() || 'Live'
+      }
       return `${sideTag(b.away, b.home, as, hs)} · ${status}`
     } catch { /* fall through */ }
   }
@@ -122,4 +131,46 @@ export function gameInfo(sport: string, team: string | null, from: string, to: s
   if (g.status && /progress|live/i.test(g.status)) return `${vs} · Live`
   const when = g.epoch ? new Date(Number(g.epoch) * 1000).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET' : ''
   return `${vs}${when ? ` · ${when}` : ''}`
+}
+
+// Live games: fetch the box score from Tank01 (at most once a minute per game, kept on disk) so
+// pages can show the live score and period/clock. Finals are written to the regular cache.
+const HOSTS: Record<string, string> = {
+  NFL: 'tank01-nfl-live-in-game-real-time-statistics-nfl.p.rapidapi.com', NBA: 'tank01-fantasy-stats.p.rapidapi.com',
+  NHL: 'tank01-nhl-live-in-game-real-time-statistics-nhl.p.rapidapi.com', MLB: 'tank01-mlb-live-in-game-real-time-statistics.p.rapidapi.com',
+}
+export async function refreshLive(sport: string, gameIds: string[]): Promise<void> {
+  const key = process.env.TANK01_RAPIDAPI_KEY
+  if (!key || !gameIds.length) return
+  const dir = path.join(CACHE(), 'live', sport)
+  fs.mkdirSync(dir, { recursive: true })
+  await Promise.all(gameIds.slice(0, 16).map(async id => {
+    const f = path.join(dir, id.replace(/[^A-Za-z0-9_@]/g, '_') + '.json')
+    try { if (fs.existsSync(f) && Date.now() - fs.statSync(f).mtimeMs < 60_000) return } catch { /* refetch */ }
+    try {
+      const host = process.env[`TANK01_HOST_${sport}`] || HOSTS[sport]
+      const r = await fetch(`https://${host}/get${sport}BoxScore?gameID=${encodeURIComponent(id)}`, { headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host }, cache: 'no-store' })
+      if (!r.ok) return
+      const j: any = await r.json(); const body = j?.body ?? j
+      if (/final|completed/i.test(String(body?.gameStatus ?? ''))) fs.writeFileSync(path.join(CACHE(), sport, id.replace(/[^A-Za-z0-9_@]/g, '_') + '.json'), JSON.stringify(body))
+      fs.writeFileSync(f, JSON.stringify(body))
+    } catch { /* keep the last copy */ }
+  }))
+}
+
+// Our stat keys → the Fantrax column keys the box-score columns use (so live lines display alike)
+export function toFantraxStats(sport: string, s: Record<string, number>): Record<string, string> {
+  const o: Record<string, number> = {}
+  const set = (k: string, v: number | undefined) => { if (v != null) o[k] = (o[k] ?? 0) + v }
+  if (sport === 'NFL') {
+    if ('ptsAllowed' in s || 'yardsAllowed' in s) { set('PA-Def', s.ptsAllowed); set('YdA', s.yardsAllowed); set('Sk', s.sack); set('TA', (s.interception ?? 0) + (s.fumbleRecovery ?? 0)); set('Sft', s.safety ?? s.safeties); set('TDDST', s.defensiveTD) }
+    else { set('YDS', s.passingYards); set('TD', s.passingTD); set('Int', s.passingInt); set('2Pa', s.passing2pt); set('YDS#8', s.rushingYards); set('TD#9', s.rushingTD); set('REC', s.receptions); set('YDS#11', s.receivingYards); set('TD#12', s.receivingTD); set('Tgt', s.targets); set('FL', s.fumbleLost); set('2RR', (s.rushing2pt ?? 0) + (s.receiving2pt ?? 0)); set('XP', s.xpMade); set('XPM', s.xpMissed); set('FGYd', s.fgYards) }
+  } else if (sport === 'NHL') {
+    if ('saves' in s || 'goalsAllowed' in s) { set('W', s.wins); set('OL+ShL', s.overtimeLoss); set('SV', s.saves); set('GA', s.goalsAllowed); set('SHO', s.shutout) }
+    else { set('G', s.goals); set('A', s.assists); set('SOG', s.shotsOnGoal); set('PPP', (s.ppGoals ?? 0) + (s.ppAssists ?? 0)); set('SHP', (s.shGoals ?? 0) + (s.shAssists ?? 0)); set('Hit', s.hits); set('Blk', s.blockedShots) }
+  } else if (sport === 'NBA') {
+    set('PTS', s.points); set('REB', s.rebounds); set('AST', s.assists); set('ST', s.steals); set('BLK', s.blocks); set('TO', s.turnovers); set('3PTM', s.threesMade)
+    set('FGM', s.fieldGoalsMade); set('FGA', (s.fieldGoalsMade ?? 0) + (s.fieldGoalsMissed ?? 0)); set('FTM', s.freeThrowsMade); set('FTA', (s.freeThrowsMade ?? 0) + (s.freeThrowsMissed ?? 0))
+  }
+  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(+v.toFixed(2))]))
 }
