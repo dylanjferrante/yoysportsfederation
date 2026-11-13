@@ -568,7 +568,8 @@ CREATE TABLE activity (
   type TEXT NOT NULL,
   message TEXT NOT NULL,
   team_id TEXT REFERENCES teams(id),
-  created_at TEXT DEFAULT (datetime('now'))
+  created_at TEXT DEFAULT (datetime('now')),
+  data TEXT
 );
 
 CREATE TABLE notifications (

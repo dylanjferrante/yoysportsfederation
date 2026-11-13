@@ -1,3 +1,5 @@
+import YsfMoves from './YsfMoves'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 import { db } from '@/db'
 import { leagues, activity, teams, players } from '@/db/schema'
 import { eq, desc, and, notInArray, inArray } from 'drizzle-orm'
@@ -13,6 +15,7 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
   const { id } = await params
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
+  if (id === YSF_LEAGUE_ID) return <YsfMoves league={league} />
 
   // Scores update automatically via the API and are never transactions.
   const rows = await db.select().from(activity)

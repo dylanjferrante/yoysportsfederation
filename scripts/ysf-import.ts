@@ -297,12 +297,22 @@ async function main() {
   const sportOf: Record<string, string> = Object.fromEntries(SPORTS.map(s => [s.code, s.sport]))
   const insTrade = db.prepare(`INSERT INTO trades (id,league_id,initiator_id,recipient_id,status,note,processed_at,created_at) VALUES (?,?,?,?,'ACCEPTED',?,?,?)`)
   const insItem = db.prepare(`INSERT INTO trade_items (id,trade_id,from_team_id,to_team_id,direction,player_id) VALUES (?,?,?,?,'RECEIVING',?)`)
-  const insAct = db.prepare(`INSERT INTO activity (id,league_id,type,message,team_id,created_at) VALUES (?,?,?,?,?,?)`)
+  const actCols = (db.prepare(`PRAGMA table_info(activity)`).all() as any[]).map(c => c.name)
+  if (!actCols.includes('data')) db.exec(`ALTER TABLE activity ADD COLUMN data TEXT`)
+  const insAct = db.prepare(`INSERT INTO activity (id,league_id,type,message,team_id,created_at,data) VALUES (?,?,?,?,?,?,?)`)
+  // pro-team abbreviation + positions for a player, from the Nexus player row when there is one
+  const proOf = (sport: string, name: string, fallbackTeam: string) => {
+    const pid = byName.get(sport + '|' + norm(name))
+    const r = pid ? db.prepare(`SELECT real_team_abbr t, position p, eligible_positions e FROM players WHERE id=?`).get(pid) as any : null
+    const e = r ? JSON.parse(r.e || '[]') : []
+    return { team: r?.t || fallbackTeam || 'FA', pos: r ? (e.length > 1 ? e : [r.p]).join('/') : '' }
+  }
   for (const t of trades.trades) {
     const sides = t.sides.filter((x: any) => teamId[x.ysf_id]); if (sides.length < 2) continue
     const tid = id(), when = t.date.replace('T', ' ')
     insTrade.run(tid, LEAGUE_ID, teamId[sides[0].ysf_id], teamId[sides[1].ysf_id], t.id, when, when)
     const parts: string[] = []
+    const gets: Record<string, any[]> = {}
     for (const sd of sides) {
       const other = sides.find((o: any) => o.ysf_id !== sd.ysf_id)
       const got: string[] = []
@@ -311,10 +321,12 @@ async function main() {
         if (!mm || !sportOf[mm[5]]) continue
         insItem.run(id(), tid, teamId[other.ysf_id], teamId[sd.ysf_id], playerFor(sportOf[mm[5]], `${mm[1]}, ${mm[2]}`, mm[3], mm[4]))
         got.push(`${mm[2]} ${mm[1]}`)
+        ;(gets[sd.ysf_id] ??= []).push({ name: `${mm[2]} ${mm[1]}`, sport: sportOf[mm[5]], team: mm[4], pos: mm[3] })
       }
       if (got.length) parts.push(`${clubs[sd.ysf_id].abbr} gets ${got.join(', ')}`)
     }
-    insAct.run(id(), LEAGUE_ID, 'TRADE', 'Trade: ' + parts.join('; '), teamId[sides[0].ysf_id], when)
+    insAct.run(id(), LEAGUE_ID, 'TRADE', 'Trade: ' + parts.join('; '), teamId[sides[0].ysf_id], when,
+      JSON.stringify({ kind: 'TRADE', sides: sides.map((sd: any) => ({ teamId: teamId[sd.ysf_id], gets: gets[sd.ysf_id] ?? [] })) }))
   }
 
   // ── signings, claims, releases ──
@@ -326,7 +338,10 @@ async function main() {
       if (!teamId[t.ysf_id]) continue
       for (const p of t.players) {
         const bid = t.bid && p.type === 'WW' ? ` ($${Math.round(t.bid)})` : ''
-        insAct.run(id(), LEAGUE_ID, 'WAIVER', `${clubs[t.ysf_id].abbr} ${VERB[p.type] ?? p.type.toLowerCase()} ${p.name} (${s.code}, ${p.position})${bid}`, teamId[t.ysf_id], t.date.replace('T', ' '))
+        const pro = proOf(s.sport, p.name, '')
+        insAct.run(id(), LEAGUE_ID, 'WAIVER', `${clubs[t.ysf_id].abbr} ${VERB[p.type] ?? p.type.toLowerCase()} ${p.name} (${s.code}, ${p.position})${bid}`, teamId[t.ysf_id], t.date.replace('T', ' '),
+          JSON.stringify({ kind: ({ FA: 'SIGNED', WW: 'CLAIMED', DROP: 'RELEASED' } as Record<string, string>)[p.type] ?? String(p.type).toUpperCase(), sport: s.sport, player: firstLast(p.name),
+            team: pro.team, pos: p.position && /[,/]/.test(p.position) ? p.position.replace(/,/g, '/') : (pro.pos || p.position), bid: t.bid && p.type === 'WW' ? Math.round(t.bid) : null }))
         nTx++
       }
     }
