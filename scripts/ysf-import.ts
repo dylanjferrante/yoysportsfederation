@@ -69,15 +69,16 @@ const YSF_SCORING: Record<string, Record<string, unknown>> = {
     receptions: 0.5, receivingYards: 0.1, receivingTD: 6, receiving2pt: 2,
     fumbleLost: -2, fumbleRecoveryTD: 6, returnTD: 6,
     fgPointsPerYard: 0.1, fgMinPoints: 0, fgMissed: -1, xpMade: 1, xpMissed: -1,
-    sack: 1, interception: 2, fumbleRecovery: 2, safeties: 2, safety: 2, defensiveTD: 6, specialTeamsTD: 6, blockedKick: 2,
+    sack: 1, interception: 2, fumbleRecovery: 2, safeties: 2, safety: 2, defensiveTD: 6, specialTeamsTD: 6, blockedKick: 0,
     ptsAllowedTiers: [
-      { min: 0, max: 0, points: 5 }, { min: 1, max: 6, points: 4 }, { min: 7, max: 13, points: 3 }, { min: 14, max: 17, points: 1 },
-      { min: 18, max: 27, points: 0 }, { min: 28, max: 34, points: -1 }, { min: 35, max: 45, points: -3 }, { min: 46, max: null, points: -5 },
+      { min: 0, max: 0, points: 5 }, { min: 1, max: 6, points: 4 }, { min: 7, max: 13, points: 3 }, { min: 14, max: 27, points: 1 },
+      { min: 28, max: 34, points: -1 }, { min: 35, max: 45, points: -3 }, { min: 46, max: null, points: -5 },
     ],
-    // The constitution lists no 450-499 band; Fantrax scores it -3 (same as 400-449). Pending a Commission ruling.
+    // Yards allowed per the Commission (Nov 12, 2026): 300-349 = 0, 400-499 = -3. Note: Fantrax's
+    // ranges leave a 300-349 gap that it scores as +2 (the previous range), so its results differ.
     yardsAllowedTiers: [
-      { min: 0, max: 99, points: 5 }, { min: 100, max: 199, points: 3 }, { min: 200, max: 299, points: 2 }, { min: 300, max: 349, points: 0 },
-      { min: 350, max: 399, points: -1 }, { min: 400, max: 449, points: -3 }, { min: 450, max: 499, points: -3 },
+      { min: -100, max: -1, points: 5 }, { min: 0, max: 99, points: 5 }, { min: 100, max: 199, points: 3 }, { min: 200, max: 299, points: 2 }, { min: 300, max: 349, points: 0 },
+      { min: 350, max: 399, points: -1 }, { min: 400, max: 499, points: -3 },
       { min: 500, max: 549, points: -6 }, { min: 550, max: null, points: -7 },
     ],
   },

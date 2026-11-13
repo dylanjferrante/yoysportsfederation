@@ -95,7 +95,7 @@ export function scoreBreakdown(stats: Stats, scoring: Record<string, number>): {
     if (made) { total += fgPts; items.push({ key: 'fgYardage', stat: made, perUnit: scoring.fgPointsPerYard ?? 0, points: +fgPts.toFixed(2) }) }
   }
   items.sort((a, b) => b.points - a.points)
-  return { items, total: +total.toFixed(1) }
+  return { items, total: +total.toFixed(2) }   // two decimals, as Fantrax keeps them (0.04 per passing yard)
 }
 
 // Points = dot product of the stat line with the league's per-stat values, plus

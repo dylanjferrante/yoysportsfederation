@@ -18,6 +18,8 @@ async function main() {
   const detail = process.argv.includes('--detail')
   const league = db.prepare(`SELECT scoring_settings, sport_schedule FROM leagues WHERE id='ysf'`).get() as any
   const scoringAll = JSON.parse(league.scoring_settings)
+  // --fantrax-rules: score D/ST yards 300-349 as Fantrax does (+2) to compare like for like
+  if (process.argv.includes('--fantrax-rules')) for (const t of scoringAll.NFL.yardsAllowedTiers) if (t.min === 300) t.points = 2
   const proTeams = JSON.parse(fs.readFileSync('scripts/data/pro-teams.json', 'utf8'))
   const today = new Date().toISOString().slice(0, 10)
   const feed: Record<string, any> = {}
@@ -37,15 +39,15 @@ async function main() {
     const linesOf = (name: string, team: string | null) => {
       if (/ D\/ST$/.test(name)) { const city = name.replace(/ D\/ST$/, ''); const ab = proTeams.NFL?.[city] ?? city; return dst.get(ab === 'LAR' ? 'LAR' : ab) ?? dst.get(ab.replace('WAS', 'WSH')) ?? null }
       const k = norm(name)
-      const exact = team ? byNameTeam.get(k + '|' + team) : undefined
-      if (exact) return exact
       const ids = byName.get(k)
+      // one Tank01 player by that name: all his games, whichever team (traded players)
       if (ids?.size === 1) return lines.filter(g => !g.dstTeam && norm(g.name) === k)
-      return null
+      return team ? byNameTeam.get(k + '|' + team) ?? null : null
     }
     // NFL periods' dates from the ySF schedule
     const pm = feed[sport].schedule_meta.periods as Record<string, { start: string; end: string; complete: boolean }>
-    const rows = db.prepare(`SELECT period, date, matchup_period, team_id, name, pro_team, slot, status, fpts FROM fantrax_player_periods WHERE season=? AND sport=?`).all(SEASON, sport) as any[]
+    const rows = db.prepare(`SELECT f.period, f.date, f.matchup_period, f.team_id, f.name, f.pro_team, f.slot, f.status, f.fpts, m.tank_id FROM fantrax_player_periods f LEFT JOIN player_id_map m ON m.sport = f.sport AND m.fx_id = f.fx_player_id WHERE f.season=? AND f.sport=?`).all(SEASON, sport) as any[]
+    const byTank = new Map<string, typeof lines>(); for (const g of lines) byTank.set(g.tankId, [...(byTank.get(g.tankId) ?? []), g])
     let ok = 0, off = 0, unmatched = 0, zeroBoth = 0
     const diffs: any[] = [], unm = new Map<string, number>()
     const club = new Map<string, number>()
@@ -53,11 +55,11 @@ async function main() {
       let from: string, to: string
       if (sport === 'NFL') { const p = pm[String(r.period)]; if (!p?.complete) continue; from = p.start; to = p.end }
       else { if (!r.date || r.date >= today) continue; from = to = r.date }
-      const ls = linesOf(r.name, r.pro_team)
+      const ls = r.tank_id ? (byTank.get(r.tank_id) ?? []) : linesOf(r.name, r.pro_team)
       const ours = ls ? ls.filter(g => g.date >= from && g.date <= to).reduce((s, g) => s + g.pts, 0) : null
       const fx = r.fpts ?? 0
       if (ours == null) { if (fx !== 0) { unmatched++; unm.set(`${r.name} (${r.pro_team})`, (unm.get(`${r.name} (${r.pro_team})`) ?? 0) + 1) } else zeroBoth++ }
-      else if (Math.abs(ours - fx) <= 0.051) ok++
+      else if (Math.abs(ours - fx) <= 0.051) { ok++; if (Math.abs(ours - fx) > 0.001 && detail) console.log('  TINY', r.name, r.period, r.date, ours.toFixed(3), fx) }
       else { off++; diffs.push({ name: r.name, team: r.pro_team, slot: r.slot, p: r.period, date: r.date, ours: +ours.toFixed(2), fx }) }
       if (r.status === '1' && r.matchup_period) { const k = `${r.matchup_period}|${r.team_id}`; club.set(k, (club.get(k) ?? 0) + (ours ?? 0)) }
     }
