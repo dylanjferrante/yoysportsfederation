@@ -12,6 +12,7 @@ import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import { loadClubs, periodLabel, siteFeed } from '@/lib/ysf-data'
 import { weekDateRange } from '@/lib/defaults'
 import { statType, statCell, compactCols, maxCompact } from '@/lib/ysf-statline'
+import { gameInfo } from '@/lib/ysf-gamelines'
 
 type Line = { team_id: string; date: string | null; slot: string; status: string; name: string; pro_team: string | null; positions: string | null; fpts: number | null; opp: string | null; fx_player_id: string; stats: string | null }
 const SLOT: Record<string, string> = { RWT: 'FLEX', Flx: 'FLEX', UT: 'UTIL', Util: 'UTIL', Skt: 'SKT' }
@@ -43,10 +44,10 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
   // every day of the matchup period (from the ySF schedule), played or not
   const dataDays = daily ? [...new Set(lines.map(l => l.date!).filter(Boolean))].sort() : []
   let days = dataDays
+  const fkey = { NFL: 'ysf_fl', NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }[m.sport as string]
+  const pfeed = await siteFeed<any>(isCur ? `league_${fkey}.json` : `archives/${season}/${fkey}.json`)
+  const pd = pfeed?.schedule_meta?.periods?.[String(period)] as { start: string; end: string } | undefined
   if (daily) {
-    const key = { NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }[m.sport as string]
-    const feed = await siteFeed<any>(isCur ? `league_${key}.json` : `archives/${season}/${key}.json`)
-    const pd = feed?.schedule_meta?.periods?.[String(period)]
     if (pd?.start && pd?.end) {
       days = []
       for (let d = new Date(pd.start + 'T12:00:00'); d <= new Date(pd.end + 'T12:00:00'); d.setDate(d.getDate() + 1)) days.push(d.toISOString().slice(0, 10))
@@ -62,6 +63,12 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
   if (daily && days.length) span = `${md(new Date(days[0] + 'T12:00:00'))}–${md(new Date(days[days.length - 1] + 'T12:00:00'), true)}`
   else if (!daily && isCur) { const { start } = weekDateRange(season, m.week); const s0 = new Date(start); s0.setDate(s0.getDate() + 3); const e0 = new Date(start); e0.setDate(e0.getDate() + 9); span = `${md(s0)}–${md(e0, true)}` }
 
+  // real-game info per player: finals from box scores, live and upcoming from the schedule
+  const sched = pd ? db.all<{ id: string; status: string | null; epoch: string | null }>(sql`SELECT id, status, game_time_epoch AS epoch FROM game_schedule WHERE sport = ${m.sport} AND game_date >= ${pd.start.replace(/-/g, '')} AND game_date <= ${pd.end.replace(/-/g, '')}`) : []
+  const game = (l: Line) => {
+    const from = daily ? l.date ?? sel ?? '' : pd?.start ?? '', to = daily ? l.date ?? sel ?? '' : pd?.end ?? ''
+    return (from && gameInfo(m.sport, l.pro_team, from, to, sched)) || (l.opp ? l.opp.replace(/<br\/>/g, ' ').replace(/ F$/, ' · Final') : null)
+  }
   // this pairing's other leagues this week, and this league's other matchups
   const week = await db.select().from(matchups).where(and(eq(matchups.leagueId, league.id), eq(matchups.season, season), eq(matchups.week, m.week)))
   const pair = (x: any) => [x.homeTeamId, x.awayTeamId].sort().join('|') === [A, B].sort().join('|')
@@ -164,8 +171,8 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
         const cell = (st: Record<string, string> | null, key: string, played: boolean) => { const v = played ? statCell(st, key) : ''; return <span className={v && v !== '0' ? '' : 'text-ink-200'}>{v === '' ? '–' : v}</span> }
         const PlayerCell = ({ l, right }: { l?: Line; right?: boolean }) => (
           <td className={`px-2 py-2 min-w-[140px] ${right ? 'text-right' : ''}`}>{l ? <>
-            <span className="block font-bold text-[13px] leading-tight">{l.name}</span>
-            <span className="block text-[11px] text-ink-500 leading-tight"><span className="ysf-case">({L.code}{l.pro_team ? `-${l.pro_team}` : ''}, {l.positions ?? l.slot})</span>{l.opp ? ` · ${l.opp.replace(/ F$/, '')}` : ''}</span>
+            <span className="block text-[13px] leading-tight"><b>{l.name}</b> <span className="text-ink-500">| {l.pro_team ? `${l.pro_team}, ` : ''}{(l.positions ?? l.slot).replace(/,/g, '/')}</span></span>
+            <span className="block text-[11px] text-ink-500 leading-tight mt-0.5">{game(l) ?? '–'}</span>
           </> : <span className="text-ink-200 text-[12px]">Empty</span>}</td>
         )
         const StatCells = ({ l, cols, right }: { l?: Line; cols: [string, string][]; right?: boolean }) => {
