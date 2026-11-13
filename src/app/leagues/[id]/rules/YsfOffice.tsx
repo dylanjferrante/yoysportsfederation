@@ -31,6 +31,7 @@ const RULEBOOK: [string, string, string][] = [
   ['48-hour review before a trade takes effect', 'Art. IV §B, Comm. Notice IV', 'Trades'],
   ['Bad-faith complaints; Commission veto (unanimous, 36 hours); Federation override (⅔)', 'Art. IV §B', 'Trades'],
   ['Commission club in the trade: Federation veto (⅔ of the other clubs)', 'Art. IV §B', 'Trades'],
+  ['Fed Cup ties: most 1st-place finishes, then 2nd-or-better … 11th-or-better, then win percentage, then head-to-head', 'Comm. Res. IX', 'Standings'],
 ]
 const LG_KEY: Record<string, string> = { ysf_fl: 'fl', ysf_hl: 'hl', ysf_ba: 'ba', ysf_lb: 'lb' }
 
