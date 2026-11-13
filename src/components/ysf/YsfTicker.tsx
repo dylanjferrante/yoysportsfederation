@@ -84,12 +84,7 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
                 <span className="self-center inline-flex gap-[3px] flex-none">{it.marks.map((m, j) => (
                   <span key={j} className="w-8 h-8 inline-flex items-center justify-center rounded-[2px]" style={{ background: m.bg }}><img src={m.src} alt="" className="w-6 h-6 object-contain" /></span>
                 ))}</span>
-                {it.text.split(' | ').map((part, j) => (
-                  <span key={j} className="inline-flex items-stretch gap-2.5">
-                    {j > 0 && <span className="w-px self-stretch bg-ink-400 flex-none" />}
-                    <span className="self-center text-[15px] font-semibold whitespace-nowrap ysf-case">{part}</span>
-                  </span>
-                ))}
+                <span className="self-center text-[15px] font-semibold whitespace-nowrap ysf-case">{it.text}</span>
               </>}
               <span className="self-center text-[12px] text-ink-400 whitespace-nowrap">{it.ago}</span>
             </span>
