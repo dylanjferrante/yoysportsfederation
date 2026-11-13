@@ -1,67 +1,49 @@
 'use client'
-
-import { useState } from 'react'
-import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+// Sign in: Google or Apple (when configured) or email and password. New owners join through their club's
+// invite link from the Commission.
+import { useEffect, useState } from 'react'
+import { signIn, getProviders } from 'next-auth/react'
 import Link from 'next/link'
+import { YSF_ART, YSF_LEAGUE_ID } from '@/lib/ysf'
+
+const LABEL: Record<string, string> = { google: 'CONTINUE WITH GOOGLE', apple: 'CONTINUE WITH APPLE' }
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [oauth, setOauth] = useState<string[]>([])
+  const home = `/leagues/${YSF_LEAGUE_ID}`
+  useEffect(() => { getProviders().then(p => setOauth(Object.keys(p ?? {}).filter(k => k !== 'credentials'))).catch(() => {}) }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
-    setLoading(true)
+    setError(''); setLoading(true)
     const res = await signIn('credentials', { email, password, redirect: false })
     setLoading(false)
-    if (res?.error) return setError('Invalid email or password')
-    router.push('/dashboard')
-    router.refresh()
+    if (res?.error) return setError('Wrong email or password')
+    const next = new URLSearchParams(window.location.search).get('callbackUrl')
+    window.location.href = next && next.startsWith('/') ? next : home
   }
+  const btn = 'inline-flex items-center justify-center w-full h-12 rounded-lg font-display text-[14px] font-bold tracking-[.08em] leading-none'
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center mx-auto mb-3">
-            <span className="text-white font-black text-sm">NF</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-          <p className="text-slate-500 text-sm mt-1">Sign in to your Nexus Fantasy account</p>
-        </div>
-
-        <div className="card p-6">
-          <form onSubmit={submit} className="space-y-4">
-            {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">{error}</div>}
-            <div>
-              <label className="label">Email</label>
-              <input type="email" className="input" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="you@example.com" />
-            </div>
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="label">Password</label>
-                <Link href="/auth/forgot" className="text-xs text-blue-600 hover:underline">Forgot password?</Link>
-              </div>
-              <input type="password" className="input" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••" />
-            </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-base">
-              {loading ? 'Signing in…' : 'Sign in'}
-            </button>
+    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-[400px] flex flex-col items-center gap-6">
+        <span className="inline-flex items-center justify-center h-20"><img src={YSF_ART.primaryOnWhite} alt="yoy Sports Federation" className="h-20 object-contain" /></span>
+        <h1 className="disp text-[34px] font-extrabold leading-none">SIGN IN</h1>
+        <div className="w-full flex flex-col gap-3">
+          {oauth.map(p => <button key={p} onClick={() => signIn(p, { callbackUrl: home })} className={`${btn} border-2 border-black bg-white text-black`}>{LABEL[p] ?? `CONTINUE WITH ${p.toUpperCase()}`}</button>)}
+          {oauth.length > 0 && <div className="ui text-center text-[12px] text-ink-400 tracking-[.12em] my-1">OR</div>}
+          <form onSubmit={submit} className="flex flex-col gap-2.5">
+            <input type="email" className="input" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="Email" />
+            <input type="password" className="input" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" placeholder="Password" />
+            <button type="submit" disabled={loading} className={`${btn} bg-black text-white`}>{loading ? 'SIGNING IN…' : 'SIGN IN'}</button>
           </form>
-
-          <p className="text-center text-sm text-slate-500 mt-4">
-            Demo: <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">admin@nexusfantasy.com</span> / <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">password123</span>
-          </p>
+          {error && <div className="text-[14px] font-semibold text-center" style={{ color: '#ba0c2f' }}>{error}</div>}
+          <Link href="/auth/forgot" className="text-center text-[14px] font-semibold text-ink-600 hover:text-black">Forgot your password?</Link>
         </div>
-
-        <p className="text-center text-sm text-slate-500 mt-4">
-          Don't have an account?{' '}
-          <Link href="/auth/register" className="text-blue-600 hover:underline font-medium">Create one</Link>
-        </p>
       </div>
     </div>
   )

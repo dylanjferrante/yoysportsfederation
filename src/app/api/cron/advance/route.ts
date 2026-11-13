@@ -7,6 +7,7 @@ import { advanceLeague } from '@/lib/advance'
 // action. Optionally protected by CRON_SECRET.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET
+  if (!secret && process.env.NODE_ENV === 'production') return NextResponse.json({ error: 'Disabled' }, { status: 403 })
   if (secret) {
     const auth = req.headers.get('authorization')
     if (auth !== `Bearer ${secret}`) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

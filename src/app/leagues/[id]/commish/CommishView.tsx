@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SCORING_CATEGORIES } from '@/lib/scoring-categories'
 import { useSportAbbr } from '@/components/SportNaming'
+import ClubInvites from './ClubInvites'
 
 type Member = { userId: string; role: string; name: string | null; email: string | null }
 type Action = { id: string; action: string; details: string; createdAt: string; byName: string | null }
@@ -66,7 +67,7 @@ export default function CommishView({ leagueId, leagueName }: { leagueId: string
       </div>
 
       {tab === 'Announce' && <Announce post={post} invite={data.inviteCode} />}
-      {tab === 'Members' && <Members data={data} post={post} />}
+      {tab === 'Members' && <><ClubInvites leagueId={leagueId} /><Members data={data} post={post} /></>}
       {tab === 'Trades' && <Trades data={data} post={post} />}
       {tab === 'Scores' && <Scores data={data} teamName={teamName} post={post} />}
       {tab === 'Stat Fix' && <StatFix leagueId={leagueId} base={base} season={data.season} sportsEnabled={data.sportsEnabled} post={post} />}
