@@ -46,6 +46,10 @@ export function ensureRulesSchema() {
 }
 
 ensureRulesSchema()
+// Commission warnings sent from the Compliance tab
+export function ensureWarnings() {
+  db.run(sql`CREATE TABLE IF NOT EXISTS ysf_warnings (id INTEGER PRIMARY KEY AUTOINCREMENT, team_id TEXT NOT NULL, sport TEXT, rule TEXT NOT NULL, detail TEXT, warned_at TEXT NOT NULL, warned_by TEXT)`)
+}
 
 // ── League settings ──────────────────────────────────────────────────────────
 // The Commission edits these in League Settings; RULES above are the defaults when a setting is unset.
