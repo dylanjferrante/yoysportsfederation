@@ -45,6 +45,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const [cur] = await db.select({ week: matchups.week }).from(matchups)
     .where(and(eq(matchups.leagueId, id), eq(matchups.season, season), eq(matchups.sport, sport), eq(matchups.isComplete, false)))
     .orderBy(matchups.week).limit(1)
+  // ySFFL weeks run Tuesday–Monday (Thursday night through Monday night); the other leagues Monday–Sunday
+  const wr = (w: number) => { const r = weekDateRange(season, w); if (sport !== 'NFL') return r; const d = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate() + 1); return { start: d(r.start), end: d(r.end) } }
   const curWeek = cur?.week ?? null
   const sched = safeParse<{ sport: string; startWeek: number; endWeek: number }[]>((league as any).sportSchedule, []).find(x => x.sport === sport)
   const teamWeeks = [...new Set((await db.select({ week: matchups.week }).from(matchups)
@@ -66,7 +68,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (m) {
       const oppId = m.homeTeamId === team.id ? m.awayTeamId : m.homeTeamId
       const [opp] = oppId ? await db.select().from(teams).where(eq(teams.id, oppId)).limit(1) : []
-      const { start, end } = weekDateRange(season, week)
+      const { start, end } = wr(week)
       matchup = { week, final: !!m.isComplete, start: start.toISOString(), end: end.toISOString(), me: m.homeTeamId === team.id ? m.homeScore : m.awayScore, them: m.homeTeamId === team.id ? m.awayScore : m.homeScore,
         opp: opp ? { id: opp.id, name: opp.name, abbreviation: opp.abbreviation, logo: opp.logo, altLogo: opp.altLogo, primaryColor: opp.primaryColor, ink: clubInk(opp.primaryColor, opp.secondaryColor) } : null }
     }
@@ -81,7 +83,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (date) for (const o of await db.select().from(dailyLineups).where(and(eq(dailyLineups.teamId, team.id), eq(dailyLineups.season, season), eq(dailyLineups.sport, sport), eq(dailyLineups.date, date)))) overrides[o.playerId] = o.slot
 
   // games: the selected day (daily) or the whole week (weekly)
-  const range = week ? weekDateRange(season, week) : null
+  const range = week ? wr(week) : null
   const from = date ? date.replace(/-/g, '') : range ? ymd(range.start) : today
   const to = date ? date.replace(/-/g, '') : range ? ymd(new Date(range.end.getTime() + 86_400_000)) : today
   const games = await db.select().from(gameSchedule).where(and(eq(gameSchedule.sport, sport), gte(gameSchedule.gameDate, from), lte(gameSchedule.gameDate, to)))
@@ -110,7 +112,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
   // ── stats: the week's (from the game logs), the season's, and projected ──
   const scoring = safeParse<Record<string, Record<string, number>>>(league.scoringSettings, {})[sport] ?? {}
-  const wkRange = week ? weekDateRange(season, week) : null
+  const wkRange = week ? wr(week) : null
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const wkStats = new Map<string, Record<string, number>>()
   if (wkRange && !futureWeek) {
@@ -228,7 +230,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json({
     team: { id: team.id, name: team.name, abbreviation: team.abbreviation, logo: team.logo, altLogo: team.altLogo, primaryColor: team.primaryColor, ink: clubInk(team.primaryColor, team.secondaryColor) },
     sports: sportsEnabled.map(s => ({ sport: s, code: sportAbbr[s] || s })), sport, code: sportAbbr[sport] || sport,
-    cadence, week, curWeek, weeks: teamWeeks.map(w => { const r = weekDateRange(season, w); return { week: w, label: sched ? `${sport === 'NFL' ? 'WEEK' : 'PERIOD'} ${w - sched.startWeek + 1}` : `WEEK ${w}`, start: r.start.toISOString(), end: r.end.toISOString() } }), past: pastWeek, future: futureWeek, dates, date, today: `${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6)}`, matchup,
+    cadence, week, curWeek, weeks: teamWeeks.map(w => { const r = wr(w); return { week: w, label: sched ? `${sport === 'NFL' ? 'WEEK' : 'PERIOD'} ${w - sched.startWeek + 1}` : `WEEK ${w}`, start: r.start.toISOString(), end: r.end.toISOString() } }), past: pastWeek, future: futureWeek, dates, date, today: `${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6)}`, matchup,
     slots: rosterCfg, roster, faab: rec?.faabRemaining ?? 0, waiverPriority: rec?.waiverPriority ?? null, claims, freeAgents,
     clubs: others.filter(o => o.id !== team.id),
   })
