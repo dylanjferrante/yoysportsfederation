@@ -1,4 +1,5 @@
 // ySF app — More (from the AppMore board): every Federation, League Office and Account screen.
+import { isCommissioner } from '@/lib/permissions'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
@@ -61,6 +62,7 @@ export default async function MorePage({ params }: { params: Promise<{ id: strin
   const session = await getServerSession(authOptions)
   const clubs = await db.select({ id: teams.id, abbreviation: teams.abbreviation, userId: teams.userId }).from(teams).where(and(eq(teams.leagueId, id), eq(teams.archived, false)))
   const mine = clubs.find(c => c.userId === session?.user?.id)
+  const commish = await isCommissioner(id, session?.user?.id)
   const site = await siteCupProjection()
   const fav = [...(site?.teams ?? [])].sort((a: any, b: any) => b.p_win_fed_cup - a.p_win_fed_cup)[0]
   const next = (await db.select({ sport: drafts.scope, scheduledAt: drafts.startsAt, status: drafts.status }).from(drafts).where(eq(drafts.leagueId, id)))
@@ -94,6 +96,10 @@ export default async function MorePage({ params }: { params: Promise<{ id: strin
           { href: `${b}/waivers`, label: 'Players', icon: <Icon bg="#000" k="players" /> },
           { href: `${b}/trade`, label: 'Trades', icon: <Icon bg="#00333F" k="trade" /> },
         ]} />
+        {commish && <Group title="COMMISSIONER" items={[
+          { href: `${b}/commish`, label: 'Commissioner Tools', icon: <Icon bg="#000" k="const" /> },
+          { href: `${b}/settings`, label: 'League Settings', icon: <Icon bg="#4A4A4A" k="const" /> },
+        ]} />}
         <Group title="ACCOUNT" items={[
           { href: `${b}/chat`, label: 'Chat', icon: <Icon bg="#e86100" k="memo" /> },
           { href: '/account', label: session?.user?.name ?? 'Sign in', extra: mine?.abbreviation, icon: <Icon bg="#00333F" k="user" /> },
