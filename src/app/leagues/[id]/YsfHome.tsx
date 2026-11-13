@@ -4,6 +4,22 @@ import { loadStandings, type ClubInfo } from '@/lib/ysf-data'
 import { YSF_LEAGUES, YSF_ART, U } from '@/lib/ysf'
 import HomeStandings from './HomeStandings'
 import { writeStories, ord, pct } from '@/lib/ysf-stories'
+import { listNews, type Article } from '@/lib/ysf-news'
+import { kicker, by, SECTIONS } from './news/YsfNews'
+import NewsCarousel, { type Slide } from './NewsCarousel'
+
+// the front page's top stories: today's daily wrap first, then the newest real stories (no
+// transaction briefs), one per section where possible — five at most
+function topStories(all: Article[]) {
+  const real = all.filter(a => !['move', 'report'].includes(a.kind))
+  const day0 = real[0]?.published.slice(0, 10)
+  const out: Article[] = []
+  const daily = real.find(a => a.kind === 'daily' && a.published.slice(0, 10) === day0)
+  if (daily) out.push(daily)
+  for (const a of real) { if (out.length >= 5) break; if (!out.includes(a) && a.kind !== 'daily' && !out.some(o => o.sport === a.sport)) out.push(a) }
+  for (const a of real) { if (out.length >= 5) break; if (!out.includes(a) && a.kind !== 'daily') out.push(a) }
+  return out
+}
 
 
 export default async function YsfHome({ league }: { league: any }) {
@@ -16,9 +32,20 @@ export default async function YsfHome({ league }: { league: any }) {
   const { headline, dek, heads } = writeStories(s)
 
   const leader = C[lead.teamId] as ClubInfo
+  const byAbbr = new Map(Object.values(C).map(c => [c.abbreviation, c]))
+  const slides: Slide[] = topStories(listNews(80)).map(a => {
+    const club = a.clubs.map(x => byAbbr.get(x)).find(Boolean)
+    const sec = SECTIONS.find(x => x.id === a.sport)
+    return {
+      id: a.id, href: `/leagues/${league.id}/news/${a.id}`, kicker: kicker(a), headline: a.headline, dek: a.dek || a.body[0] || '', by: by(a),
+      bg: club?.color ?? sec?.color ?? '#000',
+      img: (club ? (club.altLogo || club.logo) : sec?.key ? YSF_ART.leagueSymbol(sec.key, 'color') : YSF_ART.primaryOnBlack) ?? '',
+    }
+  })
 
   return (
     <>
+      {slides.length >= 3 && <NewsCarousel slides={slides} more={`/leagues/${league.id}/news`} />}
       <section className="grid gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-5">
           <div className="rounded overflow-hidden flex" style={{ background: leader.color ?? '#000' }}>
