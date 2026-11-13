@@ -11,14 +11,14 @@ const PX_PER_SEC = 70
 
 function Tile({ b, idx, pinned }: { b: TickerBlock; idx?: number; pinned?: boolean }) {
   return (
-    <span data-lg={pinned ? undefined : idx} className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 min-h-[40px] sm:min-h-[56px] whitespace-nowrap font-display text-[11px] sm:text-[13px] font-bold tracking-[.06em]" style={{ background: b.bg, color: b.fg }}>
-      {b.logo && <span className="w-[22px] h-[22px] sm:w-[30px] sm:h-[30px] inline-flex items-center justify-center flex-none"><img src={b.logo} alt="" className="w-[20px] h-[20px] sm:w-[26px] sm:h-[26px] object-contain" /></span>}
+    <span data-lg={pinned ? undefined : idx} className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 min-h-[32px] sm:min-h-[40px] whitespace-nowrap font-display text-[11px] sm:text-[13px] font-bold tracking-[.06em]" style={{ background: b.bg, color: b.fg }}>
+      {b.logo && <span className="w-[20px] h-[20px] sm:w-[24px] sm:h-[24px] inline-flex items-center justify-center flex-none"><img src={b.logo} alt="" className="w-[18px] h-[18px] sm:w-[22px] sm:h-[22px] object-contain" /></span>}
       <span className={pinned && b.logo ? 'ysf-case hidden sm:inline' : 'ysf-case'}>{b.name}</span>
     </span>
   )
 }
 function Tag({ label, bd, gid }: { label: string; bd: string; gid?: number }) {
-  return <span data-grp={gid} className="inline-flex items-center px-2 sm:px-3 min-h-[40px] sm:min-h-[56px] whitespace-nowrap bg-white text-black font-display text-[10px] sm:text-[12px] font-bold tracking-[.1em]" style={{ borderLeft: `3px solid ${bd}` }}>{label}</span>
+  return <span data-grp={gid} className="inline-flex items-center px-2 sm:px-3 min-h-[32px] sm:min-h-[40px] whitespace-nowrap bg-white text-black font-display text-[10px] sm:text-[12px] font-bold tracking-[.1em]" style={{ borderLeft: `3px solid ${bd}` }}>{label}</span>
 }
 
 export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
@@ -76,13 +76,13 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
               {it.live && <span className="self-center w-2 h-2 rounded-full bg-[#ba0c2f] flex-none" />}
               {it.score ? it.score.map((sd, j) => (
                 <span key={j} className={`self-center inline-flex items-center gap-2 whitespace-nowrap${j > 0 ? ' ml-2' : ''}`}>
-                  <span className="w-6 h-6 sm:w-8 sm:h-8 inline-flex items-center justify-center rounded-[2px] flex-none" style={{ background: sd.mark.bg }}><img src={sd.mark.src} alt="" className="w-[18px] h-[18px] sm:w-6 sm:h-6 object-contain" /></span>
+                  <span className="w-5 h-5 sm:w-6 sm:h-6 inline-flex items-center justify-center rounded-[2px] flex-none" style={{ background: sd.mark.bg }}><img src={sd.mark.src} alt="" className="w-[15px] h-[15px] sm:w-[18px] sm:h-[18px] object-contain" /></span>
                   <span className="text-[13px] sm:text-[15px] font-semibold">{sd.ab}</span>
                   {sd.v != null && <span className={`text-[13px] sm:text-[15px] tabular-nums ${sd.win ? 'font-extrabold text-white' : 'font-medium text-ink-200'}`}>{sd.v}</span>}
                 </span>
               )) : <>
                 <span className="self-center inline-flex gap-[3px] flex-none">{it.marks.map((m, j) => (
-                  <span key={j} className="w-6 h-6 sm:w-8 sm:h-8 inline-flex items-center justify-center rounded-[2px]" style={{ background: m.bg }}><img src={m.src} alt="" className="w-[18px] h-[18px] sm:w-6 sm:h-6 object-contain" /></span>
+                  <span key={j} className="w-5 h-5 sm:w-6 sm:h-6 inline-flex items-center justify-center rounded-[2px]" style={{ background: m.bg }}><img src={m.src} alt="" className="w-[15px] h-[15px] sm:w-[18px] sm:h-[18px] object-contain" /></span>
                 ))}</span>
                 <span className="self-center text-[13px] sm:text-[15px] font-semibold whitespace-nowrap ysf-case">{it.text}</span>
               </>}
@@ -100,8 +100,8 @@ export default function YsfTicker({ blocks }: { blocks: TickerBlock[] }) {
       <button type="button" onClick={toggle} aria-label={hidden ? 'Show ticker' : 'Hide ticker'}
         className="absolute right-4 bottom-full w-11 h-6 rounded-t-md bg-black text-white text-[13px] leading-none inline-flex items-center justify-center">{hidden ? '▴' : '▾'}</button>
       {!hidden && (
-        <div className="bg-black text-white flex items-stretch min-h-[40px] sm:min-h-[56px] border-t border-ink-800">
-          <div className="hidden sm:flex px-4 items-center flex-none border-r border-[#333]"><img src={YSF_ART.primaryOnBlack} alt="yoy Sports Federation" className="h-[34px] w-auto" /></div>
+        <div className="bg-black text-white flex items-stretch min-h-[32px] sm:min-h-[40px] border-t border-ink-800">
+          <div className="hidden sm:flex px-4 items-center flex-none border-r border-[#333]"><img src={YSF_ART.primaryOnBlack} alt="yoy Sports Federation" className="h-[26px] w-auto" /></div>
           <div className="flex-1 min-w-0 overflow-hidden flex items-center relative">
             <span ref={lpin} className="absolute left-0 top-0 bottom-0 z-[3] inline-flex"><Tile b={pinnedBlock} pinned /></span>
             <span ref={gpin} className="absolute top-0 bottom-0 z-[2] inline-flex" style={{ visibility: pinnedGroup ? 'visible' : 'hidden' }}>{pinnedGroup && <Tag label={pinnedGroup.label} bd={pinnedGroup.bd} />}</span>

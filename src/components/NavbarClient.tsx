@@ -29,27 +29,26 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
   }, [])
 
   const base = `/leagues/${leagueId}`
+  // the menu, grouped: the logo goes home; the standings and everything that ranks clubs under
+  // Standings; everything about players and roster moves under Players; the league's business under More
   const items: Item[] = [
-    { label: 'Home', href: base },
-    { label: 'Standings', href: `${base}/standings` },
     { label: 'Scores', href: `${base}/scores` },
+    { label: 'Standings', menu: [
+      { label: 'Standings', href: `${base}/standings` }, { label: 'Cup Race', href: `${base}/cup` }, { label: 'Playoffs', href: `${base}/playoffs` },
+      { label: 'Power Rankings', href: `${base}/power` }, { label: 'Records', href: `${base}/records` }, { label: 'History', href: `${base}/history` },
+    ] },
     { label: 'News', href: `${base}/news` },
     { label: 'Leagues', menu: YSF_LEAGUES.map(l => ({ label: l.code, href: `${base}/sports/${l.sport}`, icon: YSF_ART.leagueSymbol(l.key, 'white') })) },
     { label: 'Clubs', menu: [{ label: 'All clubs', href: `${base}/teams` }, ...clubs.map(c => ({ label: c.name, href: `${base}/teams/${c.id}`, icon: c.logo }))] },
+    { label: 'Players', menu: [
+      { label: 'Players', href: `${base}/waivers` }, { label: 'Trades', href: `${base}/trade` }, { label: 'Trade Block', href: `${base}/marketplace` },
+      { label: 'Moves', href: `${base}/transactions` }, { label: 'Draft', href: `${base}/draft` }, { label: 'Injuries', href: `${base}/injuries` },
+    ] },
     { label: 'My Club', href: `${base}/myteam` },
-    { label: 'Rankings', href: `${base}/power` },
-    { label: 'Moves', href: `${base}/transactions` },
-    { label: 'Players', href: `${base}/waivers` },
-    { label: 'Trades', href: `${base}/trade` },
-    {
-      label: 'More', menu: [
-        { label: 'Cup Race', href: `${base}/cup` }, { label: 'Playoffs', href: `${base}/playoffs` },
-        { label: 'Draft', href: `${base}/draft` }, { label: 'History', href: `${base}/history` },
-        { label: 'Records', href: `${base}/records` }, { label: 'Injuries', href: `${base}/injuries` }, { label: 'League Office', href: `${base}/rules` },
-        { label: 'Votes', href: `${base}/proposals` }, { label: 'Chat', href: `${base}/chat` },
-        ...(commish ? [{ label: 'Commissioner', href: `${base}/commish` }, { label: 'League Settings', href: `${base}/settings` }] : []),
-      ],
-    },
+    { label: 'More', menu: [
+      { label: 'League Office', href: `${base}/rules` }, { label: 'Votes', href: `${base}/proposals` }, { label: 'Chat', href: `${base}/chat` },
+      ...(commish ? [{ label: 'Commissioner', href: `${base}/commish` }, { label: 'League Settings', href: `${base}/settings` }] : []),
+    ] },
   ]
   const isOn = (it: Item) => it.href
     ? (it.href === base ? pathname === base : pathname.startsWith(it.href))
@@ -67,7 +66,7 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
           <img src={YSF_ART.primaryOnBlack} alt="yoy Sports Federation" className="hidden lg:block h-10 w-auto" />
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-4 xl:gap-5 flex-1 ui text-[12px] xl:text-[13px] whitespace-nowrap">
+        <nav className="hidden lg:flex items-center gap-5 xl:gap-7 flex-1 ui text-[12px] xl:text-[13px] whitespace-nowrap">
           {items.map(it => it.href ? (
             <Link key={it.label} href={it.href} className={`py-1.5 border-b-2 ${isOn(it) ? 'text-white border-white' : 'text-ink-200 border-transparent hover:text-white'}`}>{U(it.label)}</Link>
           ) : (
