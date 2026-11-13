@@ -60,7 +60,7 @@ export default function NavbarClient({ clubs, leagueId, strip, commish }: { club
     <div ref={top} className="sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
     {strip}
     <header className="bg-black text-white relative border-b border-ink-800">
-      <div className="max-w-[1240px] mx-auto px-4 sm:px-5 min-h-[60px] flex items-center gap-6">
+      <div className="max-w-[1240px] mx-auto px-4 sm:px-5 min-h-[52px] lg:min-h-[60px] flex items-center gap-6">
         <Link href={base} className="flex items-center min-w-0" aria-label="yoy Sports Federation">
           <img src={YSF_ART.wordmarkOnBlack} alt="yoy Sports Federation" className="lg:hidden h-[15px] sm:h-6 w-auto max-w-[62vw]" />
           <img src={YSF_ART.primaryOnBlack} alt="yoy Sports Federation" className="hidden lg:block h-10 w-auto" />
