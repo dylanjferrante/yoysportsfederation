@@ -9,7 +9,7 @@ import { safeParse, orderedSports } from '@/lib/utils'
 import { advanceLeague } from '@/lib/advance'
 import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import LeagueTabs from './LeagueTabs'
-import YsfStandings from './YsfStandings'
+import YsfHome from './YsfHome'
 import { YSF_LEAGUE_ID } from '@/lib/ysf'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -30,7 +30,7 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
 
   // The ySF league shows the ySF Site Redesign standings (Fantrax results stay the source of
   // truth until the switch-over, so Nexus's auto-advance doesn't run here).
-  if (id === YSF_LEAGUE_ID && !isPast) return <YsfStandings league={league} />
+  if (id === YSF_LEAGUE_ID && !isPast) return <YsfHome league={league} />
 
   // Bring the season up to date automatically (skip when viewing a past season).
   if (!isPast) await advanceLeague(league)
