@@ -14,6 +14,14 @@ export type Desk = {
   clubs: Record<string, ClubInfo>; cup: CupRow[]; tables: Record<string, LeagueRow[]>; live: string[]
   pairings: Pairing[]; moves: MoveRow[]; trades: TradeRow[]; model: ModelOut | null
   perf: { sport: string; name: string; team: string | null; pos: string; pts: number; clubId: string; date: string | null }[]
+  // finished regular-season results up to that morning, oldest first
+  history: { sport: string; week: number; h: string; a: string; hs: number; as: number }[]
+  // the best performances left on a bench yesterday, per league
+  bench: { sport: string; name: string; team: string | null; pos: string; pts: number; clubId: string }[]
+  // each player's best single game (or ySFFL week) this season before yesterday, by league|name
+  best: Map<string, number>
+  // the coming ySFFL week's pairings, when the desk is writing ahead of it
+  next: { sport: string; a: string; b: string }[]
 }
 
 const code = (sp: string) => YSF_LEAGUES.find(l => l.sport === sp)?.code ?? sp
@@ -27,6 +35,25 @@ const say = (n: number) => words[n] ?? String(n)
 const pick = <T,>(seed: string, xs: T[]) => xs[[...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % xs.length]
 const player = (p: { sport: string; name: string; team: string | null; pos: string }) => `${p.name} (${code(p.sport)}-${p.team || 'FA'}, ${p.pos.replace(/,/g, '/').replace(/\bDEF\b/g, 'D/ST')})`
 const last = (name: string) => name.split(' ').slice(-1)[0]
+
+// a club's current streak in a league ("won 4 straight" / "lost 3 in a row")
+function streak(d: Desk, clubId: string, sport: string): { kind: 'W' | 'L'; n: number } | null {
+  const rs = d.history.filter(m => m.sport === sport && (m.h === clubId || m.a === clubId)).map(m => (m.h === clubId ? m.hs > m.as : m.as > m.hs) ? 'W' : 'L')
+  if (!rs.length) return null
+  const lastR = rs[rs.length - 1] as 'W' | 'L'; let n = 0
+  for (let i = rs.length - 1; i >= 0 && rs[i] === lastR; i--) n++
+  return { kind: lastR, n }
+}
+const streakText = (st: { kind: 'W' | 'L'; n: number } | null) => !st || st.n < 2 ? '' : st.kind === 'W' ? `has won ${say(st.n)} straight` : `has lost ${say(st.n)} in a row`
+const rowOf = (d: Desk, sport: string, clubId: string) => d.tables[sport]?.find(r => r.teamId === clubId)
+// the season's high and low single-week club scores in a league so far
+function extremes(d: Desk, sport: string) {
+  const all = d.history.filter(m => m.sport === sport).flatMap(m => [{ c: m.h, s: m.hs, w: m.week }, { c: m.a, s: m.as, w: m.week }])
+  if (!all.length) return null
+  const hi = all.reduce((a, b) => b.s > a.s ? b : a), lo = all.reduce((a, b) => b.s < a.s ? b : a)
+  const avg = all.reduce((a, b) => a + b.s, 0) / all.length
+  return { hi, lo, avg }
+}
 
 function scoreOf(d: Desk, clubId: string, sport: string) {
   for (const p of d.pairings) {
@@ -64,9 +91,31 @@ function dailyWrap(d: Desk): Story | null {
     body.push(`The closest race of the week is in ${code(tight.l.sport)}, where ${C[hi]?.name} leads ${C[lo]?.name} by ${n1(tight.gap)} (${n1(Math.max(tight.l.a ?? 0, tight.l.b ?? 0))}–${n1(Math.min(tight.l.a ?? 0, tight.l.b ?? 0))}).` +
       (wp ? ` The ySF model makes it ${pct(tight.p.a === hi ? wp.homeWin : 1 - wp.homeWin)} for ${C[hi]?.abbreviation} to hold on.` : ''))
   }
+  // a season high for the headliner?
+  const prevBest = d.best.get(`${t.sport}|${t.name}`)
+  if (prevBest != null && t.pts > prevBest) body.push(`It was a season high for ${last(t.name)}, topping the ${n1(prevBest)} he had managed before.`)
+  // each league's day: its best line and how the week's races stand
+  for (const sp of d.live.filter(x => x !== 'NFL' || d.perf.some(p => p.sport === 'NFL'))) {
+    const bestHere = d.perf.filter(p => p.sport === sp && p !== t)[0]
+    const races = d.pairings.flatMap(p => p.lines.filter(l => l.sport === sp && l.a != null && l.b != null).map(l => ({ p, l })))
+    const leaders = races.map(({ p, l }) => (l.a ?? 0) >= (l.b ?? 0) ? p.a : p.b)
+    const blow = races.map(({ p, l }) => ({ p, l, gap: Math.abs((l.a ?? 0) - (l.b ?? 0)) })).sort((x, y) => y.gap - x.gap)[0]
+    const parts: string[] = []
+    if (bestHere) parts.push(sp === t.sport ? `${last(t.name)} aside, ${player(bestHere)} was next best with ${n1(bestHere.pts)} for ${C[bestHere.clubId]?.name}` : `${player(bestHere)} led the way with ${n1(bestHere.pts)} for ${C[bestHere.clubId]?.name}`)
+    if (blow && blow.gap > 0) {
+      const [hi, lo] = (blow.l.a ?? 0) >= (blow.l.b ?? 0) ? [blow.p.a, blow.p.b] : [blow.p.b, blow.p.a]
+      parts.push(`the most lopsided race has ${C[hi]?.abbreviation} ahead of ${C[lo]?.abbreviation} by ${n1(blow.gap)}`)
+    }
+    const t1 = d.tables[sp]?.[0], t2 = d.tables[sp]?.[1]
+    const ledByLeader = t1 && leaders.includes(t1.teamId)
+    if (parts.length || t1) body.push(`In ${code(sp)}, ${parts.join(', and ')}${parts.length ? '. ' : ''}${t1 ? `${C[t1.teamId]?.name} (${t1.rec}) ${ledByLeader ? 'is ahead in its matchup this week' : 'is behind in its matchup this week'}${t2 ? `, with ${C[t2.teamId]?.abbreviation} ${t2.gb ? `${t2.gb} back` : 'level on record'}` : ''}.` : ''}`)
+  }
+  // points left on the bench
+  const b0 = d.bench.slice().sort((x, y) => y.pts / avg(y.sport) - x.pts / avg(x.sport))[0]
+  if (b0 && b0.pts >= avg(b0.sport) * 0.8) body.push(`The one that got away: ${player(b0)} scored ${n1(b0.pts)} on ${C[b0.clubId]?.name}'s bench.`)
   for (const sp of d.live) {
     const t1 = d.tables[sp]?.[0], t2 = d.tables[sp]?.[1]
-    if (t1 && t2) body.push(`${code(sp)}: ${C[t1.teamId]?.name} ${t1.l === 0 && t1.w > 2 ? `is still perfect at ${t1.rec}` : `leads at ${t1.rec}`}, ${t2.gb ? `${t2.gb} game${t2.gb === 1 ? '' : 's'} clear of ${C[t2.teamId]?.abbreviation}` : `level with ${C[t2.teamId]?.abbreviation} on record`}.`)
+    if (t1 && t2) body.push(`${code(sp)} standings: ${C[t1.teamId]?.name} ${t1.l === 0 && t1.w > 2 ? `is still perfect at ${t1.rec}` : `leads at ${t1.rec}`}, ${t2.gb ? `${t2.gb} game${t2.gb === 1 ? '' : 's'} clear of ${C[t2.teamId]?.name}` : `level with ${C[t2.teamId]?.name} on record`}${(() => { const st = streakText(streak(d, t1.teamId, sp)); return st ? `; ${C[t1.teamId]?.abbreviation} ${st}` : '' })()}.`)
   }
   return { slot: `daily:${d.day}`, kind: 'daily', sport: null, writer: 'hank', headline, dek: `${playedOn ?? 'The weekend'}'s best performances and where every race stands this ${d.dayName} morning.`, body, clubs: [club.abbreviation, opp?.abbreviation].filter(Boolean) as string[] }
 }
@@ -112,6 +161,32 @@ function notebook(d: Desk, sp: string): Story | null {
     }).join('; ') + '.')
   }
   if (perf.length) body.push(`${pick(d.day + sp + 'p', ['Top performers:', 'The best lines:', 'Who delivered:'])} ${perf.map(p => `${player(p)}, ${n1(p.pts)} for ${C[p.clubId]?.abbreviation}`).join('; ')}.`)
+  // the matchups one by one, with records and what's at stake
+  for (const { p, l } of live.slice(0, 6)) {
+    const [hi, lo, hs, ls] = (l.a ?? 0) >= (l.b ?? 0) ? [p.a, p.b, l.a ?? 0, l.b ?? 0] : [p.b, p.a, l.b ?? 0, l.a ?? 0]
+    const rh = rowOf(d, sp, hi), rl = rowOf(d, sp, lo)
+    const wp = d.model?.leagues[sp]?.matchups[l.matchupId]
+    const pHi = wp ? (p.a === hi ? wp.homeWin : 1 - wp.homeWin) : null
+    const verb = l.status === 'FINAL' ? (hs - ls < (hs + ls) * 0.03 ? 'held off' : 'beat') : hs === ls ? 'is level with' : hs - ls < (hs + ls) * 0.03 ? 'is narrowly ahead of' : 'leads'
+    const stakes = rh && rl && Math.abs(rh.rk - rl.rk) <= 2 && Math.min(rh.rk, rl.rk) <= 6 ? ` — a meeting of the ${ord(Math.min(rh.rk, rl.rk))}- and ${ord(Math.max(rh.rk, rl.rk))}-place clubs` : ''
+    body.push(`${C[hi]?.name}${rh ? ` (${rh.rec})` : ''} ${verb} ${C[lo]?.name}${rl ? ` (${rl.rec})` : ''}, ${n1(hs)}–${n1(ls)}${stakes}.` +
+      (pHi != null && l.status !== 'FINAL' ? ` The model gives ${C[hi]?.abbreviation} a ${pct(pHi)} chance to finish it off.` : '') +
+      (() => { const st = streakText(streak(d, hi, sp)); return st ? ` ${C[hi]?.abbreviation} ${st}.` : '' })())
+  }
+  // the season's marks
+  const ex = extremes(d, sp)
+  if (ex) body.push(`The season's high is ${n1(ex.hi.s)}, by ${C[ex.hi.c]?.name} in ${sp === 'NFL' ? 'Week' : 'Period'} ${ex.hi.w - (Math.min(...d.history.filter(m => m.sport === sp).map(m => m.week))) + 1}; the low is ${n1(ex.lo.s)}, by ${C[ex.lo.c]?.name}. Clubs are averaging ${n1(ex.avg)} a week.`)
+  // the table in tiers
+  if (tbl.length >= 9) {
+    const top = tbl.slice(0, 6), out = tbl.slice(6)
+    body.push(`The playoff line runs under ${ord(6)}: ${top.map(r => `${C[r.teamId]?.abbreviation} ${r.rec}`).join(', ')} are in a playoff spot today; ${out.map(r => `${C[r.teamId]?.abbreviation} ${r.rec}`).join(', ')} are chasing.` +
+      (tbl[5] && tbl[6] ? ` ${C[tbl[6].teamId]?.name} is ${tbl[6].gb - tbl[5].gb ? `${tbl[6].gb - tbl[5].gb} game${tbl[6].gb - tbl[5].gb === 1 ? '' : 's'}` : 'a tiebreaker'} out of the last spot.` : ''))
+  }
+  // the coming ySFFL week for the leader
+  if (sp === 'NFL' && d.next.length) {
+    const nx = d.next.find(m => m.a === a.teamId || m.b === a.teamId)
+    if (nx) { const o = nx.a === a.teamId ? nx.b : nx.a, ro = rowOf(d, sp, o); body.push(`Next up for ${C[a.teamId]?.abbreviation}: ${C[o]?.name}${ro ? ` (${ro.rec}, ${ord(ro.rk)})` : ''}.`) }
+  }
   if (fav) body.push(`The ySF model makes ${C[fav[0]]?.name} the title favorite at ${pct(fav[1].title)}` + (odds ? `, and gives ${say(Object.values(odds).filter(c => c.playoff >= 0.9).length)} clubs a 90% or better chance at the playoffs.` : '.'))
   if (winless.length) body.push(`Still looking for a first win: ${winless.map(r => C[r.teamId]?.name).join(', ')}.`)
   else body.push(`At the bottom, ${C[bottom.teamId]?.name} sits ${ord(bottom.rk)} at ${bottom.rec}.`)
@@ -135,6 +210,15 @@ function cupUpdate(d: Desk): Story | null {
     if (gap) body.push(`The model likes ${C[gap.r.teamId]?.name} most for the rest of the way: ${gap.r.pts} points now, ${n1(gap.mc.exp)} projected — ${n1(gap.mc.exp - gap.r.pts)} still to come, the most of any club.`)
   }
   body.push(`The table: ${d.cup.slice(0, 6).map(r => `${ord(r.rk)} ${C[r.teamId]?.abbreviation} ${r.pts}`).join(', ')}.`)
+  // the contenders, one by one: where they sit in each league and what the model expects
+  for (const r of d.cup.slice(0, 4)) {
+    const places = Object.entries(r.ranks).filter(([, v]) => v != null).map(([sp, v]) => `${ord(v!)} in ${code(sp)}`)
+    const mc = m?.cup[r.teamId]
+    const titles = m ? YSF_LEAGUES.map(l => ({ l, t: m.leagues[l.sport]?.clubs[r.teamId]?.title ?? 0 })).filter(x => x.t >= 0.1).map(x => `${pct(x.t)} to win ${x.l.code}`) : []
+    body.push(`${C[r.teamId]?.name} (${r.pts} points): ${places.join(', ')}.` + (mc ? ` Projected to finish with ${n1(mc.exp)}${titles.length ? `, with ${titles.join(' and ')}` : ''}.` : ''))
+  }
+  // what a league is worth: the spread between first and last
+  body.push(`Every league is worth 12 points to its champion and 1 to its last-place club, and the final standings after the playoffs are what count — a regular-season leader who stumbles in the bracket can lose as many as three points.`)
   const pending = YSF_LEAGUES.filter(l => !d.live.includes(l.sport)).map(l => l.code)
   if (pending.length) body.push(`${pending.join(' and ')} ${pending.length > 1 ? 'have' : 'has'} not started, and ${pending.length > 1 ? 'are' : 'is'} worth up to 12 more points per club.`)
   return { slot: `cup:${d.day}`, kind: 'analysis', sport: 'CUP', writer: 'june', headline, dek: `Where the Federation Cup stands, and what the model expects from here.`, body, clubs: [a, b].map(r => C[r.teamId]?.abbreviation).filter(Boolean) as string[] }
@@ -265,6 +349,18 @@ export async function buildDesk(league: any, day: string, live = false): Promise
     moves: moves.filter(m => m.season === season && Date.parse(m.when) >= t0 && Date.parse(m.when) < t1),
     trades: trades.filter(t => t.season === season && Date.parse(t.when) >= tt && Date.parse(t.when) < t1),
     model: live ? loadModel() : null,
+    history: ms.filter(m => !m.po && span(season, m.sport, m.week).end < day).sort((x, y) => x.week - y.week).map(m => ({ sport: m.sport, week: m.week, h: m.h, a: m.a!, hs: m.hs ?? 0, as: m.as_ ?? 0 })),
+    bench: db.all<{ sport: string; name: string; team: string | null; pos: string; pts: number; clubId: string }>(sql`
+      SELECT * FROM (SELECT sport, name, pro_team team, COALESCE(positions, '') pos, COALESCE(engine_pts, fpts) pts, team_id clubId,
+        ROW_NUMBER() OVER (PARTITION BY sport ORDER BY COALESCE(engine_pts, fpts) DESC) n FROM fantrax_player_periods
+        WHERE season = ${season} AND status = '2' AND date = ${addDay(day, -1)}) WHERE n <= 2 AND pts > 0`),
+    best: new Map(db.all<{ k: string; m: number }>(sql`SELECT sport || '|' || name k, MAX(COALESCE(engine_pts, fpts)) m FROM fantrax_player_periods
+      WHERE season = ${season} AND status = '1' AND (date < ${addDay(day, -1)} AND date != '' OR (sport = 'NFL' AND date = ''))
+      GROUP BY sport, name`).map(r => [r.k, r.m])),
+    next: (() => {
+      const cur = ms.filter(m => m.sport === 'NFL' && !m.po).find(m => { const sp = span(season, 'NFL', m.week); return sp.start <= day && day <= sp.end })
+      return cur ? ms.filter(m => m.sport === 'NFL' && m.week === cur.week).map(m => ({ sport: 'NFL', a: m.h, b: m.a! })) : []
+    })(),
     // ySFFL performances on Tuesdays, from the week that ended the night before
     perf: (() => {
       const nflStart = sched.find(s => s.sport === 'NFL')?.startWeek ?? 1
