@@ -13,19 +13,50 @@ export type Resolution = {
 }
 export const DOC_URL = `https://docs.google.com/document/d/${DOC_ID}/edit`
 
+// List numbering: Google Docs draws "A.", "(1)", "(a)" with CSS counters on each list level, and
+// splits one list into many <ol start=N> pieces. Rebuild each item's real marker and indent so the
+// articles read as numbered sections, sub-sections and clauses.
+const ROMAN: [number, string][] = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']]
+function counter(n: number, style: string): string {
+  if (/roman/.test(style)) { let r = ''; for (const [v, t] of ROMAN) while (n >= v) { r += t; n -= v } return /upper/.test(style) ? r.toUpperCase() : r }
+  if (/latin|alpha/.test(style)) { let r = ''; while (n > 0) { n--; r = String.fromCharCode(97 + (n % 26)) + r; n = Math.floor(n / 26) } return /upper/.test(style) ? r.toUpperCase() : r }
+  return String(n)
+}
+
 function clean(raw: string): string {
   const css = new Set<string>()
   const st = /<style type="text\/css">([\s\S]*?)<\/style>/.exec(raw)?.[1] ?? ''
   for (const m of st.matchAll(/\.(c\d+)\{([^}]*)\}/g)) if (m[2].includes('font-weight:700')) css.add(m[1])
+  // each list level's marker: prefix, counter style, suffix (bulleted levels have no counter)
+  const fmt: Record<string, { pre: string; style: string | null; post: string }> = {}
+  for (const m of st.matchAll(/\.?(lst-kix_[a-z0-9]+-\d+)>li:before\{content:"([^"]*)"(?: counter\([^,]+,([a-z-]+)\) "([^"]*)")?\}/g))
+    fmt[m[1]] = m[3] ? { pre: m[2], style: m[3], post: m[4] } : { pre: '', style: null, post: '' }
   const body = raw.replace(/<head>[\s\S]*?<\/head>/, '').replace(/<(script|style)[\s\S]*?<\/\1>/g, '')
   const out: string[] = [], spans: boolean[] = []
+  const lists: { level: number; n: number; f: { pre: string; style: string | null; post: string } | null }[] = []
+  // open list items (true while its markup is still open); an article heading closes them all so
+  // each article's HTML is complete on its own
+  const items: boolean[] = []
   let i = 0
   for (const m of body.matchAll(/<(\/?)([a-zA-Z0-9]+)([^>]*)>/g)) {
     out.push(body.slice(i, m.index)); i = m.index! + m[0].length
     const [, close, tag0, attrs] = m, tag = tag0.toLowerCase()
+    if (tag === 'h1' && !close) for (let k = 0; k < items.length; k++) if (items[k]) { out.push('</div></div>'); items[k] = false }
     if (tag === 'span') {
       if (close) { if (spans.pop()) out.push('</b>') }
       else { const cls = /class="([^"]*)"/.exec(attrs)?.[1] ?? ''; const b = cls.split(/\s+/).some(c => css.has(c)); spans.push(b); if (b) out.push('<b>') }
+    } else if (tag === 'ol' || tag === 'ul') {
+      if (close) { lists.pop(); continue }
+      const k = /(lst-kix_[a-z0-9]+-(\d+))/.exec(attrs)
+      const start = +(/start="(\d+)"/.exec(attrs)?.[1] ?? 1)
+      lists.push({ level: k ? +k[2] : 0, n: start - 1, f: k ? fmt[k[1]] ?? null : null })
+    } else if (tag === 'li') {
+      const L = lists[lists.length - 1]
+      if (!L) continue
+      if (close) { if (items.pop()) out.push('</div></div>'); continue }
+      L.n++; items.push(true)
+      const mk = L.f?.style ? `${L.f.pre}${counter(L.n, L.f.style)}${L.f.post}`.trim() : '•'
+      out.push(`<div class="cl" style="padding-left:${(L.level * 1.4).toFixed(1)}rem"><span class="cm">${mk}</span><div>`)
     } else if (KEEP.has(tag)) out.push(tag === 'br' ? '<br>' : `<${close}${tag}>`)
   }
   out.push(body.slice(i))

@@ -16,7 +16,7 @@ import { db } from '@/db'
 import { sql } from 'drizzle-orm'
 
 // full-text styling for the official document's HTML
-const DOC = 'text-[15px] leading-relaxed text-ink-800 [&_p]:mt-2 [&_b]:font-bold [&_b]:text-black [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mt-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mt-1 [&_li]:mt-1 [&_h2]:ui [&_h2]:text-[14px] [&_h2]:font-bold [&_h2]:tracking-[.1em] [&_h2]:mt-5 [&_h2]:text-black [&_h3]:font-bold [&_h3]:mt-4 [&_h3]:text-black [&_h4]:font-semibold [&_h4]:mt-3 [&_table]:w-full [&_table]:mt-2 [&_td]:border [&_td]:border-ink-100 [&_td]:px-2 [&_td]:py-1'
+const DOC = 'text-[15px] leading-relaxed text-ink-800 [&_.cl]:flex [&_.cl]:gap-2 [&_.cl]:mt-2 [&_.cm]:flex-none [&_.cm]:min-w-[2.4em] [&_.cm]:font-bold [&_.cm]:text-black [&_.cm]:tabular-nums [&_.cl>div]:min-w-0 [&_.cl>div]:flex-1 [&_.cl>div>*:first-child]:mt-0 [&_p]:mt-2 [&_b]:font-bold [&_b]:text-black [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mt-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mt-1 [&_li]:mt-1 [&_h2]:ui [&_h2]:text-[14px] [&_h2]:font-bold [&_h2]:tracking-[.1em] [&_h2]:mt-5 [&_h2]:text-black [&_h3]:font-bold [&_h3]:mt-4 [&_h3]:text-black [&_h4]:font-semibold [&_h4]:mt-3 [&_table]:w-full [&_table]:mt-2 [&_td]:border [&_td]:border-ink-100 [&_td]:px-2 [&_td]:py-1'
 
 const TABS: [string, string][] = [['constitution', 'CONSTITUTION'], ['scoring', 'SCORING'], ['rosters', 'ROSTERS & SEASONS'], ['resolutions', 'RESOLUTIONS'], ['compliance', 'COMPLIANCE']]
 const SPORT_KEY: Record<string, string> = { NFL: 'fl', NHL: 'hl', NBA: 'ba', MLB: 'lb' }
