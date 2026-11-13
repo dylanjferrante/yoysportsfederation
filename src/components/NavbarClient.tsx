@@ -25,13 +25,14 @@ export default function NavbarClient({ clubs, leagueId }: { clubs: Club[]; leagu
     { label: 'Scores', href: `${base}/scores` },
     { label: 'Leagues', menu: YSF_LEAGUES.map(l => ({ label: l.code, href: `${base}/sports/${l.sport}`, icon: YSF_ART.leagueSymbol(l.key, 'white') })) },
     { label: 'Clubs', menu: [{ label: 'All clubs', href: `${base}/teams` }, ...clubs.map(c => ({ label: c.name, href: `${base}/teams/${c.id}`, icon: c.logo }))] },
+    { label: 'My Club', href: `${base}/myteam` },
     { label: 'Rankings', href: `${base}/power` },
     { label: 'Moves', href: `${base}/transactions` },
     { label: 'Players', href: `${base}/waivers` },
     { label: 'Trades', href: `${base}/trade` },
     {
       label: 'More', menu: [
-        { label: 'My Club', href: `${base}/myteam` }, { label: 'Votes', href: `${base}/proposals` },
+        { label: 'Votes', href: `${base}/proposals` },
         { label: 'Draft', href: `${base}/draft` }, { label: 'Playoffs', href: `${base}/playoffs` },
         { label: 'Odds', href: `${base}/odds` }, { label: 'News', href: `${base}/news` },
         { label: 'Trade Block', href: `${base}/marketplace` }, { label: 'History', href: `${base}/history` },
