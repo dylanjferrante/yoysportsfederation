@@ -9,6 +9,9 @@ import { z } from 'zod'
 import { logActivity, notify } from '@/lib/activity'
 import { safeParse } from '@/lib/utils'
 import { resolveTradeDeadlineWeek } from '@/lib/defaults'
+import { teamRecords } from '@/db/schema'
+import { isYsf, lockedSports, LEAGUE_OF } from '@/lib/ysf-rules'
+import { settleTrades } from '@/lib/trades'
 
 const tradeItemSchema = z.object({
   direction: z.enum(['GIVING', 'RECEIVING']).optional(),
@@ -16,6 +19,8 @@ const tradeItemSchema = z.object({
   toTeamId: z.string().optional(),
   playerId: z.string().optional(),
   pickId: z.string().optional(),
+  faabSport: z.enum(['NFL', 'NHL', 'NBA', 'MLB']).optional(),
+  faabAmount: z.number().int().positive().optional(),
 })
 
 const createSchema = z.object({
@@ -29,6 +34,7 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  await settleTrades('ysf')
   const userTeams = await db.select({ id: teams.id }).from(teams).where(eq(teams.userId, session.user.id))
   const teamIds = userTeams.map(t => t.id)
   if (!teamIds.length) return NextResponse.json([])
@@ -103,7 +109,21 @@ export async function POST(req: Request) {
     if (dealPlayerIds.length) (await db.select({ s: players.sport }).from(players).where(inArray(players.id, dealPlayerIds))).forEach(r => r.s && dealSports.add(r.s))
     if (dealPickIds.length) (await db.select({ s: draftPicks.sport }).from(draftPicks).where(inArray(draftPicks.id, dealPickIds))).forEach(r => r.s && dealSports.add(r.s))
 
-    if (dealSports.size) {
+    const faabItems = resolved.filter(it => it.faabSport && it.faabAmount)
+    for (const it of faabItems) dealSports.add(it.faabSport!)
+    if (isYsf(leagueId)) {
+      // Art. IV §B(2): a league's no-trade window locks its players, picks and FAAB, even in interleague deals
+      const locked = await lockedSports(dealSports)
+      if (locked.length) return NextResponse.json({ error: `${locked.map(s => LEAGUE_OF[s]).join(', ')} ${locked.length > 1 ? 'are' : 'is'} in the no-trade window — its players, picks and FAAB are locked until its championship ends (Art. IV §B)` }, { status: 400 })
+      // FAAB can only be traded from what a club has left
+      const owed: Record<string, number> = {}
+      for (const it of faabItems) owed[`${it.fromTeamId}|${it.faabSport}`] = (owed[`${it.fromTeamId}|${it.faabSport}`] ?? 0) + it.faabAmount!
+      for (const [k, amt] of Object.entries(owed)) {
+        const [tid, sp] = k.split('|')
+        const [rec] = await db.select({ f: teamRecords.faabRemaining }).from(teamRecords).where(and(eq(teamRecords.teamId, tid), eq(teamRecords.season, league?.season ?? ''), eq(teamRecords.sport, sp))).limit(1)
+        if ((rec?.f ?? 0) < amt) return NextResponse.json({ error: `Only $${rec?.f ?? 0} of ${LEAGUE_OF[sp]} FAAB is left to trade` }, { status: 400 })
+      }
+    } else if (dealSports.size) {
       const allM = await db.select({ sport: matchups.sport, week: matchups.week, isComplete: matchups.isComplete })
         .from(matchups).where(and(eq(matchups.leagueId, leagueId), eq(matchups.season, league?.season ?? '')))
       const cur: Record<string, number> = {}
@@ -142,6 +162,7 @@ export async function POST(req: Request) {
     await db.insert(tradeItems).values(resolved.map(it => ({
       id: nanoid(), tradeId, fromTeamId: it.fromTeamId ?? null, toTeamId: it.toTeamId ?? null,
       direction: it.direction ?? null, playerId: it.playerId ?? null, pickId: it.pickId ?? null,
+      faabSport: it.faabSport ?? null, faabAmount: it.faabAmount ?? null,
     })))
 
     await db.insert(tradeApprovals).values(partnerRows.map(t => ({

@@ -6,6 +6,7 @@ import { leagues, teams, rosters, players, teamRecords, waiverClaims } from '@/d
 import { eq, and, inArray } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { processAllNow } from '@/lib/waivers'
+import { isYsf, claimLimitError, eligCapError, irLockError } from '@/lib/ysf-rules'
 
 // List a league's waiver claims (enriched with player + franchise names).
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -68,6 +69,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .where(and(eq(rosters.playerId, body.addPlayerId), eq(teams.leagueId, id))).limit(1)
     if (rostered.length) return NextResponse.json({ error: 'Player is already rostered' }, { status: 400 })
 
+    if (isYsf(id)) {
+      const lim = claimLimitError(id, myTeam.id, add.sport) ?? await irLockError(myTeam.id, add.sport)
+      if (lim) return NextResponse.json({ error: lim }, { status: 400 })
+      const cur = await db.select({ pid: rosters.playerId, position: players.position, eligible: players.eligiblePositions }).from(rosters)
+        .innerJoin(players, eq(rosters.playerId, players.id)).where(and(eq(rosters.teamId, myTeam.id), eq(rosters.sport, add.sport)))
+      const capErr = eligCapError(add.sport, [...cur.filter(r => r.pid !== body.dropPlayerId), { position: add.position, eligible: add.eligiblePositions }])
+      if (capErr) return NextResponse.json({ error: capErr }, { status: 400 })
+    }
     const bid = Math.max(0, Math.floor(body.bidAmount ?? 0))
     if (league.waiverType === 'FAAB') {
       const [rec] = await db.select().from(teamRecords)

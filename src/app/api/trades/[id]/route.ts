@@ -6,20 +6,48 @@ import { trades, teams, rosters, tradeItems, tradeApprovals, players, leagues } 
 import { eq, and, inArray } from 'drizzle-orm'
 import { logActivity, notify } from '@/lib/activity'
 import { safeParse } from '@/lib/utils'
-import { executeTrade } from '@/lib/trades'
+import { executeTrade, settleTrades } from '@/lib/trades'
+import { isYsf, eligCapError, reviewState, RULES, LEAGUE_OF } from '@/lib/ysf-rules'
+import { sql } from 'drizzle-orm'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { action } = await req.json() as { action: 'ACCEPT' | 'REJECT' | 'CANCEL' }
+  const { action, note } = await req.json() as { action: 'ACCEPT' | 'REJECT' | 'CANCEL' | 'COMPLAIN' | 'VETO' | 'OVERRIDE'; note?: string }
 
   const [trade] = await db.select().from(trades).where(eq(trades.id, id)).limit(1)
   if (!trade) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (trade.status !== 'PENDING') return NextResponse.json({ error: 'Trade is no longer pending' }, { status: 400 })
-
   const items = await db.select().from(tradeItems).where(eq(tradeItems.tradeId, id))
+
+  if (trade.status === 'REVIEW' && ['COMPLAIN', 'VETO', 'OVERRIDE'].includes(action)) {
+    // Art. IV §B(6): any club may flag a bad-faith trade during review; the Commission (or, with a
+    // Commission club in the deal, the Federation) may veto within 36 hours; the Federation may override
+    const parties = [...new Set([trade.initiatorId, trade.recipientId, ...items.flatMap(i => [i.fromTeamId, i.toTeamId])].filter(Boolean) as string[])]
+    const [me] = await db.select().from(teams).where(and(eq(teams.leagueId, trade.leagueId!), eq(teams.userId, session.user.id))).limit(1)
+    if (!me) return NextResponse.json({ error: 'No club in this league' }, { status: 403 })
+    if (parties.includes(me.id)) return NextResponse.json({ error: 'Clubs in the trade can’t file or vote on it' }, { status: 403 })
+    const st = reviewState(trade, parties)
+    const now = new Date().toISOString()
+    if (action === 'COMPLAIN') {
+      if (!st.complaintAt) db.run(sql`UPDATE trades SET complaint_at = ${now} WHERE id = ${id}`)
+    } else {
+      if (action === 'VETO' && !st.voters.includes(me.id)) return NextResponse.json({ error: st.commissionParty ? 'Only clubs outside the trade vote on this veto' : 'Only the Commission can veto this trade' }, { status: 403 })
+      if (action === 'VETO' && !st.complaintAt) return NextResponse.json({ error: 'A bad-faith complaint has to be filed first' }, { status: 400 })
+      if (action === 'VETO' && st.vetoEnds && now > st.vetoEnds) return NextResponse.json({ error: `The ${RULES.vetoHours}-hour veto window has closed` }, { status: 400 })
+      if (action === 'OVERRIDE' && st.commissionParty) return NextResponse.json({ error: 'There is no Commission veto to override on this trade' }, { status: 400 })
+    }
+    db.run(sql`INSERT OR IGNORE INTO ysf_trade_votes (trade_id, team_id, kind, note, created_at) VALUES (${id}, ${me.id}, ${action === 'COMPLAIN' ? 'COMPLAINT' : action}, ${note ?? null}, ${now})`)
+    if (action === 'COMPLAIN') {
+      const others = await db.select({ u: teams.userId }).from(teams).where(eq(teams.leagueId, trade.leagueId!))
+      await notify(others.map(o => o.u).filter(Boolean) as string[], `A trade under review has been flagged as possible bad faith`, `/leagues/${trade.leagueId}/trade`, 'TRADE')
+    }
+    await settleTrades(trade.leagueId!)
+    const [cur] = await db.select().from(trades).where(eq(trades.id, id)).limit(1)
+    return NextResponse.json({ ...cur, review: reviewState(cur, parties) })
+  }
+  if (trade.status !== 'PENDING') return NextResponse.json({ error: 'Trade is no longer pending' }, { status: 400 })
 
   // All franchises involved (initiator + recipient + any from/to on items).
   const teamSet = new Set<string>([trade.initiatorId])
@@ -113,6 +141,31 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         }
       }
     }
+  }
+
+  if (isYsf(trade.leagueId)) {
+    // Art. V eligibility maxima on the resulting rosters, then the 48-hour review (Art. IV §B(4))
+    const teamIds = [...teamSet]
+    const cur = await db.select({ teamId: rosters.teamId, playerId: rosters.playerId, sport: players.sport, position: players.position, eligible: players.eligiblePositions })
+      .from(rosters).innerJoin(players, eq(rosters.playerId, players.id)).where(inArray(rosters.teamId, teamIds))
+    const byTeam: Record<string, typeof cur> = Object.fromEntries(teamIds.map(t => [t, cur.filter(r => r.teamId === t)]))
+    for (const it of items) {
+      if (!it.playerId) continue
+      const { from, to } = routeOf(it)
+      const meta = cur.find(r => r.playerId === it.playerId)
+      if (from) byTeam[from] = (byTeam[from] ?? []).filter(r => r.playerId !== it.playerId)
+      if (to && meta) byTeam[to] = [...(byTeam[to] ?? []), meta]
+    }
+    for (const tid of teamIds) for (const sp of ['NFL', 'NHL', 'MLB']) {
+      const err = eligCapError(sp, (byTeam[tid] ?? []).filter(r => r.sport === sp))
+      if (err) return NextResponse.json({ error: `Trade rejected: ${nameOf(tid)} — ${err}` }, { status: 400 })
+    }
+    const ends = new Date(Date.now() + RULES.reviewHours * 3_600_000).toISOString()
+    const [upd] = await db.update(trades).set({ status: 'REVIEW', reviewDeadline: ends }).where(eq(trades.id, id)).returning()
+    const all = await db.select({ u: teams.userId }).from(teams).where(eq(teams.leagueId, trade.leagueId!))
+    await notify(all.map(a => a.u).filter(Boolean) as string[], `Trade accepted: ${teamRows.map(t => t.name).join(' / ')} — 48-hour review under way`, `/leagues/${trade.leagueId}/trade`, 'TRADE')
+    await logActivity(trade.leagueId!, 'TRADE', `${teamRows.map(t => t.name).join(' and ')} agreed to a trade; it takes effect after the 48-hour review`, null)
+    return NextResponse.json(upd)
   }
 
   await executeTrade(id)

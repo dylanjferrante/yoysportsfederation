@@ -9,8 +9,9 @@ import { db } from '@/db'
 import { sql } from 'drizzle-orm'
 import { loadGameLines, toFantraxStats, type Sport, type GameLine } from '@/lib/ysf-gamelines'
 import { siteFeed } from '@/lib/ysf-data'
+import { spCap } from '@/lib/ysf-rules'
 
-const SPORTS: Sport[] = ['NFL', 'NHL', 'NBA']
+const SPORTS: Sport[] = ['NFL', 'NHL', 'NBA', 'MLB']
 const KEY: Record<string, string> = { NFL: 'ysf_fl', NHL: 'ysf_hl', NBA: 'ysf_ba', MLB: 'ysf_lb' }
 const etToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
 
@@ -62,13 +63,26 @@ export async function runEngine(league: any, opts: { write?: boolean } = {}): Pr
     }
     const club: Record<string, number> = {}
     const upd: { rowid: number; pts: number | null; stats: string | null }[] = []
+    // Fed. Res. III: a ySFLB club's starting pitchers count at most 10 games per 7 days of the matchup,
+    // in the order they're played; games past the cap don't count toward the club's score
+    const spOver = new Map<number, number>() // rowid → points not counted
+    if (sport === 'MLB') {
+      const byClub = new Map<string, { rowid: number; date: string; id: string; pts: number }[]>()
+      for (const r of rows) if (r.status === '1' && r.slot === 'SP' && r.team_id)
+        for (const g of gamesOf(r)) { const k = `${r.matchup_period}|${r.team_id}`; byClub.set(k, [...(byClub.get(k) ?? []), { rowid: r.rowid, date: g.date, id: g.gameId, pts: g.pts }]) }
+      for (const [k, gs] of byClub) {
+        const p = periods.find(x => x.p === Number(k.split('|')[0])); if (!p) continue
+        const cap = spCap(p.start, p.end)
+        gs.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)).slice(cap).forEach(g => spOver.set(g.rowid, (spOver.get(g.rowid) ?? 0) + g.pts))
+      }
+    }
     for (const r of rows) {
       const gs = gamesOf(r)
       const pts = gs.length ? +gs.reduce((a, g) => a + g.pts, 0).toFixed(2) : null
       const st: Record<string, number> = {}
       for (const g of gs) for (const [k, v] of Object.entries(g.stats)) st[k] = (st[k] ?? 0) + v
       upd.push({ rowid: r.rowid, pts, stats: gs.length ? JSON.stringify({ ...toFantraxStats(sport, st), GP: String(gs.length) }) : null })
-      if (r.status === '1' && r.team_id && pts) club[`${r.matchup_period}|${r.team_id}`] = (club[`${r.matchup_period}|${r.team_id}`] ?? 0) + pts
+      if (r.status === '1' && r.team_id && pts) club[`${r.matchup_period}|${r.team_id}`] = (club[`${r.matchup_period}|${r.team_id}`] ?? 0) + pts - (spOver.get(r.rowid) ?? 0)
     }
     const startWeek = sched.find(s => s.sport === sport)?.startWeek ?? 1
     const ms = db.all<any>(sql`SELECT id, week, home_team_id h, away_team_id a, home_score hs, away_score as_, official_home_score ohs, official_away_score oas, is_complete done, is_playoff po
