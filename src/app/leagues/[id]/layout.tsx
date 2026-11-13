@@ -9,7 +9,8 @@ import { isCommissioner as checkCommissioner } from '@/lib/permissions'
 import { SportNamingProvider } from '@/components/SportNaming'
 import LeagueNav from './LeagueNav'
 import Ticker from './Ticker'
-import { U } from '@/lib/ysf'
+import { U, YSF_LEAGUE_ID } from '@/lib/ysf'
+import { YsfFooter } from '@/components/ysf/ui'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -43,6 +44,18 @@ export default async function LeagueLayout({ children, params }: { children: Rea
 
   const primary = league.primaryColor ?? '#0f172a'
   const secondary = league.secondaryColor ?? '#fbbf24'
+
+  // The ySF league renders the ySF Site Redesign shell: no Nexus title block or tab bar —
+  // the black header carries the navigation, each page draws its own title.
+  if (id === YSF_LEAGUE_ID) {
+    return (
+      <SportNamingProvider value={{ sportAbbr, sportNames }}>
+        <main className="max-w-[1240px] mx-auto px-4 sm:px-5 pt-6 sm:pt-8 pb-12 flex flex-col gap-7 sm:gap-9">{children}</main>
+        <YsfFooter />
+        <Ticker leagueId={id} primary={primary} secondary={secondary} sportAbbr={sportAbbr} />
+      </SportNamingProvider>
+    )
+  }
 
   return (
     <SportNamingProvider value={{ sportAbbr, sportNames }}>
