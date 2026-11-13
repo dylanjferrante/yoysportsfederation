@@ -259,7 +259,7 @@ export async function loadMoves(leagueId: string, currentSeason = '2026-27') {
   const per = new Map<string, number>()
   for (const p of picks) per.set(p.scope + p.season, Math.max(per.get(p.scope + p.season) ?? 0, p.round))
   for (const p of picks) {
-    const n = picks.filter(x => x.scope === p.scope && x.season === p.season).length / Math.max(1, per.get(p.scope + p.season) ?? 1)
+    const n = Math.max(1, Math.round(picks.filter(x => x.scope === p.scope && x.season === p.season).length / Math.max(1, per.get(p.scope + p.season) ?? 1)))
     const inRound = ((p.pick_number - 1) % Math.max(1, n)) + 1
     const t = new Date(new Date(p.starts_at).getTime() + p.pick_number * 60_000)
     const elig = safeParse<string[]>(p.eligible_positions, [])

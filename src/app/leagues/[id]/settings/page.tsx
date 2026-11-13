@@ -269,11 +269,11 @@ function SettingsInner() {
   const subTabs = orderedEnabled
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
+    <div className="max-w-5xl mx-auto px-4 py-8 w-full min-w-0">
+      <div className="flex flex-wrap items-center gap-3 mb-8">
         <Link href={`/leagues/${params.id}`} className="btn-ghost text-ink-500">← Back</Link>
         <div>
-          <h1 className="disp text-[40px] sm:text-[64px] font-extrabold leading-[.85] uppercase">Commissioner Settings</h1>
+          <h1 className="disp text-[28px] sm:text-[64px] font-extrabold leading-[.9] uppercase break-words">Commissioner Settings</h1>
           <p className="text-sm text-ink-500">{league.name}</p>
         </div>
         <div className="ml-auto flex items-center gap-3">

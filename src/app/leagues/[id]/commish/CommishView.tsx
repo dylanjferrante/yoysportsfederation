@@ -46,9 +46,9 @@ export default function CommishView({ leagueId, leagueName }: { leagueId: string
   if (!data) return <div className="text-ink-500 py-12 text-center">Loading commissioner tools…</div>
 
   return (
-    <div className="max-w-5xl mx-auto pb-16">
+    <div className="max-w-5xl mx-auto pb-16 w-full min-w-0">
       <div className="flex items-center gap-2 mb-1">
-        <h1 className="disp text-[40px] sm:text-[64px] font-extrabold leading-[.85] uppercase">Commissioner Tools</h1>
+        <h1 className="disp text-[28px] sm:text-[64px] font-extrabold leading-[.9] uppercase break-words">Commissioner Tools</h1>
         {!data.isPrimaryCommissioner && <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Co-Commissioner</span>}
       </div>
       <p className="text-sm text-ink-500 mb-5">{leagueName} · every action is recorded in the audit log.</p>
