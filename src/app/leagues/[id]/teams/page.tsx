@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { safeParse, sportAbbrLabel, orderedSports } from '@/lib/utils'
 import { viewSeasonOf, seasonBranding } from '@/lib/seasons'
 import SportChip from '@/components/SportChip'
+import YsfClubs from './YsfClubs'
+import { YSF_LEAGUE_ID } from '@/lib/ysf'
 
 export const metadata = { title: 'Clubs' }
 
@@ -16,6 +18,7 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1)
   if (!league) notFound()
   const { season: viewSeason, isPast } = viewSeasonOf(league, await searchParams)
+  if (id === YSF_LEAGUE_ID && !isPast) return <YsfClubs league={league} />
   const branding = isPast ? await seasonBranding(id, viewSeason) : null
 
   const franchises = (await db.select({ team: teams, userName: users.name }).from(teams)
