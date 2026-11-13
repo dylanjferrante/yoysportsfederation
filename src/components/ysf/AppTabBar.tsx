@@ -22,7 +22,7 @@ function Icon({ k, on }: { k: string; on: boolean }) {
   )
 }
 
-const MORE = ['/more', '/transactions', '/power', '/cup', '/history', '/report', '/matchday', '/rules', '/draft', '/teams', '/sports', '/trade', '/waivers', '/proposals', '/records', '/seasons', '/chat', '/marketplace', '/playoffs']
+const MORE = ['/more', '/transactions', '/power', '/cup', '/history', '/report', '/rules', '/draft', '/teams', '/sports', '/trade', '/waivers', '/proposals', '/records', '/seasons', '/chat', '/marketplace', '/playoffs']
 
 export default function AppTabBar({ leagueId, myLogo }: { leagueId: string; myLogo: string | null }) {
   const path = usePathname() ?? ''
