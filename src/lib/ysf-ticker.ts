@@ -34,20 +34,20 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
   const odds = [...s.cup].sort((a, b) => b.cupPct - a.cupPct).slice(0, 3)
   const fed: TickerGroup[] = [
     { label: 'FED CUP', bd: '#B8860B', items: [
-      { marks: [cupMark], text: odds.map((r, i) => `${ab(r.teamId)} ${pct(r.cupPct)}${i === 0 ? ' to win the Cup' : ''}`).join(' · '), ago: 'Today' },
+      { marks: [cupMark], text: odds.map((r, i) => `${ab(r.teamId)} ${pct(r.cupPct)}${i === 0 ? ' to win the Cup' : ''}`).join(' | '), ago: 'Today' },
       { marks: [mark(s.cup[0].teamId)], text: story.headline.replace(/^./, c => c.toUpperCase()), ago: 'Today' },
     ] },
   ]
   const curTrades = trades.filter(t => t.season === league.season).slice(0, 3)
   if (curTrades.length) fed.push({ label: 'TRADES', bd: '#E500C5', items: curTrades.map(t => ({
     marks: t.sides.map(sd => mark(sd.teamId)),
-    text: t.sides.map(sd => `${C[sd.teamId]?.name} gets ${sd.gets.map(g => g.team ? `${g.name} (${YSF_LEAGUES.find(l => l.sport === g.sport)?.code ?? ''}-${g.team}, ${g.pos})` : g.name).join(' + ')}`).join(' · '),
+    text: t.sides.map(sd => `${C[sd.teamId]?.name} gets ${sd.gets.map(g => g.team ? `${g.name} (${YSF_LEAGUES.find(l => l.sport === g.sport)?.code ?? ''}-${g.team}, ${g.pos})` : g.name).join(' + ')}`).join(' | '),
     ago: ago(t.when) })) })
   const up: TickerItem[] = []
   for (const d of (await db.select().from(drafts).where(eq(drafts.leagueId, league.id))).filter(d => d.status === 'PENDING' && d.startsAt)) {
     const L = YSF_LEAGUES.find(l => l.sport === d.scope)
     const when = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(d.startsAt!))
-    up.push({ marks: L ? [{ src: YSF_ART.leagueSymbol(L.key, 'color'), bg: L.color }] : [], text: `${L?.code ?? ''} Rookie Draft · ${when} ET`, ago: 'Up next' })
+    up.push({ marks: L ? [{ src: YSF_ART.leagueSymbol(L.key, 'color'), bg: L.color }] : [], text: `${L?.code ?? ''} Rookie Draft | ${when} ET`, ago: 'Up next' })
   }
   if (!s.live.includes('MLB')) up.push({ marks: [{ src: YSF_ART.leagueSymbol('lb', 'color'), bg: '#ba0c2f' }], text: 'ySFLB opens Mar 24, 2027: up to 12 more Cup points per club', ago: 'Up next' })
   if (up.length) fed.push({ label: 'UP NEXT', bd: '#6da7ee', items: up })
@@ -59,7 +59,7 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
     const lines = wk.pairings.flatMap(p => p.lines.filter(l => l.sport === L.sport).map(l => ({ p, l })))
     if (lines.length) groups.push({ label: periodLabel(league, L.sport, wk.week).toUpperCase(), bd: L.color, items: lines.map(({ p, l }) => ({
       marks: [], live: l.status === 'LIVE',
-      text: l.a == null ? `${ab(p.a)} vs ${ab(p.b)}` : `${ab(p.a)} ${num(l.a)} · ${ab(p.b)} ${num(l.b ?? 0)}`,
+      text: l.a == null ? `${ab(p.a)} vs ${ab(p.b)}` : `${ab(p.a)} ${num(l.a)} | ${ab(p.b)} ${num(l.b ?? 0)}`,
       score: [[p.a, l.a, l.b], [p.b, l.b, l.a]].map(([id, v, o]) => ({ mark: mark(id as string), ab: ab(id as string), v: v == null ? null : num(v as number), win: v != null && o != null && (v as number) > (o as number) })),
       ago: l.status === 'FINAL' ? 'Final' : l.status === 'LIVE' ? 'Live' : 'Up next' })) })
     const t = s.tables[L.sport]
@@ -70,7 +70,7 @@ export async function buildTicker(league: any): Promise<TickerBlock[]> {
     const recent = moves.filter(m => m.sport === L.sport && m.season === league.season && ['CLAIMED', 'SIGNED'].includes(m.kind))
       .filter(m => Date.now() - new Date(m.when + '-05:00').getTime() < 4 * 86400000).slice(0, 4)
     if (recent.length) groups.push({ label: 'MOVES', bd: '#3A6B9E', items: recent.map(m => ({
-      marks: [mark(m.teamId)], text: `${ab(m.teamId)} ${m.kind === 'CLAIMED' ? 'claims' : 'signs'} ${m.player} (${L.code}-${m.team}, ${m.pos})${m.bid ? ` · $${m.bid}` : ''}`, ago: ago(m.when) })) })
+      marks: [mark(m.teamId)], text: `${ab(m.teamId)} ${m.kind === 'CLAIMED' ? 'claims' : 'signs'} ${m.player} (${L.code}-${m.team}, ${m.pos})${m.bid ? ` | $${m.bid}` : ''}`, ago: ago(m.when) })) })
     blocks.push({ name: L.code, bg: L.color, fg: '#fff', logo: YSF_ART.leagueSymbol(L.key, 'color'), groups })
   }
   return blocks
