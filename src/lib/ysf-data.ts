@@ -54,7 +54,33 @@ export async function loadStandings(league: any) {
     }
     const t: any = byAbbr.get(clubs[id].abbreviation)
     return { teamId: id, pts, rec: `${w}-${l}`, w, l, ranks, cupPct: t ? Number(t.p_win_fed_cup) || 0 : (odds.federation[id] ?? 0), exp: t ? Number(t.expected_fed_pts) || 0 : (odds.fedPoints[id] ?? 0), rk: 0 }
-  }).sort((a, b) => b.pts - a.pts || b.w - a.w).map((r, i) => ({ ...r, rk: i + 1 }))
+  }).sort((a, b) => cupOrder(a, b)).map((r, i) => ({ ...r, rk: i + 1 }))
+  // Comm. Res. IX tiebreakers (passed Jul 23, 2026), after Federation points:
+  //   most 1st-place finishes, then most 2nd-or-better, … through 11th-or-better;
+  //   then combined win percentage; then head-to-head matchups won among the tied clubs
+  function finishes(r: CupRow) { return Object.values(r.ranks).filter((x): x is number => x != null) }
+  function cupOrder(a: CupRow, b: CupRow) {
+    if (b.pts !== a.pts) return b.pts - a.pts
+    const fa = finishes(a), fb = finishes(b)
+    for (let k = 1; k <= 11; k++) { const d = fb.filter(x => x <= k).length - fa.filter(x => x <= k).length; if (d) return d }
+    const pct = (r: CupRow) => { const g = r.w + r.l + ties(r.teamId); return g ? (r.w + ties(r.teamId) / 2) / g : 0 }
+    return pct(b) - pct(a)
+  }
+  function ties(id: string) { return YSF_LEAGUES.reduce((t, L) => t + (started[L.sport] ? (recs.find(r => r.sport === L.sport && r.teamId === id)?.ties ?? 0) : 0), 0) }
+  // head-to-head among clubs still level after the steps above, across every league's completed matchups
+  const done = ms.filter(m => m.isComplete && m.awayTeamId && m.homeScore != null && m.awayScore != null)
+  for (let i = 0; i < cup.length;) {
+    let j = i + 1
+    while (j < cup.length && cupOrder(cup[i], cup[j]) === 0) j++
+    if (j - i > 1) {
+      const grp = new Set(cup.slice(i, j).map(r => r.teamId))
+      const h2h = (id: string) => done.filter(m => grp.has(m.homeTeamId) && grp.has(m.awayTeamId!) && (m.homeTeamId === id ? m.homeScore! > m.awayScore! : m.awayTeamId === id && m.awayScore! > m.homeScore!)).length
+      const sorted = cup.slice(i, j).sort((a, b) => h2h(b.teamId) - h2h(a.teamId))
+      cup.splice(i, j - i, ...sorted)
+    }
+    i = j
+  }
+  cup.forEach((r, i) => { r.rk = i + 1 })
   const live = YSF_LEAGUES.filter(L => started[L.sport]).map(L => L.sport)
   return { clubs, tables, cup, live, season }
 }
