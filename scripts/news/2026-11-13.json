@@ -1,0 +1,112 @@
+[
+ {
+  "slot": "nb:NFL:2026-11-13",
+  "kind": "notebook",
+  "sport": "NFL",
+  "writer": "rico",
+  "headline": "Nine down, five to go: BASC is making this look easy",
+  "dek": "Benfica is 9-0 and hasn't been seriously tested. The real fight in ySFFL Week 10 is for second place — and the last playoff spot.",
+  "clubs": [
+   "BASC",
+   "OYSC",
+   "WWFC",
+   "ACF"
+  ],
+  "body": [
+   "Let's start with the obvious, because there's no getting around it. Benfica A.S.C. is 9-0. Nine games, nine wins, 1,039.8 points scored, and the single biggest week anyone has put up all season — 148.4 back in Week 8, nearly 47 points above the league average of 101.6. If ySFFL were a movie, we'd be about forty minutes in and the villain would already own the town.",
+   "The model agrees, mostly. It gives BASC a 45% chance to win the title, which sounds low until you remember that a 9-0 regular season gets you exactly one thing in this league: a bye. Then it's three weeks of single elimination, and the bracket does not care about your record. (Ask anyone who's ever lost a semifinal to the six seed. Actually, don't — they're still not over it.)",
+   "This week, Benfica gets Inter Nat S.C., currently 4-5 and sitting seventh, a tiebreaker out of the last playoff spot. BASC leads 7.6 to nothing after Thursday, and the model likes Benfica at 76%. INSC needs this one a lot more than Benfica does.",
+   "The game of the week is in second place. Ogden-upon-York S.C. (8-1) hosts Wilsey Warriors F.C. (6-3) in a meeting of the second- and third-place clubs, and the model has it as a dead coin flip: 50-50. OYSC has won three straight. Wilsey has the second-best points total in the league at 1,037.0 — just 2.8 behind Benfica — despite three losses, which tells you everything about how this season has treated them.",
+   "Then there's A.C. Ferrante, who opened the week trailing Waltemeyer United 23.2 to 17.3 after the Thursday game. On paper this shouldn't be close: ACF is 5-4 and holding fifth; WU is 2-7 and has lost three in a row. The model still makes Ferrante a 64% favorite, but nobody in fifth place wants to be sweating a Monday night against an 11th-place team.",
+   "The playoff picture, as of Friday: BASC, OYSC, Wilsey, Mitchel B.J.C., Ferrante and Kreme Machine United hold the six spots. Inter Nat, Real Meir C.K. and Saste Snipers United are chasing, and Allaman A.C., Waltemeyer and Real Clink (1-8) are hoping for a miracle. Five weeks left. Plenty of time for chaos — just probably not in first place."
+  ]
+ },
+ {
+  "slot": "nb:NHL:2026-11-13",
+  "kind": "notebook",
+  "sport": "NHL",
+  "writer": "walt",
+  "headline": "Mitchel is perfect. The numbers aren't convinced.",
+  "dek": "MBJC is 6-0 and cruising again in Period 7, yet the model makes Real Meir C.K. the ySFHL title favorite. Both can be right.",
+  "clubs": [
+   "MBJC",
+   "RMCK",
+   "AAC",
+   "KMU"
+  ],
+  "body": [
+   "There is a particular kind of unbeaten team that makes people nervous, and Mitchel B.J.C. may be it. Six weeks into the ySFHL season, Mitchel has not lost. It leads Kreme Machine United 69.0 to 39.2 in Period 7, Matt Boldy (ySFHL-MIN, LW/RW) delivered the best hockey line of Thursday with 7.2, and the model gives MBJC a 91% chance of making it seven straight by Sunday night.",
+   "And yet. Mitchel has scored 521.1 points this season, fewer than Real Meir C.K. (582.3), the club a game behind it in second. Winning close weeks is a skill, and Mitchel has shown it, but it is also the kind of thing that tends to even out. The ySF model, which simulates the remaining schedule ten thousand times, makes Real Meir the title favorite at 26%. Allaman A.C. and Kreme Machine are next, near 19% apiece. Benfica A.S.C. is at 17.5%. Mitchel, perfect Mitchel, sits at 6.3%.",
+   "The reason is the bracket. A 6-0 start makes a top-two seed very likely, and a bye with it, but ySFHL titles are settled in three weeks of single-game rounds. The model believes Real Meir — owner of the season's best week, a 128.1 in Period 6 — is the club most likely to win those weeks, and Mitchel less so.",
+   "Real Meir has its own business this weekend. RMCK leads Allaman A.C. 53.4 to 37.0 in a meeting of the second- and third-place clubs, both 5-1 coming in. The model makes Real Meir an 88% favorite. Allaman will spend the weekend looking for 16 points.",
+   "Lower down, the picture is murkier. Benfica A.S.C. (4-2) has lost two straight but leads Inter Nat S.C. 56.8 to 33.6, with a 97% chance to stop the slide. A.C. Ferrante (3-3) is all but home against Waltemeyer United, 58.3 to 31.8. Saste Snipers United and Real Clink are separated by 4.6 points — 50.1 to 45.5 — and the model, unable to choose, calls it 51-49 for SSU. That one matters: SSU is 3-3 and sits a tiebreaker out of the last playoff spot.",
+   "The league is averaging 81.2 points a week, and the floor has been unforgiving: Inter Nat S.C.'s 34.4 is the season's low, and INSC sits 12th at 1-5, alongside Ogden-upon-York S.C. and Waltemeyer United at the same mark. Six weeks in, the top of the table looks settled. Whether it stays that way into the spring is another question."
+  ]
+ },
+ {
+  "slot": "nb:NBA:2026-11-13",
+  "kind": "notebook",
+  "sport": "NBA",
+  "writer": "rico",
+  "headline": "Three unbeatens, one favorite — and it isn't any of them",
+  "dek": "BASC, WWFC and ACF are all 3-0 in ySFBA. The model's title pick is 2-1 Kreme Machine United, which is busy running away from Mitchel.",
+  "clubs": [
+   "KMU",
+   "BASC",
+   "WWFC",
+   "ACF"
+  ],
+  "body": [
+   "Here's a fun fact to bring to your next dinner party (assuming your dinner parties are mostly ySF owners, which, honestly, same): three ySFBA clubs are 3-0, and the model doesn't think any of them is the favorite. That honor goes to Kreme Machine United, a 2-1 club the model gives a 36% chance to win the whole thing.",
+   "Why KMU? Watch this week. Kreme Machine leads Mitchel B.J.C. 960.0 to 746.0 in a meeting of the fourth- and fifth-place clubs, the highest score in the league so far this period, and the model gives KMU an 85% chance to finish it off. When you're putting up 960 by Friday morning, people notice. Or at least computers do.",
+   "As for the unbeatens: Benfica A.S.C. is first on points with 4,260.0 and holds the season's best week, a 1,574.0 in Period 2. BASC leads Inter Nat S.C. 904.0 to 790.0, but the model only gives it a 64% chance to stay perfect — closer than you'd think for a club with that résumé. A.C. Ferrante, the third 3-0 club, leads Waltemeyer United 575.0 to 179.0, and the model considers that one over. (It is.)",
+   "Then there's Wilsey Warriors F.C., whose Cade Cunningham (ySFBA-DET, PG/SG) put up 96.0 on Thursday — the best line in the league and a season high — and who still trails Ogden-upon-York S.C. 795.0 to 619.0. OYSC got 68.0 from Ausar Thompson (ySFBA-DET, SG/SF/PF) and 65.0 from Devin Booker (ySFBA-PHO, PG/SG/SF), and the model gives OYSC a 72% chance to hand Wilsey its first loss. Ninety-six points and a likely L. Basketball is a cruel sport.",
+   "Elsewhere, Allaman A.C. leads Real Meir C.K. 710.0 to 491.0 (91%), and at the bottom, the race nobody wants to win is the only one still in doubt: Real Clink leads Saste Snipers United 550.0 to 509.0. Both are 0-3. One of them will win this week. The other, along with Waltemeyer United, will be 0-4 and very tired of hearing about it.",
+   "League average: 1,121.7 a week. League low: Waltemeyer's 513.0. Playoff line: the six clubs at 2-1 or better, with Allaman a game back. Plenty of season left, but the early message is clear — in ySFBA, an unbeaten record and a title favorite are two very different things."
+  ]
+ },
+ {
+  "slot": "col:2026-11-13",
+  "kind": "preview",
+  "sport": "CUP",
+  "writer": "june",
+  "headline": "Two models, one favorite, and a very different second place",
+  "dek": "Both projections make Benfica the Cup favorite. They disagree sharply on who's chasing — and the gap comes down to how each one reads ySFLB and the playoffs.",
+  "clubs": [
+   "BASC",
+   "KMU",
+   "ACF",
+   "MBJC"
+  ],
+  "body": [
+   "Start with what everyone agrees on. Benfica A.S.C. leads the Federation Cup with 33 points — first in ySFFL, first in ySFBA, fourth in ySFHL — and a 16-2 record across the three leagues. Mitchel B.J.C. is second with 29, A.C. Ferrante third with 26. Both projection models make Benfica the clear favorite: ysffantasy.com's at 59.5%, the app's own ySF model at 72.5%, with 40.8 projected points, give or take 3.1.",
+   "The interesting part is everything after first place. The site's model has Ferrante second at 13.1%, Mitchel third at 12.4% and Kreme Machine United fourth at 9.5%. The ySF model has Kreme Machine a clear second at 18.8% — with 36.5 projected points — and Ferrante at 0.4%. That is not a rounding difference. That is two models seeing two different seasons.",
+   "Most of the gap comes from how the ySF model scores the leagues. Cup points are awarded on final standings after the playoffs, not the regular season, so it simulates each bracket to the end. That matters for Kreme Machine, which sits fifth in the Cup table today with 23 points but is the model's ySFBA title favorite at 35.9% and a 19.4% contender in ySFHL. Strong rosters in the leagues still to be decided count for more than a strong record so far.",
+   "It cuts the other way for Ferrante. ACF is fifth in ySFFL, fifth in ySFHL and third in ySFBA — solid everywhere, dominant nowhere — and the model gives it less than a 0.1% chance of winning ySFLB, which hasn't started and is worth up to 12 more points per club. Benfica (29.2%) and Ogden-upon-York S.C. (26.6%) are the model's baseball favorites; Ferrante's projection takes the hit there.",
+   "The weekend could move all of this. Benfica is a 76% favorite in its ySFFL game and leads Inter Nat S.C. in both hockey (97%) and basketball (64%). Kreme Machine leads Mitchel by 214 in ySFBA, with an 85% chance to win, and trails it in ySFHL, where Mitchel is a 91% favorite. Ferrante trails Waltemeyer United in football after Thursday but is a 64% favorite to come back, and is close to certain in hockey and basketball.",
+   "One number to remember: the ySF model gives Benfica a 98% chance of a top-three Cup finish. The race for the Cup itself may already have a clear favorite. The race for second and third, and for the pots that come with them, is wide open."
+  ]
+ },
+ {
+  "slot": "daily:2026-11-13",
+  "kind": "daily",
+  "sport": null,
+  "writer": "hank",
+  "headline": "Cunningham's career night can't pull WWFC level with OYSC",
+  "dek": "A season-high 96.0 from Cade Cunningham headlines Thursday, but Ogden-upon-York still leads Wilsey by 176 in ySFBA — and three Federation leaders head into the weekend unbeaten.",
+  "clubs": [
+   "WWFC",
+   "OYSC",
+   "MBJC",
+   "BASC"
+  ],
+  "body": [
+   "Cade Cunningham (ySFBA-DET, PG/SG) put up 96.0 fantasy points for Wilsey Warriors F.C. on Thursday, the best line anywhere in the Federation and a new season high for him — 21 points better than the 75.0 he had posted before. It still wasn't enough to swing ySFBA Period 4. Wilsey trails Ogden-upon-York S.C. 795.0 to 619.0 heading into the weekend, and the ySF model gives OYSC a 72% chance to close it out.",
+   "That matchup carries more weight than most. Wilsey is one of three ySFBA clubs still unbeaten at 3-0, level with Benfica A.S.C. and A.C. Ferrante; a loss would knock WWFC out of a share of the lead. Ogden-upon-York, meanwhile, got 68.0 from Ausar Thompson (ySFBA-DET, SG/SF/PF) and 65.0 from Devin Booker (ySFBA-PHO, PG/SG/SF), the second- and third-best lines in the league on the night.",
+   "In ySFHL, Matt Boldy (ySFHL-MIN, LW/RW) scored 7.2 for Mitchel B.J.C., the top hockey line of the day, and MBJC now leads Kreme Machine United 69.0 to 39.2. A 30-point cushion with a weekend to play gives Mitchel a 91% chance of moving to 7-0. Mark Scheifele (ySFHL-WPG, C) had 6.7 for Real Clink, which trails Saste Snipers United 50.1 to 45.5 in the closest hockey race of the week — the model has it at 51-49.",
+   "The tightest margin anywhere belongs to ySFBA's basement. Real Clink leads Saste Snipers United 550.0 to 509.0, a 41-point gap between two clubs that are both 0-3. One of them will get its first win of the season on Sunday; the model leans SSU, 57% to 43%.",
+   "Football's Thursday night game moved the needle in one matchup. Waltemeyer United leads A.C. Ferrante 23.2 to 17.3 after the opener of ySFFL Week 10, though the model still makes ACF a 64% favorite with Sunday and Monday to come. WU has lost three straight.",
+   "The three leaders, as the weekend begins: Benfica A.S.C. is 9-0 in ySFFL, a game clear of Ogden-upon-York and winners of nine straight. Mitchel B.J.C. is 6-0 in ySFHL, a game ahead of Real Meir C.K. And in ySFBA, Benfica shares the top with Wilsey and Ferrante at 3-0, ahead on points with 4,260.0."
+  ]
+ }
+]

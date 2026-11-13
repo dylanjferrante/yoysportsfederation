@@ -178,7 +178,7 @@ function notebook(d: Desk, sp: string): Story | null {
     const verb = l.status === 'FINAL' ? (hs - ls < (hs + ls) * 0.03 ? 'held off' : 'beat') : hs === ls ? 'is level with' : hs - ls < (hs + ls) * 0.03 ? 'is narrowly ahead of' : 'leads'
     const stakes = rh && rl && Math.abs(rh.rk - rl.rk) <= 2 && Math.min(rh.rk, rl.rk) <= 6 ? ` — a meeting of the ${ord(Math.min(rh.rk, rl.rk))}- and ${ord(Math.max(rh.rk, rl.rk))}-place clubs` : ''
     body.push(`${C[hi]?.name}${rh ? ` (${rh.rec})` : ''} ${verb} ${C[lo]?.name}${rl ? ` (${rl.rec})` : ''}, ${n1(hs)}–${n1(ls)}${stakes}.` +
-      (pHi != null && l.status !== 'FINAL' ? ` The model gives ${C[hi]?.abbreviation} ${an(pct(pHi))} chance to finish it off.` : '') +
+      (pHi != null && l.status !== 'FINAL' ? (pHi >= 0.995 ? ` The model considers that one settled.` : ` The model gives ${C[hi]?.abbreviation} ${an(pct(pHi))} chance to finish it off.`) : '') +
       (() => { const st = streakText(streak(d, hi, sp)); return st ? ` ${C[hi]?.abbreviation} ${st}.` : '' })())
   }
   // the season's marks
@@ -266,6 +266,19 @@ function tradeStory(d: Desk, t: TradeRow): Story {
 
 // tidy: no doubled periods after names that end in one ("Mitchel B.J.C..")
 const tidy = (t: string) => t.replace(/\.\.(?=\s|$)/g, '.').replace(/\.\.\s*\(/g, '. (')
+// one-sentence lines read like a wire printout: join related lines into paragraphs of two or three
+function paragraphs(lines: string[]): string[] {
+  const out: string[] = []
+  let cur: string[] = []
+  const kind = (t: string) => /^\S.* \(\d+-\d+\) (leads|is level|is narrowly|beat|held off)/.test(t) ? 'match' : /^ySF\w\w standings:/.test(t) ? 'table' : /^(In ySF|The one that got away|It was a season high)/.test(t) ? 'color' : 'solo'
+  for (const t of lines) {
+    const k = kind(t), prev = cur.length ? kind(cur[cur.length - 1]) : null
+    if (cur.length && (k === 'solo' || k !== prev || cur.length >= 3)) { out.push(cur.join(' ')); cur = [] }
+    cur.push(t)
+  }
+  if (cur.length) out.push(cur.join(' '))
+  return out
+}
 export function deskStories(d: Desk): Story[] {
   // the rhythm of the week: the daily wrap and moves every day; ySFFL's notebook after its games
   // (Tuesday) and before the weekend (Friday); the daily leagues' notebooks every day; the Cup race
@@ -274,7 +287,7 @@ export function deskStories(d: Desk): Story[] {
   const out: (Story | null)[] = [dailyWrap(d), dow === 1 || dow === 4 ? cupUpdate(d) : null,
     ...d.live.filter(sp => sp !== 'NFL' || dow === 2 || dow === 5).map(sp => notebook(d, sp)), movesWire(d)]
   for (const t of d.trades) out.push(tradeStory(d, t))
-  return out.filter((s): s is Story => !!s).map(s => ({ ...s, headline: tidy(s.headline), dek: tidy(s.dek), body: s.body.map(tidy) }))
+  return out.filter((s): s is Story => !!s).map(s => ({ ...s, headline: tidy(s.headline), dek: tidy(s.dek), body: paragraphs(s.body.map(tidy)) }))
 }
 
 // yesterday's best fantasy performances (daily leagues) and the latest ySFFL week, with clubs
