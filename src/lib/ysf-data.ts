@@ -238,5 +238,21 @@ export async function loadMoves(leagueId: string, currentSeason = '2026-27') {
       pick: `R${p.round} · P${inRound}`, via: p.original_team_id !== p.current_team_id ? p.original_team_id : undefined })
   }
   moves.sort((a, b) => (b.when > a.when ? 1 : b.when < a.when ? -1 : 0))
+  // trade cards from Fantrax's history (players and picks): one card per trade, merging the legs
+  // a multi-league trade leaves in each Fantrax league (same day, same two clubs)
+  const fxRows = moves.filter(m => m.kind === 'TRADED' && m.id.startsWith('fxt-') && m.season >= '2025-26')
+  if (fxRows.length) {
+    const cards = new Map<string, TradeRow>()
+    for (const m of fxRows) {
+      const key = `${m.when.slice(0, 10)}|${[m.teamId, m.from ?? ''].sort().join('|')}`
+      const c = cards.get(key) ?? { id: key, when: m.when, sides: [], text: '', season: m.season }
+      let side = c.sides.find(sd => sd.teamId === m.teamId)
+      if (!side) { side = { teamId: m.teamId, gets: [] }; c.sides.push(side) }
+      side.gets.push({ name: m.player || (m.text + (m.pick ? ` (${m.pick.replace('R', 'Round ').replace(' · P', ', Pick ')})` : '') + (m.via ? ` via ${m.via}` : '')), sport: m.sport, team: m.player ? m.team : '', pos: m.player ? m.pos : '' })
+      if (m.from && !c.sides.find(sd => sd.teamId === m.from)) c.sides.push({ teamId: m.from, gets: [] })
+      cards.set(key, c)
+    }
+    return { moves, trades: [...cards.values()].sort((a, b) => (b.when > a.when ? 1 : -1)) }
+  }
   return { moves, trades }
 }
