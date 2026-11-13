@@ -76,7 +76,12 @@ export default async function YsfNews({ league, section }: { league: any; sectio
     )
   }
 
-  const [lead, ...rest] = all
+  // the lead is the newest real story (the daily wrap, a feature or column, a notebook), never a
+  // transactions note or trade brief; the rest follow newest first
+  const LEADS = ['daily', 'feature', 'column', 'preview', 'analysis', 'notebook']
+  const today0 = all[0]?.published.slice(0, 10)
+  const lead = all.find(a => a.published.slice(0, 10) === today0 && a.kind === 'daily') ?? all.find(a => LEADS.includes(a.kind)) ?? all[0]
+  const rest = all.filter(a => a !== lead)
   const headlines = rest.slice(0, 7)
   return (
     <>
