@@ -183,7 +183,7 @@ const HOSTS: Record<string, string> = {
 }
 export async function refreshLive(sport: string, gameIds: string[]): Promise<void> {
   const key = process.env.TANK01_RAPIDAPI_KEY
-  if (!key || !gameIds.length) return
+  if (!key || !gameIds.length || process.env.TANK01_ENABLED !== '1') return
   const dir = path.join(CACHE(), 'live', sport)
   fs.mkdirSync(dir, { recursive: true })
   await Promise.all(gameIds.slice(0, 16).map(async id => {

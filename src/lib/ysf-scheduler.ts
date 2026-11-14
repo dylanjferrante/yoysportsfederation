@@ -14,6 +14,7 @@
 import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
+import { pathToFileURL } from 'url'
 
 type Job = { name: string; every: number; run: () => Promise<void> }
 const LOG = path.join(process.cwd(), 'data', 'logs', 'scheduler.log')
@@ -21,7 +22,8 @@ const log = (msg: string) => { try { fs.mkdirSync(path.dirname(LOG), { recursive
 
 function script(file: string, ...args: string[]): Promise<void> {
   return new Promise(resolve => {
-    const p = spawn(process.execPath, [path.join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs'), path.join('scripts', file), ...args], { cwd: process.cwd(), env: process.env })
+    // every script loads the Tank01 kill switch first (scripts/no-tank01.mjs)
+    const p = spawn(process.execPath, ['--import', pathToFileURL(path.join(process.cwd(), 'scripts', 'no-tank01.mjs')).href, path.join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs'), path.join('scripts', file), ...args], { cwd: process.cwd(), env: process.env })
     let out = ''
     p.stdout.on('data', d => { out += d }); p.stderr.on('data', d => { out += d })
     p.on('close', code => { log(`${file}${args.length ? ' ' + args.join(' ') : ''} → ${code === 0 ? 'ok' : `exit ${code}`}${code ? `\n${out.slice(-1500)}` : ''}`); resolve() })
@@ -30,6 +32,8 @@ function script(file: string, ...args: string[]): Promise<void> {
 }
 
 const MIN = 60_000
+// jobs that only call Tank01: skipped entirely while it's switched off (TANK01_ENABLED isn't "1")
+const TANK01_ONLY = new Set(['stats', 'player-news'])
 const JOBS: Job[] = [
   { name: 'settle', every: 5 * MIN, run: async () => {
     const { db } = await import('@/db'); const { leagues } = await import('@/db/schema'); const { eq } = await import('drizzle-orm')
@@ -74,6 +78,7 @@ export function startYsfScheduler() {
   const busy = new Set<string>()
   const tick = (j: Job) => async () => {
     if (busy.has(j.name)) return
+    if (TANK01_ONLY.has(j.name) && process.env.TANK01_ENABLED !== '1') return
     busy.add(j.name)
     try { await j.run() } catch (e: any) { log(`${j.name} error: ${e?.message ?? e}`) } finally { busy.delete(j.name) }
   }

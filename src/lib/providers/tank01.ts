@@ -51,6 +51,7 @@ async function call<T>(sport: Sport, path: string, query: Record<string, string 
 
   // Throttle, then retry on 429 (rate limit) with backoff so bulk pulls and the
   // nightly cron ride out the plan's per-minute cap instead of crashing.
+  if (process.env.TANK01_ENABLED !== '1') throw new Error('Tank01 is switched off (set TANK01_ENABLED=1 to allow)')
   for (let attempt = 0; ; attempt++) {
     const gap = MIN_GAP_MS - (Date.now() - lastCallAt)
     if (gap > 0) await sleep(gap)

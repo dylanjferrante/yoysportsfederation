@@ -2,6 +2,8 @@
 // The imports sit inside the runtime check so the edge build leaves the Node-only code out.
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Tank01 is off unless TANK01_ENABLED=1 (blocks every request to it from the server)
+    ;(await import('./lib/no-tank01')).blockTank01()
     // Sign-in needs a secret: use NEXTAUTH_SECRET when it's set, otherwise make one and keep it on the
     // data volume (data/.auth-secret, readable only by the server) so sessions survive restarts and deploys.
     if (!process.env.NEXTAUTH_SECRET) {
