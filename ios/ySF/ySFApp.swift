@@ -40,13 +40,20 @@ struct Screen<Content: View>: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .principal) { Wordmark() } }
-                .toolbarBackground(.black, for: .navigationBar)
-                .toolbarBackground(.visible, for: .navigationBar)
-                .toolbarColorScheme(.dark, for: .navigationBar)
-                .navigationDestination(for: Route.self) { $0.view }
+                .ysfHeader()
+                .navigationDestination(for: Route.self) { $0.view.ysfHeader() }
         }
+    }
+}
+
+extension View {
+    /// the black header with the ySF wordmark, on every screen (tabs and pushed screens)
+    func ysfHeader() -> some View {
+        navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .principal) { Wordmark() } }
+            .toolbarBackground(.black, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
     }
 }
 

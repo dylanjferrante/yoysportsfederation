@@ -2,13 +2,14 @@
 // site always agree. Every image path comes back absolute (the app has no base URL of its own).
 // Served by /api/mobile/ysf/* — public data, like the pages; My Club uses /api/leagues/ysf/myclub.
 import { db } from '@/db'
-import { leagues, leagueHistory } from '@/db/schema'
+import { leagues } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { YSF_LEAGUES, YSF_ART, YSF_LEAGUE_ID } from '@/lib/ysf'
 import { loadStandings, loadWeek, loadClubs, periodLabel, siteFeed, siteClubMap, type ClubInfo } from '@/lib/ysf-data'
 import { listNews, getNews, topStories, WRITERS, type Article } from '@/lib/ysf-news'
 import { kicker, tilesOf } from '@/app/leagues/[id]/news/YsfNews'
 import { trophyName } from '@/lib/ysf-trophies'
+import { loadClubPage } from '@/lib/ysf-club'
 
 export async function ysfLeague() {
   const [l] = await db.select().from(leagues).where(eq(leagues.id, YSF_LEAGUE_ID)).limit(1)
@@ -100,24 +101,21 @@ export async function clubsData(req: Request) {
   return { clubs: s.cup.map(r => ({ ...club(s.clubs[r.teamId], abs)!, cupRank: r.rk, cupPts: r.pts, rec: `${r.w}-${r.l}` })) }
 }
 
+// the full club page (same data as the web page, via loadClubPage)
 export async function clubData(req: Request, teamId: string) {
   const abs = absr(originOf(req))
   const league = await ysfLeague()
-  const s = await loadStandings(league)
-  const C = s.clubs, me = C[teamId]
-  if (!me) return null
-  const cup = s.cup.find(r => r.teamId === teamId)!
-  const [bios, idMap, hist] = await Promise.all([siteFeed<any>('bios.json'), siteClubMap(C), db.select().from(leagueHistory).where(eq(leagueHistory.leagueId, league.id))])
-  const ysfId = Object.entries(idMap).find(([, v]) => v === teamId)?.[0]
-  const wk = await loadWeek(league)
-  const pair = wk.pairings.find(p => p.a === teamId || p.b === teamId)
+  const d = await loadClubPage(league, teamId)
+  if (!d) return null
   return {
-    club: club(me, abs), owner: null as string | null,
-    cup: { rk: cup.rk, pts: cup.pts, rec: `${cup.w}-${cup.l}`, cupPct: cup.cupPct, ranks: cup.ranks },
-    bio: ysfId ? bios?.bios?.[ysfId]?.text ?? null : null,
-    trophies: hist.filter(h => h.championTeamId === teamId).map(h => ({ season: h.season, scope: h.scope, name: trophyName(h.scope, h.season) })),
+    club: club(d.club, abs), owner: d.ownerRow?.owner ?? null, season: league.season,
+    cup: { rk: d.cupRow.rk, pts: d.cupRow.pts, rec: d.cupRow.rec, cupPct: d.cupRow.cupPct, ranks: d.cupRow.ranks },
+    bio: d.bio,
+    trophies: d.trophies.map((h: any) => ({ season: h.season, scope: h.scope, name: trophyName(h.scope, h.season) })),
     leagues: leaguesMeta(abs),
-    thisWeek: pair ? { opp: club(C[pair.a === teamId ? pair.b : pair.a], abs), lines: pair.lines.filter(l => !l.season).map(l => ({ sport: l.sport, label: periodLabel(league, l.sport, 0) && l.label, status: l.status, me: pair.a === teamId ? l.a : l.b, them: pair.a === teamId ? l.b : l.a, matchupId: l.matchupId })) } : null,
+    thisWeek: d.thisWeek.map(w => ({ ...w, oppLogo: abs(w.oppLogo) })),
+    calendar: d.calendar, seasons: d.leagues, drafts: d.drafts, moves: d.moves,
+    h2h: d.h2h.map(r => ({ ...r, crest: abs(r.crest) })),
   }
 }
 

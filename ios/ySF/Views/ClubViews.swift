@@ -31,58 +31,6 @@ struct ClubsView: View {
     }
 }
 
-/// A club: its band (crest, Cup standing, trophies), bio, and each league's roster (view only).
-struct ClubDetailView: View {
-    let id: String
-    @State private var sport = "NFL"
-    var body: some View {
-        Loader(load: { try await DataService.shared.club(id) }) { d in
-            ScrollView {
-                VStack(spacing: 16) {
-                    band(d)
-                    if let bio = d.bio {
-                        CardBox(accent: d.club.color.map { Color(hex: $0) }) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("ABOUT THE CLUB").font(TF.display(12)).tracking(1.5).foregroundStyle(T.fg)
-                                Text(bio).font(TF.body(16)).lineSpacing(4).foregroundStyle(T.fg2)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(14)
-                        }
-                    }
-                    SectionHead(title: "ROSTERS")
-                    Pills(items: d.leagues.map { .init(id: $0.sport, label: $0.code, color: Color(hex: $0.color)) }, value: $sport)
-                    RosterView(teamId: id, sport: sport).id(sport)
-                }
-                .padding(16)
-            }
-        }
-    }
-    private func band(_ d: ClubData) -> some View {
-        let ink = Color(hex: d.club.ink)
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Crest(asset: Asset.from(d.club.crestOnColor ?? d.club.crest), size: 72)
-                Text(d.club.name.uppercased()).font(TF.display(26)).foregroundStyle(ink)
-            }
-            HStack(spacing: 8) {
-                ForEach([("CUP RANK", ordinal(d.cup.rk)), ("CUP PTS", "\(Int(d.cup.pts))"), ("RECORD", d.cup.rec), ("TITLES", "\(d.trophies.count)")], id: \.0) { k, v in
-                    VStack(spacing: 0) { Text(k).font(TF.display(9)).tracking(1); Text(v).font(TF.display(18)) }
-                        .foregroundStyle(.black).frame(maxWidth: .infinity).padding(.vertical, 6).background(.white).clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-            }
-            ForEach(d.trophies, id: \.self) { t in Text("★ \(t.name) champion").font(TF.semi(14)).foregroundStyle(ink) }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(d.club.color.map { Color(hex: $0) } ?? .black)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-    }
-    private func ordinal(_ n: Int) -> String {
-        let s = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ["th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"][n % 10]
-        return "\(n)\(s)"
-    }
-}
-
 /// The official rules record: resolutions (with the vote), directives and notices, newest first.
 struct RulesView: View {
     var body: some View {

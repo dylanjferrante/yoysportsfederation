@@ -31,6 +31,7 @@
 		DE2DF6F870B9AB8D982BE2D5 /* Barlow-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CD010A5C0C1021A8A1BDE521 /* Barlow-Bold.ttf */; };
 		ED5BAF83E77A2CBCDA184A95 /* Barlow-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A7B68D76F57D4678AEC8B50A /* Barlow-SemiBold.ttf */; };
 		F59DFB6CAA0098F01C1E9FAB /* MoreTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E9A5EAB0C33DAFCF369A46B /* MoreTab.swift */; };
+		F67C8C6AE2577F3D34209776 /* ClubDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AE0E202899765760011D53C /* ClubDetailView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +41,7 @@
 		1E3C19AEFC90F83059B690EC /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		1E9A5EAB0C33DAFCF369A46B /* MoreTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreTab.swift; sourceTree = "<group>"; };
 		26728CF17E1F5D7D84005D66 /* ySF.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ySF.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2AE0E202899765760011D53C /* ClubDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubDetailView.swift; sourceTree = "<group>"; };
 		348DD3893DBA742C510B4550 /* StandingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandingsTab.swift; sourceTree = "<group>"; };
 		354AEA5D82B5BB59AE786B0E /* ClubViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubViews.swift; sourceTree = "<group>"; };
 		40EA95908766C8161C298F01 /* ChakraPetch-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChakraPetch-Bold.ttf"; sourceTree = "<group>"; };
@@ -116,6 +118,7 @@
 		9BD4BA5136B3A93BDBDB4640 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				2AE0E202899765760011D53C /* ClubDetailView.swift */,
 				354AEA5D82B5BB59AE786B0E /* ClubViews.swift */,
 				1CA34A08537A7EC26CB6CDB9 /* LoginView.swift */,
 				0C3845B905C7D91A8F3399A4 /* NewsViews.swift */,
@@ -246,6 +249,7 @@
 			files = (
 				D1C726B5B192704A02D388C6 /* APIClient.swift in Sources */,
 				6DC793AF5DCE9735748E7143 /* AuthService.swift in Sources */,
+				F67C8C6AE2577F3D34209776 /* ClubDetailView.swift in Sources */,
 				2E666F13A2A95610E3ADFBB7 /* ClubViews.swift in Sources */,
 				B2D3FB2F95D595871367854C /* Components.swift in Sources */,
 				D2F763C29C46AFC2EB77A141 /* DataService.swift in Sources */,

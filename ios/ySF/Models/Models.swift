@@ -52,7 +52,22 @@ struct ClubsData: Decodable {
 struct ClubData: Decodable {
     struct Cup: Decodable { let rk: Int; let pts: Double; let rec: String; let cupPct: Double }
     struct Trophy: Decodable, Hashable { let season: String; let scope: String; let name: String }
-    let club: Club; let cup: Cup; let bio: String?; let trophies: [Trophy]; let leagues: [LeagueMeta]
+    struct Week: Decodable, Hashable { let sport: String; let label: String; let matchupId: String; let oppAb: String; let oppLogo: String?; let me: Double?; let them: Double?; let status: String }
+    struct CalCol: Decodable, Hashable { let key: String; let label: String; let current: Bool; let season: String? }
+    struct CalCell: Decodable, Hashable { let matchupId: String; let span: Int; let label: String; let opp: String; let result: String; let tone: String; let playoff: Bool; let round: String? }
+    struct CalRow: Decodable, Hashable { let sport: String; let cells: [CalCell?] }
+    struct Calendar: Decodable { let cols: [CalCol]; let rows: [CalRow] }
+    struct Sched: Decodable, Hashable { let per: String; let dates: String; let ha: String; let crest: String?; let opp: String; let matchupId: String; let res: String; let score: String }
+    struct LeagueSeason: Decodable, Hashable { let result: String?; let rankLabel: String; let rank: String; let rec: String; let pf: String; let fed: String; let po: String?; let title: String?; let sched: [Sched] }
+    struct Pick: Decodable, Hashable { let kind: String; let ab: String?; let crest: String? }
+    struct PickYear: Decodable, Hashable { let year: Int; let cells: [[Pick]] }
+    struct LeagueSeasons: Decodable { let seasons: [String]; let bySeason: [String: LeagueSeason]; let rounds: [Int]; let picks: [PickYear] }
+    struct DraftRow: Decodable, Hashable { let pk: String; let player: String; let team: String; let pos: String; let via: String }
+    struct Draft: Decodable, Hashable { let title: String; let sport: String?; let when: String; let rows: [DraftRow] }
+    struct Move: Decodable, Hashable { let when: String; let sport: String; let kind: String; let player: String; let team: String; let pos: String; let detail: String }
+    struct H2H: Decodable, Hashable, Identifiable { let id: String; let name: String; let crest: String?; let rec: String; let pct: String; let pf: String; let pa: String }
+    let club: Club; let owner: String?; let season: String; let cup: Cup; let bio: String?; let trophies: [Trophy]; let leagues: [LeagueMeta]
+    let thisWeek: [Week]; let calendar: Calendar; let seasons: [String: LeagueSeasons]; let drafts: [Draft]; let moves: [Move]; let h2h: [H2H]
 }
 
 struct RulesData: Decodable {
