@@ -1,0 +1,25 @@
+{
+  "images": [
+    {
+      "filename": "lb_symbol_white.svg",
+      "idiom": "universal"
+    },
+    {
+      "filename": "dark_lb_symbol_black.svg",
+      "idiom": "universal",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": true
+  }
+}

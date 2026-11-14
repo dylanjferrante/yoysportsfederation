@@ -1,0 +1,25 @@
+{
+  "images": [
+    {
+      "filename": "ba_symbol_white.svg",
+      "idiom": "universal"
+    },
+    {
+      "filename": "dark_ba_symbol_black.svg",
+      "idiom": "universal",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": true
+  }
+}

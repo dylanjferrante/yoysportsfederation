@@ -1,0 +1,25 @@
+{
+  "images": [
+    {
+      "filename": "fl_symbol_white.svg",
+      "idiom": "universal"
+    },
+    {
+      "filename": "dark_fl_symbol_black.svg",
+      "idiom": "universal",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": true
+  }
+}

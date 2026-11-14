@@ -1,0 +1,25 @@
+{
+  "images": [
+    {
+      "filename": "hl_symbol_white.svg",
+      "idiom": "universal"
+    },
+    {
+      "filename": "dark_hl_symbol_black.svg",
+      "idiom": "universal",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": true
+  }
+}
