@@ -50,6 +50,9 @@ enum Asset {
     static func from(_ url: String?) -> String? {
         guard let url, let last = url.split(separator: "/").last else { return nil }
         let name = last.replacingOccurrences(of: ".svg", with: "")
+        // trophies: /ysf/champ/fl.svg → trophy_fl, /ysf/champ/2025-26/fl.svg → trophy_2025_fl
+        if url.contains("/champ/") { return url.contains("/2025-26/") ? "trophy_2025_\(name)" : "trophy_\(name)" }
+        if name == "cup_symbol" { return "ysf_cup_symbol" }
         if let r = name.range(of: "_symbol_white") { return String(name[..<r.lowerBound]) + "_symbol" }
         return name
     }

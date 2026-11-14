@@ -26,6 +26,7 @@
 		B2D3FB2F95D595871367854C /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003C1EB40B20DB3D231F73FD /* Components.swift */; };
 		B825AD3FB10860F4EB3B2E60 /* NewsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C3845B905C7D91A8F3399A4 /* NewsViews.swift */; };
 		BF6970127B99AB36EA88265C /* Barlow-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E17EC7FAC2F9D1BF809D0548 /* Barlow-Regular.ttf */; };
+		C737DD7EC933AB3C3B736B7C /* StandingsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C0191B68CC8560AB438D8BD /* StandingsViews.swift */; };
 		CE41CEDE1B7736F64B75E6CC /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E3C19AEFC90F83059B690EC /* Models.swift */; };
 		D1C726B5B192704A02D388C6 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE9F1C54E48D70E9F83D544 /* APIClient.swift */; };
 		D2F763C29C46AFC2EB77A141 /* DataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998D266543A804E9B94E0F2E /* DataService.swift */; };
@@ -48,6 +49,7 @@
 		40EA95908766C8161C298F01 /* ChakraPetch-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChakraPetch-Bold.ttf"; sourceTree = "<group>"; };
 		46D7D83418EFB722040B42FF /* ySFApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ySFApp.swift; sourceTree = "<group>"; };
 		6BE61992DD1CD2D84C62EAAB /* OFL-Barlow.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Barlow.txt"; sourceTree = "<group>"; };
+		6C0191B68CC8560AB438D8BD /* StandingsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandingsViews.swift; sourceTree = "<group>"; };
 		707BF85C0A56791E499B5F52 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		7D48B6572B87E2F8D76EA6D5 /* OFL-ChakraPetch.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-ChakraPetch.txt"; sourceTree = "<group>"; };
 		7DE9F1C54E48D70E9F83D544 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 				0C3845B905C7D91A8F3399A4 /* NewsViews.swift */,
 				900538BAF94796047C225E59 /* PlayersViews.swift */,
 				D005193AD4346742F04B6CED /* RosterView.swift */,
+				6C0191B68CC8560AB438D8BD /* StandingsViews.swift */,
 				3FB94B0D10D478853E5A5FD5 /* Components */,
 				AB40073E6982879B3DD85CC8 /* Tabs */,
 			);
@@ -266,6 +269,7 @@
 				85FEBFD2C82C4F9725FD1552 /* RosterView.swift in Sources */,
 				118725C35F2D430481B3B26D /* ScoresTab.swift in Sources */,
 				03E341FD87A1850D89ED8F82 /* StandingsTab.swift in Sources */,
+				C737DD7EC933AB3C3B736B7C /* StandingsViews.swift in Sources */,
 				2EF064828BFFCAE838DF020D /* Theme.swift in Sources */,
 				34D394744E442E73D6143BDA /* ySFApp.swift in Sources */,
 			);

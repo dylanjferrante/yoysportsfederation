@@ -22,10 +22,10 @@ export function originOf(req: Request) {
   const proto = h.get('x-forwarded-proto') || (host?.startsWith('localhost') ? 'http' : 'https')
   return host ? `${proto}://${host}` : new URL(req.url).origin
 }
-const absr = (o: string) => (p: string | null | undefined) => !p ? null : /^https?:/.test(p) ? p : `${o}${p.startsWith('/') ? '' : '/'}${p}`
+export const absr = (o: string) => (p: string | null | undefined) => !p ? null : /^https?:/.test(p) ? p : `${o}${p.startsWith('/') ? '' : '/'}${p}`
 
 export type MClub = { id: string; name: string; abbr: string; crest: string | null; crestOnColor: string | null; color: string | null; ink: string }
-const club = (c: ClubInfo | undefined, abs: ReturnType<typeof absr>): MClub | null => c ? { id: c.id, name: c.name, abbr: c.abbreviation, crest: abs(c.logo), crestOnColor: abs(c.altLogo || c.logo), color: c.color, ink: c.ink } : null
+export const club = (c: ClubInfo | undefined, abs: ReturnType<typeof absr>): MClub | null => c ? { id: c.id, name: c.name, abbr: c.abbreviation, crest: abs(c.logo), crestOnColor: abs(c.altLogo || c.logo), color: c.color, ink: c.ink } : null
 export const leaguesMeta = (abs: ReturnType<typeof absr>) => YSF_LEAGUES.map(l => ({ sport: l.sport, code: l.code, key: l.key, name: l.name, color: l.color,
   symbol: { onWhite: abs(YSF_ART.leagueSymbol(l.key, 'white')), onBlack: abs(YSF_ART.leagueSymbol(l.key, 'black')), onColor: abs(YSF_ART.leagueSymbol(l.key, 'color')) } }))
 

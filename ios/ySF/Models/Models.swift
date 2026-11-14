@@ -145,3 +145,44 @@ struct MyTrade: Decodable, Identifiable {
     let id: String; let status: String?; let createdAt: String?; let initiatorId: String; let recipientId: String?
     let items: [Item]; let initiatorTeam: TeamRef?; let recipientTeam: TeamRef?
 }
+
+// The Standings group: Cup Race, Playoffs, Power Rankings, Records, History (/api/mobile/ysf/…)
+struct CupData: Decodable {
+    struct Progress: Decodable, Hashable { let sport: String; let done: Int; let total: Int }
+    struct Row: Decodable, Hashable { let rk: Int; let club: Club?; let pts: Double; let ranks: [String: Int?]?; let exp: Double; let cupPct: Double; let min: Double?; let max: Double?; let sd: Double?; let top3: Double?; let last: Double? }
+    struct ModelRow: Decodable, Hashable { let club: Club?; let exp: Double; let sd: Double; let top3: Double; let win: Double; let titles: [String: Double] }
+    struct Model: Decodable { let sims: Int; let generatedAt: String; let rows: [ModelRow] }
+    let trials: Int; let updated: String?; let progress: [Progress]; let rows: [Row]; let model: Model?
+}
+struct PlayoffsData: Decodable {
+    struct Side: Decodable, Hashable { let club: Club?; let seed: Int?; let score: Double?; let win: Bool }
+    struct Game: Decodable, Hashable { let bye: Bool; let home: Side; let away: Side? }
+    struct Round: Decodable, Hashable { let name: String; let period: Int?; let place: Bool; let games: [Game] }
+    struct Seed: Decodable, Hashable { let seed: Int; let club: Club?; let rec: String; let gb: Double?; let po: Double; let title: Double? }
+    let sport: String; let season: String; let seasons: [String]; let trophy: String; let trophyArt: String?; let champion: Club?; let status: String; let rounds: [Round]; let picture: [Seed]
+}
+struct PowerData: Decodable {
+    struct Row: Decodable, Hashable {
+        let rk: Int; let club: Club?
+        let value: Double?; let byLeague: [String: Double]?                                         // this season
+        let sport: String?; let season: String?; let live: Bool?; let rec: String?; let ppg: Double?; let fin: String?  // all-time
+        let won: Double?; let projected: Double?; let thisSeason: Double?                           // dynasty
+    }
+    let tab: String; let year: Int?; let of: Int?; let rows: [Row]
+}
+struct RecordsData: Decodable {
+    struct Item: Decodable, Hashable { let club: Club?; let text: String; let sub: String; let value: Double; let matchupId: String }
+    struct List: Decodable, Hashable { let title: String; let rows: [Item] }
+    struct AllTime: Decodable, Hashable { let club: Club?; let w: Int; let l: Int; let t: Int; let pct: Double; let pf: Double; let ppg: Double }
+    let sport: String; let games: Int; let lists: [List]; let allTime: [AllTime]
+}
+struct HistoryData: Decodable {
+    struct CurLeague: Decodable, Hashable { let sport: String; let label: String; let club: Club?; let rec: String? }
+    struct Current: Decodable { let season: String; let leader: Club?; let leaderPts: Double; let leagues: [CurLeague] }
+    struct PrevLeague: Decodable, Hashable { let sport: String; let trophy: String; let art: String?; let champion: Club?; let runnerUp: Club? }
+    struct Previous: Decodable { let season: String; let inaugural: Bool; let fedChampion: Club?; let fedPts: Double?; let fedArt: String?; let leagues: [PrevLeague] }
+    struct Title: Decodable, Hashable { let scope: String; let season: String; let name: String; let art: String? }
+    struct Row: Decodable, Hashable { let id: String; let club: Club?; let w: Int; let l: Int; let pct: Double; let per: [String: String?]; let cup: Double; let titles: [Title] }
+    struct Book: Decodable, Hashable { let k: String; let v: String }
+    let current: Current; let previous: Previous; let allTime: [Row]; let book: [Book]
+}

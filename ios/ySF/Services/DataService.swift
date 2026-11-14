@@ -22,6 +22,11 @@ final class DataService: @unchecked Sendable {
         return try await api.get("/api/leagues/ysf/myclub" + (q.isEmpty ? "" : "?" + q.joined(separator: "&")))
     }
     func moves(season: String? = nil) async throws -> MovesData { try await api.get("/api/mobile/ysf/moves" + (season.map { "?season=\($0)" } ?? "")) }
+    func cup() async throws -> CupData { try await api.get("/api/mobile/ysf/cup") }
+    func playoffs(sport: String, season: String?) async throws -> PlayoffsData { try await api.get("/api/mobile/ysf/playoffs?sport=\(sport)" + (season.map { "&season=\($0)" } ?? "")) }
+    func power(tab: String, sport: String?) async throws -> PowerData { try await api.get("/api/mobile/ysf/power?tab=\(tab)" + (sport.map { "&sport=\($0)" } ?? "")) }
+    func records(sport: String) async throws -> RecordsData { try await api.get("/api/mobile/ysf/records?sport=\(sport)") }
+    func history() async throws -> HistoryData { try await api.get("/api/mobile/ysf/history") }
     func injuries() async throws -> InjuriesData { try await api.get("/api/mobile/ysf/injuries") }
     func freeAgents(sport: String?, team: String? = nil) async throws -> FreeAgentsData {
         var q: [String] = []; if let sport { q.append("sport=\(sport)") }; if let team { q.append("team=\(team)") }

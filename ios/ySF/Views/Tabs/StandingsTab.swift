@@ -21,10 +21,32 @@ struct StandingsTab: View {
                             }
                         }
                     }
+                    CardBox {
+                        link(.cup, "CUP RACE", "Who wins the Federation Cup — the 10,000-season model")
+                        link(.playoffs, "PLAYOFFS", "Each league's bracket, this season and past")
+                        link(.power, "POWER RANKINGS", "This season, all-time and the decade race")
+                        link(.records, "RECORDS", "Highest scores, biggest wins, closest games")
+                        link(.history, "HISTORY", "Champions, the all-time table and the records book")
+                    }
                 }
                 .padding(16)
             }
         }
+    }
+    private func link(_ r: Route, _ label: String, _ sub: String) -> some View {
+        NavigationLink(value: r) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label).font(TF.display(16)).tracking(0.5).foregroundStyle(T.fg)
+                    Text(sub).font(TF.body(13)).foregroundStyle(T.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(T.faint)
+            }
+            .padding(14).contentShape(Rectangle())
+            .overlay(alignment: .top) { T.line.frame(height: 1) }
+        }
+        .buttonStyle(.plain)
     }
     private var header: some View {
         HStack(spacing: 6) {
