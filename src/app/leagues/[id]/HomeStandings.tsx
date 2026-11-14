@@ -40,7 +40,7 @@ export default function HomeStandings({ leagueId, cup, live, clubs }: { leagueId
                   <span className="font-bold leading-tight"><span className="hidden sm:inline">{c?.name}</span><span className="sm:hidden">{c?.abbreviation}</span></span>
                 </Link>
               </td>
-              {YSF_LEAGUES.map(l => { const v = r.ranks[l.sport]; return <td key={l.sport} className={`${td} text-center hidden sm:table-cell`} style={{ color: v != null && v <= 3 ? MEDAL[v] : v == null ? '#8A8A8A' : '#000' }}>{v ?? '–'}</td> })}
+              {YSF_LEAGUES.map(l => { const v = r.ranks[l.sport]; return <td key={l.sport} className={`${td} text-center hidden sm:table-cell`} style={{ color: v != null && v <= 3 ? MEDAL[v] : v == null ? 'var(--faint)' : 'var(--fg)' }}>{v ?? '–'}</td> })}
               {view === 'current'
                 ? <><td className={`${td} text-right disp text-[26px] font-extrabold`}>{r.pts}</td><RecTd rec={r.rec} /></>
                 : <><td className={`${td} text-right disp text-[22px] font-extrabold`}>{pct(r.cupPct)}</td><td className={`${td} text-right font-normal`}>{r.exp.toFixed(1)}</td></>}

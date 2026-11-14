@@ -294,7 +294,7 @@ function NexusDraftRoom() {
                   style={{ background: t.primaryColor || '#0f172a', color: t.secondaryColor || '#fff' }}>
                   {t.logo
                     ? <img src={t.logo} alt="" className="w-6 h-6 object-contain flex-shrink-0" />
-                    : <span className="w-6 h-6 flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: t.secondaryColor || '#fff', color: t.primaryColor || '#0f172a' }}>{(t.abbreviation || t.name || '?').slice(0, 2).toUpperCase()}</span>}
+                    : <span className="w-6 h-6 flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: t.secondaryColor || 'var(--surface)', color: t.primaryColor || '#0f172a' }}>{(t.abbreviation || t.name || '?').slice(0, 2).toUpperCase()}</span>}
                   <span className="text-[11px] font-bold leading-tight break-words">{t.name}</span>
                 </div>
               ))}

@@ -21,8 +21,9 @@ export type ClubTabsData = {
   h2h: { id: string; name: string; crest: string | null; rec: string; pct: string; pf: string; pa: string }[]
 }
 const TONE: Record<string, { bg: string; bd: string }> = {
-  win: { bg: '#E8F3EC', bd: '#CFE6D6' }, loss: { bg: '#FBE9EC', bd: '#F2D0D6' }, tie: { bg: '#F2F2F2', bd: '#E5E5E5' },
-  live: { bg: '#fff', bd: '#000' }, future: { bg: '#fff', bd: '#E5E5E5' },
+  // theme variables (globals.css), so the calendar's result tints work in dark mode too
+  win: { bg: 'var(--win-bg)', bd: 'var(--win-bd)' }, loss: { bg: 'var(--loss-bg)', bd: 'var(--loss-bd)' }, tie: { bg: 'var(--tie-bg)', bd: 'var(--tie-bd)' },
+  live: { bg: 'var(--surface)', bd: 'var(--rule)' }, future: { bg: 'var(--surface)', bd: 'var(--line)' },
 }
 const KIND: Record<string, string> = { CLAIMED: 'CLAIM', SIGNED: 'SIGN', DROPPED: 'DROP', TRADED: 'TRADE', MOVE: 'MOVE' }
 const fmt = (iso: string) => { const d = new Date(/T|Z/.test(iso) ? iso : iso.replace(' ', 'T') + 'Z'); return isNaN(+d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
@@ -69,9 +70,9 @@ export default function ClubTabs({ data: d, own = false, start = 'cal' }: { data
         <section className="card p-3 min-w-0">
           <div ref={scroller} className="overflow-x-auto">
             <div className="grid gap-1 w-max" style={{ gridTemplateColumns: `40px repeat(${d.calendar.cols.length}, 112px)` }}>
-              <span className="sticky left-0 z-20 bg-white shadow-[4px_0_0_#fff]" />
+              <span className="sticky left-0 z-20 bg-white shadow-[4px_0_0_var(--surface)]" />
               {d.calendar.cols.map(c => (
-                <span key={c.key} data-current={c.current ? '1' : undefined} className="flex flex-col items-center justify-end gap-1 text-[11px] font-bold text-center leading-tight py-1" style={{ color: c.current ? '#000' : '#4A4A4A' }}>
+                <span key={c.key} data-current={c.current ? '1' : undefined} className="flex flex-col items-center justify-end gap-1 text-[11px] font-bold text-center leading-tight py-1" style={{ color: c.current ? 'var(--fg)' : 'var(--muted)' }}>
                   {c.season && <span className="ui text-[10px] font-bold text-white bg-black rounded px-1.5 py-0.5">{c.season} STARTS</span>}
                   {c.label}
                 </span>
@@ -79,7 +80,7 @@ export default function ClubTabs({ data: d, own = false, start = 'cal' }: { data
               {d.calendar.rows.map(r => {
                 const l = lgOf(r.sport)!
                 return [
-                  <span key={r.sport} className="sticky left-0 z-20 bg-white shadow-[4px_0_0_#fff] flex items-center justify-center border-r-4 border-black pr-1" title={l.code}><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt={l.code} className="w-7 h-7 object-contain" /></span>,
+                  <span key={r.sport} className="sticky left-0 z-20 bg-white shadow-[4px_0_0_var(--surface)] flex items-center justify-center border-r-4 border-black pr-1" title={l.code}><img src={YSF_ART.leagueSymbol(l.key, 'white')} alt={l.code} className="w-7 h-7 object-contain" /></span>,
                   ...r.cells.map((c, i) => c ? (
                     // playoff games carry a pill naming the round, at the top of the cell so every
                     // playoff week (byes too) lines up; the championship's pill is gold

@@ -265,7 +265,7 @@ export default async function YsfClub({ league, teamId, own = false }: { league:
               className={`flex flex-col items-center justify-center gap-1 py-2 rounded-lg border-2 transition ${on ? '' : 'border-transparent opacity-60 grayscale-[35%] hover:opacity-100 hover:grayscale-0 hover:bg-ink-50'}`}
               style={on ? { borderColor: c.color ?? '#000', background: '#fff' } : undefined}>
               <span className="w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center"><img src={c.logo!} alt="" className="w-full h-full object-contain" /></span>
-              <span className="font-display text-[10px] sm:text-[11px] font-bold tracking-[.06em] leading-none" style={{ color: on ? c.color ?? '#000' : '#4A4A4A' }}>{c.abbreviation}</span>
+              <span className="font-display text-[10px] sm:text-[11px] font-bold tracking-[.06em] leading-none" style={{ color: on ? c.color ?? 'var(--fg)' : 'var(--muted)' }}>{c.abbreviation}</span>
             </Link>
           )
         })}

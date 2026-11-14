@@ -32,9 +32,9 @@ export default async function YsfInjuries({ league, lg }: { league: any; lg?: st
     <>
       <PageTitle eyebrow="Rostered players" title="INJURIES" />
       <div className="flex flex-wrap gap-2">
-        <Link href={`/leagues/${league.id}/injuries`} className={chip} style={{ background: !L ? '#000' : '#fff', color: !L ? '#fff' : '#000', borderColor: !L ? '#000' : '#C7C7C7' }}>ALL</Link>
+        <Link href={`/leagues/${league.id}/injuries`} className={chip} style={{ background: !L ? '#000' : 'var(--surface)', color: !L ? '#fff' : 'var(--fg)', borderColor: !L ? '#000' : 'var(--line-2)' }}>ALL</Link>
         {YSF_LEAGUES.map(l => { const on = L?.key === l.key; return (
-          <Link key={l.key} href={`/leagues/${league.id}/injuries?lg=${l.key}`} className={chip} style={{ background: on ? l.color : '#fff', color: on ? '#fff' : '#000', borderColor: on ? l.color : '#C7C7C7' }}><span className="ysf-case">{l.code}</span></Link>) })}
+          <Link key={l.key} href={`/leagues/${league.id}/injuries?lg=${l.key}`} className={chip} style={{ background: on ? l.color : 'var(--surface)', color: on ? '#fff' : 'var(--fg)', borderColor: on ? l.color : 'var(--line-2)' }}><span className="ysf-case">{l.code}</span></Link>) })}
       </div>
 
       <section className="card overflow-hidden">

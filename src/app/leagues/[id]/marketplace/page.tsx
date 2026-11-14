@@ -31,9 +31,9 @@ export default function Marketplace() {
       <div className="mb-6"><PageTitle eyebrow={`${rows.length} players listed`} title="TRADE BLOCK" /></div>
 
       <div className="flex gap-1.5 flex-wrap mb-4">
-        <button onClick={() => setSport('ALL')} className="inline-flex items-center justify-center h-9 px-3 rounded-lg font-display text-[12px] font-bold leading-none border" style={{ background: sport === 'ALL' ? '#000' : '#fff', color: sport === 'ALL' ? '#fff' : '#000', borderColor: sport === 'ALL' ? '#000' : '#C7C7C7' }}>ALL</button>
+        <button onClick={() => setSport('ALL')} className="inline-flex items-center justify-center h-9 px-3 rounded-lg font-display text-[12px] font-bold leading-none border" style={{ background: sport === 'ALL' ? '#000' : 'var(--surface)', color: sport === 'ALL' ? '#fff' : 'var(--fg)', borderColor: sport === 'ALL' ? '#000' : 'var(--line-2)' }}>ALL</button>
         {SPORTS.map(s => (
-          <button key={s} onClick={() => setSport(s)} className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg font-display text-[12px] font-bold leading-none border" style={{ background: sport === s ? lgOf(s).color : '#fff', color: sport === s ? '#fff' : '#000', borderColor: sport === s ? lgOf(s).color : '#C7C7C7' }}><img src={YSF_ART.leagueSymbol(lgOf(s).key, sport === s ? 'color' : 'white')} alt="" className="w-5 h-5 object-contain" /><span className="ysf-case">{lgOf(s).code}</span></button>
+          <button key={s} onClick={() => setSport(s)} className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg font-display text-[12px] font-bold leading-none border" style={{ background: sport === s ? lgOf(s).color : 'var(--surface)', color: sport === s ? '#fff' : 'var(--fg)', borderColor: sport === s ? lgOf(s).color : 'var(--line-2)' }}><img src={YSF_ART.leagueSymbol(lgOf(s).key, sport === s ? 'color' : 'white')} alt="" className="w-5 h-5 object-contain" /><span className="ysf-case">{lgOf(s).code}</span></button>
         ))}
       </div>
 

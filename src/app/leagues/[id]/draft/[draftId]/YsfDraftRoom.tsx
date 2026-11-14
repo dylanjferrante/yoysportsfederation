@@ -100,9 +100,9 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
           <div className="ui text-[12px] text-ink-200">{mineOnClock ? 'YOU’RE ON THE CLOCK' : nextMine ? 'YOUR NEXT PICK' : 'YOUR PICKS'}</div>
           <div className="disp text-[26px] font-extrabold leading-none">{mineOnClock ? `PICK ${label(cur)}` : nextMine ? `${label(nextMine)}${live ? ` · ${away} ${away === 1 ? 'PICK' : 'PICKS'} AWAY` : ''}` : s.myTeamId ? 'ALL USED' : '—'}</div>
           <div className="flex flex-wrap gap-2">
-            {s.myTeamId && <button disabled={busy} onClick={() => act({ action: 'TOGGLE_AUTOPICK' }, s.myAutopick ? 'Auto-pick off' : 'Auto-pick on: your queue first, then the best available')} className={`${btn} h-10 px-3.5 border border-white`} style={{ background: s.myAutopick ? '#fff' : 'transparent', color: s.myAutopick ? '#000' : '#fff' }}>AUTO-PICK {s.myAutopick ? 'ON' : 'OFF'}</button>}
+            {s.myTeamId && <button disabled={busy} onClick={() => act({ action: 'TOGGLE_AUTOPICK' }, s.myAutopick ? 'Auto-pick off' : 'Auto-pick on: your queue first, then the best available')} className={`${btn} h-10 px-3.5 border border-white`} style={{ background: s.myAutopick ? 'var(--surface)' : 'transparent', color: s.myAutopick ? 'var(--fg)' : '#fff' }}>AUTO-PICK {s.myAutopick ? 'ON' : 'OFF'}</button>}
             {mineOnClock && <button disabled={busy} onClick={() => act({ action: 'AUTO_PICK' })} className={`${btn} h-10 px-3.5 border border-white text-white`}>PICK FROM QUEUE</button>}
-            {s.isCommish && <button onClick={() => { setShowSettings(!showSettings); setTimerSel(pickSecs); setStartSel(localInput(d.startsAt)) }} className={`${btn} h-10 px-3.5 border border-white`} style={{ background: showSettings ? '#fff' : 'transparent', color: showSettings ? '#000' : '#fff' }}>DRAFT SETTINGS</button>}
+            {s.isCommish && <button onClick={() => { setShowSettings(!showSettings); setTimerSel(pickSecs); setStartSel(localInput(d.startsAt)) }} className={`${btn} h-10 px-3.5 border border-white`} style={{ background: showSettings ? 'var(--surface)' : 'transparent', color: showSettings ? 'var(--fg)' : '#fff' }}>DRAFT SETTINGS</button>}
             {s.isCommish && d.status === 'PENDING' && <button disabled={busy} onClick={() => act({ action: 'START' }, 'Draft started')} className={`${btn} h-10 px-3.5 bg-white text-black`}>START DRAFT</button>}
             {s.isCommish && live && <button disabled={busy} onClick={() => act({ action: 'PAUSE' })} className={`${btn} h-10 px-3.5 border border-ink-500 text-ink-200`}>PAUSE</button>}
             {s.isCommish && d.status === 'PAUSED' && <button disabled={busy} onClick={() => act({ action: 'RESUME' })} className={`${btn} h-10 px-3.5 bg-white text-black`}>RESUME</button>}
@@ -118,7 +118,7 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
             <div className="flex flex-col gap-2">
               <span className="ui text-[11px] text-ink-500">PICK TIMER</span>
               <div className="flex flex-wrap gap-1">{TIMERS.map(t => (
-                <button key={t} onClick={() => setTimerSel(t)} className={`${btn} h-9 px-2.5 border`} style={{ borderColor: timerSel === t ? '#000' : '#C7C7C7', background: timerSel === t ? '#000' : '#fff', color: timerSel === t ? '#fff' : '#000' }}>{dur(t).toUpperCase()}</button>))}</div>
+                <button key={t} onClick={() => setTimerSel(t)} className={`${btn} h-9 px-2.5 border`} style={{ borderColor: timerSel === t ? '#000' : 'var(--line-2)', background: timerSel === t ? '#000' : 'var(--surface)', color: timerSel === t ? '#fff' : 'var(--fg)' }}>{dur(t).toUpperCase()}</button>))}</div>
               <label className="flex items-center gap-2 text-[13px] text-ink-500">Custom <input type="number" min={1} value={timerSel ? Math.round(timerSel / 60) : ''} onChange={e => setTimerSel(Math.max(1, Math.round(+e.target.value || 0)) * 60)} className="w-20 h-9 px-2 border border-black rounded font-bold text-black" /> minutes</label>
               <button disabled={busy || !timerSel || timerSel === pickSecs} onClick={() => act({ action: 'SETTINGS', pickSeconds: timerSel }, `Pick timer set to ${dur(timerSel!)}${live ? ' (current pick restarted)' : ''}`)} className={`${btn} h-10 px-4 bg-black text-white self-start`}>SAVE TIMER</button>
             </div>
@@ -153,7 +153,7 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
               ...board.filter(b => b.round === r + 1).sort((a, b) => a.pickInRound - b.pickInRound).map(b => {
                 const owner = clubs[b.ownerId ?? b.teamId], now_ = live && b.pickNumber === s.current, mine = (b.ownerId ?? b.teamId) === s.myTeamId
                 return (
-                  <div key={b.pickNumber} className="min-h-[86px] p-2 rounded flex flex-col gap-1" style={{ background: b.player ? owner?.primaryColor : '#fff', color: b.player ? '#fff' : '#000',
+                  <div key={b.pickNumber} className="min-h-[86px] p-2 rounded flex flex-col gap-1" style={{ background: b.player ? owner?.primaryColor : 'var(--surface)', color: b.player ? '#fff' : 'var(--fg)',
                     border: now_ ? '3px solid #000' : mine ? `2px solid ${owner?.primaryColor}` : '1px solid #E5E5E5' }}>
                     <div className="flex items-center gap-1.5"><span className="w-[22px] h-[22px] inline-flex items-center justify-center flex-none"><img src={b.player ? owner?.altLogo || owner?.logo : owner?.logo} alt="" className="w-[22px] h-[22px] object-contain" /></span>
                       <span className="ui text-[11px] font-bold">{owner?.abbreviation}</span></div>
@@ -171,7 +171,7 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
         <div className="flex flex-col gap-3 flex-[2_1_560px] min-w-0">
           <div className="flex flex-wrap justify-between items-center gap-2.5">
             <h2 className="disp text-[28px] font-extrabold m-0">AVAILABLE</h2>
-            <div className="flex flex-wrap gap-1">{POS.map(f => <button key={f} onClick={() => setPf(f)} className={`${btn} h-[34px] min-w-[40px] px-2.5 border`} style={{ borderColor: f === pf ? '#000' : '#C7C7C7', background: f === pf ? '#000' : '#fff', color: f === pf ? '#fff' : '#000' }}>{f}</button>)}</div>
+            <div className="flex flex-wrap gap-1">{POS.map(f => <button key={f} onClick={() => setPf(f)} className={`${btn} h-[34px] min-w-[40px] px-2.5 border`} style={{ borderColor: f === pf ? '#000' : 'var(--line-2)', background: f === pf ? '#000' : 'var(--surface)', color: f === pf ? '#fff' : 'var(--fg)' }}>{f}</button>)}</div>
           </div>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search players" className="h-11 px-3.5 border border-black rounded-lg font-semibold" />
           <div className="card overflow-hidden">
@@ -190,7 +190,7 @@ export default function YsfDraftRoom({ draftId }: { draftId: string }) {
                 </span>
                 <span className="flex gap-1.5">
                   {s.myTeamId && <button disabled={busy} onClick={() => act({ action: queueIds.has(p.id) ? 'QUEUE_REMOVE' : 'QUEUE_ADD', playerId: p.id })} className={`${btn} h-8 min-w-[84px] px-2.5 border border-black`}
-                    style={{ background: queueIds.has(p.id) ? '#000' : '#fff', color: queueIds.has(p.id) ? '#fff' : '#000' }}>{queueIds.has(p.id) ? 'QUEUED' : '+ QUEUE'}</button>}
+                    style={{ background: queueIds.has(p.id) ? '#000' : 'var(--surface)', color: queueIds.has(p.id) ? '#fff' : 'var(--fg)' }}>{queueIds.has(p.id) ? 'QUEUED' : '+ QUEUE'}</button>}
                   {(mineOnClock || (s.isCommish && live)) && <button disabled={busy} onClick={() => act({ action: 'PICK', playerId: p.id }, `Drafted ${p.name}`)} className={`${btn} h-8 px-3 text-white`} style={{ background: clockTeam?.primaryColor ?? '#000' }}>DRAFT</button>}
                 </span>
               </div>

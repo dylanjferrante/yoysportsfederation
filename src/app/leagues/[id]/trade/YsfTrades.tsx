@@ -87,7 +87,7 @@ export default async function YsfTrades({ league, season: sArg }: { league: any;
       {seasons.length > 1 && (
         <div className="flex gap-2">{seasons.map(x => (
           <Link key={x} href={`/leagues/${league.id}/trade${x === seasons[0] ? '' : `?s=${x}`}`} className="inline-flex items-center justify-center h-9 px-3 rounded-lg font-display text-[12px] font-bold leading-none border"
-            style={{ background: x === season ? '#000' : '#fff', color: x === season ? '#fff' : '#000', borderColor: x === season ? '#000' : '#C7C7C7' }}>{x.replace('-', '–')}</Link>))}</div>
+            style={{ background: x === season ? '#000' : 'var(--surface)', color: x === season ? '#fff' : 'var(--fg)', borderColor: x === season ? '#000' : 'var(--line-2)' }}>{x.replace('-', '–')}</Link>))}</div>
       )}
       <UnderReview leagueId={league.id} />
       <TradeCards leagueId={league.id} trades={trades.filter(t => t.season === season)} clubs={clubs} codes={codes} />

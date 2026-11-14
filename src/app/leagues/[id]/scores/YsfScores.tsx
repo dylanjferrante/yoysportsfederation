@@ -46,9 +46,9 @@ export default async function YsfScores({ league, week, lg, season: sArg }: { le
       <WeekScroller weeks={chips} />
       {sports.length > 1 && (
         <div className="flex flex-wrap gap-2 -mt-3 sm:-mt-4">
-          <Link href={q(wk.week)} scroll={false} className={chip} style={{ background: only ? '#fff' : '#000', color: only ? '#000' : '#fff', borderColor: only ? '#C7C7C7' : '#000' }}>ALL</Link>
+          <Link href={q(wk.week)} scroll={false} className={chip} style={{ background: only ? 'var(--surface)' : '#000', color: only ? 'var(--fg)' : '#fff', borderColor: only ? 'var(--line-2)' : '#000' }}>ALL</Link>
           {sports.map(l => { const on = only === l.sport; return (
-            <Link key={l.key} href={q(wk.week, l.key)} scroll={false} className={chip} style={{ background: on ? l.color : '#fff', color: on ? '#fff' : '#000', borderColor: on ? l.color : '#C7C7C7' }}>
+            <Link key={l.key} href={q(wk.week, l.key)} scroll={false} className={chip} style={{ background: on ? l.color : 'var(--surface)', color: on ? '#fff' : 'var(--fg)', borderColor: on ? l.color : 'var(--line-2)' }}>
               <img src={YSF_ART.leagueSymbol(l.key, on ? 'color' : 'white')} alt="" className="w-5 h-5 object-contain" /><span className="ysf-case">{l.code}</span>
             </Link>) })}
         </div>

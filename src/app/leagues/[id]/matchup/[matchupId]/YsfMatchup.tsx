@@ -192,7 +192,7 @@ export default async function YsfMatchup({ league, m, day }: { league: any; m: a
       {siblings.length > 1 && (
         <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
           {siblings.map(({ l, x }) => { const on = x!.id === m.id, a = x!.homeTeamId === A ? x!.homeScore : x!.awayScore, b = x!.homeTeamId === A ? x!.awayScore : x!.homeScore; return (
-            <Link key={l.key} href={`/leagues/${league.id}/matchup/${x!.id}`} className={chip} style={{ background: on ? l.color : '#fff', color: on ? '#fff' : '#000', borderColor: on ? l.color : '#C7C7C7' }}>
+            <Link key={l.key} href={`/leagues/${league.id}/matchup/${x!.id}`} className={chip} style={{ background: on ? l.color : 'var(--surface)', color: on ? '#fff' : 'var(--fg)', borderColor: on ? l.color : 'var(--line-2)' }}>
               <img src={YSF_ART.leagueSymbol(l.key, on ? 'color' : 'white')} alt="" className="w-6 h-6 object-contain" />
               <span className="font-display text-[13px] font-bold ysf-case">{l.code}</span>
               <span className="text-[13px] tabular-nums">{a == null ? '–' : fmt(a)} – {b == null ? '–' : fmt(b)}</span>

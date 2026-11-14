@@ -147,14 +147,14 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
   }
 
   const gameCell = (p: RP | null) => {
-    if (!p) return { opp: '', when: '', ink: '#000', sub: '#4A4A4A', w: 500 }
-    if (p.oppText) return { opp: p.oppText, when: 'FINAL', ink: '#000', sub: '#4A4A4A', w: 700 }
+    if (!p) return { opp: '', when: '', ink: 'var(--fg)', sub: 'var(--muted)', w: 500 }
+    if (p.oppText) return { opp: p.oppText, when: 'FINAL', ink: 'var(--fg)', sub: 'var(--muted)', w: 700 }
     const g = p.game
-    if (!g) return { opp: '—', when: data.week ? 'No game' : '', ink: '#8A8A8A', sub: '#8A8A8A', w: 500 }
+    if (!g) return { opp: '—', when: data.week ? 'No game' : '', ink: 'var(--faint)', sub: 'var(--faint)', w: 500 }
     const opp = (g.home ? 'vs ' : '@') + g.opp
-    if (isLive(g.status)) return { opp, when: 'LIVE', ink: '#000', sub: '#ba0c2f', w: 700 }
-    if (isFinal(g.status)) return { opp, when: 'FINAL', ink: '#000', sub: '#4A4A4A', w: 700 }
-    return { opp, when: g.epoch ? fmtTime(g.epoch, data.cadence !== 'DAILY') : '', ink: '#000', sub: '#4A4A4A', w: 500 }
+    if (isLive(g.status)) return { opp, when: 'LIVE', ink: 'var(--fg)', sub: '#ba0c2f', w: 700 }
+    if (isFinal(g.status)) return { opp, when: 'FINAL', ink: 'var(--fg)', sub: 'var(--muted)', w: 700 }
+    return { opp, when: g.epoch ? fmtTime(g.epoch, data.cadence !== 'DAILY') : '', ink: 'var(--fg)', sub: 'var(--muted)', w: 500 }
   }
 
   // the stat a cell shows for the chosen view: the week's, the season's, per game, or projected
@@ -190,7 +190,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
         </div>
         <div className="flex gap-1 p-1 bg-white border border-ink-100 rounded-xl">
           {spans.map(([k, l]) => (
-            <button key={k} onClick={() => setStatSpan(k)} className={`${btn} h-9 px-3 text-[12px]`} style={{ background: statSpan === k ? '#000' : '#fff', color: statSpan === k ? '#fff' : '#4A4A4A' }}>{l}</button>
+            <button key={k} onClick={() => setStatSpan(k)} className={`${btn} h-9 px-3 text-[12px]`} style={{ background: statSpan === k ? '#000' : 'var(--surface)', color: statSpan === k ? '#fff' : 'var(--muted)' }}>{l}</button>
           ))}
         </div>
       </div>
@@ -200,7 +200,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
             const dt = new Date(d + 'T12:00:00'); const on = d === data.date; const past = d < data.today
             return (
               <button key={d} onClick={() => pickDate(d)} className="flex flex-col items-center justify-center gap-[3px] h-[54px] rounded border font-display tracking-[.08em] leading-none"
-                style={{ borderColor: on ? L.color : '#E5E5E5', background: on ? L.color : '#fff', color: on ? '#fff' : past ? '#8A8A8A' : '#000' }}>
+                style={{ borderColor: on ? L.color : 'var(--line)', background: on ? L.color : 'var(--surface)', color: on ? '#fff' : past ? 'var(--faint)' : 'var(--fg)' }}>
                 <span className="text-[12px] font-bold">{d === data.today ? 'TODAY' : dt.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</span>
                 <span className="text-[11px] font-medium opacity-85">{dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}</span>
               </button>
@@ -228,12 +228,12 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
           {g.rows.map(row => {
             const p = row.p, a: any = actionsFor(row), gc = gameCell(p), isSel = !!p && p.rosterId === sel
             const inj = p?.injury ? injTagOf(p.injury) : null
-            const bg = isSel ? '#F2F2F2' : '#fff'
+            const bg = isSel ? 'var(--surface-2)' : 'var(--surface)'
             return (
               <div key={row.key} className="flex items-center gap-x-[10px] px-4 py-2 border-t border-ink-50 min-w-max" style={{ background: bg }}>
                 <span className="flex items-center gap-[10px] sm:sticky sm:left-0 sm:z-10 w-[150px] sm:w-[286px] flex-none" style={{ background: bg, boxShadow: isSel ? 'inset 4px 0 0 #000' : 'none' }}>
-                  <span className="ui w-[56px] flex-none inline-flex items-center justify-center leading-none h-[28px] rounded-[3px] text-[12px] font-bold" style={{ background: row.starter ? L.color : '#E5E5E5', color: row.starter ? '#fff' : '#1F1F1F' }}>{row.label === 'BN' ? 'BN' : row.label}</span>
-                  <span className="min-w-0 flex-1 font-bold leading-tight" style={{ color: p ? '#000' : '#8A8A8A' }}>
+                  <span className="ui w-[56px] flex-none inline-flex items-center justify-center leading-none h-[28px] rounded-[3px] text-[12px] font-bold" style={{ background: row.starter ? L.color : 'var(--chip)', color: row.starter ? '#fff' : 'var(--fg)' }}>{row.label === 'BN' ? 'BN' : row.label}</span>
+                  <span className="min-w-0 flex-1 font-bold leading-tight" style={{ color: p ? 'var(--fg)' : 'var(--faint)' }}>
                     <span className="block line-clamp-2 break-words">{p ? p.name : 'Empty'}</span>
                     {p?.news && <span className="hidden sm:block"><span title={p.news.text} className="text-[11px] font-normal text-ink-500 leading-snug line-clamp-1 break-all sm:break-normal">{p.news.text}</span></span>}
                     {p?.taxi && <span title={`Commission taxi check: ${p.taxi.status}${p.taxi.evidence ? ` (${p.taxi.evidence})` : ''}`} className="ui inline-flex items-center justify-center leading-none h-[18px] px-[5px] mt-0.5 mr-1 rounded-[2px] text-[10px] font-bold border" style={p.taxi.status === 'eligible' ? { borderColor: '#177245', color: '#177245' } : { borderColor: '#8A8A8A', color: '#4A4A4A' }}>{p.taxi.status === 'eligible' ? 'TAXI OK' : 'TAXI REVIEW'}</span>}
@@ -302,7 +302,7 @@ export default function MyClub({ leagueId, embedded = false, sport: fixedSport, 
           {data.sports.map(s => {
             const l = lg(s.sport), on = s.sport === data.sport
             return (
-              <button key={s.sport} onClick={() => pickSport(s.sport)} className={`${btn} gap-2 h-[44px] pl-[10px] pr-[14px] border-2 text-[14px]`} style={{ borderColor: l.color, background: on ? l.color : '#fff', color: on ? '#fff' : '#000' }}>
+              <button key={s.sport} onClick={() => pickSport(s.sport)} className={`${btn} gap-2 h-[44px] pl-[10px] pr-[14px] border-2 text-[14px]`} style={{ borderColor: l.color, background: on ? l.color : 'var(--surface)', color: on ? '#fff' : 'var(--fg)' }}>
                 <span className="w-[26px] h-[26px] inline-flex items-center justify-center"><img src={YSF_ART.leagueSymbol(l.key, on ? 'color' : 'white')} alt="" className="w-[26px] h-[26px] object-contain" /></span>
                 <span className="ysf-case">{s.code}</span>
               </button>
@@ -382,13 +382,13 @@ function AddDrop({ data, L, busy, setBusy, leagueId, reload, toast }: { data: Da
     setOpen(null); setBusy(false); await reload()
   }
   const H = ({ k, l, w, right }: { k: typeof srt; l: string; w?: string; right?: boolean }) => (
-    <button onClick={() => sortBy(k)} className={`ui inline-flex items-center gap-[3px] h-8 ${right ? 'justify-end' : ''} ${w ?? ''}`} style={{ color: srt === k ? '#000' : '#4A4A4A', fontWeight: srt === k ? 700 : 500 }}>{l}<span className="text-[10px]">{srt === k ? (dir > 0 ? '▲' : '▼') : ''}</span></button>
+    <button onClick={() => sortBy(k)} className={`ui inline-flex items-center gap-[3px] h-8 ${right ? 'justify-end' : ''} ${w ?? ''}`} style={{ color: srt === k ? 'var(--fg)' : 'var(--muted)', fontWeight: srt === k ? 700 : 500 }}>{l}<span className="text-[10px]">{srt === k ? (dir > 0 ? '▲' : '▼') : ''}</span></button>
   )
   return (
     <section className="flex flex-col gap-3.5">
       <div className="flex flex-wrap gap-2.5 items-center">
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search players" className="flex-1 min-w-[220px] h-11 px-3.5 border border-black rounded-lg font-semibold" />
-        <div className="flex flex-wrap gap-1">{filters.map(f => <button key={f} onClick={() => setPf(f)} className={`${btn} h-9 min-w-[44px] px-2.5 border`} style={{ borderColor: f === pf ? '#000' : '#C7C7C7', background: f === pf ? '#000' : '#fff', color: f === pf ? '#fff' : '#000' }}>{posFix(f)}</button>)}</div>
+        <div className="flex flex-wrap gap-1">{filters.map(f => <button key={f} onClick={() => setPf(f)} className={`${btn} h-9 min-w-[44px] px-2.5 border`} style={{ borderColor: f === pf ? '#000' : 'var(--line-2)', background: f === pf ? '#000' : 'var(--surface)', color: f === pf ? '#fff' : 'var(--fg)' }}>{posFix(f)}</button>)}</div>
       </div>
       <div className="card overflow-hidden">
         <div className="flex items-center gap-2.5 px-4 py-1.5 border-b-2 border-black text-[12px] tracking-[.1em]">
@@ -401,7 +401,7 @@ function AddDrop({ data, L, busy, setBusy, leagueId, reload, toast }: { data: Da
               <span className="hidden sm:inline w-10 text-right tabular-nums text-ink-500 font-semibold">{p.gp || '—'}</span>
               <span className="w-[58px] text-right tabular-nums font-bold">{p.points.toFixed(1)}</span>
               <span className="w-[50px] text-right tabular-nums font-semibold">{p.gp ? (p.points / p.gp).toFixed(1) : '—'}</span>
-              <button disabled={busy || p.pending} onClick={() => { setOpen(open === p.playerId ? null : p.playerId); setBid(1); setDrop('') }} className={`${btn} w-[84px] h-8 border border-black`} style={{ background: open === p.playerId ? '#000' : '#fff', color: open === p.playerId ? '#fff' : '#000' }}>{p.pending ? 'PENDING' : p.clears ? 'CLAIM' : 'ADD'}</button>
+              <button disabled={busy || p.pending} onClick={() => { setOpen(open === p.playerId ? null : p.playerId); setBid(1); setDrop('') }} className={`${btn} w-[84px] h-8 border border-black`} style={{ background: open === p.playerId ? '#000' : 'var(--surface)', color: open === p.playerId ? '#fff' : 'var(--fg)' }}>{p.pending ? 'PENDING' : p.clears ? 'CLAIM' : 'ADD'}</button>
             </div>
             {open === p.playerId && (
               <div className="flex flex-wrap gap-3 items-end px-4 pt-3 pb-4 bg-ink-50">
@@ -454,7 +454,7 @@ function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string
   const LgSel = ({ cur, set }: { cur: string; set: (s: string) => void }) => (
     <div className="flex flex-wrap gap-1 px-4 pb-3">
       {[...data.sports.map(s => s.sport), 'PICKS', 'FAAB'].map(s => { const on = cur === s; const c = s === 'PICKS' || s === 'FAAB' ? '#000' : lg(s).color; return (
-        <button key={s} onClick={() => set(s)} className={`${btn} h-8 px-2.5 border text-[11px]`} style={{ borderColor: on ? c : '#C7C7C7', background: on ? c : '#fff', color: on ? '#fff' : '#000' }}><span className="ysf-case">{s === 'PICKS' || s === 'FAAB' ? s : codeOf(s)}</span></button>) })}
+        <button key={s} onClick={() => set(s)} className={`${btn} h-8 px-2.5 border text-[11px]`} style={{ borderColor: on ? c : 'var(--line-2)', background: on ? c : 'var(--surface)', color: on ? '#fff' : 'var(--fg)' }}><span className="ysf-case">{s === 'PICKS' || s === 'FAAB' ? s : codeOf(s)}</span></button>) })}
     </div>
   )
   const propose = async () => {
@@ -497,8 +497,8 @@ function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string
       {l === 'FAAB' && <FaabRows tid={tid} list={list} set={set} />}
       {l !== 'FAAB' && !assets[tid] && <div className="px-4 py-3 text-ink-400">Loading…</div>}
       {l !== 'FAAB' && side(tid, l, list, set).map(({ i, on, toggle }) => (
-        <button key={i.id} onClick={toggle} className="grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 items-center w-full text-left px-4 py-2 border-t border-ink-50" style={{ background: on ? '#F2F2F2' : '#fff' }}>
-          <span className="w-5 h-5 rounded-[3px] border-2 border-black inline-flex items-center justify-center text-[13px] leading-none" style={{ background: on ? '#000' : '#fff', color: '#fff' }}>{on ? '✓' : ''}</span>
+        <button key={i.id} onClick={toggle} className="grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 items-center w-full text-left px-4 py-2 border-t border-ink-50" style={{ background: on ? 'var(--surface-2)' : 'var(--surface)' }}>
+          <span className="w-5 h-5 rounded-[3px] border-2 border-black inline-flex items-center justify-center text-[13px] leading-none" style={{ background: on ? '#000' : 'var(--surface)', color: '#fff' }}>{on ? '✓' : ''}</span>
           <span className="font-bold min-w-0">{i.label}</span>
         </button>
       ))}
@@ -508,7 +508,7 @@ function Trade({ data, leagueId, toast, onSent }: { data: Data; leagueId: string
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-1.5">
         {data.clubs.map(c => { const on = c.id === partner; return (
-          <button key={c.id} onClick={() => { setPartner(c.id); setGet([]) }} className={`${btn} gap-2 h-11 pl-2 pr-3 border-2 text-[13px]`} style={{ borderColor: c.primaryColor ?? '#000', background: on ? c.primaryColor ?? '#000' : '#fff', color: on ? c.ink ?? '#fff' : '#000' }}>
+          <button key={c.id} onClick={() => { setPartner(c.id); setGet([]) }} className={`${btn} gap-2 h-11 pl-2 pr-3 border-2 text-[13px]`} style={{ borderColor: c.primaryColor ?? '#000', background: on ? c.primaryColor ?? '#000' : 'var(--surface)', color: on ? c.ink ?? '#fff' : 'var(--fg)' }}>
             <span className="w-[26px] h-[26px] inline-flex items-center justify-center"><img src={(on ? c.altLogo || c.logo : c.logo || c.altLogo)!} alt="" className="w-[26px] h-[26px] object-contain" /></span>{c.abbreviation}</button>) })}
       </div>
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>

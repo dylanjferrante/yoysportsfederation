@@ -16,11 +16,11 @@ export default function DraftResults({ drafts }: { drafts: D[] }) {
         <div className="ui text-[12px] tracking-[.12em] text-ink-500"><span className="ysf-case">{d.code}</span> ROOKIE DRAFT · ROUND {round} · {d.when.toUpperCase()}</div>
         <div className="flex gap-1">
           {drafts.map(x => { const L = YSF_LEAGUES.find(l => l.sport === x.sport)!; const on = x.sport === sp; return (
-            <button key={x.sport} onClick={() => { setSp(x.sport); setRound(1) }} className="inline-flex items-center justify-center h-7 px-2 rounded font-display text-[11px] font-bold leading-none border" style={{ background: on ? L.color : '#fff', color: on ? '#fff' : '#000', borderColor: on ? L.color : '#C7C7C7' }}><span className="ysf-case">{x.code}</span></button>) })}
+            <button key={x.sport} onClick={() => { setSp(x.sport); setRound(1) }} className="inline-flex items-center justify-center h-7 px-2 rounded font-display text-[11px] font-bold leading-none border" style={{ background: on ? L.color : 'var(--surface)', color: on ? '#fff' : 'var(--fg)', borderColor: on ? L.color : 'var(--line-2)' }}><span className="ysf-case">{x.code}</span></button>) })}
         </div>
       </div>
       <div className="flex gap-1 mb-2">{Array.from({ length: rounds }, (_, i) => i + 1).map(r => (
-        <button key={r} onClick={() => setRound(r)} className="inline-flex items-center justify-center h-7 w-9 rounded font-display text-[11px] font-bold leading-none border" style={{ background: r === round ? '#000' : '#fff', color: r === round ? '#fff' : '#000', borderColor: r === round ? '#000' : '#C7C7C7' }}>R{r}</button>))}</div>
+        <button key={r} onClick={() => setRound(r)} className="inline-flex items-center justify-center h-7 w-9 rounded font-display text-[11px] font-bold leading-none border" style={{ background: r === round ? '#000' : 'var(--surface)', color: r === round ? '#fff' : 'var(--fg)', borderColor: r === round ? '#000' : 'var(--line-2)' }}>R{r}</button>))}</div>
       {d.picks.filter(p => p.round === round).map(p => (
         <div key={p.n} className="grid grid-cols-[44px_52px_minmax(0,1fr)] gap-2 py-1.5 border-t border-ink-50 text-[14px]">
           <span className="text-ink-500 tabular-nums">{p.round}.{String(((p.n - 1) % 12) + 1).padStart(2, '0')}</span>

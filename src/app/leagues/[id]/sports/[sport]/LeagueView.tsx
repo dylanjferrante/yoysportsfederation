@@ -51,7 +51,7 @@ export default function LeagueView({ data: d }: { data: LeagueViewData }) {
         <div className="flex flex-wrap gap-2">
           {YSF_LEAGUES.map(l => (
             <Link key={l.sport} href={`/leagues/${d.leagueId}/sports/${l.sport}`} className="inline-flex items-center justify-center h-10 px-4 rounded font-display text-[13px] font-bold tracking-[.06em] leading-none"
-              style={{ background: l.sport === d.sport ? '#fff' : 'rgba(255,255,255,.18)', color: l.sport === d.sport ? '#000' : '#fff' }}><span className="ysf-case">{d.codes[l.sport]}</span></Link>
+              style={{ background: l.sport === d.sport ? 'var(--surface)' : 'rgba(255,255,255,.18)', color: l.sport === d.sport ? 'var(--fg)' : '#fff' }}><span className="ysf-case">{d.codes[l.sport]}</span></Link>
           ))}
         </div>
       </section>
@@ -100,7 +100,7 @@ export default function LeagueView({ data: d }: { data: LeagueViewData }) {
           <div className="flex flex-wrap gap-1.5">
             {d.weeks.map(w => (
               <button key={w.week} onClick={() => setWk(w.week)} className="inline-flex items-center justify-center h-9 px-3 rounded border font-display text-[12px] font-bold tracking-[.06em] leading-none"
-                style={{ background: w.week === wk ? L.color : '#fff', color: w.week === wk ? '#fff' : '#000', borderColor: w.week === wk ? L.color : '#E5E5E5' }}>
+                style={{ background: w.week === wk ? L.color : 'var(--surface)', color: w.week === wk ? '#fff' : 'var(--fg)', borderColor: w.week === wk ? L.color : 'var(--line)' }}>
                 {w.label.replace('Week ', 'WK ').replace('Period ', 'P')}{w.playoff ? ' · PO' : ''}</button>
             ))}
           </div>
@@ -125,7 +125,7 @@ export default function LeagueView({ data: d }: { data: LeagueViewData }) {
             <div className="flex flex-col gap-3"><div className="ui text-[11px] text-ink-500">SEMIFINALS</div>
               <div className="flex flex-col gap-1"><Seed i={0} /><Tbd label="Lowest remaining seed" /></div><div className="flex flex-col gap-1"><Seed i={1} /><Tbd label="Other QF winner" /></div></div>
             <div className="flex flex-col gap-3"><div className="ui text-[11px] text-ink-500">FINAL</div><div className="flex flex-col gap-1 mt-auto mb-auto"><Tbd label="SF winner" /><Tbd label="SF winner" /></div></div>
-            <div className="flex flex-col items-center justify-center gap-2 rounded p-4 text-center" style={{ background: '#F2F2F2' }}>
+            <div className="flex flex-col items-center justify-center gap-2 rounded p-4 text-center" style={{ background: 'var(--surface-2)' }}>
               <img src={`/ysf/champ/${L.key}.svg`} alt="" className="h-28 w-auto" /><div className="ui text-[12px] font-bold">{d.champ.toUpperCase()}</div></div>
           </div>
         </section>
@@ -135,7 +135,7 @@ export default function LeagueView({ data: d }: { data: LeagueViewData }) {
         <>
           <div className="flex flex-wrap gap-1.5">
             {d.table.map(r => r.teamId).concat(Object.keys(d.clubs).filter(id => !d.table.some(t => t.teamId === id))).map(id => { const c = d.clubs[id], on = id === rc; return (
-              <button key={id} onClick={() => setRc(id)} className="inline-flex items-center gap-2 h-10 pl-2 pr-3 rounded border-2 font-display text-[13px] font-bold leading-none" style={{ borderColor: c.color ?? '#000', background: on ? c.color ?? '#000' : '#fff', color: on ? '#fff' : '#000' }}>
+              <button key={id} onClick={() => setRc(id)} className="inline-flex items-center gap-2 h-10 pl-2 pr-3 rounded border-2 font-display text-[13px] font-bold leading-none" style={{ borderColor: c.color ?? '#000', background: on ? c.color ?? '#000' : 'var(--surface)', color: on ? '#fff' : 'var(--fg)' }}>
                 <span className="w-6 h-6 inline-flex items-center justify-center"><img src={(on ? c.altLogo || c.logo : c.logo)!} alt="" className="w-6 h-6 object-contain" /></span>{c.abbreviation}</button>) })}
           </div>
           <section className="card overflow-hidden" style={{ borderTop: `4px solid ${d.clubs[rc]?.color ?? '#000'}` }}>
@@ -144,7 +144,7 @@ export default function LeagueView({ data: d }: { data: LeagueViewData }) {
                 <div className="ui flex justify-between px-4 py-2 bg-ink-50 text-[12px] font-bold tracking-[.12em]"><span>{g.label}</span><span className="text-ink-500">{g.rows.length}</span></div>
                 {g.rows.map((p, i) => (
                   <div key={i} className="grid grid-cols-[56px_minmax(0,1fr)] gap-3 items-center px-4 py-2 border-t border-ink-50">
-                    <span className="ui inline-flex items-center justify-center leading-none h-7 rounded-[3px] text-[12px] font-bold" style={{ background: g.label === 'STARTERS' ? L.color : '#E5E5E5', color: g.label === 'STARTERS' ? '#fff' : '#1F1F1F' }}>{p.slot}</span>
+                    <span className="ui inline-flex items-center justify-center leading-none h-7 rounded-[3px] text-[12px] font-bold" style={{ background: g.label === 'STARTERS' ? L.color : 'var(--chip)', color: g.label === 'STARTERS' ? '#fff' : 'var(--fg)' }}>{p.slot}</span>
                     <span className="min-w-0 font-bold">{p.name} <span className="font-normal text-[13px] text-ink-500 whitespace-nowrap">{p.meta}</span></span>
                   </div>
                 ))}

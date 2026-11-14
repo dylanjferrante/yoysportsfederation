@@ -1620,7 +1620,7 @@ function SportChip({ sp, on, onClick }: { sp: string; on: boolean; onClick: () =
   if (!l) return <button onClick={onClick} className={on ? 'tab-active' : 'tab-inactive'}>{sp}</button>
   return (
     <button onClick={onClick} className="inline-flex items-center gap-2 h-10 pl-2 pr-3 rounded border-2 font-display text-[13px] font-bold tracking-[.06em] leading-none"
-      style={{ borderColor: l.color, background: on ? l.color : '#fff', color: on ? '#fff' : '#000' }}>
+      style={{ borderColor: l.color, background: on ? l.color : 'var(--surface)', color: on ? '#fff' : 'var(--fg)' }}>
       <img src={YSF_ART.leagueSymbol(l.key, on ? 'color' : 'white')} alt="" className="w-6 h-6 object-contain" /><span className="ysf-case">{l.code}</span>
     </button>
   )

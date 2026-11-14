@@ -62,7 +62,7 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
         {is.sections.map((x, i) => (
           <section key={i} className="py-6 border-b border-ink-100 grid gap-4 sm:grid-cols-[150px_minmax(0,1fr)]">
             <div className="flex sm:flex-col items-center sm:items-start gap-3">
-              <div className="ui text-[13px] font-bold tracking-[.14em] flex items-center gap-2" style={{ color: L(x.sport)?.color ?? '#000' }}>
+              <div className="ui text-[13px] font-bold tracking-[.14em] flex items-center gap-2" style={{ color: L(x.sport)?.color ?? 'var(--fg)' }}>
                 {L(x.sport) && <img src={YSF_ART.leagueSymbol(L(x.sport)!.key, 'white')} alt="" className="w-6 h-6 object-contain" />}
                 <span className="ysf-case">{x.topic}</span>
               </div>
@@ -77,7 +77,7 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
           <div className="grid gap-x-8 sm:grid-cols-2">
             {is.heads.map((h, i) => (
               <div key={i} className="py-4 border-b border-ink-100">
-                <div className="ui text-[11px] font-bold tracking-[.12em]" style={{ color: L(h.sport)?.color ?? '#000' }}><span className="ysf-case">{h.topic}</span></div>
+                <div className="ui text-[11px] font-bold tracking-[.12em]" style={{ color: L(h.sport)?.color ?? 'var(--fg)' }}><span className="ysf-case">{h.topic}</span></div>
                 <div className="disp text-[22px] font-extrabold leading-[1.02] mt-1"><span className="ysf-case">{U(h.title)}</span></div>
                 <p className="text-[13px] text-ink-500 mt-1.5 leading-snug">{h.dek}</p>
               </div>

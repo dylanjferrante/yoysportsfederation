@@ -81,7 +81,7 @@ export default async function YsfRankings({ league, tab, lg }: { league: any; ta
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-1.5">
           {['all', ...keys].map(k => { const on = f === k, L = k === 'all' ? null : LG(k); return (
-            <Link key={k} href={`${base}?tab=all${k === 'all' ? '' : `&lg=${k}`}`} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg font-display text-[12px] font-bold tracking-[.06em] leading-none border" style={{ background: on ? (L?.color ?? '#000') : '#fff', color: on ? '#fff' : '#000', borderColor: on ? (L?.color ?? '#000') : '#C7C7C7' }}>
+            <Link key={k} href={`${base}?tab=all${k === 'all' ? '' : `&lg=${k}`}`} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg font-display text-[12px] font-bold tracking-[.06em] leading-none border" style={{ background: on ? (L?.color ?? '#000') : 'var(--surface)', color: on ? '#fff' : 'var(--fg)', borderColor: on ? (L?.color ?? '#000') : 'var(--line-2)' }}>
               {L && <img src={YSF_ART.leagueSymbol(L.key, on ? 'color' : 'white')} alt="" className="w-5 h-5 object-contain" />}<span className="ysf-case">{L ? L.code : 'ALL LEAGUES'}</span>
             </Link>) })}
         </div>

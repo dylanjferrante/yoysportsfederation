@@ -65,7 +65,7 @@ export default async function YsfNews({ league, section }: { league: any; sectio
     <nav className="flex gap-1 overflow-x-auto border-b-2 border-black -mt-2 sm:-mt-4 pb-0">
       {[{ id: '', label: 'TOP STORIES', color: '#000' }, ...SECTIONS].map(s => {
         const on = (section ?? '') === s.id
-        return <Link key={s.id || 'top'} href={s.id ? `${base}?s=${s.id}` : base} className="flex-none px-3 py-2.5 font-display text-[13px] font-bold tracking-[.08em] leading-none border-b-4 -mb-[2px]" style={{ borderColor: on ? s.color : 'transparent', color: on ? '#000' : '#4A4A4A' }}><span className="ysf-case">{s.label}</span></Link>
+        return <Link key={s.id || 'top'} href={s.id ? `${base}?s=${s.id}` : base} className="flex-none px-3 py-2.5 font-display text-[13px] font-bold tracking-[.08em] leading-none border-b-4 -mb-[2px]" style={{ borderColor: on ? s.color : 'transparent', color: on ? 'var(--fg)' : 'var(--muted)' }}><span className="ysf-case">{s.label}</span></Link>
       })}
     </nav>
   )

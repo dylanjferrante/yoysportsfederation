@@ -50,7 +50,7 @@ export default async function YsfRecords({ league, lg }: { league: any; lg?: str
       <PageTitle eyebrow={`${L.code} · ${ms.length.toLocaleString()} games on record`} title="RECORDS" />
       <div className="flex flex-wrap gap-2">
         {YSF_LEAGUES.map(l => { const o = l.key === L.key; return (
-          <Link key={l.key} href={`/leagues/${league.id}/records?lg=${l.key}`} className={chip} style={{ background: o ? l.color : '#fff', color: o ? '#fff' : '#000', borderColor: o ? l.color : '#C7C7C7' }}>
+          <Link key={l.key} href={`/leagues/${league.id}/records?lg=${l.key}`} className={chip} style={{ background: o ? l.color : 'var(--surface)', color: o ? '#fff' : 'var(--fg)', borderColor: o ? l.color : 'var(--line-2)' }}>
             <img src={YSF_ART.leagueSymbol(l.key, o ? 'color' : 'white')} alt="" className="w-5 h-5 object-contain" /><span className="ysf-case">{l.code}</span>
           </Link>) })}
       </div>

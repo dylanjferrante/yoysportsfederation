@@ -63,10 +63,10 @@ export default async function YsfPlayoffs({ league, lg, season: sArg }: { league
     <>
       <PageTitle eyebrow={`${L.code} · ${season.replace('-', '–')} · top 6 qualify`} title="PLAYOFFS" right={
         <span className="relative inline-flex"><span className="flex gap-1.5">{seasons.map(x => (
-          <Link key={x} href={href(L.key, x)} className={chip} style={{ background: x === season ? '#000' : '#fff', color: x === season ? '#fff' : '#000', borderColor: x === season ? '#000' : '#C7C7C7' }}>{x.replace('-', '–')}</Link>))}</span></span>} />
+          <Link key={x} href={href(L.key, x)} className={chip} style={{ background: x === season ? '#000' : 'var(--surface)', color: x === season ? '#fff' : 'var(--fg)', borderColor: x === season ? '#000' : 'var(--line-2)' }}>{x.replace('-', '–')}</Link>))}</span></span>} />
       <div className="flex flex-wrap gap-2">
         {YSF_LEAGUES.map(l => { const on = l.key === L.key; return (
-          <Link key={l.key} href={href(l.key, season)} className={chip} style={{ background: on ? l.color : '#fff', color: on ? '#fff' : '#000', borderColor: on ? l.color : '#C7C7C7' }}>
+          <Link key={l.key} href={href(l.key, season)} className={chip} style={{ background: on ? l.color : 'var(--surface)', color: on ? '#fff' : 'var(--fg)', borderColor: on ? l.color : 'var(--line-2)' }}>
             <img src={YSF_ART.leagueSymbol(l.key, on ? 'color' : 'white')} alt="" className="w-5 h-5 object-contain" /><span className="ysf-case">{l.code}</span>
           </Link>) })}
       </div>

@@ -194,7 +194,7 @@ export default async function YsfOffice({ league, tab }: { league: any; tab?: st
                         {r.votes.map(v => (
                           <div key={v.owner} className="flex items-center justify-between gap-3 py-1 border-b border-ink-50 text-[14px]">
                             <span>{v.club ?? v.owner}</span>
-                            <span className="font-bold" style={{ color: /yes/i.test(v.vote) ? '#177245' : /no/i.test(v.vote) ? '#ba0c2f' : '#8A8A8A' }}>{v.vote.toUpperCase()}</span>
+                            <span className="font-bold" style={{ color: /yes/i.test(v.vote) ? '#177245' : /no/i.test(v.vote) ? '#ba0c2f' : 'var(--faint)' }}>{v.vote.toUpperCase()}</span>
                           </div>
                         ))}
                       </div>
@@ -236,7 +236,7 @@ async function Compliance({ season, leagueId, commissionerId }: { season?: strin
               <div className="flex items-center gap-2.5 px-4 py-3 text-white" style={{ background: L?.color ?? '#000' }}>
                 {L && <img src={YSF_ART.leagueSymbol(L.key, 'color')} alt="" className="w-7 h-7 object-contain" />}
                 <span className="disp text-[22px] font-extrabold ysf-case">{LEAGUE_OF[sp]}</span>
-                <span className="ui ml-auto inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none bg-white" style={{ color: L?.color ?? '#000' }}>{fs.length ? `${fs.length} ISSUE${fs.length > 1 ? 'S' : ''}` : 'CLEAR'}</span>
+                <span className="ui ml-auto inline-flex items-center justify-center h-[22px] px-2 rounded-[2px] text-[11px] font-bold leading-none bg-white" style={{ color: L?.color ?? 'var(--fg)' }}>{fs.length ? `${fs.length} ISSUE${fs.length > 1 ? 'S' : ''}` : 'CLEAR'}</span>
               </div>
               {fs.length ? (
                 <table className="w-full border-collapse table-fixed">

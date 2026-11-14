@@ -4,6 +4,7 @@ import './globals.css'
 import Providers from './providers'
 import Navbar from '@/components/Navbar'
 import ServiceWorker from '@/components/ServiceWorker'
+import ThemeLogos from '@/components/ysf/ThemeLogos'
 
 // Fallback score face; the ticker prefers Bitcount Single (loaded via the
 // Google Fonts <link> below — next/font's catalog doesn't include it yet).
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="flex-1">{children}</div>
         </Providers>
         <ServiceWorker />
+        <ThemeLogos />
       </body>
     </html>
   )
