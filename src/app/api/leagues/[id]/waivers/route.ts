@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { sessionFor } from '@/lib/mobileAuth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { leagues, teams, rosters, players, teamRecords, waiverClaims } from '@/db/schema'
@@ -11,7 +12,7 @@ import { isYsf, claimLimitError, eligCapError, irLockError } from '@/lib/ysf-rul
 
 // List a league's waiver claims (enriched with player + franchise names).
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
+  const session = await sessionFor(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
 
@@ -43,7 +44,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 // Submit a claim, cancel one, or (commissioner) process the waiver period.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
+  const session = await sessionFor(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
   const body = await req.json() as { action: 'SUBMIT' | 'CANCEL' | 'PROCESS'; addPlayerId?: string; dropPlayerId?: string; bidAmount?: number; claimId?: string }

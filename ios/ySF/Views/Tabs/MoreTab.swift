@@ -12,6 +12,8 @@ struct MoreTab: View {
                 CardBox {
                     NavigationLink(value: Route.news) { item("NEWS", "ySF News, by section") }
                     NavigationLink(value: Route.clubs) { item("CLUBS", "All twelve clubs") }
+                    NavigationLink(value: Route.moves) { item("MOVES & TRADES", "Every add, drop, claim and trade") }
+                    NavigationLink(value: Route.injuries) { item("INJURIES", "Hurt players on ySF rosters") }
                     NavigationLink(value: Route.rules) { item("RULES", "Resolutions, directives and notices") }
                     Button { site = URL(string: "\(APIClient.shared.baseURL)/leagues/ysf") } label: { item("FULL SITE", "Everything else on ySF") }
                 }

@@ -2,6 +2,7 @@ import { isYsf, taxiCheck } from '@/lib/ysf-rules'
 import { prospectsFor } from '@/lib/ysf-prospects'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { sessionFor } from '@/lib/mobileAuth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { drafts, leagues, teams, teamRecords, rosters, players, draftPicks, draftQueues, draftAutopick, auctionBudgets, tradeItems, trades } from '@/db/schema'
@@ -120,9 +121,9 @@ async function rosteredSet(leagueId: string) {
   return new Set(rows.map(r => r.pid))
 }
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const session = await getServerSession(authOptions)
+  const session = await sessionFor(req)
   const [draft] = await db.select().from(drafts).where(eq(drafts.id, id)).limit(1)
   if (!draft) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -364,7 +365,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params
   // the app's own scheduler may start a draft at its set time and expire the pick clock (no one has to be watching)
   const system = !!process.env.NEXTAUTH_SECRET && req.headers.get('x-ysf-scheduler') === process.env.NEXTAUTH_SECRET
-  const session = system ? { user: { id: '__scheduler__' } } as any : await getServerSession(authOptions)
+  const session = system ? { user: { id: '__scheduler__' } } as any : await sessionFor(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const [draft] = await db.select().from(drafts).where(eq(drafts.id, id)).limit(1)

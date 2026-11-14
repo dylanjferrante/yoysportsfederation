@@ -63,7 +63,7 @@ struct Wordmark: View {
 
 /// Every screen you can push to.
 enum Route: Hashable {
-    case story(String), news, clubs, club(String), rules
+    case story(String), news, clubs, club(String), rules, moves, injuries
     @ViewBuilder var view: some View {
         switch self {
         case .story(let id): StoryView(id: id)
@@ -71,6 +71,8 @@ enum Route: Hashable {
         case .clubs: ClubsView()
         case .club(let id): ClubDetailView(id: id)
         case .rules: RulesView()
+        case .moves: MovesView()
+        case .injuries: InjuriesView()
         }
     }
 }

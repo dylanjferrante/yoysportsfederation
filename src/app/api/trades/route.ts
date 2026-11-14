@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { sessionFor } from '@/lib/mobileAuth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { trades, tradeItems, tradeApprovals, teams, players, draftPicks, leagues, matchups, leagueHistory } from '@/db/schema'
@@ -30,8 +31,8 @@ const createSchema = z.object({
   items: z.array(tradeItemSchema).min(1),
 })
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
+export async function GET(req: Request) {
+  const session = await sessionFor(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   await settleTrades('ysf')
@@ -64,7 +65,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
+  const session = await sessionFor(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {

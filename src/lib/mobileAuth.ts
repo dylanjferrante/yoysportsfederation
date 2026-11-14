@@ -26,3 +26,14 @@ export function bearerUserId(req: Request): string | null {
   const token = h.startsWith('Bearer ') ? h.slice(7) : null
   return (verifyMobileToken(token)?.uid as string) ?? null
 }
+
+// The signed-in user for an API route: the website's session cookie, or the app's Bearer token.
+// Same shape as next-auth's session ({ user: { id } }) so routes can use either without changes.
+export async function sessionFor(req: Request): Promise<{ user: { id: string; name?: string | null; email?: string | null } } | null> {
+  const { getServerSession } = await import('next-auth')
+  const { authOptions } = await import('@/lib/auth')
+  const s = await getServerSession(authOptions)
+  if (s?.user?.id) return s as any
+  const uid = bearerUserId(req)
+  return uid ? { user: { id: uid } } : null
+}

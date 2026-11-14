@@ -18,9 +18,11 @@ final class APIClient: @unchecked Sendable {
         return try decoder.decode(T.self, from: data)
     }
 
-    func post<T: Decodable>(_ path: String, body: [String: Any]) async throws -> T {
+    func post<T: Decodable>(_ path: String, body: [String: Any]) async throws -> T { try await send("POST", path, body: body) }
+
+    func send<T: Decodable>(_ method: String, _ path: String, body: [String: Any]) async throws -> T {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
-        request.httpMethod = "POST"
+        request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         addAuth(&request)

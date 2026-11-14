@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { sessionFor } from '@/lib/mobileAuth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { trades, teams, rosters, tradeItems, tradeApprovals, players, leagues } from '@/db/schema'
@@ -11,7 +12,7 @@ import { isYsf, eligCapError, reviewState, RULES, LEAGUE_OF, cfg } from '@/lib/y
 import { sql } from 'drizzle-orm'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
+  const session = await sessionFor(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params

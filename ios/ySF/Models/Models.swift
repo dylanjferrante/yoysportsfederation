@@ -109,3 +109,39 @@ extension Double {
     /// 1,039.8 · 7.6 · 33
     var n1: String { formatted(.number.precision(.fractionLength(0...1))) }
 }
+
+struct MovesData: Decodable {
+    struct Move: Decodable, Hashable, Identifiable { let id: String; let when: String; let sport: String; let kind: String; let club: Club?; let player: String; let team: String; let pos: String; let bid: Double?; let from: String? }
+    struct Asset: Decodable, Hashable { let name: String; let sport: String?; let team: String?; let pos: String? }
+    struct Side: Decodable, Hashable { let club: Club?; let gets: [Asset] }
+    struct Trade: Decodable, Hashable, Identifiable { let id: String; let when: String; let sides: [Side] }
+    let season: String; let moves: [Move]; let trades: [Trade]
+}
+
+struct InjuriesData: Decodable {
+    struct Row: Decodable, Hashable { let name: String; let sport: String; let team: String?; let pos: String; let status: String?; let note: String?; let club: Club? }
+    struct Change: Decodable, Hashable { let name: String; let sport: String; let team: String?; let pos: String; let status: String; let prev: String?; let note: String?; let at: String; let club: Club? }
+    let injured: [Row]; let changes: [Change]
+}
+
+/// Free agents and pending claims ride along with your own roster (/api/leagues/ysf/myclub).
+struct FreeAgentsData: Decodable {
+    struct FA: Decodable, Hashable, Identifiable {
+        let playerId: String; let name: String; let pos: String; let team: String?; let gp: Double?; let points: Double?; let injury: String?; let pending: Bool?; let clears: String?
+        var id: String { playerId }
+    }
+    struct ClaimPlayer: Decodable, Hashable { let id: String; let name: String; let sport: String?; let team: String? }
+    struct Claim: Decodable, Hashable, Identifiable { let id: String; let bid: Double?; let add: ClaimPlayer?; let drop: ClaimPlayer? }
+    struct Mine: Decodable, Hashable, Identifiable { let rosterId: String; let playerId: String; let name: String; let pos: String; let slot: String; var id: String { rosterId } }
+    struct Other: Decodable, Hashable, Identifiable { let id: String; let name: String; let abbreviation: String; let logo: String?; let altLogo: String?; let primaryColor: String?; let ink: String? }
+    let readOnly: Bool?; let sport: String; let code: String?; let faab: Double?; let freeAgents: [FA]; let claims: [Claim]; let roster: [Mine]; let team: RosterData.TeamInfo; let clubs: [Other]?
+}
+
+/// Your trades (/api/trades): proposed, received and settled.
+struct MyTrade: Decodable, Identifiable {
+    struct TeamRef: Decodable { let id: String; let name: String?; let abbreviation: String? }
+    struct PlayerRef: Decodable { let name: String?; let sport: String?; let realTeamAbbr: String? }
+    struct Item: Decodable { let playerId: String?; let pickId: String?; let fromTeamId: String?; let toTeamId: String?; let faabAmount: Double?; let faabSport: String?; let player: PlayerRef?; let fromTeam: TeamRef?; let toTeam: TeamRef? }
+    let id: String; let status: String?; let createdAt: String?; let initiatorId: String; let recipientId: String?
+    let items: [Item]; let initiatorTeam: TeamRef?; let recipientTeam: TeamRef?
+}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { sessionFor } from '@/lib/mobileAuth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/db'
 import { leagueMessages, leagueMembers, users, teams, activity } from '@/db/schema'
@@ -9,7 +10,7 @@ import { nanoid } from 'nanoid'
 
 // Recent messages for a league (newest last), enriched with author + franchise.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
+  const session = await sessionFor(req)
   if (!session) return NextResponse.json({ messages: [] })
   const { id } = await params
   const { searchParams } = new URL(req.url)
@@ -71,7 +72,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 // Post a message (members only).
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
+  const session = await sessionFor(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
   const { body, matchupId } = await req.json() as { body?: string; matchupId?: string }

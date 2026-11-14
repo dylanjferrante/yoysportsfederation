@@ -3,9 +3,9 @@
 // Served by /api/mobile/ysf/* — public data, like the pages; My Club uses /api/leagues/ysf/myclub.
 import { db } from '@/db'
 import { leagues } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { YSF_LEAGUES, YSF_ART, YSF_LEAGUE_ID } from '@/lib/ysf'
-import { loadStandings, loadWeek, loadClubs, periodLabel, siteFeed, siteClubMap, type ClubInfo } from '@/lib/ysf-data'
+import { loadStandings, loadWeek, loadClubs, loadMoves, periodLabel, siteFeed, siteClubMap, type ClubInfo } from '@/lib/ysf-data'
 import { listNews, getNews, topStories, WRITERS, type Article } from '@/lib/ysf-news'
 import { kicker, tilesOf } from '@/app/leagues/[id]/news/YsfNews'
 import { trophyName } from '@/lib/ysf-trophies'
@@ -123,4 +123,38 @@ export async function rulesData() {
   const rec = await siteFeed<any>('resolutions.json')
   return { items: [...(rec?.items ?? [])].sort((a: any, b: any) => String(b.sort_date ?? '').localeCompare(String(a.sort_date ?? '')))
     .map((x: any) => ({ id: x.id, title: x.title, kind: x.kind, status: x.status, date: x.sort_date, text: x.text, yes: x.yes, no: x.no, abstain: x.abstain, needed: x.needed, threshold: x.threshold, emergency: !!x.emergency, approvedBy: x.approved_by ?? [], opposedBy: x.opposed_by ?? [] })) }
+}
+
+// the league's moves log and trades for a season (the site's Moves and Trades pages)
+export async function movesData(req: Request, season?: string) {
+  const abs = absr(originOf(req))
+  const league = await ysfLeague()
+  const sn = season || league.season
+  const [clubs, { moves, trades }] = await Promise.all([loadClubs(league.id), loadMoves(league.id, league.season)])
+  const c = (id: string | undefined) => (id ? club(clubs[id], abs) : null)
+  return {
+    season: sn,
+    moves: moves.filter(m => m.season === sn && m.kind !== 'DRAFTED').slice(0, 400).map(m => ({
+      id: m.id, when: m.when, sport: m.sport, kind: m.kind, club: c(m.teamId), player: m.player || m.text || '', team: m.player ? m.team || 'FA' : '', pos: m.player ? (m.pos ?? '').replace(/\bDEF\b/g, 'D/ST') : '',
+      bid: m.bid ?? null, from: m.from ? clubs[m.from]?.abbreviation ?? null : null })),
+    trades: trades.filter(t => t.season === sn).map(t => ({ id: t.id, when: t.when, sides: t.sides.map(s => ({ club: c(s.teamId), gets: s.gets.map(g => ({ name: g.name, sport: g.sport, team: g.team, pos: g.pos })) })) })),
+  }
+}
+
+// rostered players who are hurt, and the last two weeks' status changes (the site's Injuries page)
+export async function injuriesData(req: Request) {
+  const abs = absr(originOf(req))
+  const league = await ysfLeague()
+  const clubs = await loadClubs(league.id)
+  const rows = db.all<{ pid: string; name: string; sport: string; team: string | null; position: string; status: string | null; note: string | null; owner: string; slot: string }>(sql`
+    SELECT p.id pid, p.name, p.sport, p.real_team_abbr team, p.position, p.status, p.injury_note note, r.team_id owner, r.slot
+    FROM rosters r JOIN teams t ON t.id = r.team_id JOIN players p ON p.id = r.player_id WHERE t.league_id = ${league.id}`)
+  const hurt = rows.filter(r => r.status && !/^(active|healthy)$/i.test(r.status))
+  let log: { player_id: string; status: string; prev_status: string | null; note: string | null; at: string }[] = []
+  try { log = db.all(sql`SELECT player_id, status, prev_status, note, at FROM player_injury_log WHERE at >= ${new Date(Date.now() - 14 * 86_400_000).toISOString()} ORDER BY at DESC LIMIT 400`) } catch { /* no log yet */ }
+  const byId = new Map(rows.map(r => [r.pid, r]))
+  return {
+    injured: hurt.map(r => ({ name: r.name, sport: r.sport, team: r.team, pos: r.position, status: r.status, note: r.note, slot: r.slot, club: club(clubs[r.owner], abs) })),
+    changes: log.filter(l => byId.has(l.player_id)).map(l => { const r = byId.get(l.player_id)!; return { name: r.name, sport: r.sport, team: r.team, pos: r.position, status: l.status, prev: l.prev_status, note: l.note, at: l.at, club: club(clubs[r.owner], abs) } }),
+  }
 }

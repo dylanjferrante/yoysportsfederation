@@ -4,12 +4,18 @@ import SwiftUI
 struct MyClubTab: View {
     @Environment(AuthService.self) private var auth
     @State private var signingIn = false
+    @State private var tab = "LINEUP"
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 PageTitle(title: "MY CLUB")
                 if auth.isLoggedIn {
-                    RosterView(teamId: nil, sport: nil).id(auth.token)
+                    Pills(items: [.init(id: "LINEUP", label: "LINEUP"), .init(id: "ADD", label: "ADD / DROP"), .init(id: "TRADES", label: "TRADES")], value: $tab)
+                    switch tab {
+                    case "ADD": AddDropView().id(auth.token)
+                    case "TRADES": MyTradesView().id(auth.token)
+                    default: RosterView(teamId: nil, sport: nil).id(auth.token)
+                    }
                 } else {
                     Text("Sign in with your ySF account to see your roster and set your lineup.").font(TF.body(16)).foregroundStyle(T.fg2).frame(maxWidth: .infinity, alignment: .leading)
                     Button { signingIn = true } label: {
